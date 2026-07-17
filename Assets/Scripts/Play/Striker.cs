@@ -213,6 +213,10 @@ namespace Trickshot
         {
             if (_input.LeftLegHeld)  RaiseLeg(Bone.ThighL, Bone.CalfL);
             if (_input.RightLegHeld) RaiseLeg(Bone.ThighR, Bone.CalfR);
+            // Both legs up = heading motion: bend the torso hard forward so the head
+            // drives down and forward into the ball.
+            if (_input.LeftLegHeld && _input.RightLegHeld)
+                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.HeaderTorsoBend, 0f, 0f));
         }
 
         void RaiseLeg(Bone thigh, Bone calf)
