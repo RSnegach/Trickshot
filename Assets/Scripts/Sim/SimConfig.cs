@@ -54,10 +54,10 @@ namespace Trickshot
         // so he faces where the mouse points within a limited cone.
         public const float KeeperLookYawLimit = 40f;   // max deg left/right of straight-forward
 
-        // Keeper shuffle gait: quick small alternating steps while moving on his line.
-        public const float KeeperShuffleRate = 15f;    // step cadence
-        public const float KeeperShuffleLift = 20f;    // small knee lift per step
-        public const float KeeperShuffleKnee = 38f;    // knee bend on the lifted leg
+        // Keeper run gait: alternating steps while moving on his line (body glides).
+        public const float KeeperShuffleRate = 13f;    // step cadence
+        public const float KeeperShuffleLift = 55f;    // thigh lift per step (pronounced foot pickup)
+        public const float KeeperShuffleKnee = 120f;   // knee fold on the lifted leg
 
         // LMB/RMB reflex save: one-time sideways lunge, arm+leg out. He STAYS DOWN in
         // the save pose for as long as the button(s) are held, then gets up on release.
@@ -171,17 +171,24 @@ namespace Trickshot
         public const float BicycleBackSpin = 14f;   // angular impulse for backward rotation
 
         // ---- Run cycle (procedural gait) ----
+        // The body GLIDES via velocity; the limbs are cosmetic pose overrides. Keep the
+        // fore/aft thigh swing modest (too much reads as skating over the glide) but pick
+        // the feet up high with a hard knee fold so it looks like a smooth high-knee run.
         public const float StrideRateMax = 9f;      // gait phase speed (rad/s) at full run
-        public const float GaitThighSwing = 55f;    // deg the thighs swing fore/aft
-        public const float GaitThighLift = 40f;     // extra deg the swing leg lifts (foot clears ground)
-        public const float GaitKneeBend = 105f;     // deg the knee folds to pick up the foot
+        public const float GaitThighSwing = 32f;    // deg the thighs swing fore/aft (small -> no scissor/skate)
+        public const float GaitThighLift = 70f;     // deg the swing leg lifts (pronounced foot pickup)
+        public const float GaitKneeBend = 145f;     // deg the knee folds to pick up the foot (high knee, heel up)
         public const float GaitFootPoint = 20f;     // deg foot dorsiflex through the stride
         // Sprint gait: knees fold harder toward the body and lift higher, faster cadence.
         public const float SprintStrideMul = 1.5f;  // faster leg cadence when sprinting
-        public const float SprintThighLift = 75f;   // higher knee lift when sprinting
-        public const float SprintKneeBend = 150f;   // knee folds more toward the body
+        public const float SprintThighLift = 95f;   // higher knee lift when sprinting
+        public const float SprintKneeBend = 160f;   // knee folds more toward the body
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
+        // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
+        // elbows held bent. Reads as a runner's arm carriage over the glide.
+        public const float ArmPumpSwing = 45f;      // deg upper arm swings fore/aft
+        public const float ArmPumpElbow = 65f;      // deg the elbow stays folded
 
         // ---- Trick validation ----
         public const float BicycleWindow = 0.85f;   // seconds the kick stays "live"

@@ -176,8 +176,20 @@ namespace Trickshot
             GaitLeg(Bone.ThighL, Bone.CalfL, Bone.FootL, _gaitPhase, _input.LeftLegHeld, sprint);
             GaitLeg(Bone.ThighR, Bone.CalfR, Bone.FootR, _gaitPhase + Mathf.PI, _input.RightLegHeld, sprint);
 
+            // Pump the arms opposite the same-side leg (left arm forward as left leg goes back).
+            GaitArm(Bone.UpperArmL, Bone.ForearmL, _gaitPhase + Mathf.PI);
+            GaitArm(Bone.UpperArmR, Bone.ForearmR, _gaitPhase);
+
             float bob = Mathf.Sin(_gaitPhase * 2f) * 2.5f;
             _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.GaitTorsoLean + bob, 0f, 0f));
+        }
+
+        // Runner's arm carriage: the upper arm swings fore/aft, elbow held bent.
+        void GaitArm(Bone upper, Bone fore, float phase)
+        {
+            float sw = Mathf.Sin(phase);
+            _ragdoll.SetPoseOverride(upper, new Vector3(sw * SimConfig.ArmPumpSwing, 0f, 0f));
+            _ragdoll.SetPoseOverride(fore, new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
         }
 
         void GaitLeg(Bone thigh, Bone calf, Bone foot, float phase, bool heldByPlayer, bool sprint)
