@@ -23,6 +23,8 @@ namespace Trickshot
         float _facingYaw;
         public float Yaw => _facingYaw;                    // degrees, for the follow camera
 
+        float _jumpPoseTimer = -1f;                        // >0 while the jump crouch is held
+
         public void Init(GameInput input, ActiveRagdoll ragdoll)
         {
             _input = input;
@@ -34,6 +36,15 @@ namespace Trickshot
         {
             if (BicycleTimer > 0f)
                 BicycleTimer = Mathf.Max(0f, BicycleTimer - Time.deltaTime);
+
+            // Jump anticipation: hold the crouch briefly, then extend the legs. Done
+            // over time (not in one frame) so the pose actually blends in physics steps.
+            if (_jumpPoseTimer > 0f)
+            {
+                _jumpPoseTimer -= Time.deltaTime;
+                if (_jumpPoseTimer <= 0f && !BicycleActive)
+                    _ragdoll.SetPose(RagdollPose.Stand, 8f);
+            }
         }
 
         /// <summary>Called by GameManager each frame while the striker is in play.</summary>
@@ -56,12 +67,14 @@ namespace Trickshot
             if (!BicycleActive)
                 _ragdoll.FacingRotation = Quaternion.Euler(0f, _facingYaw, 0f);
 
-            // Jump (also preloads before a bike kick).
+            // Jump: crouch (Load) blends in, then the impulse fires and legs extend
+            // after a short hold (see Update). Kept out of a single frame so the
+            // anticipation pose is actually applied over physics steps.
             if (_input.JumpPressed && _ragdoll.IsGrounded && !BicycleActive)
             {
-                _ragdoll.SetPose(RagdollPose.Load, 14f);
+                _ragdoll.SetPose(RagdollPose.Load, 16f);
                 _ragdoll.AddImpulseToPelvis(Vector3.up * SimConfig.JumpImpulse);
-                _ragdoll.SetPose(RagdollPose.Stand, 4f);
+                _jumpPoseTimer = 0.12f;
             }
 
             // Bicycle kick.
