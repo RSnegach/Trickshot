@@ -65,6 +65,10 @@ namespace Trickshot
 
         float _keeperLookYaw, _keeperLookPitch;
 
+        /// <summary>Keeper camera yaw within its cone (deg). The keeper reads this and
+        /// turns his body to it, so the body and the camera stay in lock-step.</summary>
+        public float KeeperLookYaw => _keeperLookYaw;
+
         public void SetMode(Mode m) => _mode = m;
         public void TriggerSlowMo(float seconds) => _slowmoTimer = Mathf.Max(_slowmoTimer, seconds);
         public bool SlowMoActive => _slowmoTimer > 0f;
@@ -161,15 +165,18 @@ namespace Trickshot
             if (_followTarget == null) return;
             float dt = Time.unscaledDeltaTime;
 
-            // Yaw is carried by the keeper's BODY facing now (he turns to face the mouse),
-            // so the camera only adds a clamped PITCH look and rides behind that facing.
+            // Accumulate a clamped mouse look (yaw within a cone, plus pitch). The keeper
+            // BODY reads this same yaw and turns to it, and this camera pivots around a
+            // FIXED forward base (facingSource), so the camera ends up directly behind
+            // the turned body without the pan and the body turn compounding.
             Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
-            _keeperLookYaw = 0f;
+            _keeperLookYaw = Mathf.Clamp(_keeperLookYaw + look.x * SimConfig.KeeperCamLookSpeed,
+                                         -SimConfig.KeeperLookYawLimit, SimConfig.KeeperLookYawLimit);
             _keeperLookPitch = Mathf.Clamp(_keeperLookPitch - look.y * SimConfig.KeeperCamLookSpeed,
                                            -SimConfig.KeeperCamLookPitch, SimConfig.KeeperCamLookPitch);
 
             Quaternion facing = _facingSource != null ? _facingSource() : Quaternion.identity;
-            // Apply the pitch look around the keeper's (already yawed) facing.
+            // Apply the look offset around the fixed forward base.
             Quaternion viewRot = facing * Quaternion.Euler(_keeperLookPitch, _keeperLookYaw, 0f);
             Vector3 fwd = viewRot * Vector3.forward;
             Vector3 pivot = _followTarget.position;

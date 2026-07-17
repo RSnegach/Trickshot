@@ -50,10 +50,9 @@ namespace Trickshot
         public static float KeeperStrafeSpeed = 5.5f;  // A/D strafe + W/S move speed (pre-match slider)
         public const float KeeperStrafeXLimit = 4.2f;  // how far off centre he can shuffle
 
-        // Keeper body-look: he turns to face the mouse within a limited yaw (the camera
-        // sits behind this turned facing). Snaps back to straight-forward on recovery.
-        public const float KeeperLookYawLimit = 40f;   // max deg the body turns left/right
-        public const float KeeperLookSpeed = 0.06f;    // deg of body turn per mouse-delta unit
+        // Keeper look cone: the camera pans within this yaw and the body turns to match,
+        // so he faces where the mouse points within a limited cone.
+        public const float KeeperLookYawLimit = 40f;   // max deg left/right of straight-forward
 
         // Keeper shuffle gait: quick small alternating steps while moving on his line.
         public const float KeeperShuffleRate = 15f;    // step cadence
