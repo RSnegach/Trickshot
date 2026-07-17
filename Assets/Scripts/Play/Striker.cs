@@ -77,14 +77,13 @@ namespace Trickshot
             float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f);
             _ragdoll.MoveInput = wish * speed;
 
-            // Body faces the MOVEMENT direction (not the mouse). Movement stays
-            // camera-relative; the mouse only orbits the camera. Standing still, he
-            // keeps his last facing. Turn smoothly toward the wish direction.
-            if (_mode == Trick.None && wish.sqrMagnitude > 0.02f)
+            // Body faces where the mouse points (the camera yaw), set directly. camYaw
+            // only changes while the mouse moves, so facing freezes the instant the
+            // mouse is still - he never turns on his own. WASD is relative to this
+            // facing: W/S run forward/back along it, A/D shuffle sideways (strafe).
+            if (_mode == Trick.None)
             {
-                float wishYaw = Mathf.Atan2(wish.x, wish.z) * Mathf.Rad2Deg;
-                _facingYaw = Mathf.MoveTowardsAngle(_facingYaw, wishYaw,
-                                                    SimConfig.TurnRateDeg * Time.deltaTime);
+                _facingYaw = camYaw;
                 _ragdoll.FacingRotation = Quaternion.Euler(0f, _facingYaw, 0f);
             }
 
