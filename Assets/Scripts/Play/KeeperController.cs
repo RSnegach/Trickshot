@@ -238,13 +238,14 @@ namespace Trickshot
             Vector3 fwd = _facing * Vector3.forward;
             _ragdoll.AddVelocityToAll(right * (dir * horiz) + Vector3.up * up);
 
-            // Target: facing rolled by layoutDeg about the forward axis toward the dive
-            // side -> body lies flat on that side. Driven+held via BodyOrientTarget.
-            _diveOrient = Quaternion.AngleAxis(dir * layoutDeg, fwd) * _facing;
+            // Target: facing rolled about the forward axis so the body lies flat ON the
+            // dive side. Sign is -dir: diving right (dir=+1) must tip him onto his RIGHT
+            // (the un-negated version tipped him the wrong way). Driven+held via BodyOrientTarget.
+            _diveOrient = Quaternion.AngleAxis(-dir * layoutDeg, fwd) * _facing;
             _ragdoll.BodyOrientTarget = _diveOrient;
 
-            // Initial roll kick so the lay-out snaps in fast, then the drive holds it.
-            _ragdoll.AddTorqueToPelvis(fwd * (dir * SimConfig.KeeperDiveRoll));
+            // Initial roll kick in the same direction so the lay-out snaps in immediately.
+            _ragdoll.AddTorqueToPelvis(fwd * (-dir * SimConfig.KeeperDiveRoll));
 
             _airPose = KeeperPose.Dive;
             _ragdoll.SetPose(KeeperPose.Dive, 16f);

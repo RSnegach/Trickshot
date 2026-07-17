@@ -405,9 +405,9 @@ namespace Trickshot
             delta.ToAngleAxis(out float angle, out Vector3 axis);
             if (angle > 180f) angle -= 360f;
             if (float.IsInfinity(axis.x) || float.IsNaN(axis.x)) return;
-            // Move a large fraction of the remaining error each step -> snaps flat fast
-            // then holds.
-            Vector3 w = axis.normalized * (angle * Mathf.Deg2Rad) * 14f;
+            // Move a large fraction of the remaining error each step -> snaps flat very
+            // fast then holds. High gain so the lay-out reaches horizontal near-instantly.
+            Vector3 w = axis.normalized * (angle * Mathf.Deg2Rad) * 32f;
             Pelvis.angularVelocity = w;
         }
 
