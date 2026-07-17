@@ -145,7 +145,7 @@ namespace Trickshot
         // scroll back to lie flat / flip for a bicycle kick (raise legs with LMB/RMB).
         // Scroll scale varies wildly by mouse (1 vs 120 per notch, free-spin wheels), so
         // this is deliberately strong and clamped to AirPitchMax so it can't run away.
-        public const float AirPitchPerScroll = 12f;      // deg of body pitch per scroll unit
+        public const float AirPitchPerScroll = 30f;      // deg of body pitch per scroll unit
         public const float AirPitchMax = 180f;           // clamp: a full flip either way
         public const float BicyclePitchMin = 55f;        // pitched back at least this far = bicycle window
 
