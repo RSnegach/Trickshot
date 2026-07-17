@@ -137,18 +137,12 @@ namespace Trickshot
         public const float ReclineImpulse = 15f;
         public const float ReclineProneTime = 1.2f;  // stays flat on back this long after landing
 
-        // ---- Dive header (W + Space, forward dive) ----
-        // Diving header (hold Space + W): crouch, then leap up and forward in an arc,
-        // land belly-down, recover. Driven to a held horizontal orientation (like the
-        // keeper dive) so it does NOT spin - the old constant spin ran away violently.
-        public const float DiveHoldTime = 0.22f;      // hold Space (moving fwd) this long -> dive; shorter = tap-jump
-        public const float DiveCrouchTime = 0.12f;   // brief knee-bend before launch
-        public const float DiveForwardVel = 7.0f;    // forward launch speed
-        public const float DiveUpVel = 5.0f;         // upward launch speed (a real arc)
-        public const float DiveLayoutDeg = 45f;      // pitch forward only partway (not all the way over)
-        public const float DiveProneTime = 0.9f;     // stays prone this long after landing
-        public const float DiveCrouchKnee = 55f;     // knee bend during the pre-jump crouch
-        // (removed DiveSpinRate: the dive now uses a held orientation target, not a spin.)
+        // ---- Dive header (hold Space while moving forward) ----
+        // Instant: no crouch, no launch velocity - just release the upright lock and a
+        // one-shot forward-tilt torque, so he ragdoll-falls forward carrying run momentum.
+        public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
+        public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
+        public const float DiveProneTime = 0.9f;      // stays prone this long after landing
         public const float BalanceFrequency = 3.2f;
         public const float BalanceDamping = 0.85f;
 
