@@ -48,10 +48,35 @@ namespace Trickshot
         public static readonly Vector3 KeeperFaceDir = new Vector3(0f, 0f, -1f);
         public const float KeeperStrafeSpeed = 5.5f;   // A/D strafe + W/S move speed
         public const float KeeperStrafeXLimit = 4.2f;  // how far off centre he can shuffle
-        public const float KeeperDiveHoriz = 11.0f;     // explosive horizontal dive velocity (m/s)
-        public const float KeeperDiveUp = 7.0f;         // full upward dive velocity (m/s at full W hold)
-        public const float KeeperDiveUpBase = 1.5f;     // minimum upward pop on any dive
-        public const float KeeperRecoverTime = 0.45f;   // pops back to his feet fast (quicker than the striker)
+
+        // LMB/RMB reflex save: one-time sideways lunge, arm+leg out. He STAYS DOWN in
+        // the save pose for as long as the button(s) are held, then gets up on release.
+        public const float KeeperSaveLunge = 7f;
+        public const float KeeperSaveReleaseTime = 0.12f; // brief settle after release before standing
+
+        // Upward dive (A/D + Space): reach/height scale with prior speed. More hang time
+        // so there is a real apex where he is laid out flat.
+        public const float KeeperDiveHorizBase = 3.0f;   // horizontal reach at standstill
+        public const float KeeperDiveHorizPerV = 0.6f;   // extra horizontal per m/s of prior speed
+        public const float KeeperDiveUpBase = 5.0f;      // upward pop at standstill (hang time for the apex)
+        public const float KeeperDiveUpPerV = 0.35f;     // extra height per m/s of prior speed
+
+        // Double-tap A/D: explosive low sideways dive; legs leave the ground as he lays out.
+        public const float KeeperDashDive = 8.0f;        // horizontal speed of the low dash dive
+        public const float KeeperDashUp = 3.0f;          // lift so his legs come off the ground
+        public const float KeeperDoubleTapWindow = 0.3f; // seconds between taps to count as a double-tap
+
+        // Dive lay-out: the pelvis is actively driven to a rolled (horizontal) target and
+        // HELD there, so he reliably reaches that tilt by the apex regardless of airtime.
+        // 90 = fully parallel to the ground.
+        public const float KeeperDiveLayoutLow = 84f;    // low dash dive: nearly flat
+        public const float KeeperDiveLayoutHigh = 90f;   // high dive: fully parallel at the apex
+        public const float KeeperDiveRoll = 40f;         // initial roll kick so the lay-out snaps in fast
+        public const float KeeperDiveLeadKnee = 120f;    // leading leg folds up hard
+        public const float KeeperDiveBackKnee = 45f;     // back leg bends a little
+        public const float KeeperDiveMinAir = 0.25f;     // min airborne time before we check for landing
+        public const float KeeperDiveSettle = 0.25f;     // time on the ground after landing before getting up
+        public const float KeeperDiveMaxTime = 2.5f;     // hard safety cap so a dive can never get stuck
         public const float KeeperJumpVel = 6.5f;         // straight-up jump (Space, no direction)
         // Keeper camera slight mouse look (clamped, stays a behind-view).
         public const float KeeperCamLookYaw = 18f;        // max deg left/right the view pans

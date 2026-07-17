@@ -43,8 +43,12 @@ namespace Trickshot
         public Vector3 MoveInput;            // desired world-space horizontal velocity
         public Quaternion FacingRotation = Quaternion.identity;
         public bool BalanceEnabled = true;
+        public bool LocomotionEnabled = true; // when false, no velocity steering (impulses carry freely)
         public float DriveScale = 1f;        // 0..1 global motor strength multiplier
         public bool IsGrounded { get; private set; }
+        // When BalanceEnabled is false but this is set, the pelvis is actively driven
+        // toward this orientation (used to lay the keeper out horizontal in a dive).
+        public Quaternion? BodyOrientTarget;
 
         // Hard upright lock: while true, the pelvis cannot pitch or roll (only yaw),
         // so the character physically cannot fall over while standing or running.
@@ -129,20 +133,22 @@ namespace Trickshot
             MakePart(Bone.CalfR, Phys(Bone.ThighR), basePos + Off(0.11f, 0.33f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat);
 
-            MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.06f, 0.06f), facing,
-                     ColliderKind.Box, new Vector3(0.11f, 0.08f, 0.28f), 2f, limbMat);
-            MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.06f, 0.06f), facing,
-                     ColliderKind.Box, new Vector3(0.11f, 0.08f, 0.28f), 2f, limbMat);
+            // Small, low-profile feet (the old 0.28-deep blocks were too chunky).
+            MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.04f, 0.04f), facing,
+                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat);
+            MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.04f, 0.04f), facing,
+                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat);
 
             // Arms (upper arm + forearm), thinner capsules along Y.
+            // Arms with thicker colliders -> bigger hitbox to reach shots.
             MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.06f, 0.32f, 0f), 3f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.10f, 0.32f, 0f), 3f, limbMat);
             MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.06f, 0.32f, 0f), 3f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.10f, 0.32f, 0f), 3f, limbMat);
             MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.26f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.052f, 0.32f, 0f), 2f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.095f, 0.32f, 0f), 2f, limbMat);
             MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.26f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.052f, 0.32f, 0f), 2f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.095f, 0.32f, 0f), 2f, limbMat);
 
             // Joints: child -> parent (connectedBody). Pelvis has no joint (free root).
             AddJoint(Bone.Torso,  Bone.Pelvis, Off(0f, -0.23f, 0f));
@@ -159,6 +165,31 @@ namespace Trickshot
             AddJoint(Bone.ForearmR,  Bone.UpperArmR, Off(0f, 0.16f, 0f));
 
             IgnoreSelfCollisions();
+
+            // Big white gloves: visual-only spheres at the hand end of each forearm.
+            AddGlove(Bone.ForearmL);
+            AddGlove(Bone.ForearmR);
+        }
+
+        void AddGlove(Bone forearm)
+        {
+            var rb = _rb[(int)forearm];
+            if (rb == null) return;
+            // Big white glove at the hand end of the forearm, WITH a hitbox: its sphere
+            // collider is added to the forearm rigidbody (as a child object sharing the
+            // body) and registered as an own-collider so it doesn't self-collide.
+            var glove = Make.Sphere("Glove", 0.32f, rb.transform.position, Make.Mat(Color.white, 0.2f), rb.transform);
+            glove.transform.localPosition = new Vector3(0f, -0.19f, 0f);
+            glove.transform.localScale = Vector3.one * 0.32f;
+            var sc = glove.GetComponent<SphereCollider>();  // keep + use as the hitbox
+            if (sc != null)
+            {
+                sc.radius = 0.5f;   // local; *0.32 scale -> ~0.16 world radius, a chunky glove
+                _ownColliders.Add(sc);
+                // Ignore collisions with every existing own-collider (self-collision).
+                for (int i = 0; i < _ownColliders.Count - 1; i++)
+                    if (_ownColliders[i] != null) Physics.IgnoreCollision(sc, _ownColliders[i], true);
+            }
         }
 
         Vector3 Off(float x, float y, float z) => new Vector3(x, y, z);
@@ -345,9 +376,39 @@ namespace Trickshot
                 if (BalanceEnabled)
                     JointMath.DriveTowardRotation(Pelvis, FacingRotation,
                         SimConfig.BalanceFrequency, SimConfig.BalanceDamping);
+                else if (BodyOrientTarget.HasValue)
+                    DrivePelvisOrientation(BodyOrientTarget.Value);
             }
 
             ApplyLocomotion();
+        }
+
+        // Directly steer the pelvis toward a target orientation by setting its angular
+        // velocity along the shortest-arc error. Strong and reliable (unlike a weak PD
+        // torque that the heavy jointed body swamps), so the keeper actually reaches and
+        // holds a flat lay-out, and his yaw stays put (nothing to snap on recovery).
+        /// <summary>Hard-snap the pelvis to a yaw-only orientation and kill its spin, so
+        /// recovery faces exactly where intended with no wrong-way slew from a tumble.</summary>
+        public void SnapFacing(Quaternion facing)
+        {
+            if (Pelvis == null) return;
+            Quaternion yawOnly = Quaternion.Euler(0f, facing.eulerAngles.y, 0f);
+            Pelvis.rotation = yawOnly;
+            Pelvis.transform.rotation = yawOnly;
+            Pelvis.angularVelocity = Vector3.zero;
+        }
+
+        void DrivePelvisOrientation(Quaternion target)
+        {
+            Quaternion delta = target * Quaternion.Inverse(Pelvis.rotation);
+            if (delta.w < 0f) { delta.x = -delta.x; delta.y = -delta.y; delta.z = -delta.z; delta.w = -delta.w; }
+            delta.ToAngleAxis(out float angle, out Vector3 axis);
+            if (angle > 180f) angle -= 360f;
+            if (float.IsInfinity(axis.x) || float.IsNaN(axis.x)) return;
+            // Move a large fraction of the remaining error each step -> snaps flat fast
+            // then holds.
+            Vector3 w = axis.normalized * (angle * Mathf.Deg2Rad) * 14f;
+            Pelvis.angularVelocity = w;
         }
 
         void ApplyUprightLock()
@@ -377,7 +438,7 @@ namespace Trickshot
         void ApplyLocomotion()
         {
             // Only steer horizontal velocity while grounded; airborne stays ballistic.
-            if (!IsGrounded) return;
+            if (!IsGrounded || !LocomotionEnabled) return;
             // Steer by the whole body's average horizontal velocity, and push EVERY
             // bone equally (acceleration = mass independent), so the character
             // translates rigidly instead of the light pelvis being swallowed by the
@@ -539,6 +600,8 @@ namespace Trickshot
             MoveInput = Vector3.zero;
             DriveScale = 1f;
             BalanceEnabled = true;
+            LocomotionEnabled = true;
+            BodyOrientTarget = null;
             UprightLock = true;
             _lockApplied = false;
             if (Pelvis != null) Pelvis.constraints = RigidbodyConstraints.None;
