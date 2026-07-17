@@ -117,8 +117,9 @@ namespace Trickshot
             ShuffleGait(dir, fb);
         }
 
-        // Quick little alternating side-steps while he moves on his line, layered over
-        // the Ready pose so it reads as a shuffle rather than a glide.
+        // Alternating steps while he moves on his line, layered over the Ready pose. The
+        // body glides via velocity; these are cosmetic. Feet pick up with a hard knee
+        // fold and the arms pump so it reads as a proper run, not a glide.
         void ShuffleGait(float dir, float fb)
         {
             float moveAmt = Mathf.Max(Mathf.Abs(dir), Mathf.Abs(fb));
@@ -126,13 +127,18 @@ namespace Trickshot
             _shufflePhase += Time.deltaTime * SimConfig.KeeperShuffleRate * moveAmt;
 
             float s = Mathf.Sin(_shufflePhase);
-            // Whichever leg is up this half-cycle lifts a touch and bends the knee; the
-            // other plants. Small angles -> a busy shuffle, not a full run.
             float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
             _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-liftL * SimConfig.KeeperShuffleLift, 0f, 0f));
             _ragdoll.SetPoseOverride(Bone.CalfL,  new Vector3(liftL * SimConfig.KeeperShuffleKnee, 0f, 0f));
             _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(-liftR * SimConfig.KeeperShuffleLift, 0f, 0f));
             _ragdoll.SetPoseOverride(Bone.CalfR,  new Vector3(liftR * SimConfig.KeeperShuffleKnee, 0f, 0f));
+
+            // Arms pump opposite the same-side leg, elbows bent.
+            float armL = -s, armR = s;
+            _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(armL * SimConfig.ArmPumpSwing, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ForearmL,  new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(armR * SimConfig.ArmPumpSwing, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ForearmR,  new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
         }
 
         // Fresh A/D tap this frame? Returns true only on a double-tap (two taps of the
