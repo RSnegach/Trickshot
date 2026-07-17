@@ -22,6 +22,8 @@ namespace Trickshot
         GameInput _input;
         ActiveRagdoll _ragdoll;
         Quaternion _facing;
+        float _lookYaw;        // body turn toward the mouse, clamped to +/-KeeperLookYawLimit
+        float _shufflePhase;   // procedural shuffle-step cadence while moving
 
         State _state = State.Ready;
         Vector3[] _airPose;   // pose held while in the air (Dive or Jump)
@@ -52,11 +54,19 @@ namespace Trickshot
         {
             if (_ragdoll.Pelvis == null) return;
             _ragdoll.ClearPoseOverrides();
-            _ragdoll.FacingRotation = _facing;   // never turns
             bool grounded = _ragdoll.IsGrounded;
 
             if (_state == State.Diving) { ManageDive(grounded); return; }
             if (_state == State.Saving) { ManageSave(); return; }
+
+            // Ready: he turns to face the mouse within a limited yaw (the camera rides
+            // behind this facing). Frozen when the mouse is still - a direct set from the
+            // accumulated look, no self-turning.
+            _lookYaw = Mathf.Clamp(_lookYaw + _input.Look.x * SimConfig.KeeperLookSpeed,
+                                   -SimConfig.KeeperLookYawLimit, SimConfig.KeeperLookYawLimit);
+            _facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up)
+                      * Quaternion.Euler(0f, _lookYaw, 0f);
+            _ragdoll.FacingRotation = _facing;
 
             Vector3 kRight = _facing * Vector3.right;   // keeper's right in world space
 
@@ -101,6 +111,25 @@ namespace Trickshot
             // --- Normal: strafe/move relative to facing (covers sideways positioning). ---
             Move(dir, fb);
             _ragdoll.SetPose(KeeperPose.Ready, 8f);
+            ShuffleGait(dir, fb);
+        }
+
+        // Quick little alternating side-steps while he moves on his line, layered over
+        // the Ready pose so it reads as a shuffle rather than a glide.
+        void ShuffleGait(float dir, float fb)
+        {
+            float moveAmt = Mathf.Max(Mathf.Abs(dir), Mathf.Abs(fb));
+            if (moveAmt < 0.2f) { _shufflePhase = 0f; return; }
+            _shufflePhase += Time.deltaTime * SimConfig.KeeperShuffleRate * moveAmt;
+
+            float s = Mathf.Sin(_shufflePhase);
+            // Whichever leg is up this half-cycle lifts a touch and bends the knee; the
+            // other plants. Small angles -> a busy shuffle, not a full run.
+            float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
+            _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-liftL * SimConfig.KeeperShuffleLift, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.CalfL,  new Vector3(liftL * SimConfig.KeeperShuffleKnee, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(-liftR * SimConfig.KeeperShuffleLift, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.CalfR,  new Vector3(liftR * SimConfig.KeeperShuffleKnee, 0f, 0f));
         }
 
         // Fresh A/D tap this frame? Returns true only on a double-tap (two taps of the
@@ -162,6 +191,7 @@ namespace Trickshot
         void RecoverToReady()
         {
             _state = State.Ready;
+            _lookYaw = 0f;                       // face straight forward again after a dive/save
             _facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
             _ragdoll.FacingRotation = _facing;   // face forward again after getting up
             _ragdoll.BodyOrientTarget = null;    // stop driving the dive lay-out
@@ -294,6 +324,7 @@ namespace Trickshot
         public void ForceRecover()
         {
             _state = State.Ready;
+            _lookYaw = 0f;
             _saveReleaseTimer = -1f;
             _diveAir = 0f; _diveGround = 0f;
             _airPose = null;

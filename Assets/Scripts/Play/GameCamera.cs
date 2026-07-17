@@ -161,15 +161,15 @@ namespace Trickshot
             if (_followTarget == null) return;
             float dt = Time.unscaledDeltaTime;
 
-            // Accumulate a small, clamped look offset from the mouse.
+            // Yaw is carried by the keeper's BODY facing now (he turns to face the mouse),
+            // so the camera only adds a clamped PITCH look and rides behind that facing.
             Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
-            _keeperLookYaw = Mathf.Clamp(_keeperLookYaw + look.x * SimConfig.KeeperCamLookSpeed,
-                                         -SimConfig.KeeperCamLookYaw, SimConfig.KeeperCamLookYaw);
+            _keeperLookYaw = 0f;
             _keeperLookPitch = Mathf.Clamp(_keeperLookPitch - look.y * SimConfig.KeeperCamLookSpeed,
                                            -SimConfig.KeeperCamLookPitch, SimConfig.KeeperCamLookPitch);
 
             Quaternion facing = _facingSource != null ? _facingSource() : Quaternion.identity;
-            // Apply the look offset around the keeper's facing.
+            // Apply the pitch look around the keeper's (already yawed) facing.
             Quaternion viewRot = facing * Quaternion.Euler(_keeperLookPitch, _keeperLookYaw, 0f);
             Vector3 fwd = viewRot * Vector3.forward;
             Vector3 pivot = _followTarget.position;
