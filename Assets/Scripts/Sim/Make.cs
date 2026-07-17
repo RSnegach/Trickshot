@@ -137,7 +137,8 @@ namespace Trickshot
         }
 
         public static PhysicsMaterial PhysMat(string name, float bounce, float dynFric, float statFric,
-                                             PhysicsMaterialCombine bounceCombine = PhysicsMaterialCombine.Maximum)
+                                             PhysicsMaterialCombine bounceCombine = PhysicsMaterialCombine.Maximum,
+                                             PhysicsMaterialCombine frictionCombine = PhysicsMaterialCombine.Average)
         {
             var pm = new PhysicsMaterial(name)
             {
@@ -145,7 +146,7 @@ namespace Trickshot
                 dynamicFriction = dynFric,
                 staticFriction = statFric,
                 bounceCombine = bounceCombine,
-                frictionCombine = PhysicsMaterialCombine.Average
+                frictionCombine = frictionCombine
             };
             return pm;
         }

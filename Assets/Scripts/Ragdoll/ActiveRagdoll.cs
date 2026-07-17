@@ -142,6 +142,13 @@ namespace Trickshot
                      ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
             MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.04f, 0.04f), facing,
                      ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
+            // Frictionless feet: grounding is a pelvis SphereCast (not foot contact), so
+            // slick feet slide over the turf instead of catching and making the run janky.
+            // Minimum friction-combine forces the contact to ~0 regardless of turf value.
+            var slick = Make.PhysMat("Feet", 0f, 0f, 0f,
+                                     PhysicsMaterialCombine.Minimum, PhysicsMaterialCombine.Minimum);
+            _rb[(int)Bone.FootL].GetComponent<Collider>().material = slick;
+            _rb[(int)Bone.FootR].GetComponent<Collider>().material = slick;
 
             // Arms (upper arm + forearm), thinner capsules along Y.
             // Arms with thicker colliders -> bigger hitbox to reach shots.

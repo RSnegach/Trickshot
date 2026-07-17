@@ -42,10 +42,7 @@ namespace Trickshot
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
-        float _crouchTimer;    // brief knee-bend before the leap
-        float _diveAir;        // time since the dive launched
-        bool _diveLaunched;    // crouch done, in the air
-        Quaternion _diveOrient;// held belly-down target (drives lay-out, no runaway spin)
+        float _diveAir;        // time since the dive started
 
         public void Init(GameInput input, ActiveRagdoll ragdoll)
         {
@@ -91,8 +88,11 @@ namespace Trickshot
             if (_mode == Trick.None)
             {
                 bool movingFwd = mv.y > 0.4f;
-                if (_input.JumpHeld && grounded)
-                    _spaceHeld += Time.deltaTime;
+                // Only accumulate hold-time while grounded AND holding; leaving the
+                // ground (any jump) resets it, so chained taps can never build into a
+                // dive - the dive needs a continuous grounded hold.
+                if (_input.JumpHeld && grounded) _spaceHeld += Time.deltaTime;
+                else if (!grounded) _spaceHeld = 0f;
 
                 if (grounded && movingFwd)
                 {
@@ -134,6 +134,7 @@ namespace Trickshot
 
         void NormalJump()
         {
+            _spaceHeld = 0f;               // consumed -> next hold must re-accumulate
             _ragdoll.UprightLock = false;
             _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.JumpVelocity);
             _airborneLock = 0.35f;
@@ -213,70 +214,44 @@ namespace Trickshot
         }
 
         // --------------------------------------------------- diving header
-        // Phase 1: crouch (still grounded, upright, bending knees) for a beat, then
-        // launch. _diveLaunched flips false->true when the crouch ends.
+        // Instant: no crouch, no launch velocity. Release the upright lock and apply a
+        // one-shot forward-tilt torque so he immediately ragdoll-falls forward, carrying
+        // whatever run momentum he already had. Lands, then recovers.
         void StartDive()
         {
             _mode = Trick.Dive;
             _spaceHeld = 0f;
-            _crouchTimer = SimConfig.DiveCrouchTime;
-            _diveLaunched = false;
             _diveAir = 0f;
             _proneTimer = SimConfig.DiveProneTime;
-            // Belly-down target: facing pitched forward about the right axis so he lands
-            // face/chest down. Driven+held (no runaway spin).
+            _ragdoll.UprightLock = false;
+            _ragdoll.BalanceEnabled = false;
+            _ragdoll.LocomotionEnabled = false;   // keep his run momentum, don't steer it
+            // Forward-tilt torque about the character's right axis -> tips forward NOW.
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-            _diveOrient = Quaternion.AngleAxis(SimConfig.DiveLayoutDeg, axis) * _ragdoll.FacingRotation;
-            // Stay upright & locked during the crouch so he loads before leaving ground.
-            _ragdoll.SetPose(RagdollPose.Load, 16f);
+            _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
+            _ragdoll.SetPose(RagdollPose.Stand, 12f);
         }
 
         void ManageDive(bool grounded)
         {
-            if (!_diveLaunched)
-            {
-                // Crouch: bend the knees briefly, still on the ground and upright.
-                _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-SimConfig.DiveCrouchKnee * 0.6f, 0f, 0f));
-                _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(-SimConfig.DiveCrouchKnee * 0.6f, 0f, 0f));
-                _ragdoll.SetPoseOverride(Bone.CalfL, new Vector3(SimConfig.DiveCrouchKnee, 0f, 0f));
-                _ragdoll.SetPoseOverride(Bone.CalfR, new Vector3(SimConfig.DiveCrouchKnee, 0f, 0f));
-                _crouchTimer -= Time.deltaTime;
-                if (_crouchTimer <= 0f) LaunchDive();
-                return;
-            }
-
             _diveAir += Time.deltaTime;
             if (!grounded)
             {
-                // Drive-and-HOLD the belly-down orientation (no constant spin), so he
-                // arcs over and lands chest-first, then stays down.
-                _ragdoll.BodyOrientTarget = _diveOrient;
-                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(15f, 0f, 0f));   // reach forward
-                _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(25f, 0f, 0f));  // legs trail
+                // Reach forward + let the legs trail; no orientation drive, so it's a
+                // free forward ragdoll fall (no back-tilt, no arc).
+                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(15f, 0f, 0f));
+                _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(25f, 0f, 0f));
                 _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(25f, 0f, 0f));
             }
-            else if (_diveAir > 0.2f && (_proneTimer -= Time.deltaTime) <= 0f)
+            else if (_diveAir > 0.15f && (_proneTimer -= Time.deltaTime) <= 0f)
             {
                 EndTrick();
             }
         }
 
-        // Phase 2: leap up and forward in an arc.
-        void LaunchDive()
-        {
-            _diveLaunched = true;
-            _ragdoll.UprightLock = false;
-            _ragdoll.BalanceEnabled = false;
-            _ragdoll.LocomotionEnabled = false;
-            Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel + Vector3.up * SimConfig.DiveUpVel);
-            _ragdoll.SetPose(RagdollPose.Stand, 16f);
-        }
-
         void EndTrick()
         {
             _mode = Trick.None;
-            _diveLaunched = false;
             _spaceHeld = 0f;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
@@ -292,7 +267,6 @@ namespace Trickshot
             _airborneLock = 0f;
             _proneTimer = 0f;
             _spaceHeld = 0f;
-            _diveLaunched = false;
             _gaitPhase = 0f;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
