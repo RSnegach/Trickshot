@@ -147,11 +147,12 @@ namespace Trickshot
         public const float ReclineProneTime = 0.7f;      // stays down this long after landing
 
         // ---- Dive header (hold Space while moving forward) ----
-        // No jump: a forward-only horizontal burst plus a one-shot forward-tilt torque
-        // launch him into a belly-down header, keeping his run momentum until he hits the
-        // ground. Pelvis yaw+roll are pinned so the chest stays square-forward.
+        // A forward burst plus a small upward pop and a one-shot forward-tilt torque
+        // launch him up-and-forward into a belly-down header, keeping his run momentum
+        // until he hits the ground. Pelvis yaw+roll are pinned so the chest stays square.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
-        public const float DiveForwardVel = 8f;       // forward-only launch speed (no upward pop)
+        public const float DiveForwardVel = 6f;       // forward launch speed
+        public const float DiveUpVel = 2.5f;          // small upward pop
         public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
