@@ -49,7 +49,8 @@ namespace Trickshot
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
         float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90
         float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
-        float _headerBend;              // eased 0..1 torso-forward amount when both legs up
+        float _headerBend;              // eased 0..1 torso-forward amount for the airborne header
+        float _headerTimer;             // grace window keeping an airborne header live after the click
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -139,7 +140,7 @@ namespace Trickshot
             // grounded and locked upright.
             if (_mode == Trick.None)
             {
-                ApplyLegRaises();
+                ApplyLegRaises(grounded);
                 if (grounded && _ragdoll.UprightLock) RunCycle(wish.magnitude);
             }
         }
@@ -175,22 +176,17 @@ namespace Trickshot
                 _airPitchTarget = Mathf.Clamp(_airPitchTarget + Mathf.Sign(scroll) * SimConfig.AirPitchStep,
                                               -SimConfig.AirPitchLimit, SimConfig.AirPitchLimit);
 
-            // Current lean = signed angle of his right-axis pitch away from upright. Spin
-            // toward the target proportionally, capped, and stop cleanly at the target.
+            // Current lean = signed angle of his right-axis pitch away from upright. Drive
+            // a spin velocity PROPORTIONAL to the remaining error every frame - this eases
+            // to zero as he nears the target instead of hard-switching between full-spin
+            // and StopBodySpin at the edge (which caused the wobble at the range end).
             float axisRoll = Vector3.SignedAngle(Vector3.up, _ragdoll.Pelvis.transform.up,
                                                  _ragdoll.FacingRotation * Vector3.right);
             float err = Mathf.DeltaAngle(axisRoll, _airPitchTarget);
             Vector3 spinAxis = _ragdoll.FacingRotation * Vector3.right;
-            if (Mathf.Abs(err) > 2f)
-            {
-                float w = Mathf.Clamp(err * SimConfig.AirPitchGain,
-                                      -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
-                _ragdoll.SpinWholeBody(spinAxis, w);
-            }
-            else
-            {
-                _ragdoll.StopBodySpin();   // reached target lean: hold, no residual orbit
-            }
+            float w = Mathf.Clamp(err * SimConfig.AirPitchGain,
+                                  -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
+            _ragdoll.SpinWholeBody(spinAxis, w);   // w -> 0 smoothly as err -> 0
         }
 
         void NormalJump()
@@ -211,20 +207,34 @@ namespace Trickshot
             _airborneLock = 0.35f;
         }
 
-        void ApplyLegRaises()
+        void ApplyLegRaises(bool grounded)
         {
-            bool both = _input.LeftLegHeld && _input.RightLegHeld;
-            // Both held = heading motion: legs come up LESS far (a header tuck, not a full
-            // knee-to-chest) and the torso folds forward.
-            float legTarget = both ? SimConfig.HeaderLegRaiseMul : 1f;
-
-            // Ease each amount in/out instead of snapping the pose override on/off. The
-            // instant clear on release let the joint springs yank the limbs back and
-            // jitter; easing out removes that.
             float k = SimConfig.LegRaiseEase * Time.deltaTime;
-            _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? legTarget : 0f, k);
-            _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? legTarget : 0f, k);
-            _headerBend = Mathf.MoveTowards(_headerBend, both ? 1f : 0f, k);
+
+            if (grounded)
+            {
+                // On the ground: LMB/RMB raise the legs individually (kick setup), full lift.
+                _headerBend = Mathf.MoveTowards(_headerBend, 0f, k);
+                _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? 1f : 0f, k);
+                _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? 1f : 0f, k);
+            }
+            else
+            {
+                // Airborne: LMB or RMB triggers a HEADER. A short grace window keeps the
+                // header "live" a few ms after the click (like the GK split forgiveness),
+                // so a slightly early press still heads. Legs come forward only minimally;
+                // the torso leans pronouncedly forward to drive the head into the ball.
+                if (_input.LeftClickPressed || _input.RightClickPressed || _input.LeftLegHeld || _input.RightLegHeld)
+                    _headerTimer = SimConfig.HeaderGrace;
+                else if (_headerTimer > 0f)
+                    _headerTimer -= Time.deltaTime;
+
+                bool heading = _headerTimer > 0f;
+                float legTarget = heading ? SimConfig.HeaderLegRaiseMul : 0f;
+                _legRaiseL = Mathf.MoveTowards(_legRaiseL, legTarget, k);
+                _legRaiseR = Mathf.MoveTowards(_legRaiseR, legTarget, k);
+                _headerBend = Mathf.MoveTowards(_headerBend, heading ? 1f : 0f, k);
+            }
 
             if (_legRaiseL > 0.001f) RaiseLeg(Bone.ThighL, Bone.CalfL, _legRaiseL);
             if (_legRaiseR > 0.001f) RaiseLeg(Bone.ThighR, Bone.CalfR, _legRaiseR);
@@ -360,6 +370,7 @@ namespace Trickshot
             _legRaiseL = 0f;
             _legRaiseR = 0f;
             _headerBend = 0f;
+            _headerTimer = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;

@@ -589,17 +589,27 @@ namespace Trickshot
 
         void SetBodyAngularVelocity(Vector3 w)
         {
+            // Base every bone on the SHARED centre-of-mass velocity plus the fresh
+            // tangential term from the spin. Rebuilding from the COM velocity each frame
+            // (instead of adding cross(w,r) onto the bone's existing velocity, which still
+            // held LAST frame's tangential term) stops the orbital velocity accumulating -
+            // that accumulation was the back-and-forth wobble when holding a spin.
             Vector3 center = CenterOfMass();
+            Vector3 comVel = Vector3.zero; float m = 0f;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                comVel += _rb[i].linearVelocity * _rb[i].mass; m += _rb[i].mass;
+            }
+            if (m > 0f) comVel /= m;
+
             for (int i = 0; i < (int)Bone.Count; i++)
             {
                 var rb = _rb[i];
                 if (rb == null) continue;
                 rb.angularVelocity = w;
                 Vector3 r = rb.worldCenterOfMass - center;
-                Vector3 v = rb.linearVelocity;
-                // replace only the tangential (horizontal-ish) component from spin,
-                // keep the ballistic vertical fall.
-                rb.linearVelocity = new Vector3(v.x, v.y, v.z) + Vector3.Cross(w, r);
+                rb.linearVelocity = comVel + Vector3.Cross(w, r);
             }
         }
 
