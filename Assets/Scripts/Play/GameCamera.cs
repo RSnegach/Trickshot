@@ -27,6 +27,7 @@ namespace Trickshot
         System.Func<Vector2> _lookSource;   // mouse delta provider
         System.Func<Quaternion> _facingSource;  // keeper facing provider
         float _yaw, _pitch = 22f;
+        float _ballViewYaw;    // ball-cam camera yaw (frames the ball), separate from _yaw
         Vector3 _velPos;
 
         Transform _ball, _striker, _crosser, _goal;
@@ -122,28 +123,32 @@ namespace Trickshot
             float dt = Time.unscaledDeltaTime;
             Vector3 pivot = _followTarget.position;
 
+            // The mouse ALWAYS drives _yaw - that is the striker's facing (via the Yaw
+            // property), and ball cam must NOT turn the striker. Ball cam only swings a
+            // separate VIEW yaw so the camera frames the ball.
+            Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
+            _yaw += look.x * SimConfig.CamYawSpeed;
+            _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
+
+            float viewYaw = _yaw;
             if (_ballCam && _ball != null)
             {
-                // Ball-lock: swing yaw so the camera sits opposite the ball (ball stays
-                // framed ahead of the striker). Mouse still nudges pitch.
+                // Ball-lock: the CAMERA sits opposite the ball (ball framed ahead of the
+                // striker), but the striker keeps facing wherever the mouse points.
                 Vector3 toBall = _ball.position - pivot; toBall.y = 0f;
                 if (toBall.sqrMagnitude > 0.01f)
                 {
                     float ballYaw = Mathf.Atan2(toBall.x, toBall.z) * Mathf.Rad2Deg;
-                    _yaw = Mathf.LerpAngle(_yaw, ballYaw, 1f - Mathf.Exp(-6f * dt));
+                    _ballViewYaw = Mathf.LerpAngle(_ballViewYaw, ballYaw, 1f - Mathf.Exp(-6f * dt));
                 }
-                Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
-                _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
+                viewYaw = _ballViewYaw;
             }
             else
             {
-                // Free orbit: mouse movement pans yaw/pitch.
-                Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
-                _yaw += look.x * SimConfig.CamYawSpeed;
-                _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
+                _ballViewYaw = _yaw;   // keep it aligned so toggling in doesn't snap
             }
 
-            Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
+            Quaternion rot = Quaternion.Euler(_pitch, viewYaw, 0f);
             Vector3 offset = rot * new Vector3(0f, 0f, -SimConfig.CamDistance);
             Vector3 desired = pivot + Vector3.up * SimConfig.CamLookHeight + offset;
             if (desired.y < 0.6f) desired.y = 0.6f;
