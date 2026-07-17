@@ -123,18 +123,16 @@ namespace Trickshot
             float dt = Time.unscaledDeltaTime;
             Vector3 pivot = _followTarget.position;
 
-            // The mouse ALWAYS drives _yaw - that is the striker's facing (via the Yaw
-            // property), and ball cam must NOT turn the striker. Ball cam only swings a
-            // separate VIEW yaw so the camera frames the ball.
             Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
-            _yaw += look.x * SimConfig.CamYawSpeed;
             _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
 
-            float viewYaw = _yaw;
+            float viewYaw;
             if (_ballCam && _ball != null)
             {
-                // Ball-lock: the CAMERA sits opposite the ball (ball framed ahead of the
-                // striker), but the striker keeps facing wherever the mouse points.
+                // Ball cam OWNS the view. The camera orbits to frame the ball, and the
+                // mouse yaw is IGNORED - _yaw (the striker's facing) is frozen so the
+                // player can't blind-spin the striker while the camera is ball-locked.
+                // Only mouse pitch is honoured. Toggle V off to steer again.
                 Vector3 toBall = _ball.position - pivot; toBall.y = 0f;
                 if (toBall.sqrMagnitude > 0.01f)
                 {
@@ -145,7 +143,10 @@ namespace Trickshot
             }
             else
             {
-                _ballViewYaw = _yaw;   // keep it aligned so toggling in doesn't snap
+                // Normal follow: the mouse drives _yaw (striker facing + camera).
+                _yaw += look.x * SimConfig.CamYawSpeed;
+                viewYaw = _yaw;
+                _ballViewYaw = _yaw;   // keep aligned so toggling into ball cam doesn't snap
             }
 
             Quaternion rot = Quaternion.Euler(_pitch, viewYaw, 0f);
