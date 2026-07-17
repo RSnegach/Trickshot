@@ -77,26 +77,32 @@ namespace Trickshot
             float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f);
             _ragdoll.MoveInput = wish * speed;
 
-            // Body faces the camera look direction while in normal control.
-            if (_mode == Trick.None)
+            // Body faces the MOVEMENT direction (not the mouse). Movement stays
+            // camera-relative; the mouse only orbits the camera. Standing still, he
+            // keeps his last facing. Turn smoothly toward the wish direction.
+            if (_mode == Trick.None && wish.sqrMagnitude > 0.02f)
             {
-                _facingYaw = camYaw;
+                float wishYaw = Mathf.Atan2(wish.x, wish.z) * Mathf.Rad2Deg;
+                _facingYaw = Mathf.MoveTowardsAngle(_facingYaw, wishYaw,
+                                                    SimConfig.TurnRateDeg * Time.deltaTime);
                 _ragdoll.FacingRotation = Quaternion.Euler(0f, _facingYaw, 0f);
             }
 
             // --- trigger tricks / jump ---
             if (_mode == Trick.None)
             {
-                bool movingFwd = mv.y > 0.4f;
+                // He faces his movement direction, so "moving" is enough to arm the dive
+                // (it launches along that facing).
+                bool moving = wish.sqrMagnitude > 0.16f;
                 // Only accumulate hold-time while grounded AND holding; leaving the
                 // ground (any jump) resets it, so chained taps can never build into a
                 // dive - the dive needs a continuous grounded hold.
                 if (_input.JumpHeld && grounded) _spaceHeld += Time.deltaTime;
                 else if (!grounded) _spaceHeld = 0f;
 
-                if (grounded && movingFwd)
+                if (grounded && moving)
                 {
-                    // Moving forward: distinguish a tap (jump) from a hold (diving header).
+                    // Moving: distinguish a tap (jump) from a hold (diving header).
                     if (_input.JumpHeld && _spaceHeld >= SimConfig.DiveHoldTime)
                         StartDive();
                     else if (_input.JumpReleased && _spaceHeld < SimConfig.DiveHoldTime)
@@ -104,7 +110,7 @@ namespace Trickshot
                 }
                 else if (_input.JumpPressed && grounded)
                 {
-                    // Not moving forward: jump straight up immediately (tap or hold).
+                    // Standing still: jump straight up immediately (tap or hold).
                     NormalJump();
                     _spaceHeld = 0f;
                 }

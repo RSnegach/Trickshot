@@ -153,6 +153,7 @@ namespace Trickshot
         public const float BalanceDamping = 0.85f;
 
         // ---- Striker locomotion ----
+        public const float TurnRateDeg = 720f;         // how fast the body turns to face its movement direction
         public static float StrikerMoveSpeed = 4.8f;   // pre-match slider
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
