@@ -89,6 +89,7 @@ namespace Trickshot
         void Update()
         {
             if (_input == null) return;
+            if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
 
             _blinkClock += Time.unscaledDeltaTime;
 

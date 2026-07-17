@@ -33,8 +33,10 @@ namespace Trickshot
             float dz = _ball.transform.position.z - transform.position.z;
             float react = (dz < 10f && dz > -1.5f) ? 1f : 0.25f;
 
+            // Ability scales tracking speed: 0 = barely moves, 1 = very sharp.
+            float speed = Mathf.Lerp(0.6f, 6.5f, Mathf.Clamp01(SimConfig.KeeperAbility));
             Vector3 pos = _rb.position;
-            float nx = Mathf.MoveTowards(pos.x, targetX, 3.2f * react * Time.fixedDeltaTime);
+            float nx = Mathf.MoveTowards(pos.x, targetX, speed * react * Time.fixedDeltaTime);
             _rb.MovePosition(new Vector3(nx, _y, _homeZ));
         }
 

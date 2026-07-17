@@ -79,6 +79,9 @@ namespace Trickshot
         void LateUpdate()
         {
             if (_cam == null) return;
+            // While paused, do nothing: otherwise UpdateSlowMo re-asserts Time.timeScale
+            // back toward 1 every frame and defeats the pause freeze.
+            if (PauseMenu.Paused) return;
             UpdateSlowMo();
             if (_mode == Mode.Follow) FollowUpdate();
             else if (_mode == Mode.KeeperFollow) KeeperFollowUpdate();

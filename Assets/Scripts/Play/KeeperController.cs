@@ -211,6 +211,8 @@ namespace Trickshot
             float priorSpeed = new Vector3(_ragdoll.Pelvis.linearVelocity.x, 0f, _ragdoll.Pelvis.linearVelocity.z).magnitude;
             float horiz = SimConfig.KeeperDiveHorizBase + SimConfig.KeeperDiveHorizPerV * priorSpeed;
             float up = SimConfig.KeeperDiveUpBase + SimConfig.KeeperDiveUpPerV * priorSpeed;
+            // The jump-height setting also scales how high the high dive goes.
+            up *= SimConfig.KeeperJumpVel / SimConfig.KeeperJumpVelBase;
             DoDive(dir, horiz, up, SimConfig.KeeperDiveLayoutHigh);
         }
 
@@ -272,7 +274,7 @@ namespace Trickshot
                 Bone backCalf  = _diveDir < 0f ? Bone.CalfL  : Bone.CalfR;
                 _ragdoll.SetPoseOverride(leadThigh, new Vector3(-SimConfig.KeeperDiveLeadKnee * 0.5f, 0f, 0f));
                 _ragdoll.SetPoseOverride(leadCalf,  new Vector3(SimConfig.KeeperDiveLeadKnee, 0f, 0f));
-                _ragdoll.SetPoseOverride(backThigh, new Vector3(-SimConfig.KeeperDiveBackKnee * 0.4f, 0f, 0f));
+                _ragdoll.SetPoseOverride(backThigh, new Vector3(-SimConfig.KeeperDiveBackKnee * 0.5f, 0f, 0f));
                 _ragdoll.SetPoseOverride(backCalf,  new Vector3(SimConfig.KeeperDiveBackKnee, 0f, 0f));
             }
 
