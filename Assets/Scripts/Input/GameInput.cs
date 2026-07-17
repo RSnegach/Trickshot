@@ -20,14 +20,14 @@ namespace Trickshot
     ///   Jump ............ Space
     ///   Left leg up ..... Left Mouse (hold)
     ///   Right leg up .... Right Mouse (hold)
-    ///   Recline back .... E (hold, airborne) - tip backward for a bicycle setup
+    ///   Back-ragdoll .... Space (airborne) - flop onto his back (bicycle setup)
     ///   Reset ........... R
     /// </summary>
     public class GameInput : MonoBehaviour
     {
         InputActionAsset _asset;
         InputActionMap _map;
-        InputAction _move, _look, _jump, _reset, _legL, _legR, _recline, _ballCam, _sprint;
+        InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint;
         PlayerInput _playerInput;
 
         public void Init()
@@ -52,7 +52,6 @@ namespace Trickshot
             _reset  = _map.AddAction("Reset",  InputActionType.Button, "<Keyboard>/r");
             _legL   = _map.AddAction("LegL",   InputActionType.Button, "<Mouse>/leftButton");
             _legR   = _map.AddAction("LegR",   InputActionType.Button, "<Mouse>/rightButton");
-            _recline = _map.AddAction("Recline", InputActionType.Button, "<Keyboard>/e");
             _ballCam = _map.AddAction("BallCam", InputActionType.Button, "<Keyboard>/v");
             _sprint = _map.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
             _sprint.AddBinding("<Keyboard>/rightShift");
@@ -109,9 +108,6 @@ namespace Trickshot
         // Click edges (LMB used to skip the replay; both used for keeper save lunges).
         public bool LeftClickPressed => _legL != null && _legL.WasPressedThisFrame();
         public bool RightClickPressed => _legR != null && _legR.WasPressedThisFrame();
-
-        // E held: recline backward while airborne (bicycle setup).
-        public bool ReclineHeld => _recline != null && _recline.IsPressed();
 
         // Shift held: sprint.
         public bool SprintHeld => _sprint != null && _sprint.IsPressed();
