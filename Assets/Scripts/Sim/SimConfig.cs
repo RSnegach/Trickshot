@@ -142,9 +142,11 @@ namespace Trickshot
 
         // ---- Air pitch control (mouse wheel, airborne only) ----
         // The wheel pitches the striker about his central (right) axis while airborne;
-        // scroll back to lie flat for a bicycle kick (raise legs with LMB/RMB). Scroll is
-        // ~120 per notch on Windows, so a small per-unit factor gives a usable range.
-        public const float AirPitchPerScroll = 0.30f;    // deg of body pitch per scroll unit
+        // scroll back to lie flat / flip for a bicycle kick (raise legs with LMB/RMB).
+        // Scroll scale varies wildly by mouse (1 vs 120 per notch, free-spin wheels), so
+        // this is deliberately strong and clamped to AirPitchMax so it can't run away.
+        public const float AirPitchPerScroll = 12f;      // deg of body pitch per scroll unit
+        public const float AirPitchMax = 180f;           // clamp: a full flip either way
         public const float BicyclePitchMin = 55f;        // pitched back at least this far = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----

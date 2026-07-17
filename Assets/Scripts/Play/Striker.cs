@@ -150,8 +150,12 @@ namespace Trickshot
                 return;
             }
 
-            // Accumulate pitch from the wheel (scroll is ~120/notch on Windows).
+            // Accumulate pitch from the wheel. Scroll scale is very platform/mouse
+            // dependent (1 per notch on some, 120 on others, free-spin wheels fire fast),
+            // so scale generously and clamp to a full flip range so a hard spin flips him
+            // right around without running away.
             _airPitch += _input.Scroll * SimConfig.AirPitchPerScroll;
+            _airPitch = Mathf.Clamp(_airPitch, -SimConfig.AirPitchMax, SimConfig.AirPitchMax);
 
             // Free the body to rotate (the upright lock would fight the pitch), balance
             // off, and drive the pelvis to facing pitched by _airPitch about its right
