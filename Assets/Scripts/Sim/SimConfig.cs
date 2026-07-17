@@ -146,8 +146,7 @@ namespace Trickshot
         // a magnitude term means even a tiny free-spin delta clearly flips him and a notch
         // spins him hard. Friction settles it. Scroll to lie back for a bicycle kick.
         public const float ScrollDeadzone = 0.0001f;     // ignore only true zero/noise
-        public const float AirPitchFloorKick = 260f;     // deg/s of spin added per scroll event regardless of size
-        public const float AirPitchImpulse = 2000f;      // extra deg/s per unit of scroll magnitude
+        public const float AirPitchImpulse = 900f;       // deg/s of spin added per unit of scroll (proportional, no floor kick)
         public const float AirPitchMaxSpeed = 900f;      // cap on spin speed (deg/s)
         public const float AirPitchDamp = 500f;          // deg/s^2 the spin bleeds off (coast then settle)
         public const float BicycleUpnessMax = 0.4f;      // pelvis-up dot world-up below this = bicycle window
@@ -157,8 +156,7 @@ namespace Trickshot
         // him into a belly-down header; he keeps his run momentum and falls until he hits
         // the ground. Pelvis yaw+roll pinned so the chest stays square.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
-        public const float DiveForwardVel = 6f;       // forward launch speed
-        public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
+        public const float DiveForwardVel = 6f;       // forward launch speed (up uses JumpVelocity)
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
         public const float DiveDriveScale = 0.15f;    // limp body during the dive (spine won't hold upright)

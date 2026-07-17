@@ -166,17 +166,14 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = false;
             _ragdoll.BodyOrientTarget = null;
 
-            // Each scroll event adds spin (deg/s). Sign sets direction; magnitude only
-            // adds a little on top of a big fixed per-event kick, so even a tiny free-spin
-            // delta produces an obvious flip and a notch spins him hard. Friction decays it.
+            // Spin added is PROPORTIONAL to the scroll amount (no fixed per-event kick):
+            // a tiny nudge adds a tiny bit of spin, a hard spin adds a lot. The old fixed
+            // floor kick fired on every event, and a free-spin wheel emits many events per
+            // nudge, so they stacked into a pinwheel. Friction decays it.
             float scroll = _input.Scroll;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
-            {
-                float kick = Mathf.Sign(scroll)
-                             * (SimConfig.AirPitchFloorKick + Mathf.Abs(scroll) * SimConfig.AirPitchImpulse);
-                _airPitchVel = Mathf.Clamp(_airPitchVel + kick,
+                _airPitchVel = Mathf.Clamp(_airPitchVel + scroll * SimConfig.AirPitchImpulse,
                                            -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
-            }
             bool wasSpinning = Mathf.Abs(_airPitchVel) > 1f;
             _airPitchVel = Mathf.MoveTowards(_airPitchVel, 0f, SimConfig.AirPitchDamp * Time.deltaTime);
 
@@ -269,10 +266,11 @@ namespace Trickshot
 
 
         // --------------------------------------------------- diving header
-        // No jump: he just starts falling FORWARD from wherever he is, keeping the run
-        // momentum he already had (locomotion off so it isn't steered/arrested), and
-        // tips into a belly-down header until he hits the ground. Pelvis yaw+roll are
-        // pinned (DiveYawLock) so the chest stays square-forward and never twists.
+        // Starts like a NORMAL JUMP: an up + forward launch off the run. From there he
+        // just follows the ballistic arc under plain gravity, carrying that same momentum,
+        // and belly-flops when he lands. Pelvis yaw+roll are pinned and pitch is driven
+        // face-down (DiveYawLock) so he is belly-first the whole way; locomotion off so
+        // the launch isn't steered/arrested.
         void StartDive()
         {
             _mode = Trick.Dive;
@@ -281,22 +279,19 @@ namespace Trickshot
             _proneTimer = SimConfig.DiveProneTime;
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
-            _ragdoll.LocomotionEnabled = false;   // preserve run momentum, don't steer it
+            _ragdoll.LocomotionEnabled = false;   // preserve the launch, don't steer it
 
-            // Chest stays facing forward: pin pelvis yaw+roll to the current facing and
-            // drive the pitch face-down. Go limp so the stiff spine can't hold him upright.
+            // Belly-down orientation held throughout; go limp so the spine can't fight it.
             _ragdoll.DiveYawFacing = _ragdoll.FacingRotation;
             _ragdoll.DiveLayoutPitch = SimConfig.DiveLayoutPitch;
             _ragdoll.DiveYawLock = true;
             _ragdoll.DriveScale = SimConfig.DiveDriveScale;
 
-            // Launch: a forward burst along the facing plus a small upward pop, on top of
-            // his run momentum, so he dives up-and-forward into it. Then a one-shot
-            // forward-tilt torque about the right axis pitches him into the fall.
+            // Jump-style launch: up like a normal jump, plus forward off the facing, on
+            // top of run momentum. Then only gravity acts - a natural arc into a flop.
             Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel);   // forward only, no upward pop
-            Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-            _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
+            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.JumpVelocity
+                                      + fwd * SimConfig.DiveForwardVel);
         }
 
         void ManageDive(bool grounded)
