@@ -80,6 +80,7 @@ namespace Trickshot
             if (_input.BallCamPressed) _cam.ToggleBallCam();
 
             _striker.Tick();
+            if (_keeper != null) _keeper.Tick();   // AI keeper goaltends
 
             // Constant rapid-fire: the crosser self-loops and serves every ServeInterval
             // no matter what happened to the last ball. A serve marks the current ball
@@ -143,7 +144,7 @@ namespace Trickshot
         void OnMiss()
         {
             _resolved = true;
-            if (_keeper != null && Vector3.Distance(_ball.transform.position, _keeper.transform.position) < 2.2f)
+            if (_keeper != null && Vector3.Distance(_ball.transform.position, _keeper.PelvisPos) < 2.2f)
             { _saves++; Flash("SAVED"); }
             else Flash("MISS");
         }

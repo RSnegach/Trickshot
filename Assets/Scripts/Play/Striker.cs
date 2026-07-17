@@ -220,19 +220,31 @@ namespace Trickshot
             }
             else
             {
-                // Airborne: a HEADER needs BOTH LMB and RMB. Each button holds a short
-                // grace window from its press (GK-split-style), so pressing them a few ms
-                // apart still counts as "both". Header = both windows live. Legs come
-                // forward only minimally; the torso leans pronouncedly forward.
+                // Airborne:
+                //  - BOTH LMB+RMB = a HEADER: legs come forward only minimally and the
+                //    torso leans pronouncedly forward. A short per-button grace window
+                //    (GK-split-style) lets a few-ms-apart press still count as "both".
+                //  - a SINGLE button = raise THAT leg fully (knee to chest) for a bicycle
+                //    kick, independent of the other leg.
                 if (_input.LeftLegHeld)  _lmbTimer = SimConfig.HeaderGrace;
                 else if (_lmbTimer > 0f) _lmbTimer -= Time.deltaTime;
                 if (_input.RightLegHeld)  _rmbTimer = SimConfig.HeaderGrace;
                 else if (_rmbTimer > 0f) _rmbTimer -= Time.deltaTime;
 
                 bool heading = _lmbTimer > 0f && _rmbTimer > 0f;
-                float legTarget = heading ? SimConfig.HeaderLegRaiseMul : 0f;
-                _legRaiseL = Mathf.MoveTowards(_legRaiseL, legTarget, k);
-                _legRaiseR = Mathf.MoveTowards(_legRaiseR, legTarget, k);
+                if (heading)
+                {
+                    float legTarget = SimConfig.HeaderLegRaiseMul;
+                    _legRaiseL = Mathf.MoveTowards(_legRaiseL, legTarget, k);
+                    _legRaiseR = Mathf.MoveTowards(_legRaiseR, legTarget, k);
+                }
+                else
+                {
+                    // Single leg raises fully; bicycle kicks come from raising one leg
+                    // while the wheel has pitched him onto his back.
+                    _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? 1f : 0f, k);
+                    _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? 1f : 0f, k);
+                }
                 _headerBend = Mathf.MoveTowards(_headerBend, heading ? 1f : 0f, k);
             }
 

@@ -124,10 +124,18 @@ namespace Trickshot
         // ---------------------------------------------------------- Striker mode
         void BuildStrikerMode(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
         {
-            var crosserGo = Make.Capsule("Crosser", 0.35f, 1.8f, SimConfig.CrosserStart + Vector3.up * 0.9f,
-                                          Make.Mat(new Color(0.85f, 0.5f, 0.2f)), root);
+            // Crosser is now an active-ragdoll character that plays a leg-swing; the ball
+            // still launches perfectly by code. Faces roughly toward the goal centre.
+            var crosserGo = new GameObject("Crosser");
+            crosserGo.transform.SetParent(root, true);
+            var crosserRagdoll = crosserGo.AddComponent<ActiveRagdoll>();
+            Vector3 toGoalFlat = SimConfig.GoalCenter - SimConfig.CrosserStart; toGoalFlat.y = 0f;
+            var crosserFacing = Quaternion.LookRotation(toGoalFlat.normalized, Vector3.up);
+            crosserRagdoll.Build(SimConfig.CrosserStart, crosserFacing,
+                                 Make.Mat(new Color(0.85f, 0.5f, 0.2f)), Make.Mat(new Color(0.65f, 0.38f, 0.15f)),
+                                 withGloves: false);
             var crosser = crosserGo.AddComponent<Crosser>();
-            var launch = Make.Empty("LaunchPoint", SimConfig.CrosserStart + new Vector3(0f, 0.5f, -0.4f), crosserGo.transform).transform;
+            var launch = Make.Empty("LaunchPoint", SimConfig.CrosserStart + new Vector3(0f, 0.4f, 0.5f), crosserGo.transform).transform;
 
             var reticleGo = Make.Empty("AimReticle", SimConfig.ReticleStart, root);
             var reticle = reticleGo.AddComponent<AimReticle>();
@@ -143,22 +151,22 @@ namespace Trickshot
             striker.Init(GetInput(), ragdoll);
             AttachKickDetectors(ragdoll, striker, ball);
 
-            // AI keeper (kinematic), tracking scaled by the pre-match ability slider.
+            // AI keeper: an active-ragdoll goaltender (with gloves) that shuffles + dives.
             Goalkeeper keeper = null;
             if (SimConfig.KeeperAbility > 0.001f)
             {
-                var keeperGo = Make.Capsule("Goalkeeper", 0.38f, 1.9f, SimConfig.KeeperStart + Vector3.up * 0.95f,
-                                             Make.Mat(new Color(0.9f, 0.85f, 0.2f)), root);
-                var keeperRb = keeperGo.AddComponent<Rigidbody>();
-                keeperRb.isKinematic = true;
-                keeperRb.useGravity = false;
-                keeperRb.interpolation = RigidbodyInterpolation.Interpolate;
+                var keeperGo = new GameObject("Goalkeeper");
+                keeperGo.transform.SetParent(root, true);
+                var keeperRagdoll = keeperGo.AddComponent<ActiveRagdoll>();
+                var kFacing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
+                keeperRagdoll.Build(SimConfig.KeeperStart, kFacing,
+                                    Make.Mat(new Color(0.9f, 0.85f, 0.2f)), Make.Mat(new Color(0.7f, 0.62f, 0.15f)));
                 keeper = keeperGo.AddComponent<Goalkeeper>();
-                keeper.Init(ball);
+                keeper.Init(keeperRagdoll, ball);
             }
 
-            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserGo.transform, arena.goalCenter);
-            crosser.Init(reticle, ball, launch);
+            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
+            crosser.Init(reticle, ball, launch, crosserRagdoll);
 
             var gmGo = new GameObject("GameManager");
             gmGo.transform.SetParent(root, true);
