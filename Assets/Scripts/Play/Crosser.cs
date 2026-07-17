@@ -40,14 +40,13 @@ namespace Trickshot
             _ball.ResetTo(_launchPoint.position);
         }
 
-        /// <summary>Advance the serve timer. Returns true on the frame a ball launches.</summary>
+        /// <summary>Advance the serve timer and self-loop: fires a ball, then re-arms for
+        /// the next serve ServeInterval later - constantly, regardless of what happened to
+        /// the previous ball. Returns true on the frame a ball launches. Does NOT park a
+        /// live ball between serves (only the reset in Launch snaps it back at fire time).</summary>
         public bool Tick()
         {
             JustServed = false;
-
-            // Park the ball until it is served.
-            if (!_telegraphed || _timer > 0f)
-                _ball.ResetTo(_launchPoint.position);
 
             // ~0.7s before launch, pick the target and show the telegraph.
             if (!_telegraphed && _timer <= 0.7f)
@@ -61,6 +60,9 @@ namespace Trickshot
             if (_timer <= 0f && _telegraphed)
             {
                 Launch();
+                // Immediately re-arm for the next constant serve.
+                _timer = SimConfig.ServeInterval;
+                _telegraphed = false;
                 return true;
             }
             return false;
