@@ -158,7 +158,7 @@ namespace Trickshot
         // travel far. Pelvis yaw+roll pinned so the chest stays square.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
         public const float DiveUpVel = 3.5f;          // upward launch (modest hop)
-        public const float DiveForwardVel = 5f;       // forward launch (a bit more reach)
+        public const float DiveForwardVel = 8f;       // forward launch reach
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
         public const float DiveDriveScale = 0.15f;    // limp body during the dive (spine won't hold upright)
