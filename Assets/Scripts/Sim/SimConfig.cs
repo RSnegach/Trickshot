@@ -145,6 +145,9 @@ namespace Trickshot
         public const float DiveUpVel = 6.5f;          // upward launch (the jump)
         public const float DiveForwardVel = 4.5f;     // forward launch added off the run direction
         public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
+        public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
+        public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
+        public const float DiveDriveScale = 0.15f;    // limp body during the dive (spine won't hold upright)
         public const float DiveProneTime = 0.9f;      // stays prone this long after landing
         public const float BalanceFrequency = 3.2f;
         public const float BalanceDamping = 0.85f;
@@ -153,7 +156,9 @@ namespace Trickshot
         public static float StrikerMoveSpeed = 4.8f;   // pre-match slider
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
-        public const float JumpVelocity = 8.0f;     // m/s upward added to the whole body on jump (higher)
+        public const float JumpVelocity = 8.0f;     // m/s upward added to the whole body on a standing jump
+        public const float RunJumpMul = 0.7f;        // running jumps go lower
+        public const float SprintJumpMul = 0.55f;    // sprinting jumps lower still
         public const float BicycleBackSpin = 14f;   // angular impulse for backward rotation
 
         // ---- Run cycle (procedural gait) ----
