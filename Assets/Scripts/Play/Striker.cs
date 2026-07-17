@@ -49,6 +49,7 @@ namespace Trickshot
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
         float _airPitch;       // mouse-wheel-driven body pitch (deg) while airborne; <0 = leaning back
         float _airPitchVel;    // spin velocity (deg/s) of that pitch; wheel flicks inject it, friction bleeds it
+        float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -162,13 +163,17 @@ namespace Trickshot
                 return;
             }
 
-            // Arcade spin-momentum, mouse-agnostic: each scroll TICK adds a FIXED velocity
-            // kick by SIGN only (not raw magnitude), so a notch feels identical whether the
-            // mouse reports 1, 0.1, or 120 per notch. A free-spin wheel fires many ticks
-            // and naturally spins faster. Friction then settles the spin.
+            // Arcade spin: fold in the scroll delta BY MAGNITUDE with a big gain, plus a
+            // fixed floor kick per event so even a single tiny sub-notch delta produces a
+            // clearly visible turn. Free-spin wheels emit many small deltas that sum; a
+            // notch wheel's one big delta maxes the spin instantly. Friction settles it.
             float scroll = _input.Scroll;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
-                _airPitchVel += Mathf.Sign(scroll) * SimConfig.AirPitchImpulse;
+            {
+                float kick = Mathf.Sign(scroll)
+                             * (SimConfig.AirPitchFloorKick + Mathf.Abs(scroll) * SimConfig.AirPitchImpulse);
+                _airPitchVel += kick;
+            }
             _airPitchVel = Mathf.Clamp(_airPitchVel, -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
             // No angle cap: he can flip all the way around and keep going.
             _airPitch += _airPitchVel * Time.deltaTime;
@@ -200,14 +205,20 @@ namespace Trickshot
 
         void ApplyLegRaises()
         {
-            if (_input.LeftLegHeld)  RaiseLeg(Bone.ThighL, Bone.CalfL);
-            if (_input.RightLegHeld) RaiseLeg(Bone.ThighR, Bone.CalfR);
+            // Ease each leg's raise amount toward its target (1 held, 0 released) instead
+            // of snapping. The instant clear on release let the body overshoot past
+            // neutral and snap back; easing out removes that jank.
+            float k = SimConfig.LegRaiseEase * Time.deltaTime;
+            _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? 1f : 0f, k);
+            _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? 1f : 0f, k);
+            if (_legRaiseL > 0.001f) RaiseLeg(Bone.ThighL, Bone.CalfL, _legRaiseL);
+            if (_legRaiseR > 0.001f) RaiseLeg(Bone.ThighR, Bone.CalfR, _legRaiseR);
         }
 
-        void RaiseLeg(Bone thigh, Bone calf)
+        void RaiseLeg(Bone thigh, Bone calf, float amount)
         {
-            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise, 0f, 0f));
-            _ragdoll.SetPoseOverride(calf, new Vector3(20f, 0f, 0f));
+            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise * amount, 0f, 0f));
+            _ragdoll.SetPoseOverride(calf, new Vector3(20f * amount, 0f, 0f));
         }
 
         // Human-ish run: thighs alternate fore/aft, the knee of the SWING (forward)
@@ -294,6 +305,12 @@ namespace Trickshot
             _diveAir += Time.deltaTime;
             if (!grounded)
             {
+                // Sustain the upward momentum for a short window: feed in extra up-velocity
+                // each frame (partly cancelling gravity) so he hangs/rises a beat longer
+                // instead of the pop dying immediately.
+                if (_diveAir < SimConfig.DiveLiftTime)
+                    _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.DiveLiftAccel * Time.deltaTime);
+
                 // Light reach forward + trailing legs. The body is limp (DiveDriveScale)
                 // and the pelvis pitch is driven face-down by DiveYawLock, so this just
                 // shapes the pose slightly; it can't hold him upright.
@@ -331,6 +348,8 @@ namespace Trickshot
             _spaceHeld = 0f;
             _airPitch = 0f;
             _airPitchVel = 0f;
+            _legRaiseL = 0f;
+            _legRaiseR = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;
