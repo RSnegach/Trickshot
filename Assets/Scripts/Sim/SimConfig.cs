@@ -157,8 +157,8 @@ namespace Trickshot
         // a belly-down header; gravity arcs him into the flop. Kept small so he doesn't
         // travel far. Pelvis yaw+roll pinned so the chest stays square.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
-        public const float DiveUpVel = 3.5f;          // upward launch (modest hop)
-        public const float DiveForwardVel = 8f;       // forward launch reach
+        public const float DiveUpVel = 2f;            // small upward pop (mostly horizontal dive)
+        public const float DiveForwardVel = 10f;      // forward launch reach (dominant component)
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
         public const float DiveDriveScale = 0.15f;    // limp body during the dive (spine won't hold upright)
@@ -191,6 +191,8 @@ namespace Trickshot
         public const float SprintKneeBend = 160f;   // knee folds more toward the body
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
+        public const float LegRaiseEase = 8f;        // how fast a leg raise / header bend eases in-out (per sec); no snap-back
+        public const float HeaderLegRaiseMul = 0.5f; // both-held (heading): legs come up only this fraction as far
         public const float HeaderTorsoBend = 55f;    // deg the torso folds forward when both legs up (heading)
         // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
         // elbows held bent. Reads as a runner's arm carriage over the glide.

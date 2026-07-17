@@ -48,6 +48,8 @@ namespace Trickshot
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
         float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90
+        float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
+        float _headerBend;              // eased 0..1 torso-forward amount when both legs up
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -211,18 +213,29 @@ namespace Trickshot
 
         void ApplyLegRaises()
         {
-            if (_input.LeftLegHeld)  RaiseLeg(Bone.ThighL, Bone.CalfL);
-            if (_input.RightLegHeld) RaiseLeg(Bone.ThighR, Bone.CalfR);
-            // Both legs up = heading motion: bend the torso hard forward so the head
-            // drives down and forward into the ball.
-            if (_input.LeftLegHeld && _input.RightLegHeld)
-                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.HeaderTorsoBend, 0f, 0f));
+            bool both = _input.LeftLegHeld && _input.RightLegHeld;
+            // Both held = heading motion: legs come up LESS far (a header tuck, not a full
+            // knee-to-chest) and the torso folds forward.
+            float legTarget = both ? SimConfig.HeaderLegRaiseMul : 1f;
+
+            // Ease each amount in/out instead of snapping the pose override on/off. The
+            // instant clear on release let the joint springs yank the limbs back and
+            // jitter; easing out removes that.
+            float k = SimConfig.LegRaiseEase * Time.deltaTime;
+            _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? legTarget : 0f, k);
+            _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? legTarget : 0f, k);
+            _headerBend = Mathf.MoveTowards(_headerBend, both ? 1f : 0f, k);
+
+            if (_legRaiseL > 0.001f) RaiseLeg(Bone.ThighL, Bone.CalfL, _legRaiseL);
+            if (_legRaiseR > 0.001f) RaiseLeg(Bone.ThighR, Bone.CalfR, _legRaiseR);
+            if (_headerBend > 0.001f)
+                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.HeaderTorsoBend * _headerBend, 0f, 0f));
         }
 
-        void RaiseLeg(Bone thigh, Bone calf)
+        void RaiseLeg(Bone thigh, Bone calf, float amount)
         {
-            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise, 0f, 0f));
-            _ragdoll.SetPoseOverride(calf, new Vector3(20f, 0f, 0f));
+            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise * amount, 0f, 0f));
+            _ragdoll.SetPoseOverride(calf, new Vector3(20f * amount, 0f, 0f));
         }
 
         // Human-ish run: thighs alternate fore/aft, the knee of the SWING (forward)
@@ -344,6 +357,9 @@ namespace Trickshot
             _proneTimer = 0f;
             _spaceHeld = 0f;
             _airPitchTarget = 0f;
+            _legRaiseL = 0f;
+            _legRaiseR = 0f;
+            _headerBend = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;
