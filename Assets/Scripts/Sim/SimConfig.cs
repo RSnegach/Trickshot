@@ -141,23 +141,26 @@ namespace Trickshot
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
         // ---- Air pitch control (mouse wheel, airborne only) ----
-        // Arcade spin-momentum, mouse-agnostic: each scroll TICK adds a fixed velocity
-        // kick by sign (not raw magnitude), so a notch is identical on any mouse; a
-        // free-spin wheel fires many ticks and spins faster. Friction settles it. Scroll
-        // back for a bicycle kick (raise legs with LMB/RMB). No angle cap - full flips OK.
-        public const float ScrollDeadzone = 0.01f;       // ignore scroll noise below this magnitude
-        public const float AirPitchImpulse = 260f;       // deg/s of spin added PER TICK (snappy)
-        public const float AirPitchMaxSpeed = 1400f;     // cap on spin speed (deg/s)
+        // Arcade spin: scroll folds in BY MAGNITUDE with a big gain plus a fixed floor
+        // kick per event, so even a tiny free-spin delta produces a clearly visible turn
+        // and a notch maxes the spin instantly. Friction settles it. Scroll back for a
+        // bicycle kick (raise legs with LMB/RMB). No angle cap - full flips OK.
+        public const float ScrollDeadzone = 0.0001f;     // ignore only true zero/noise
+        public const float AirPitchFloorKick = 500f;     // deg/s added per scroll event regardless of size
+        public const float AirPitchImpulse = 4000f;      // extra deg/s per unit of scroll magnitude
+        public const float AirPitchMaxSpeed = 2000f;     // cap on spin speed (deg/s)
         public const float AirPitchDamp = 1200f;         // deg/s^2 the spin bleeds off (coast then settle)
         public const float BicyclePitchMin = 55f;        // pitched back at least this far = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----
-        // A forward burst plus a small upward pop and a one-shot forward-tilt torque
-        // launch him up-and-forward into a belly-down header, keeping his run momentum
-        // until he hits the ground. Pelvis yaw+roll are pinned so the chest stays square.
+        // A forward burst plus an upward pop that is SUSTAINED for a beat, and a one-shot
+        // forward-tilt torque, launch him up-and-forward into a belly-down header, keeping
+        // his run momentum until he hits the ground. Pelvis yaw+roll pinned (chest square).
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
         public const float DiveForwardVel = 6f;       // forward launch speed
-        public const float DiveUpVel = 2.5f;          // small upward pop
+        public const float DiveUpVel = 2.5f;          // initial upward pop
+        public const float DiveLiftTime = 0.35f;      // how long the upward lift is sustained
+        public const float DiveLiftAccel = 24f;       // extra up-accel (m/s^2) during that window (hang time)
         public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
@@ -171,8 +174,8 @@ namespace Trickshot
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
         public const float JumpVelocity = 8.0f;     // m/s upward added to the whole body on a standing jump
-        public const float RunJumpMul = 0.7f;        // running jumps go lower
-        public const float SprintJumpMul = 0.55f;    // sprinting jumps lower still
+        public const float RunJumpMul = 1.0f;        // running jumps now go full height (more vertical pop)
+        public const float SprintJumpMul = 0.85f;    // sprinting jumps a touch lower than that
         public const float BicycleBackSpin = 14f;   // angular impulse for backward rotation
 
         // ---- Run cycle (procedural gait) ----
@@ -190,6 +193,7 @@ namespace Trickshot
         public const float SprintKneeBend = 160f;   // knee folds more toward the body
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
+        public const float LegRaiseEase = 6f;        // how fast a leg raise eases in/out (per sec); prevents snap-back
         // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
         // elbows held bent. Reads as a runner's arm carriage over the glide.
         public const float ArmPumpSwing = 45f;      // deg upper arm swings fore/aft
