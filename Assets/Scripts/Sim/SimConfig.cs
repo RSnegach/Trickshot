@@ -56,14 +56,14 @@ namespace Trickshot
 
         // Upward dive (A/D + Space): reach/height scale with prior speed. More hang time
         // so there is a real apex where he is laid out flat.
-        public const float KeeperDiveHorizBase = 3.0f;   // horizontal reach at standstill
-        public const float KeeperDiveHorizPerV = 0.6f;   // extra horizontal per m/s of prior speed
-        public const float KeeperDiveUpBase = 5.0f;      // upward pop at standstill (hang time for the apex)
-        public const float KeeperDiveUpPerV = 0.35f;     // extra height per m/s of prior speed
+        public const float KeeperDiveHorizBase = 2.0f;   // horizontal reach at standstill
+        public const float KeeperDiveHorizPerV = 0.45f;  // extra horizontal per m/s of prior speed
+        public const float KeeperDiveUpBase = 3.6f;      // upward pop at standstill (hang time for the apex)
+        public const float KeeperDiveUpPerV = 0.25f;     // extra height per m/s of prior speed
 
         // Double-tap A/D: explosive low sideways dive; legs leave the ground as he lays out.
-        public const float KeeperDashDive = 8.0f;        // horizontal speed of the low dash dive
-        public const float KeeperDashUp = 3.0f;          // lift so his legs come off the ground
+        public const float KeeperDashDive = 7.0f;        // horizontal speed of the low dash dive
+        public const float KeeperDashUp = 2.6f;          // lift so his legs come off the ground
         public const float KeeperDoubleTapWindow = 0.3f; // seconds between taps to count as a double-tap
 
         // Dive lay-out: the pelvis is actively driven to a rolled (horizontal) target and
@@ -71,7 +71,7 @@ namespace Trickshot
         // 90 = fully parallel to the ground.
         public const float KeeperDiveLayoutLow = 84f;    // low dash dive: nearly flat
         public const float KeeperDiveLayoutHigh = 90f;   // high dive: fully parallel at the apex
-        public const float KeeperDiveRoll = 40f;         // initial roll kick so the lay-out snaps in fast
+        public const float KeeperDiveRoll = 90f;         // strong initial roll kick -> lays out near-instantly
         public const float KeeperDiveLeadKnee = 120f;    // leading leg folds up hard
         public const float KeeperDiveBackKnee = 45f;     // back leg bends a little
         public const float KeeperDiveMinAir = 0.25f;     // min airborne time before we check for landing
