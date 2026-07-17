@@ -28,8 +28,18 @@ namespace Trickshot
         public bool ControlEnabled = true;
 
         Trick _mode = Trick.None;
-        // Bicycle window for KickDetector: airborne and pitched back far enough.
-        public bool TrickActive => _mode == Trick.None && _airPitch <= -SimConfig.BicyclePitchMin;
+        // Bicycle window for KickDetector: airborne and pitched back far enough. Uses the
+        // WRAPPED pitch (-180..180) so it holds through full/continuous flips, not just
+        // the first partial lean. KickDetector also confirms with the real pelvis upness.
+        public bool TrickActive
+        {
+            get
+            {
+                if (_mode != Trick.None) return false;
+                float wrapped = Mathf.DeltaAngle(0f, _airPitch);   // -> -180..180
+                return Mathf.Abs(wrapped) >= SimConfig.BicyclePitchMin;
+            }
+        }
 
         float _facingYaw;
         public float Yaw => _facingYaw;
@@ -38,6 +48,7 @@ namespace Trickshot
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
         float _airPitch;       // mouse-wheel-driven body pitch (deg) while airborne; <0 = leaning back
+        float _airPitchVel;    // spin velocity (deg/s) of that pitch; wheel flicks inject it, friction bleeds it
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -141,21 +152,26 @@ namespace Trickshot
             if (grounded)
             {
                 // Landed: hand orientation back to the grounded balance/upright lock.
-                if (_airPitch != 0f || _ragdoll.BodyOrientTarget.HasValue)
+                if (_airPitch != 0f || _airPitchVel != 0f || _ragdoll.BodyOrientTarget.HasValue)
                 {
                     _airPitch = 0f;
+                    _airPitchVel = 0f;
                     _ragdoll.BodyOrientTarget = null;
                     _ragdoll.BalanceEnabled = true;
                 }
                 return;
             }
 
-            // Accumulate pitch from the wheel. Scroll scale is very platform/mouse
-            // dependent (1 per notch on some, 120 on others, free-spin wheels fire fast),
-            // so scale generously and clamp to a full flip range so a hard spin flips him
-            // right around without running away.
-            _airPitch += _input.Scroll * SimConfig.AirPitchPerScroll;
-            _airPitch = Mathf.Clamp(_airPitch, -SimConfig.AirPitchMax, SimConfig.AirPitchMax);
+            // Arcade spin-momentum: a wheel flick injects pitch VELOCITY (deg/s), he
+            // whips around fast, then the spin coasts down via friction. This makes a
+            // single flick spin him hard regardless of how small the raw scroll value is,
+            // instead of the angle creeping up frame by frame.
+            _airPitchVel += _input.Scroll * SimConfig.AirPitchImpulse;
+            _airPitchVel = Mathf.Clamp(_airPitchVel, -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
+            // No angle cap: he can flip all the way around and keep going.
+            _airPitch += _airPitchVel * Time.deltaTime;
+            // Friction so the spin settles instead of coasting forever.
+            _airPitchVel = Mathf.MoveTowards(_airPitchVel, 0f, SimConfig.AirPitchDamp * Time.deltaTime);
 
             // Free the body to rotate (the upright lock would fight the pitch), balance
             // off, and drive the pelvis to facing pitched by _airPitch about its right
@@ -294,6 +310,7 @@ namespace Trickshot
             _mode = Trick.None;
             _spaceHeld = 0f;
             _airPitch = 0f;
+            _airPitchVel = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
             _ragdoll.BodyOrientTarget = null;
@@ -311,6 +328,7 @@ namespace Trickshot
             _proneTimer = 0f;
             _spaceHeld = 0f;
             _airPitch = 0f;
+            _airPitchVel = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;
