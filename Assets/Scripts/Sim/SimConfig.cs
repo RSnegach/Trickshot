@@ -22,14 +22,17 @@ namespace Trickshot
         public const float GoalHeight  = 2.44f;
         public const float GoalDepth   = 3.0f;   // deeper goal box
 
-        // ---- Net (procedural flexible mesh + backstop) ----
-        public const int NetCols = 26;           // grid resolution across the width (finer cells)
-        public const int NetRows = 13;           // grid resolution down the height
-        public const float NetStiffness = 7f;    // weak pull back to rest (soft, keeps the pocket)
-        public const float NetLinkStiffness = 55f; // structural springs between neighbors: spreads the bulge wide
-        public const float NetDamping = 3.5f;    // velocity damping on nodes
-        public const float NetBallPush = 6.5f;   // how hard the ball billows the net
-        public const float NetMaxStretch = 1.6f; // max node displacement from rest (m) (deep billow)
+        // ---- Net (position-based-dynamics cloth) ----
+        public const int NetCols = 24;             // grid resolution across the width
+        public const int NetRows = 12;             // grid resolution down the height
+        public const int NetConstraintIters = 5;   // PBD distance-constraint passes/frame (fewer = looser, stretchier)
+        public const float NetReturn = 1.6f;       // slow drift back to rest -> pocket lingers (looser feel)
+        public const float NetDamping = 0.96f;     // velocity retained per step (0..1); higher = flowier/looser
+        public const float NetMaxStretch = 2.6f;   // max node displacement from rest (m); deeper billow
+        // Ball push field: nodes within this of the ball centre get shoved to its
+        // surface. Must exceed the gap the backstop leaves (~one ball radius) or the
+        // net never billows. Bigger = wider, deeper pocket.
+        public const float NetBallReach = 0.85f;
         public const float PenaltyBoxDepth = 16.5f;
         public const float PenaltyBoxWidth = 20f; // slightly narrower than field
 
@@ -39,6 +42,21 @@ namespace Trickshot
         public static readonly Vector3 StrikerStart   = new Vector3(-1.5f, 0f, FieldLength * 0.5f - 8.5f);
         public static readonly Vector3 KeeperStart    = new Vector3(0f, 0f, FieldLength * 0.5f - 0.6f);
         public static readonly Vector3 ReticleStart   = new Vector3(0f, 0.02f, FieldLength * 0.5f - 8.5f);
+
+        // ---- Goalkeeper (player-controlled keeper mode) ----
+        // Keeper stands on the line facing OUT toward the pitch (-Z).
+        public static readonly Vector3 KeeperFaceDir = new Vector3(0f, 0f, -1f);
+        public const float KeeperStrafeSpeed = 5.5f;   // A/D strafe + W/S move speed
+        public const float KeeperStrafeXLimit = 4.2f;  // how far off centre he can shuffle
+        public const float KeeperDiveHoriz = 11.0f;     // explosive horizontal dive velocity (m/s)
+        public const float KeeperDiveUp = 7.0f;         // full upward dive velocity (m/s at full W hold)
+        public const float KeeperDiveUpBase = 1.5f;     // minimum upward pop on any dive
+        public const float KeeperRecoverTime = 0.45f;   // pops back to his feet fast (quicker than the striker)
+        public const float KeeperJumpVel = 6.5f;         // straight-up jump (Space, no direction)
+        // Keeper camera slight mouse look (clamped, stays a behind-view).
+        public const float KeeperCamLookYaw = 18f;        // max deg left/right the view pans
+        public const float KeeperCamLookPitch = 12f;      // max deg up/down
+        public const float KeeperCamLookSpeed = 0.06f;    // deg per mouse-delta unit
 
         // ---- Physics ----
         public const float Gravity = -19.6f;      // 2x real gravity: snappier, arcade feel
@@ -78,13 +96,9 @@ namespace Trickshot
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
         // ---- Recline (E held, airborne) ----
-        // Whole-body backspin: rotate toward flat-on-the-back and stop, so it does not
-        // over-rotate into a full spin. Rate is the max deg/s; target is the torso tilt
-        // (deg from upright) to settle at (~180 = fully on the back).
-        public const float ReclineSpinRate = 300f;
-        public const float ReclineTargetTilt = 170f;
-        public const float ReclineTorsoLean = 55f;   // deg the torso tips back during recline
-        public const float ReclineRestLeg = 45f;     // deg legs sit at while reclined (not clicking)
+        // One-shot backward angular impulse to the pelvis (F-style): the jointed body
+        // brakes it so he flips onto his back and stops. Bicycle pose lifts the leg.
+        public const float ReclineImpulse = 15f;
         public const float ReclineProneTime = 1.2f;  // stays flat on back this long after landing
 
         // ---- Dive header (W + Space, forward dive) ----
@@ -97,8 +111,9 @@ namespace Trickshot
 
         // ---- Striker locomotion ----
         public const float StrikerMoveSpeed = 4.8f;
+        public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
-        public const float JumpVelocity = 6.0f;     // m/s upward added to the whole body on jump
+        public const float JumpVelocity = 8.0f;     // m/s upward added to the whole body on jump (higher)
         public const float BicycleBackSpin = 14f;   // angular impulse for backward rotation
 
         // ---- Run cycle (procedural gait) ----

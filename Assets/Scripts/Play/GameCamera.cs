@@ -18,13 +18,14 @@ namespace Trickshot
     /// </summary>
     public class GameCamera : MonoBehaviour
     {
-        public enum Mode { Follow, Broadcast }
+        public enum Mode { Follow, Broadcast, KeeperFollow }
 
         Camera _cam;
         Mode _mode = Mode.Follow;
 
         Transform _followTarget;
         System.Func<Vector2> _lookSource;   // mouse delta provider
+        System.Func<Quaternion> _facingSource;  // keeper facing provider
         float _yaw, _pitch = 22f;
         Vector3 _velPos;
 
@@ -50,6 +51,20 @@ namespace Trickshot
             _mode = Mode.Follow;
         }
 
+        /// <summary>Keeper camera: sits behind the keeper looking in his facing
+        /// direction (out toward the pitch), with a slight clamped mouse look.</summary>
+        public void SetKeeperFollow(Transform target, System.Func<Quaternion> facingSource, System.Func<Vector2> lookSource)
+        {
+            _followTarget = target;
+            _facingSource = facingSource;
+            _lookSource = lookSource;
+            _keeperLookYaw = 0f;
+            _keeperLookPitch = 0f;
+            _mode = Mode.KeeperFollow;
+        }
+
+        float _keeperLookYaw, _keeperLookPitch;
+
         public void SetMode(Mode m) => _mode = m;
         public void TriggerSlowMo(float seconds) => _slowmoTimer = Mathf.Max(_slowmoTimer, seconds);
         public bool SlowMoActive => _slowmoTimer > 0f;
@@ -66,6 +81,7 @@ namespace Trickshot
             if (_cam == null) return;
             UpdateSlowMo();
             if (_mode == Mode.Follow) FollowUpdate();
+            else if (_mode == Mode.KeeperFollow) KeeperFollowUpdate();
             else BroadcastUpdate();
         }
 
@@ -119,6 +135,36 @@ namespace Trickshot
             Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
             _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-14f * dt));
             _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 58f, 1f - Mathf.Exp(-5f * dt));
+        }
+
+        // Keeper cam: behind the keeper along his facing, with a slight clamped mouse
+        // look so you can glance side to side / up and down without leaving the view.
+        void KeeperFollowUpdate()
+        {
+            if (_followTarget == null) return;
+            float dt = Time.unscaledDeltaTime;
+
+            // Accumulate a small, clamped look offset from the mouse.
+            Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
+            _keeperLookYaw = Mathf.Clamp(_keeperLookYaw + look.x * SimConfig.KeeperCamLookSpeed,
+                                         -SimConfig.KeeperCamLookYaw, SimConfig.KeeperCamLookYaw);
+            _keeperLookPitch = Mathf.Clamp(_keeperLookPitch - look.y * SimConfig.KeeperCamLookSpeed,
+                                           -SimConfig.KeeperCamLookPitch, SimConfig.KeeperCamLookPitch);
+
+            Quaternion facing = _facingSource != null ? _facingSource() : Quaternion.identity;
+            // Apply the look offset around the keeper's facing.
+            Quaternion viewRot = facing * Quaternion.Euler(_keeperLookPitch, _keeperLookYaw, 0f);
+            Vector3 fwd = viewRot * Vector3.forward;
+            Vector3 pivot = _followTarget.position;
+
+            Vector3 desired = pivot - fwd * 5.5f + Vector3.up * 3.0f;
+            if (desired.y < 0.8f) desired.y = 0.8f;
+            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.18f, Mathf.Infinity, dt);
+
+            Vector3 lookAt = pivot + fwd * 4f + Vector3.up * 0.9f;
+            Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
+            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-8f * dt));
+            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 60f, 1f - Mathf.Exp(-5f * dt));
         }
 
         void BroadcastUpdate()

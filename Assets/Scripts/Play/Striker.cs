@@ -20,7 +20,7 @@ namespace Trickshot
     /// landing via a prone timer, so the body actually rests flat instead of snapping
     /// upright.
     /// </summary>
-    public class Striker : MonoBehaviour
+    public class Striker : MonoBehaviour, IPlayerController
     {
         enum Trick { None, Recline, Dive }
 
@@ -70,7 +70,8 @@ namespace Trickshot
 
             Vector2 mv = _input.Move;                     // x = strafe, y = forward
             Vector3 wish = Vector3.ClampMagnitude(camFwd * mv.y + camRight * mv.x, 1f);
-            _ragdoll.MoveInput = wish * SimConfig.StrikerMoveSpeed;
+            float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f);
+            _ragdoll.MoveInput = wish * speed;
 
             // Body faces the camera look direction while in normal control.
             if (_mode == Trick.None)
@@ -161,26 +162,22 @@ namespace Trickshot
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _proneTimer = SimConfig.ReclineProneTime;
-            _ragdoll.SetPose(RagdollPose.Stand, 16f);
+
+            // ONE-SHOT backward angular impulse to the pelvis only (the approach the
+            // old F bicycle used, which worked). Because the pelvis is jointed to the
+            // rest of the body, that connected mass resists and brakes the spin, so the
+            // body flips onto its back and STOPS - no runaway. Setting a whole-body
+            // angular velocity (the previous attempt) had nothing to brake it and spun
+            // forever. The Bicycle pose auto-lifts the kicking leg.
+            Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
+            _ragdoll.AddTorqueToPelvis(-axis * SimConfig.ReclineImpulse);
+            _ragdoll.SetPose(RagdollPose.Bicycle, 16f);
         }
 
         void ManageRecline(bool grounded)
         {
-            // Rotate the WHOLE body backward TOWARD flat-on-the-back (~170 deg tilt),
-            // then stop - no runaway multi-spin. Only steer while airborne.
-            if (!grounded)
-            {
-                Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-                float remaining = SimConfig.ReclineTargetTilt - _ragdoll.TorsoTiltDegrees();
-                _ragdoll.SpinWholeBodyToward(-axis, remaining, SimConfig.ReclineSpinRate);
-            }
-
-            // Torso tips back; legs sit cocked at rest (clicks raise them higher).
-            _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(-SimConfig.ReclineTorsoLean, 0f, 0f));
-            _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-SimConfig.ReclineRestLeg, 0f, 0f));
-            _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(-SimConfig.ReclineRestLeg, 0f, 0f));
-
-            // Hold while E is down; when released, recover after lying briefly.
+            // The one-shot impulse in StartRecline does the rotation; nothing to drive
+            // per-frame. Just hold until E is released and we have settled on the ground.
             if (_input.ReclineHeld)
                 _proneTimer = SimConfig.ReclineProneTime;
             else if (grounded && (_proneTimer -= Time.deltaTime) <= 0f)

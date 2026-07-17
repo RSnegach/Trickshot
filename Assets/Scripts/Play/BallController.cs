@@ -104,6 +104,15 @@ namespace Trickshot
 
         void OnCollisionEnter(Collision c)
         {
+            // Net backstop: kill the rebound in code (material combine can't beat the
+            // ball's own Maximum bounce). Keep a little velocity so it slides down.
+            if (c.collider.GetComponentInParent<NetBackstop>() != null)
+            {
+                Rb.linearVelocity *= 0.12f;
+                Rb.angularVelocity *= 0.3f;
+                return;
+            }
+
             if (_assistCooldown > 0f) return;
             // Was this a striker limb? (KickDetector lives on limbs, or any ActiveRagdoll bone.)
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();

@@ -18,9 +18,6 @@ namespace Trickshot
         // (see Sniper.cs). Even when spawned it does nothing until sniper.Active = true.
         const bool EnableSniper = false;
 
-        // Goalkeeper temporarily removed while tuning the striker. Flip on to restore.
-        const bool EnableKeeper = false;
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoStart()
         {
@@ -29,32 +26,47 @@ namespace Trickshot
             go.AddComponent<GameBootstrap>();
         }
 
+        Transform _root;
+        Camera _cam;
+        GameObject _camGo;
+
         void Awake()
         {
             ConfigurePhysics();
-            var root = new GameObject("Trickshot").transform;
+            _root = new GameObject("Trickshot").transform;
 
             // Lights
-            MakeSun(root);
+            MakeSun(_root);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.55f, 0.6f, 0.7f);
             RenderSettings.ambientEquatorColor = new Color(0.4f, 0.42f, 0.4f);
             RenderSettings.ambientGroundColor = new Color(0.2f, 0.22f, 0.2f);
 
             // Camera
-            var camGo = new GameObject("MainCamera");
-            camGo.tag = "MainCamera";
-            var cam = camGo.AddComponent<Camera>();
-            cam.backgroundColor = new Color(0.5f, 0.62f, 0.78f);
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.nearClipPlane = 0.05f;
-            cam.farClipPlane = 400f;
-            camGo.AddComponent<AudioListener>();
+            _camGo = new GameObject("MainCamera");
+            _camGo.tag = "MainCamera";
+            _cam = _camGo.AddComponent<Camera>();
+            _cam.backgroundColor = new Color(0.5f, 0.62f, 0.78f);
+            _cam.clearFlags = CameraClearFlags.SolidColor;
+            _cam.nearClipPlane = 0.05f;
+            _cam.farClipPlane = 400f;
+            _camGo.AddComponent<AudioListener>();
 
-            // Arena
+            // Start at the menu; the arena + chosen mode are built on selection.
+            var menuGo = new GameObject("MenuUI");
+            var menu = menuGo.AddComponent<MenuUI>();
+            menu.Init(BuildMode);
+        }
+
+        void BuildMode(GameMode mode)
+        {
+            var root = _root;
+            var cam = _cam;
+            var camGo = _camGo;
+
+            // --- Shared: arena, ball, camera controller ---
             var arena = Arena.Build(root);
 
-            // Ball
             var ballGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ballGo.name = "Ball";
             ballGo.transform.SetParent(root, true);
@@ -62,22 +74,26 @@ namespace Trickshot
             ballGo.GetComponent<Renderer>().sharedMaterial = Make.Mat(new Color(0.95f, 0.95f, 0.95f), 0.3f);
             ballGo.AddComponent<Rigidbody>();
             var ball = ballGo.AddComponent<BallController>();
-
-            // Wire the ball into the flexible net so it billows on contact.
             if (arena.net != null) arena.net.SetBall(ball.transform, SimConfig.BallRadius);
 
-            // Crosser (capsule near the wing) + launch point at its feet
+            var gameCam = camGo.AddComponent<GameCamera>();
+
+            if (mode == GameMode.Goalkeeper) BuildKeeperMode(root, cam, gameCam, ball, arena);
+            else BuildStrikerMode(root, cam, gameCam, ball, arena);
+        }
+
+        // ---------------------------------------------------------- Striker mode
+        void BuildStrikerMode(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
+        {
             var crosserGo = Make.Capsule("Crosser", 0.35f, 1.8f, SimConfig.CrosserStart + Vector3.up * 0.9f,
                                           Make.Mat(new Color(0.85f, 0.5f, 0.2f)), root);
             var crosser = crosserGo.AddComponent<Crosser>();
             var launch = Make.Empty("LaunchPoint", SimConfig.CrosserStart + new Vector3(0f, 0.5f, -0.4f), crosserGo.transform).transform;
 
-            // Reticle
             var reticleGo = Make.Empty("AimReticle", SimConfig.ReticleStart, root);
             var reticle = reticleGo.AddComponent<AimReticle>();
             reticle.Init(Make.Glow(new Color(1f, 0.85f, 0.2f)));
 
-            // Striker (active ragdoll)
             var strikerGo = new GameObject("Striker");
             strikerGo.transform.SetParent(root, true);
             var ragdoll = strikerGo.AddComponent<ActiveRagdoll>();
@@ -85,52 +101,54 @@ namespace Trickshot
                           Make.Mat(new Color(0.2f, 0.45f, 0.85f)), Make.Mat(new Color(0.15f, 0.32f, 0.6f)));
             var striker = strikerGo.AddComponent<Striker>();
             striker.Init(GetInput(), ragdoll);
-            // ragdoll pelvis transform is what the camera follows / faces
             AttachKickDetectors(ragdoll, striker, ball);
 
-            // Keeper (kinematic capsule) - removed for now, gated off.
-            Goalkeeper keeper = null;
-            if (EnableKeeper)
-            {
-                var keeperGo = Make.Capsule("Goalkeeper", 0.38f, 1.9f, SimConfig.KeeperStart + Vector3.up * 0.95f,
-                                             Make.Mat(new Color(0.9f, 0.85f, 0.2f)), root);
-                var keeperRb = keeperGo.AddComponent<Rigidbody>();
-                keeperRb.isKinematic = true;
-                keeperRb.useGravity = false;
-                keeperRb.interpolation = RigidbodyInterpolation.Interpolate;
-                keeper = keeperGo.AddComponent<Goalkeeper>();
-                keeper.Init(ball);
-            }
-
-            // Camera controller (mouse-orbit follow; GameManager sets the look source)
-            var gameCam = camGo.AddComponent<GameCamera>();
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserGo.transform, arena.goalCenter);
-
-            // Wire crosser (auto-server)
             crosser.Init(reticle, ball, launch);
 
-            // Game manager
             var gmGo = new GameObject("GameManager");
             gmGo.transform.SetParent(root, true);
             var gm = gmGo.AddComponent<GameManager>();
-            gm.Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
+            gm.Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, null, gameCam, launch);
 
-            // Route valid tricks to the manager for slow-mo replay.
             foreach (var kd in strikerGo.GetComponentsInChildren<KickDetector>())
                 kd.OnValidTrick += gm.NotifyValidTrick;
 
-            // Hidden 4th role: dormant sniper scaffold (off by default).
             if (EnableSniper)
             {
                 var sniperGo = Make.Capsule("Sniper", 0.35f, 1.8f, SimConfig.SniperPerch,
                                             Make.Mat(new Color(0.15f, 0.15f, 0.18f)), root);
                 var sniper = sniperGo.AddComponent<Sniper>();
                 sniper.Init(ragdoll.Pelvis.transform, ball.transform);
-                // sniper.Active stays false until the role is fleshed out.
             }
 
-            // ball starts parked
             ball.ResetTo(launch.position);
+        }
+
+        // -------------------------------------------------------- Goalkeeper mode
+        void BuildKeeperMode(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
+        {
+            // The player IS the keeper: an active ragdoll (with arms) on the line.
+            var keeperGo = new GameObject("KeeperPlayer");
+            keeperGo.transform.SetParent(root, true);
+            var ragdoll = keeperGo.AddComponent<ActiveRagdoll>();
+            var facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
+            ragdoll.Build(SimConfig.KeeperStart, facing,
+                          Make.Mat(new Color(0.9f, 0.75f, 0.2f)), Make.Mat(new Color(0.7f, 0.55f, 0.15f)));
+            var keeper = keeperGo.AddComponent<KeeperController>();
+            keeper.Init(GetInput(), ragdoll);
+
+            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
+
+            // Shot feeder (no crosser): on-target shots every few seconds.
+            var serverGo = Make.Empty("ShotServer", Vector3.zero, root);
+            var server = serverGo.AddComponent<ShotServer>();
+            server.Init(ball);
+
+            var kgGo = new GameObject("KeeperGame");
+            kgGo.transform.SetParent(root, true);
+            var kg = kgGo.AddComponent<KeeperGame>();
+            kg.Configure(GetInput(), server, ball, keeper, ragdoll, gameCam);
         }
 
         GameInput _input;

@@ -23,13 +23,17 @@ namespace Trickshot
     {
         Vector3[] _rest;
         Vector3[] _pos;
-        Vector3[] _vel;
+        Vector3[] _prev;        // previous positions (Verlet integration)
         bool[] _pinned;
         int[] _lineIdx;
-        int[][] _neighbors;     // structural-spring links (adjacent grid nodes)
         Mesh _mesh;
         Transform _ball;
         float _ballRadius;
+
+        // Distance constraints (a, b, restLength) between linked grid nodes. Solving
+        // these over several iterations is what makes the whole sheet move as fabric.
+        struct Link { public int a, b; public float len; }
+        Link[] _links;
 
         readonly List<Vector3> _nodes = new List<Vector3>();
         readonly List<bool> _pins = new List<bool>();
@@ -59,10 +63,10 @@ namespace Trickshot
 
             _rest = _nodes.ToArray();
             _pos = (Vector3[])_rest.Clone();
-            _vel = new Vector3[_rest.Length];
+            _prev = (Vector3[])_rest.Clone();
             _pinned = _pins.ToArray();
             _lineIdx = _lines.ToArray();
-            BuildNeighbors();
+            BuildLinks();
 
             _mesh = new Mesh { name = "NetMesh" };
             _mesh.MarkDynamic();
@@ -100,21 +104,18 @@ namespace Trickshot
             }
         }
 
-        // Adjacency from the grid edges: each node's directly-linked neighbors. These
-        // are the structural springs that make the net behave as one connected fabric
-        // so a hit spreads into a wide pocket instead of denting only local nodes.
-        void BuildNeighbors()
+        // Distance constraints from the grid edges. Iterating these each frame is what
+        // makes the net move as one fabric: a local push is propagated across the whole
+        // sheet, producing a wide smooth pocket instead of a few dented nodes.
+        void BuildLinks()
         {
-            var lists = new List<int>[_rest.Length];
-            for (int i = 0; i < lists.Length; i++) lists[i] = new List<int>();
+            var links = new List<Link>();
             for (int e = 0; e < _lineIdx.Length; e += 2)
             {
                 int a = _lineIdx[e], b = _lineIdx[e + 1];
-                lists[a].Add(b);
-                lists[b].Add(a);
+                links.Add(new Link { a = a, b = b, len = Vector3.Distance(_rest[a], _rest[b]) });
             }
-            _neighbors = new int[_rest.Length][];
-            for (int i = 0; i < lists.Length; i++) _neighbors[i] = lists[i].ToArray();
+            _links = links.ToArray();
         }
 
         void FixedUpdate()
@@ -124,48 +125,61 @@ namespace Trickshot
 
             bool hasBall = _ball != null;
             Vector3 ballLocal = hasBall ? transform.InverseTransformPoint(_ball.position) : Vector3.zero;
-            float pushR = _ballRadius + 0.45f;
+            // Wide push field so the pocket forms even though the backstop keeps the
+            // ball ~a radius short of the net plane.
+            float reach = _ballRadius + SimConfig.NetBallReach;
 
+            // 1) Verlet integrate + drift back toward rest.
             for (int i = 0; i < _pos.Length; i++)
             {
-                if (_pinned[i]) { _pos[i] = _rest[i]; _vel[i] = Vector3.zero; continue; }
+                if (_pinned[i]) { _pos[i] = _rest[i]; _prev[i] = _rest[i]; continue; }
+                Vector3 vel = (_pos[i] - _prev[i]) * SimConfig.NetDamping;
+                _prev[i] = _pos[i];
+                _pos[i] += vel;
+                // gentle spring back to rest so the pocket relaxes when the ball leaves
+                _pos[i] += (_rest[i] - _pos[i]) * (SimConfig.NetReturn * dt);
+            }
 
-                // Weak pull back to rest so the net eventually settles.
-                Vector3 accel = (_rest[i] - _pos[i]) * SimConfig.NetStiffness - _vel[i] * SimConfig.NetDamping;
-
-                // Structural springs: pull toward where the neighbors have moved
-                // (their displacement from rest), which propagates the pocket outward
-                // so the whole surrounding net billows, not just the impact point.
-                var nb = _neighbors[i];
-                if (nb.Length > 0)
+            // 2) Ball push: nodes within the reach field get shoved out to the field
+            // surface, so the ball dents a wide pocket (not just nodes it literally
+            // overlaps). The constraint pass then spreads that across the sheet.
+            if (hasBall)
+            {
+                for (int i = 0; i < _pos.Length; i++)
                 {
-                    Vector3 neighborDisp = Vector3.zero;
-                    for (int k = 0; k < nb.Length; k++) neighborDisp += (_pos[nb[k]] - _rest[nb[k]]);
-                    neighborDisp /= nb.Length;
-                    Vector3 myDisp = _pos[i] - _rest[i];
-                    accel += (neighborDisp - myDisp) * SimConfig.NetLinkStiffness;
+                    if (_pinned[i]) continue;
+                    Vector3 d = _pos[i] - ballLocal;
+                    float dist = d.magnitude;
+                    if (dist < reach && dist > 1e-4f)
+                        _pos[i] = ballLocal + (d / dist) * reach;
                 }
+            }
 
-                if (hasBall)
+            // 3) Solve distance constraints several times -> spreads the deformation.
+            for (int iter = 0; iter < SimConfig.NetConstraintIters; iter++)
+            {
+                for (int k = 0; k < _links.Length; k++)
                 {
-                    Vector3 away = _pos[i] - ballLocal;
-                    float dist = away.magnitude;
-                    if (dist < pushR && dist > 0.0001f)
-                    {
-                        float strength = (1f - dist / pushR) * SimConfig.NetBallPush;
-                        accel += (away / dist) * strength * SimConfig.NetStiffness;
-                    }
+                    int a = _links[k].a, b = _links[k].b;
+                    Vector3 delta = _pos[b] - _pos[a];
+                    float d = delta.magnitude;
+                    if (d < 1e-5f) continue;
+                    float diff = (d - _links[k].len) / d;
+                    bool pa = _pinned[a], pb = _pinned[b];
+                    if (pa && pb) continue;
+                    if (pa) { _pos[b] -= delta * diff; }
+                    else if (pb) { _pos[a] += delta * diff; }
+                    else { _pos[a] += delta * (0.5f * diff); _pos[b] -= delta * (0.5f * diff); }
                 }
+            }
 
-                _vel[i] += accel * dt;
-                _pos[i] += _vel[i] * dt;
-
+            // 4) Clamp max stretch from rest.
+            for (int i = 0; i < _pos.Length; i++)
+            {
+                if (_pinned[i]) continue;
                 Vector3 off = _pos[i] - _rest[i];
                 if (off.magnitude > SimConfig.NetMaxStretch)
-                {
                     _pos[i] = _rest[i] + off.normalized * SimConfig.NetMaxStretch;
-                    _vel[i] *= 0.5f;
-                }
             }
 
             _mesh.vertices = _pos;

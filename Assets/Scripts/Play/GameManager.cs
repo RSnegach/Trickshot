@@ -236,10 +236,10 @@ namespace Trickshot
         {
             _resolved = true;
             _goals++;
-            // Speed of the ball as it crossed the line, in km/h.
+            // Speed of the ball as it crossed the line, in km/h (shown in the replay
+            // overlay for the whole replay, not just a flash).
             _lastGoalKmh = _ball.Speed * 3.6f;
-            string tag = trick ? "TRICK GOAL!" : "GOAL!";
-            Flash($"{tag}  {_lastGoalKmh:0} km/h");
+            Flash(trick ? "TRICK GOAL!" : "GOAL!");
             // Short beat at live speed (see it hit the net), then TickReplay rolls the
             // recorded sports replay.
             _state = State.Replay;
@@ -350,6 +350,15 @@ namespace Trickshot
                 normal = { textColor = new Color(1f, 1f, 1f, 0.9f) }
             };
             GUI.Label(new Rect(x, y + 56f, blockW, 30f), "[Click to Skip]", sub);
+
+            // Shot speed in km/h, under the skip line, for the whole replay.
+            var speed = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 26, fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = new Color(1f, 0.9f, 0.35f) }
+            };
+            GUI.Label(new Rect(x, y + 86f, blockW, 32f), $"{_lastGoalKmh:0} km/h", speed);
         }
 
         GUIStyle CenteredBig(GUIStyle s) => new GUIStyle(s) { alignment = TextAnchor.UpperCenter };
