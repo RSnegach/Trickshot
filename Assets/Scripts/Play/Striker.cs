@@ -162,11 +162,13 @@ namespace Trickshot
                 return;
             }
 
-            // Arcade spin-momentum: a wheel flick injects pitch VELOCITY (deg/s), he
-            // whips around fast, then the spin coasts down via friction. This makes a
-            // single flick spin him hard regardless of how small the raw scroll value is,
-            // instead of the angle creeping up frame by frame.
-            _airPitchVel += _input.Scroll * SimConfig.AirPitchImpulse;
+            // Arcade spin-momentum, mouse-agnostic: each scroll TICK adds a FIXED velocity
+            // kick by SIGN only (not raw magnitude), so a notch feels identical whether the
+            // mouse reports 1, 0.1, or 120 per notch. A free-spin wheel fires many ticks
+            // and naturally spins faster. Friction then settles the spin.
+            float scroll = _input.Scroll;
+            if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
+                _airPitchVel += Mathf.Sign(scroll) * SimConfig.AirPitchImpulse;
             _airPitchVel = Mathf.Clamp(_airPitchVel, -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
             // No angle cap: he can flip all the way around and keep going.
             _airPitch += _airPitchVel * Time.deltaTime;

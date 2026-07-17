@@ -141,12 +141,14 @@ namespace Trickshot
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
         // ---- Air pitch control (mouse wheel, airborne only) ----
-        // Arcade spin-momentum: a wheel flick injects pitch VELOCITY, he whips around
-        // fast, then friction settles it. Scroll back for a bicycle kick (raise legs with
-        // LMB/RMB). No angle cap - he can flip fully around and keep spinning.
-        public const float AirPitchImpulse = 2200f;      // deg/s of spin added per scroll unit (snappy)
+        // Arcade spin-momentum, mouse-agnostic: each scroll TICK adds a fixed velocity
+        // kick by sign (not raw magnitude), so a notch is identical on any mouse; a
+        // free-spin wheel fires many ticks and spins faster. Friction settles it. Scroll
+        // back for a bicycle kick (raise legs with LMB/RMB). No angle cap - full flips OK.
+        public const float ScrollDeadzone = 0.01f;       // ignore scroll noise below this magnitude
+        public const float AirPitchImpulse = 260f;       // deg/s of spin added PER TICK (snappy)
         public const float AirPitchMaxSpeed = 1400f;     // cap on spin speed (deg/s)
-        public const float AirPitchDamp = 1800f;         // deg/s^2 the spin bleeds off (coast then settle)
+        public const float AirPitchDamp = 1200f;         // deg/s^2 the spin bleeds off (coast then settle)
         public const float BicyclePitchMin = 55f;        // pitched back at least this far = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----
