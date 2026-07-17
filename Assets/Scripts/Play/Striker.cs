@@ -259,7 +259,10 @@ namespace Trickshot
 
         void RaiseLeg(Bone thigh, Bone calf, float amount)
         {
-            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise * amount, 0f, 0f));
+            // Cap the thigh at 90deg (leg straight out horizontal) - that's max reach for
+            // bicycle contact; past 90 it tucks back toward the body and loses coverage.
+            float thighDeg = Mathf.Min(SimConfig.LegSwingRaise * amount, SimConfig.LegRaiseMaxDeg);
+            _ragdoll.SetPoseOverride(thigh, new Vector3(-thighDeg, 0f, 0f));
             _ragdoll.SetPoseOverride(calf, new Vector3(20f * amount, 0f, 0f));
         }
 
