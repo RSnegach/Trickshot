@@ -26,17 +26,14 @@ namespace Trickshot
         // ---- Net (position-based-dynamics cloth) ----
         public const int NetCols = 24;             // grid resolution across the width
         public const int NetRows = 12;             // grid resolution down the height
-        public const int NetConstraintIters = 5;   // PBD distance-constraint passes/frame (fewer = looser, stretchier)
-        public const float NetReturn = 1.6f;       // slow drift back to rest -> pocket lingers (looser feel)
-        public const float NetDamping = 0.96f;     // velocity retained per step (0..1); higher = flowier/looser
-        public const float NetMaxStretch = 2.6f;   // max node displacement from rest (m); deeper billow
+        public const int NetConstraintIters = 2;   // PBD distance-constraint passes/frame (fewer = looser, stretchier)
+        public const float NetReturn = 0.45f;      // slow drift back to rest -> pocket lingers (looser feel)
+        public const float NetDamping = 0.99f;     // velocity retained per step (0..1); higher = flowier/looser
+        public const float NetMaxStretch = 4.8f;   // max node displacement from rest (m); deeper billow
         // Ball push field: nodes within this of the ball centre get shoved to its
         // surface. Must exceed the gap the backstop leaves (~one ball radius) or the
         // net never billows. Bigger = wider, deeper pocket.
         public const float NetBallReach = 0.85f;
-        // Hide the net when the camera's forward.y exceeds this (looking well up, where
-        // the net fills the view). ~0.55 ≈ looking up past ~33 degrees.
-        public const float NetHideLookUp = 0.55f;
         public const float PenaltyBoxDepth = 16.5f;
         public const float PenaltyBoxWidth = 20f; // slightly narrower than field
 
@@ -191,5 +188,10 @@ namespace Trickshot
         // ---- Strike power (on striker contact) ----
         public const float StrikeHorizBoost = 1.6f;  // multiply horizontal velocity when struck
         public const float StrikeHorizMax = 26f;     // cap on resulting horizontal speed (m/s)
+
+        // ---- Headers (head contact) get a little extra ----
+        public const float HeaderPowerMul = 1.25f;   // extra power vs a normal strike
+        public const float HeaderSwerve = 6f;        // added swerve (spin + lateral curl)
+        public const float HeaderAccuracyMul = 1.7f; // stronger goal-ward steer than a normal contact
     }
 }

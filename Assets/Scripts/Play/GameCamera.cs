@@ -73,6 +73,20 @@ namespace Trickshot
         /// direction so movement is camera-relative, Minecraft third-person style.</summary>
         public float Yaw => _yaw;
 
+        // How far DOWN the keeper camera is angled within its allowed pitch range:
+        // 0 = fully up, 1 = fully down (lowest angle). 0 when not in keeper mode so the
+        // net always renders in other views.
+        public float KeeperLookDownFraction
+        {
+            get
+            {
+                if (_mode != Mode.KeeperFollow) return 0f;
+                float lim = SimConfig.KeeperCamLookPitch;
+                // _keeperLookPitch > 0 tilts the view down (Unity +X euler), so +lim = lowest.
+                return Mathf.InverseLerp(-lim, lim, _keeperLookPitch);
+            }
+        }
+
         public void ToggleBallCam() => _ballCam = !_ballCam;
         public bool BallCam => _ballCam;
 

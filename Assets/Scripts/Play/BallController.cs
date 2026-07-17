@@ -26,6 +26,7 @@ namespace Trickshot
         // partway toward the goal so more shots are on target (subtle).
         float _assistRemaining;
         float _assistCooldown;
+        bool _headerAssist;   // current assist window came from a header (stronger steer)
 
         void Awake()
         {
@@ -82,6 +83,7 @@ namespace Trickshot
             {
                 _assistRemaining -= Time.fixedDeltaTime;
                 ApplyGoalAssist();
+                if (_assistRemaining <= 0f) _headerAssist = false;
             }
         }
 
@@ -98,7 +100,9 @@ namespace Trickshot
 
             Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
             if (toGoal.sqrMagnitude < 0.01f) return;
-            Vector3 desiredDir = Vector3.Slerp(flat.normalized, toGoal.normalized, SimConfig.AssistSteerFrac);
+            // Headers steer harder toward goal (more accuracy).
+            float steer = SimConfig.AssistSteerFrac * (_headerAssist ? SimConfig.HeaderAccuracyMul : 1f);
+            Vector3 desiredDir = Vector3.Slerp(flat.normalized, toGoal.normalized, Mathf.Clamp01(steer));
             Vector3 desiredVel = desiredDir * speed;                 // preserve horizontal speed
             Vector3 delta = desiredVel - flat;
             Vector3 accel = Vector3.ClampMagnitude(delta / Mathf.Max(0.02f, SimConfig.AssistDuration),
@@ -122,16 +126,34 @@ namespace Trickshot
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
 
+            // A HEAD contact (the P_Head part) is a header: extra power/swerve/accuracy.
+            bool header = c.collider.transform.parent != null && c.collider.transform.parent.name == "P_Head";
+
             // Punch the horizontal velocity so a struck ball drives away with pace
             // (leave vertical alone so lobs/loft still feel right). Capped so it stays
-            // arcadey-fast, not absurd.
+            // arcadey-fast, not absurd. Headers hit harder.
+            float boost = SimConfig.StrikeHorizBoost * (header ? SimConfig.HeaderPowerMul : 1f);
+            float cap = SimConfig.StrikeHorizMax * (header ? SimConfig.HeaderPowerMul : 1f);
             Vector3 v = Rb.linearVelocity;
             Vector3 flat = new Vector3(v.x, 0f, v.z);
-            flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost, SimConfig.StrikeHorizMax);
+            flat = Vector3.ClampMagnitude(flat * boost, cap);
             Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
+
+            if (header)
+            {
+                // Extra swerve (spin -> Magnus via the curl system) and a goal-ward
+                // accuracy nudge on top of the normal assist.
+                Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
+                Vector3 lateral = Vector3.Cross(Vector3.up, toGoal.normalized);
+                _curlAccel = lateral * SimConfig.HeaderSwerve;
+                _curlRemaining = SimConfig.AssistDuration + 0.3f;
+                Rb.angularVelocity += new Vector3(0f, SimConfig.HeaderSwerve, 0f);
+            }
 
             _assistRemaining = SimConfig.AssistDuration;
             _assistCooldown = 0.4f;   // don't re-trigger every micro-contact
+            // Headers get a stronger goal-ward steer (accuracy) than a normal contact.
+            _headerAssist = header;
         }
 
         public void ResetTo(Vector3 pos)
