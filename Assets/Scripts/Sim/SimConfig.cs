@@ -192,8 +192,9 @@ namespace Trickshot
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
         public const float LegRaiseEase = 8f;        // how fast a leg raise / header bend eases in-out (per sec); no snap-back
-        public const float HeaderLegRaiseMul = 0.5f; // both-held (heading): legs come up only this fraction as far
-        public const float HeaderTorsoBend = 55f;    // deg the torso folds forward when both legs up (heading)
+        public const float HeaderLegRaiseMul = 0.25f; // airborne header: legs come forward only minimally
+        public const float HeaderTorsoBend = 70f;    // deg the torso folds forward on an airborne header (pronounced)
+        public const float HeaderGrace = 0.12f;      // sec an airborne header stays live after the click (GK-split-style)
         // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
         // elbows held bent. Reads as a runner's arm carriage over the glide.
         public const float ArmPumpSwing = 45f;      // deg upper arm swings fore/aft
