@@ -12,20 +12,22 @@ namespace Trickshot
     /// Gameplay reads state by polling the actions each frame, which is robust and
     /// independent of PlayerInput's notification behaviour.
     ///
+    /// The player controls only the striker. Crosses are served automatically.
+    ///
     /// Controls:
-    ///   Move ............ WASD / Arrows   (striker movement)
-    ///   Aim ............. Mouse           (reticle, read in AimReticle)
-    ///   Charge cross .... Hold + release Space   (crosser)
-    ///   Curl ............ Q / E while charging (inward / outward)
-    ///   Jump ............ Space           (striker, after the cross is live)
-    ///   Bicycle kick .... Left Mouse / F  (striker)
+    ///   Move ............ WASD / Arrows   (world-relative)
+    ///   Camera .......... Mouse move      (orbit); V toggles ball-lock
+    ///   Jump ............ Space
+    ///   Left leg up ..... Left Mouse (hold)
+    ///   Right leg up .... Right Mouse (hold)
+    ///   Recline back .... E (hold, airborne) - tip backward for a bicycle setup
     ///   Reset ........... R
     /// </summary>
     public class GameInput : MonoBehaviour
     {
         InputActionAsset _asset;
         InputActionMap _map;
-        InputAction _move, _charge, _jump, _kick, _reset, _curlL, _curlR, _ballCam;
+        InputAction _move, _look, _jump, _reset, _legL, _legR, _recline, _ballCam;
         PlayerInput _playerInput;
 
         public void Init()
@@ -45,13 +47,12 @@ namespace Trickshot
                 .With("Left", "<Keyboard>/leftArrow")
                 .With("Right", "<Keyboard>/rightArrow");
 
-            _charge = _map.AddAction("Charge", InputActionType.Button, "<Keyboard>/space");
+            _look   = _map.AddAction("Look", InputActionType.Value, "<Mouse>/delta");
             _jump   = _map.AddAction("Jump",   InputActionType.Button, "<Keyboard>/space");
-            _kick   = _map.AddAction("Kick",   InputActionType.Button, "<Mouse>/leftButton");
-            _kick.AddBinding("<Keyboard>/f");
             _reset  = _map.AddAction("Reset",  InputActionType.Button, "<Keyboard>/r");
-            _curlL  = _map.AddAction("CurlL",  InputActionType.Button, "<Keyboard>/q");
-            _curlR  = _map.AddAction("CurlR",  InputActionType.Button, "<Keyboard>/e");
+            _legL   = _map.AddAction("LegL",   InputActionType.Button, "<Mouse>/leftButton");
+            _legR   = _map.AddAction("LegR",   InputActionType.Button, "<Mouse>/rightButton");
+            _recline = _map.AddAction("Recline", InputActionType.Button, "<Keyboard>/e");
             _ballCam = _map.AddAction("BallCam", InputActionType.Button, "<Keyboard>/v");
 
             _map.Enable();
@@ -61,36 +62,48 @@ namespace Trickshot
             _playerInput.notificationBehavior = PlayerNotifications.InvokeCSharpEvents;
             _playerInput.actions = _asset;
             _playerInput.defaultActionMap = "Play";
+
+            LockCursor();
+        }
+
+        static void LockCursor()
+        {
+            // Minecraft-style: pointer stays centred and hidden, only mouse delta is
+            // used (the camera reads <Mouse>/delta). In the editor, Esc frees it.
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        // Re-lock when the game window regains focus (Esc / Alt-Tab releases it).
+        void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus) LockCursor();
         }
 
         void OnDestroy()
         {
             if (_map != null) _map.Disable();
             if (_asset != null) Destroy(_asset);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         // --- polled state ---
         public Vector2 Move => _move != null ? _move.ReadValue<Vector2>() : Vector2.zero;
-
-        public bool ChargeHeld     => _charge != null && _charge.IsPressed();
-        public bool ChargePressed  => _charge != null && _charge.WasPressedThisFrame();
-        public bool ChargeReleased => _charge != null && _charge.WasReleasedThisFrame();
+        public Vector2 Look => _look != null ? _look.ReadValue<Vector2>() : Vector2.zero;
 
         public bool JumpPressed => _jump != null && _jump.WasPressedThisFrame();
-        public bool KickPressed => _kick != null && _kick.WasPressedThisFrame();
         public bool ResetPressed => _reset != null && _reset.WasPressedThisFrame();
         public bool BallCamPressed => _ballCam != null && _ballCam.WasPressedThisFrame();
 
-        /// <summary>-1 curl one way, +1 the other, while holding Q/E.</summary>
-        public float CurlAxis
-        {
-            get
-            {
-                float a = 0f;
-                if (_curlL != null && _curlL.IsPressed()) a -= 1f;
-                if (_curlR != null && _curlR.IsPressed()) a += 1f;
-                return a;
-            }
-        }
+        // Held leg controls: LMB = left leg up, RMB = right leg up.
+        public bool LeftLegHeld  => _legL != null && _legL.IsPressed();
+        public bool RightLegHeld => _legR != null && _legR.IsPressed();
+
+        // LMB click edge, used to skip the replay.
+        public bool LeftClickPressed => _legL != null && _legL.WasPressedThisFrame();
+
+        // E held: recline backward while airborne (bicycle setup).
+        public bool ReclineHeld => _recline != null && _recline.IsPressed();
     }
 }

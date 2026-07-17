@@ -34,6 +34,11 @@ namespace Trickshot
         float _poseT = 1f;
         float _poseSpeed = 6f;
 
+        // Additive per-bone rotation offsets (Euler deg) layered on top of the blended
+        // pose. The Striker drives these each frame for the procedural run cycle and
+        // the airborne per-leg swings. Reset to zero each frame by the controller.
+        readonly Vector3[] _poseOverride = new Vector3[(int)Bone.Count];
+
         // Set by the controller (Striker) each frame.
         public Vector3 MoveInput;            // desired world-space horizontal velocity
         public Quaternion FacingRotation = Quaternion.identity;
@@ -41,10 +46,29 @@ namespace Trickshot
         public float DriveScale = 1f;        // 0..1 global motor strength multiplier
         public bool IsGrounded { get; private set; }
 
+        // Hard upright lock: while true, the pelvis cannot pitch or roll (only yaw),
+        // so the character physically cannot fall over while standing or running.
+        // The controller disables this the instant it jumps or starts a bicycle, so
+        // the body is free to leave the ground and flip. Implemented with rigidbody
+        // rotation constraints, which no impact or motor can overpower.
+        public bool UprightLock = true;
+        bool _lockApplied;
+
         public Rigidbody Pelvis => _rb[(int)Bone.Pelvis];
         public Rigidbody Rb(Bone b) => _rb[(int)b];
         public Transform Phys(Bone b) => _rb[(int)b] != null ? _rb[(int)b].transform : null;
         public IReadOnlyList<Collider> OwnColliders => _ownColliders;
+
+        /// <summary>All physics-bone transforms, for the replay recorder.</summary>
+        public Transform[] BoneTransforms
+        {
+            get
+            {
+                var arr = new Transform[(int)Bone.Count];
+                for (int i = 0; i < arr.Length; i++) arr[i] = _rb[i] != null ? _rb[i].transform : null;
+                return arr;
+            }
+        }
 
         Transform _physRoot;
         Transform _targetRoot;
@@ -266,11 +290,11 @@ namespace Trickshot
 
             _poseT = Mathf.Min(1f, _poseT + Time.fixedDeltaTime * _poseSpeed);
 
-            // 1) Push the target skeleton toward the blended pose.
+            // 1) Push the target skeleton toward the blended pose + additive override.
             for (int i = 0; i < (int)Bone.Count; i++)
             {
                 if (_target[i] == null) continue;
-                Vector3 e = Vector3.Lerp(_poseFrom[i], _poseTo[i], _poseT);
+                Vector3 e = Vector3.Lerp(_poseFrom[i], _poseTo[i], _poseT) + _poseOverride[i];
                 _target[i].localRotation = _targetRestLocal[i] * Quaternion.Euler(e);
             }
 
@@ -286,28 +310,72 @@ namespace Trickshot
 
             UpdateGrounded();
 
-            // 3) Balance + locomotion on the free pelvis.
-            if (BalanceEnabled)
+            // 3) Upright lock vs. free balance.
+            if (UprightLock)
             {
-                JointMath.DriveTowardRotation(Pelvis, FacingRotation,
-                    SimConfig.BalanceFrequency, SimConfig.BalanceDamping);
+                ApplyUprightLock();
+            }
+            else
+            {
+                ReleaseUprightLock();
+                if (BalanceEnabled)
+                    JointMath.DriveTowardRotation(Pelvis, FacingRotation,
+                        SimConfig.BalanceFrequency, SimConfig.BalanceDamping);
             }
 
             ApplyLocomotion();
+        }
+
+        void ApplyUprightLock()
+        {
+            // Constrain the pelvis so it can yaw but never pitch/roll: it cannot tip.
+            Pelvis.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            _lockApplied = true;
+
+            // Snap any residual tilt out and steer yaw to the desired facing.
+            Vector3 e = Pelvis.rotation.eulerAngles;
+            float curYaw = e.y;
+            float wantYaw = FacingRotation.eulerAngles.y;
+            float yaw = Mathf.MoveTowardsAngle(curYaw, wantYaw, 900f * Time.fixedDeltaTime);
+            Pelvis.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
+            // Kill any pitch/roll angular velocity component that slipped in.
+            Vector3 av = Pelvis.angularVelocity;
+            Pelvis.angularVelocity = new Vector3(0f, av.y, 0f);
+        }
+
+        void ReleaseUprightLock()
+        {
+            if (!_lockApplied) return;
+            Pelvis.constraints = RigidbodyConstraints.None;
+            _lockApplied = false;
         }
 
         void ApplyLocomotion()
         {
             // Only steer horizontal velocity while grounded; airborne stays ballistic.
             if (!IsGrounded) return;
-            Vector3 v = Pelvis.linearVelocity;
-            Vector3 horiz = new Vector3(v.x, 0f, v.z);
+            // Steer by the whole body's average horizontal velocity, and push EVERY
+            // bone equally (acceleration = mass independent), so the character
+            // translates rigidly instead of the light pelvis being swallowed by the
+            // heavier joint-linked torso/legs.
+            Vector3 horiz = AverageHorizontalVelocity();
             Vector3 desired = new Vector3(MoveInput.x, 0f, MoveInput.z);
             Vector3 delta = desired - horiz;
-            Vector3 force = delta * SimConfig.StrikerAccel;
-            // cap so we don't launch
-            force = Vector3.ClampMagnitude(force, SimConfig.StrikerAccel * SimConfig.StrikerMoveSpeed);
-            Pelvis.AddForce(force, ForceMode.Acceleration);
+            Vector3 accel = Vector3.ClampMagnitude(delta * SimConfig.StrikerAccel,
+                                                   SimConfig.StrikerAccel * SimConfig.StrikerMoveSpeed);
+            for (int i = 0; i < (int)Bone.Count; i++)
+                if (_rb[i] != null) _rb[i].AddForce(accel, ForceMode.Acceleration);
+        }
+
+        Vector3 AverageHorizontalVelocity()
+        {
+            Vector3 sum = Vector3.zero; int n = 0;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                Vector3 v = _rb[i].linearVelocity; sum += new Vector3(v.x, 0f, v.z); n++;
+            }
+            return n > 0 ? sum / n : Vector3.zero;
         }
 
         void UpdateGrounded()
@@ -339,6 +407,86 @@ namespace Trickshot
         public void AddImpulseToPelvis(Vector3 impulse) => Pelvis.AddForce(impulse, ForceMode.Impulse);
         public void AddTorqueToPelvis(Vector3 torque) => Pelvis.AddTorque(torque, ForceMode.Impulse);
 
+        /// <summary>
+        /// Spin the WHOLE body rigidly about its centre: give every bone the same
+        /// angular velocity plus the matching tangential linear velocity. This makes
+        /// the character actually flip/recline as one piece, instead of the pelvis
+        /// alone twisting against the joints (which only produces a spinal arch).
+        /// angularVelDeg is degrees/second about the given world axis.
+        /// </summary>
+        public void SpinWholeBody(Vector3 axisWorld, float angularVelDeg)
+        {
+            SetBodyAngularVelocity(axisWorld.normalized * (angularVelDeg * Mathf.Deg2Rad));
+        }
+
+        /// <summary>
+        /// Rotate the whole body toward a target tilt about a world axis and STOP there
+        /// (used for the recline: tip to ~180 deg onto the back, then hold). Pass the
+        /// signed remaining angle in degrees (positive = keep rotating along +axis);
+        /// the spin rate eases down as the remaining angle shrinks so it settles
+        /// instead of over-rotating.
+        /// </summary>
+        public void SpinWholeBodyToward(Vector3 axisWorld, float remainingDeg, float maxRateDeg)
+        {
+            // Ease: full rate until ~35 deg out, then proportional so it decelerates.
+            float rate = Mathf.Sign(remainingDeg) * Mathf.Min(maxRateDeg, Mathf.Abs(remainingDeg) * 4f);
+            SetBodyAngularVelocity(axisWorld.normalized * (rate * Mathf.Deg2Rad));
+        }
+
+        void SetBodyAngularVelocity(Vector3 w)
+        {
+            Vector3 center = CenterOfMass();
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                var rb = _rb[i];
+                if (rb == null) continue;
+                rb.angularVelocity = w;
+                Vector3 r = rb.worldCenterOfMass - center;
+                Vector3 v = rb.linearVelocity;
+                // replace only the tangential (horizontal-ish) component from spin,
+                // keep the ballistic vertical fall.
+                rb.linearVelocity = new Vector3(v.x, v.y, v.z) + Vector3.Cross(w, r);
+            }
+        }
+
+        /// <summary>Signed pitch of the torso relative to upright, about the given world
+        /// axis, in degrees. 0 = upright, ~180 = flat on the back. Used to know when the
+        /// recline has reached the back so it can stop.</summary>
+        public float TorsoTiltDegrees()
+        {
+            // Angle between the torso's up vector and world up.
+            Vector3 up = Rb(Bone.Torso) != null ? Rb(Bone.Torso).transform.up : Pelvis.transform.up;
+            return Vector3.Angle(up, Vector3.up);
+        }
+
+        Vector3 CenterOfMass()
+        {
+            Vector3 sum = Vector3.zero; float m = 0f;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                sum += _rb[i].worldCenterOfMass * _rb[i].mass; m += _rb[i].mass;
+            }
+            return m > 0f ? sum / m : Pelvis.position;
+        }
+
+        /// <summary>Add a velocity change to every bone so the whole body leaps as one.</summary>
+        public void AddVelocityToAll(Vector3 deltaV)
+        {
+            for (int i = 0; i < (int)Bone.Count; i++)
+                if (_rb[i] != null) _rb[i].AddForce(deltaV, ForceMode.VelocityChange);
+        }
+
+        /// <summary>Set an additive pose offset (Euler deg) for a bone, layered on the base pose.</summary>
+        public void SetPoseOverride(Bone b, Vector3 euler) => _poseOverride[(int)b] = euler;
+
+        public void ClearPoseOverrides()
+        {
+            for (int i = 0; i < _poseOverride.Length; i++) _poseOverride[i] = Vector3.zero;
+        }
+
+        public float PelvisHeight => Pelvis != null ? Pelvis.position.y : 0f;
+
         public Bounds ApproxBounds()
         {
             var b = new Bounds(Pelvis.position, Vector3.one * 0.5f);
@@ -354,6 +502,10 @@ namespace Trickshot
             MoveInput = Vector3.zero;
             DriveScale = 1f;
             BalanceEnabled = true;
+            UprightLock = true;
+            _lockApplied = false;
+            if (Pelvis != null) Pelvis.constraints = RigidbodyConstraints.None;
+            ClearPoseOverrides();
             _poseFrom = RagdollPose.Stand;
             _poseTo = RagdollPose.Stand;
             _poseT = 1f;

@@ -3,44 +3,62 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// The crosser: a simple capsule near the wing that charges and launches a cross
-    /// toward the aim reticle. Charge (hold Space) selects the cross character:
-    /// low charge = lofted and slow, full charge = driven and fast. Q/E at release
-    /// curl the ball inward/outward during flight.
+    /// Auto-server. The player no longer crosses; this capsule on the wing serves a
+    /// ball to a random spot in the box on a timer. It telegraphs the landing point
+    /// with the reticle a moment before launch, then fires a projectile-solved cross
+    /// (loft or drive chosen at random, optional curl). GameManager pumps Tick() and
+    /// reads WantsServe()/DidServe().
     /// </summary>
     public class Crosser : MonoBehaviour
     {
-        GameInput _input;
         AimReticle _reticle;
         BallController _ball;
         Transform _launchPoint;
 
-        public float Charge { get; private set; }   // 0..1, for the HUD
-        public bool Charging { get; private set; }
+        float _timer;
+        Vector3 _pendingTarget;
+        float _pendingTime;
+        Vector3 _pendingCurl;
+        float _pendingSpin;
+        bool _telegraphed;
 
-        public void Init(GameInput input, AimReticle reticle, BallController ball, Transform launchPoint)
+        public bool JustServed { get; private set; }
+
+        public void Init(AimReticle reticle, BallController ball, Transform launchPoint)
         {
-            _input = input;
             _reticle = reticle;
             _ball = ball;
             _launchPoint = launchPoint;
         }
 
-        /// <summary>Called by GameManager only while the cross is being aimed.</summary>
-        /// <returns>true on the frame the ball is launched.</returns>
-        public bool TickAiming()
+        public void Arm(float firstDelay)
         {
-            if (_input.ChargeHeld)
-            {
-                Charging = true;
-                Charge = Mathf.Min(1f, Charge + Time.deltaTime / SimConfig.MaxChargeTime);
-            }
+            _timer = firstDelay;
+            _telegraphed = false;
+            JustServed = false;
+            _reticle.Hide();
+            _ball.ResetTo(_launchPoint.position);
+        }
 
-            // Keep the ball parked at the crosser's feet until launch.
-            if (Charging && !_input.ChargeReleased)
+        /// <summary>Advance the serve timer. Returns true on the frame a ball launches.</summary>
+        public bool Tick()
+        {
+            JustServed = false;
+
+            // Park the ball until it is served.
+            if (!_telegraphed || _timer > 0f)
                 _ball.ResetTo(_launchPoint.position);
 
-            if (Charging && _input.ChargeReleased)
+            // ~0.7s before launch, pick the target and show the telegraph.
+            if (!_telegraphed && _timer <= 0.7f)
+            {
+                PickServe();
+                _reticle.Show(_pendingTarget);
+                _telegraphed = true;
+            }
+
+            _timer -= Time.deltaTime;
+            if (_timer <= 0f && _telegraphed)
             {
                 Launch();
                 return true;
@@ -48,30 +66,21 @@ namespace Trickshot
             return false;
         }
 
-        void Launch()
+        void PickServe()
         {
-            float t = Mathf.Lerp(SimConfig.CrossTimeLoft, SimConfig.CrossTimeDrive, Charge);
-            Vector3 target = _reticle.TargetPoint + Vector3.up * 0.25f;
-
-            float curlDir = _input.CurlAxis; // may be 0
-            // Curl is lateral relative to the launch->target direction.
-            Vector3 flat = target - _launchPoint.position;
-            flat.y = 0f;
-            Vector3 lateral = Vector3.Cross(Vector3.up, flat.normalized);
-            Vector3 curlAccel = lateral * (curlDir * SimConfig.MaxCurlAccel);
-            float spin = curlDir * 18f;
-
-            _ball.ResetTo(_launchPoint.position);
-            _ball.LaunchTo(target, t, curlAccel, spin);
-
-            Charging = false;
-            Charge = 0f;
+            // Same landing spot and flight every serve, no curl (predictable practice).
+            _pendingTarget = SimConfig.ServeTarget;
+            _pendingTime = SimConfig.ServeTime;
+            _pendingCurl = Vector3.zero;
+            _pendingSpin = 0f;
         }
 
-        public void ResetCharge()
+        void Launch()
         {
-            Charging = false;
-            Charge = 0f;
+            _ball.ResetTo(_launchPoint.position);
+            _ball.LaunchTo(_pendingTarget, _pendingTime, _pendingCurl, _pendingSpin);
+            _reticle.Hide();
+            JustServed = true;
         }
     }
 }

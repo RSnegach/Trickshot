@@ -28,6 +28,51 @@ namespace Trickshot
             return m;
         }
 
+        static Shader s_Unlit;
+        /// <summary>Flat unlit colour: always shows the same regardless of light angle.
+        /// Used for net strings so they never shade to black and read as see-through.</summary>
+        public static Material Unlit(Color c)
+        {
+            if (s_Unlit == null) s_Unlit = Shader.Find("Unlit/Color");
+            var m = s_Unlit != null ? new Material(s_Unlit) : new Material(Standard);
+            m.color = c;                 // Unlit/Color uses _Color
+            return m;
+        }
+
+        /// <summary>
+        /// A cylinder visual with a CapsuleCollider (rounded, gives clean bounces).
+        /// axis: 0 = X, 1 = Y, 2 = Z. length spans that axis; radius is the tube radius.
+        /// </summary>
+        public static GameObject Cylinder(string name, float radius, float length, Vector3 pos,
+                                          int axis, Material mat, Transform parent = null, PhysicsMaterial phys = null)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = name;
+            // Unity cylinder is 2 units tall on Y, 0.5 radius, at scale 1.
+            var s = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
+            Quaternion rot = Quaternion.identity;
+            if (axis == 0) rot = Quaternion.Euler(0f, 0f, 90f);   // lay along X
+            else if (axis == 2) rot = Quaternion.Euler(90f, 0f, 0f); // lay along Z
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
+            go.transform.rotation = rot;
+            go.transform.localScale = s;
+            if (mat != null) go.GetComponent<Renderer>().sharedMaterial = mat;
+
+            // Replace whatever collider the primitive shipped with a CapsuleCollider.
+            var old = go.GetComponent<Collider>();
+            if (old != null) Object.Destroy(old);
+            var cap = go.AddComponent<CapsuleCollider>();
+            cap.direction = 1;          // local Y (the cylinder's long axis before rotation)
+            // Collider dims are in LOCAL space and multiplied by localScale, so use the
+            // unit-primitive values (radius 0.5, height 2). With scale (r*2, len*0.5, r*2)
+            // the world size becomes radius=r, height=len - matching the visual.
+            cap.radius = 0.5f;
+            cap.height = 2f;
+            if (phys != null) cap.material = phys;
+            return go;
+        }
+
         /// <summary>Solid unlit-ish emissive material so gizmo-like objects pop (reticle, trails).</summary>
         public static Material Glow(Color c)
         {

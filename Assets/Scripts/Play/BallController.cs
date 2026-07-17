@@ -22,6 +22,11 @@ namespace Trickshot
 
         public bool LastShotWasTrick;   // set by KickDetector when a valid trick connects
 
+        // Arcade aim-assist: after a striker touch, briefly steer the flat velocity
+        // partway toward the goal so more shots are on target (subtle).
+        float _assistRemaining;
+        float _assistCooldown;
+
         void Awake()
         {
             Rb = GetComponent<Rigidbody>();
@@ -66,6 +71,54 @@ namespace Trickshot
                 Rb.AddForce(_curlAccel, ForceMode.Acceleration);
                 _curlRemaining -= Time.fixedDeltaTime;
             }
+
+            if (_assistCooldown > 0f) _assistCooldown -= Time.fixedDeltaTime;
+
+            if (_assistRemaining > 0f)
+            {
+                _assistRemaining -= Time.fixedDeltaTime;
+                ApplyGoalAssist();
+            }
+        }
+
+        // Bend the ball's horizontal velocity slightly toward the goal without changing
+        // its speed much: steer the flat direction a fraction toward goal, apply the
+        // difference as a capped acceleration. Vertical motion is left alone.
+        void ApplyGoalAssist()
+        {
+            Vector3 v = Rb.linearVelocity;
+            Vector3 flat = new Vector3(v.x, 0f, v.z);
+            float speed = flat.magnitude;
+            if (speed < SimConfig.AssistMinSpeed) return;
+            if (v.z <= 0.1f) return; // only help shots already heading toward the goal (+Z)
+
+            Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
+            if (toGoal.sqrMagnitude < 0.01f) return;
+            Vector3 desiredDir = Vector3.Slerp(flat.normalized, toGoal.normalized, SimConfig.AssistSteerFrac);
+            Vector3 desiredVel = desiredDir * speed;                 // preserve horizontal speed
+            Vector3 delta = desiredVel - flat;
+            Vector3 accel = Vector3.ClampMagnitude(delta / Mathf.Max(0.02f, SimConfig.AssistDuration),
+                                                   SimConfig.AssistMaxAccel);
+            Rb.AddForce(accel, ForceMode.Acceleration);
+        }
+
+        void OnCollisionEnter(Collision c)
+        {
+            if (_assistCooldown > 0f) return;
+            // Was this a striker limb? (KickDetector lives on limbs, or any ActiveRagdoll bone.)
+            var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
+            if (ragdoll == null) return;
+
+            // Punch the horizontal velocity so a struck ball drives away with pace
+            // (leave vertical alone so lobs/loft still feel right). Capped so it stays
+            // arcadey-fast, not absurd.
+            Vector3 v = Rb.linearVelocity;
+            Vector3 flat = new Vector3(v.x, 0f, v.z);
+            flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost, SimConfig.StrikeHorizMax);
+            Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
+
+            _assistRemaining = SimConfig.AssistDuration;
+            _assistCooldown = 0.4f;   // don't re-trigger every micro-contact
         }
 
         public void ResetTo(Vector3 pos)
@@ -76,6 +129,8 @@ namespace Trickshot
             Rb.angularVelocity = Vector3.zero;
             _curlRemaining = 0f;
             _curlAccel = Vector3.zero;
+            _assistRemaining = 0f;
+            _assistCooldown = 0f;
             LastShotWasTrick = false;
             _trail.emitting = false;
             _trail.Clear();
