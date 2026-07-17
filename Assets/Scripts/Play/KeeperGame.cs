@@ -146,8 +146,8 @@ namespace Trickshot
             GUI.Label(new Rect(16, 32, 240, 20), $"Shots {_shots}", st);
             GUI.Label(new Rect(16, 52, 240, 20), $"Ball {_ball.Speed:0.0} m/s", st);
 
-            var help = "Move: WASD   Jump: Space   Dive: A/D + Space (+W = high/top corner)\n"
-                     + "Save left: LMB   Save right: RMB   Split: LMB+RMB   Reset: R";
+            var help = "Move: WASD   Jump: Space   Dive: A/D + Space\n"
+                     + "Lunge/save left: LMB   right: RMB   Split: LMB+RMB   Reset: R";
             GUI.Label(new Rect(8, Screen.height - 44, 720, 40), help, st);
 
             if (_flashTime > 0f)

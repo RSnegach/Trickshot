@@ -105,8 +105,9 @@ namespace Trickshot
         public bool LeftLegHeld  => _legL != null && _legL.IsPressed();
         public bool RightLegHeld => _legR != null && _legR.IsPressed();
 
-        // LMB click edge, used to skip the replay.
+        // Click edges (LMB used to skip the replay; both used for keeper save lunges).
         public bool LeftClickPressed => _legL != null && _legL.WasPressedThisFrame();
+        public bool RightClickPressed => _legR != null && _legR.WasPressedThisFrame();
 
         // E held: recline backward while airborne (bicycle setup).
         public bool ReclineHeld => _recline != null && _recline.IsPressed();
