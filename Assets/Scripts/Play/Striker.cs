@@ -269,11 +269,11 @@ namespace Trickshot
             _ragdoll.DiveYawLock = true;
             _ragdoll.DriveScale = SimConfig.DiveDriveScale;
 
-            // Forward-only launch (no upward pop): a horizontal burst along the facing on
-            // top of his run momentum, so he dives forward into it. Then a one-shot
+            // Launch: a forward burst along the facing plus a small upward pop, on top of
+            // his run momentum, so he dives up-and-forward into it. Then a one-shot
             // forward-tilt torque about the right axis pitches him into the fall.
             Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel);
+            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel + Vector3.up * SimConfig.DiveUpVel);
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
         }
