@@ -140,11 +140,12 @@ namespace Trickshot
         public const float JointDamper = 150f;      // a touch more damping -> smoother, less jitter
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
-        // ---- Recline (E held, airborne) ----
-        // One-shot backward angular impulse to the pelvis (F-style): the jointed body
-        // brakes it so he flips onto his back and stops. Bicycle pose lifts the leg.
-        public const float ReclineImpulse = 15f;
-        public const float ReclineProneTime = 1.2f;  // stays flat on back this long after landing
+        // ---- Recline (airborne Space) ----
+        // A TINY backward lean, then he goes limp and crumples to the ground roughly
+        // upright (not a full flip onto the back).
+        public const float ReclineImpulse = 4f;          // small lean-back nudge
+        public const float ReclineDriveScale = 0.12f;    // limp body so he drops slack
+        public const float ReclineProneTime = 0.7f;      // stays down this long after landing
 
         // ---- Dive header (hold Space while moving forward) ----
         // He JUMPS first (up + forward off the run), then a one-shot forward-tilt torque

@@ -177,9 +177,12 @@ namespace Trickshot
             GaitLeg(Bone.ThighL, Bone.CalfL, Bone.FootL, _gaitPhase, _input.LeftLegHeld, sprint);
             GaitLeg(Bone.ThighR, Bone.CalfR, Bone.FootR, _gaitPhase + Mathf.PI, _input.RightLegHeld, sprint);
 
-            // Pump the arms opposite the same-side leg (left arm forward as left leg goes back).
-            GaitArm(Bone.UpperArmL, Bone.ForearmL, _gaitPhase + Mathf.PI);
-            GaitArm(Bone.UpperArmR, Bone.ForearmR, _gaitPhase);
+            // Contralateral swing: RIGHT arm forward as the LEFT leg comes forward (and
+            // vice versa). The leg thigh swings as -sin(phase) but GaitArm swings as
+            // +sin(phase), so to move the right arm WITH the left leg it takes the
+            // opposite phase, and the left arm takes the left-leg phase.
+            GaitArm(Bone.UpperArmR, Bone.ForearmR, _gaitPhase + Mathf.PI);
+            GaitArm(Bone.UpperArmL, Bone.ForearmL, _gaitPhase);
 
             float bob = Mathf.Sin(_gaitPhase * 2f) * 2.5f;
             _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.GaitTorsoLean + bob, 0f, 0f));
@@ -209,22 +212,20 @@ namespace Trickshot
         }
 
         // ------------------------------------------------------------ recline
+        // Airborne Space: a TINY backward lean, then he goes LIMP and drops - hitting
+        // the ground slack but roughly upright, not a full flip onto the back.
         void StartRecline()
         {
             _mode = Trick.Recline;
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
+            _ragdoll.DriveScale = SimConfig.ReclineDriveScale;   // go limp
             _proneTimer = SimConfig.ReclineProneTime;
 
-            // ONE-SHOT backward angular impulse to the pelvis only (the approach the
-            // old F bicycle used, which worked). Because the pelvis is jointed to the
-            // rest of the body, that connected mass resists and brakes the spin, so the
-            // body flips onto its back and STOPS - no runaway. Setting a whole-body
-            // angular velocity (the previous attempt) had nothing to brake it and spun
-            // forever. The Bicycle pose auto-lifts the kicking leg.
+            // Small one-shot backward lean on the pelvis (jointed body brakes it), just
+            // enough to read as a lean-back before he crumples.
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(-axis * SimConfig.ReclineImpulse);
-            _ragdoll.SetPose(RagdollPose.Bicycle, 16f);
         }
 
         void ManageRecline(bool grounded)
