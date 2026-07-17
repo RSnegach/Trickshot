@@ -141,11 +141,11 @@ namespace Trickshot
         // Diving header (hold Space + W): crouch, then leap up and forward in an arc,
         // land belly-down, recover. Driven to a held horizontal orientation (like the
         // keeper dive) so it does NOT spin - the old constant spin ran away violently.
-        public const float DiveChargeTime = 0.4f;    // hold Space+W this long to trigger
+        public const float DiveHoldTime = 0.22f;      // hold Space (moving fwd) this long -> dive; shorter = tap-jump
         public const float DiveCrouchTime = 0.12f;   // brief knee-bend before launch
         public const float DiveForwardVel = 7.0f;    // forward launch speed
         public const float DiveUpVel = 5.0f;         // upward launch speed (a real arc)
-        public const float DiveLayoutDeg = 80f;      // pitch-forward target so he lands belly-down
+        public const float DiveLayoutDeg = 45f;      // pitch forward only partway (not all the way over)
         public const float DiveProneTime = 0.9f;     // stays prone this long after landing
         public const float DiveCrouchKnee = 55f;     // knee bend during the pre-jump crouch
         // (removed DiveSpinRate: the dive now uses a held orientation target, not a spin.)
@@ -165,6 +165,10 @@ namespace Trickshot
         public const float GaitThighLift = 40f;     // extra deg the swing leg lifts (foot clears ground)
         public const float GaitKneeBend = 105f;     // deg the knee folds to pick up the foot
         public const float GaitFootPoint = 20f;     // deg foot dorsiflex through the stride
+        // Sprint gait: knees fold harder toward the body and lift higher, faster cadence.
+        public const float SprintStrideMul = 1.5f;  // faster leg cadence when sprinting
+        public const float SprintThighLift = 75f;   // higher knee lift when sprinting
+        public const float SprintKneeBend = 150f;   // knee folds more toward the body
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
 

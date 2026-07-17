@@ -96,6 +96,7 @@ namespace Trickshot
 
         public bool JumpPressed => _jump != null && _jump.WasPressedThisFrame();
         public bool JumpHeld => _jump != null && _jump.IsPressed();
+        public bool JumpReleased => _jump != null && _jump.WasReleasedThisFrame();
         // Forward (W / up) held, read from the Move composite's y axis.
         public bool ForwardHeld => Move.y > 0.4f;
         public bool ResetPressed => _reset != null && _reset.WasPressedThisFrame();

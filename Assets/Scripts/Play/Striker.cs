@@ -41,7 +41,7 @@ namespace Trickshot
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
 
         // Diving header lifecycle.
-        float _diveCharge;     // how long Space+W held (grounded) toward triggering
+        float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
         float _crouchTimer;    // brief knee-bend before the leap
         float _diveAir;        // time since the dive launched
         bool _diveLaunched;    // crouch done, in the air
@@ -90,19 +90,25 @@ namespace Trickshot
             // --- trigger tricks / jump ---
             if (_mode == Trick.None)
             {
-                // Hold Space + W (grounded) to charge a diving header. A quick Space tap
-                // (no W, or not held long enough) is a normal jump.
-                bool holdingDiveInputs = _input.JumpHeld && _input.ForwardHeld && grounded;
-                if (holdingDiveInputs)
+                // Space TAP (grounded) = normal jump - works while running too.
+                // Space HELD past DiveHoldTime while moving forward = diving header.
+                if (_input.JumpHeld && grounded)
+                    _spaceHeld += Time.deltaTime;
+
+                bool movingFwd = mv.y > 0.4f;
+                if (_input.JumpHeld && grounded && movingFwd && _spaceHeld >= SimConfig.DiveHoldTime)
                 {
-                    _diveCharge += Time.deltaTime;
-                    if (_diveCharge >= SimConfig.DiveChargeTime) StartDive();
+                    StartDive();               // held long enough while moving fwd -> dive
                 }
-                else
+                else if (_input.JumpReleased && grounded)
                 {
-                    _diveCharge = 0f;
-                    if (_input.JumpPressed && grounded) NormalJump();
-                    else if (_input.ReclineHeld && !grounded) StartRecline();
+                    NormalJump();              // released without diving -> jump (tap OR long hold that didn't dive)
+                    _spaceHeld = 0f;
+                }
+                else if (!_input.JumpHeld)
+                {
+                    _spaceHeld = 0f;
+                    if (_input.ReclineHeld && !grounded) StartRecline();
                 }
             }
 
@@ -146,25 +152,30 @@ namespace Trickshot
         void RunCycle(float moveAmount)
         {
             if (moveAmount < 0.05f) { _gaitPhase = 0f; return; }
-            _gaitPhase += Time.deltaTime * SimConfig.StrideRateMax * moveAmount;
+            bool sprint = _input.SprintHeld;
+            // Sprinting quickens the cadence and lifts/folds the legs more.
+            float rate = SimConfig.StrideRateMax * (sprint ? SimConfig.SprintStrideMul : 1f);
+            _gaitPhase += Time.deltaTime * rate * moveAmount;
 
-            GaitLeg(Bone.ThighL, Bone.CalfL, Bone.FootL, _gaitPhase, _input.LeftLegHeld);
-            GaitLeg(Bone.ThighR, Bone.CalfR, Bone.FootR, _gaitPhase + Mathf.PI, _input.RightLegHeld);
+            GaitLeg(Bone.ThighL, Bone.CalfL, Bone.FootL, _gaitPhase, _input.LeftLegHeld, sprint);
+            GaitLeg(Bone.ThighR, Bone.CalfR, Bone.FootR, _gaitPhase + Mathf.PI, _input.RightLegHeld, sprint);
 
             float bob = Mathf.Sin(_gaitPhase * 2f) * 2.5f;
             _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.GaitTorsoLean + bob, 0f, 0f));
         }
 
-        void GaitLeg(Bone thigh, Bone calf, Bone foot, float phase, bool heldByPlayer)
+        void GaitLeg(Bone thigh, Bone calf, Bone foot, float phase, bool heldByPlayer, bool sprint)
         {
             if (heldByPlayer) return;   // player raise owns this leg
             float sw = Mathf.Sin(phase);
             float lift = Mathf.Max(0f, sw);            // 1 through the forward swing, 0 in stance
+            float hipLift = sprint ? SimConfig.SprintThighLift : SimConfig.GaitThighLift;
+            float kneeBend = sprint ? SimConfig.SprintKneeBend : SimConfig.GaitKneeBend;
             // Thigh swings fore/aft; during the forward swing add extra hip lift AND a
             // hard knee fold so the foot clears the ground instead of dragging.
-            float thighAngle = -sw * SimConfig.GaitThighSwing - lift * SimConfig.GaitThighLift;
+            float thighAngle = -sw * SimConfig.GaitThighSwing - lift * hipLift;
             _ragdoll.SetPoseOverride(thigh, new Vector3(thighAngle, 0f, 0f));
-            _ragdoll.SetPoseOverride(calf, new Vector3(lift * SimConfig.GaitKneeBend, 0f, 0f));
+            _ragdoll.SetPoseOverride(calf, new Vector3(lift * kneeBend, 0f, 0f));
             _ragdoll.SetPoseOverride(foot, new Vector3(-sw * SimConfig.GaitFootPoint, 0f, 0f));
         }
 
@@ -203,7 +214,7 @@ namespace Trickshot
         void StartDive()
         {
             _mode = Trick.Dive;
-            _diveCharge = 0f;
+            _spaceHeld = 0f;
             _crouchTimer = SimConfig.DiveCrouchTime;
             _diveLaunched = false;
             _diveAir = 0f;
@@ -262,7 +273,7 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _diveLaunched = false;
-            _diveCharge = 0f;
+            _spaceHeld = 0f;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
@@ -276,7 +287,7 @@ namespace Trickshot
             _mode = Trick.None;
             _airborneLock = 0f;
             _proneTimer = 0f;
-            _diveCharge = 0f;
+            _spaceHeld = 0f;
             _diveLaunched = false;
             _gaitPhase = 0f;
             _ragdoll.BodyOrientTarget = null;
