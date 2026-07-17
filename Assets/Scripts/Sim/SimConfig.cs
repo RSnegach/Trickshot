@@ -211,12 +211,13 @@ namespace Trickshot
         public const float SprintKneeBend = 160f;   // knee folds more toward the body
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
+        public const float LegRaiseMaxDeg = 90f;     // hard cap on thigh raise: 90 = straight out (max bicycle reach)
         public const float LegRaiseEase = 8f;        // how fast a leg raise / header bend eases in-out (per sec); no snap-back
         public const float BicycleLegEase = 22f;      // single airborne leg snaps up this fast (bicycle kick)
         public const float BicycleLegRaiseMul = 1.35f; // and this much higher than a normal raise
         public const float HeaderLegRaiseMul = 0.25f; // airborne header: legs come forward only minimally
         public const float HeaderTorsoBend = 90f;    // deg the torso folds forward on an airborne header (snappy, far)
-        public const float HeaderBendEase = 22f;     // how fast the torso snaps forward into the header
+        public const float HeaderBendEase = 60f;     // how fast the torso snaps forward into the header (very fast)
         public const float HeaderGrace = 0.12f;      // sec an airborne header stays live after the click (GK-split-style)
         // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
         // elbows held bent. Reads as a runner's arm carriage over the glide.

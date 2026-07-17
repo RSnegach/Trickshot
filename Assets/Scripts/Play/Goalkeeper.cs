@@ -75,15 +75,17 @@ namespace Trickshot
                 return;
             }
 
-            // Otherwise shuffle to shadow the (clamped) target x. Shuffle speed = the
-            // keeper-speed slider scaled up by ability, so both sliders matter.
-            float targetX = Mathf.Clamp(predictX, -halfGoal, halfGoal);
+            // Otherwise shuffle to shadow the (clamped) target x. MoveInput is a WORLD
+            // velocity, so drive world +X directly - using the keeper's local right
+            // (which points -X since he faces -Z) sent him the wrong way, off the map.
+            // When no shot is incoming, hold the line by returning toward centre instead
+            // of chasing the ball's resting x all over the pitch.
+            float targetX = incoming ? Mathf.Clamp(predictX, -halfGoal, halfGoal) : _homeX;
             float react = incoming ? 1f : 0.3f;
             float speed = SimConfig.KeeperStrafeSpeed * Mathf.Lerp(0.5f, 1.6f, ability) * react;
-            Vector3 right = _facing * Vector3.right;
             float curX = _ragdoll.Pelvis.position.x;
             float dx = Mathf.Clamp(targetX - curX, -1f, 1f);
-            _ragdoll.MoveInput = right * (dx * speed);
+            _ragdoll.MoveInput = new Vector3(dx * speed, 0f, 0f);
 
             _ragdoll.SetPose(KeeperPose.Ready, 8f);
             ShuffleGait(Mathf.Abs(dx));
@@ -111,21 +113,23 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;
 
-            Vector3 right = _facing * Vector3.right;
+            // dir is the WORLD-X direction of the shot. Lunge in world X directly. The
+            // body roll is about the facing's forward axis; since the keeper's local right
+            // points -X, the roll sign is the negation of the world-X dir so he lies flat
+            // ON the side he's diving toward.
             Vector3 fwd = _facing * Vector3.forward;
-            // Reach scales with the keeper-SPEED slider + ability; dive height scales with
-            // the keeper-JUMP slider (relative to its 1.0x reference) + ability.
+            float rollDir = -dir;
             float abilMul = Mathf.Lerp(0.6f, 1.15f, ability);
             float horiz = SimConfig.AiKeeperDiveHoriz * abilMul
                           * (SimConfig.KeeperStrafeSpeed / 5.5f);
             float up = SimConfig.AiKeeperDiveUp * abilMul
                        * (SimConfig.KeeperJumpVel / SimConfig.KeeperJumpVelBase);
-            _ragdoll.AddVelocityToAll(right * (dir * horiz) + Vector3.up * up);
+            _ragdoll.AddVelocityToAll(new Vector3(dir * horiz, up, 0f));
 
             // Held horizontal lay-out toward the dive side (same approach as player keeper).
-            Quaternion layout = Quaternion.AngleAxis(-dir * SimConfig.KeeperDiveLayoutHigh, fwd) * _facing;
+            Quaternion layout = Quaternion.AngleAxis(-rollDir * SimConfig.KeeperDiveLayoutHigh, fwd) * _facing;
             _ragdoll.BodyOrientTarget = layout;
-            _ragdoll.AddTorqueToPelvis(fwd * (-dir * SimConfig.KeeperDiveRoll));
+            _ragdoll.AddTorqueToPelvis(fwd * (-rollDir * SimConfig.KeeperDiveRoll));
             _ragdoll.SetPose(KeeperPose.Dive, 16f);
         }
 
