@@ -622,6 +622,18 @@ namespace Trickshot
                 if (_rb[i] != null) _rb[i].AddForce(deltaV, ForceMode.VelocityChange);
         }
 
+        /// <summary>Scale the horizontal (x/z) velocity of every bone, leaving vertical
+        /// intact. Used to bleed off carried run momentum at jump time.</summary>
+        public void ScaleHorizontalVelocity(float factor)
+        {
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                Vector3 v = _rb[i].linearVelocity;
+                _rb[i].linearVelocity = new Vector3(v.x * factor, v.y, v.z * factor);
+            }
+        }
+
         /// <summary>Launch straight up: cancel all horizontal velocity and set a clean
         /// vertical speed on every bone (a pure jump with no sideways/backward drift).</summary>
         public void LaunchVerticalAll(float upSpeed)

@@ -146,9 +146,9 @@ namespace Trickshot
         // a magnitude term means even a tiny free-spin delta clearly flips him and a notch
         // spins him hard. Friction settles it. Scroll to lie back for a bicycle kick.
         public const float ScrollDeadzone = 0.0001f;     // ignore only true zero/noise
-        public const float AirPitchImpulse = 900f;       // deg/s of spin added per unit of scroll (proportional, no floor kick)
-        public const float AirPitchMaxSpeed = 900f;      // cap on spin speed (deg/s)
-        public const float AirPitchDamp = 500f;          // deg/s^2 the spin bleeds off (coast then settle)
+        public const float AirPitchImpulse = 90f;        // deg/s of spin added PER scroll event (by sign)
+        public const float AirPitchMaxSpeed = 300f;      // LOW cap (~0.8 rot/sec) so it can't pinwheel
+        public const float AirPitchDamp = 400f;          // deg/s^2 the spin bleeds off (settles quickly)
         public const float BicycleUpnessMax = 0.4f;      // pelvis-up dot world-up below this = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----
@@ -171,6 +171,7 @@ namespace Trickshot
         public const float JumpVelocity = 8.6f;     // m/s upward added to the whole body on a standing jump (a touch higher)
         public const float RunJumpMul = 1.0f;        // running jumps now go full height (more vertical pop)
         public const float SprintJumpMul = 0.85f;    // sprinting jumps a touch lower than that
+        public const float RunJumpForwardKeep = 0.5f; // fraction of run momentum kept on a moving jump (toned down)
         public const float BicycleBackSpin = 14f;   // angular impulse for backward rotation
 
         // ---- Run cycle (procedural gait) ----
