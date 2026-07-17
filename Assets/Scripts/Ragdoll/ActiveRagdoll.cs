@@ -157,16 +157,16 @@ namespace Trickshot
             _rb[(int)Bone.FootL].GetComponent<Collider>().material = slick;
             _rb[(int)Bone.FootR].GetComponent<Collider>().material = slick;
 
-            // Arms (upper arm + forearm), thinner capsules along Y.
-            // Arms with thicker colliders -> bigger hitbox to reach shots.
-            MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.10f, 0.32f, 0f), 3f, limbMat);
-            MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.10f, 0.32f, 0f), 3f, limbMat);
-            MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.26f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.095f, 0.32f, 0f), 2f, limbMat);
-            MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.26f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.095f, 0.32f, 0f), 2f, limbMat);
+            // Arms (upper arm + forearm): thin, skinny capsules that weigh almost nothing
+            // so they barely affect the body's momentum / spin.
+            MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.24f, 1.40f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat);
+            MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.24f, 1.40f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat);
+            MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.24f, 1.08f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat);
+            MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.24f, 1.08f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat);
 
             // Joints: child -> parent (connectedBody). Pelvis has no joint (free root).
             AddJoint(Bone.Torso,  Bone.Pelvis, Off(0f, -0.23f, 0f));

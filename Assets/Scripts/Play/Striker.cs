@@ -28,16 +28,16 @@ namespace Trickshot
         public bool ControlEnabled = true;
 
         Trick _mode = Trick.None;
-        // Bicycle window for KickDetector: airborne and pitched back far enough. Uses the
-        // WRAPPED pitch (-180..180) so it holds through full/continuous flips, not just
-        // the first partial lean. KickDetector also confirms with the real pelvis upness.
+        // Bicycle window for KickDetector: airborne and actually tipped away from upright
+        // (read from the real pelvis, since the flip is now a whole-body spin). Below the
+        // threshold his pelvis-up still points mostly skyward. KickDetector re-confirms.
         public bool TrickActive
         {
             get
             {
-                if (_mode != Trick.None) return false;
-                float wrapped = Mathf.DeltaAngle(0f, _airPitch);   // -> -180..180
-                return Mathf.Abs(wrapped) >= SimConfig.BicyclePitchMin;
+                if (_mode != Trick.None || _ragdoll.Pelvis == null || _ragdoll.IsGrounded) return false;
+                float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
+                return upness < SimConfig.BicycleUpnessMax;
             }
         }
 
@@ -47,9 +47,7 @@ namespace Trickshot
         float _gaitPhase;
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
-        float _airPitch;       // mouse-wheel-driven body pitch (deg) while airborne; <0 = leaning back
-        float _airPitchVel;    // spin velocity (deg/s) of that pitch; wheel flicks inject it, friction bleeds it
-        float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
+        float _airPitchVel;    // wheel-driven whole-body spin velocity (deg/s) while airborne
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -144,49 +142,56 @@ namespace Trickshot
             }
         }
 
-        // Mouse-wheel body pitch, ONLY while airborne. Scroll rotates his target
-        // orientation about his central (right) axis - forward or backward flips - and
-        // the pelvis is driven+held there, yaw/roll pinned so it is pure pitch. On the
-        // ground the upright lock owns his orientation and the wheel does nothing.
+        // Mouse-wheel flips, ONLY while airborne. Scroll builds a WHOLE-BODY spin about
+        // his central (right) axis so he visibly rotates as one piece (front/back flips).
+        // Driving only the pelvis (the old way) just arched the spine against the joints -
+        // it never actually flipped. On the ground the upright lock owns his orientation
+        // and the wheel does nothing.
         void AirPitchControl(bool grounded)
         {
             if (grounded)
             {
-                // Landed: hand orientation back to the grounded balance/upright lock.
-                if (_airPitch != 0f || _airPitchVel != 0f || _ragdoll.BodyOrientTarget.HasValue)
+                // Landed: stop the spin and hand orientation back to balance/upright lock.
+                if (_airPitchVel != 0f || !_ragdoll.BalanceEnabled)
                 {
-                    _airPitch = 0f;
                     _airPitchVel = 0f;
-                    _ragdoll.BodyOrientTarget = null;
+                    _ragdoll.StopBodySpin();
                     _ragdoll.BalanceEnabled = true;
                 }
                 return;
             }
 
-            // Arcade spin: fold in the scroll delta BY MAGNITUDE with a big gain, plus a
-            // fixed floor kick per event so even a single tiny sub-notch delta produces a
-            // clearly visible turn. Free-spin wheels emit many small deltas that sum; a
-            // notch wheel's one big delta maxes the spin instantly. Friction settles it.
+            // Free the whole body to tumble (upright lock/balance off).
+            _ragdoll.UprightLock = false;
+            _ragdoll.BalanceEnabled = false;
+            _ragdoll.BodyOrientTarget = null;
+
+            // Each scroll event adds spin (deg/s). Sign sets direction; magnitude only
+            // adds a little on top of a big fixed per-event kick, so even a tiny free-spin
+            // delta produces an obvious flip and a notch spins him hard. Friction decays it.
             float scroll = _input.Scroll;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
             {
                 float kick = Mathf.Sign(scroll)
                              * (SimConfig.AirPitchFloorKick + Mathf.Abs(scroll) * SimConfig.AirPitchImpulse);
-                _airPitchVel += kick;
+                _airPitchVel = Mathf.Clamp(_airPitchVel + kick,
+                                           -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
             }
-            _airPitchVel = Mathf.Clamp(_airPitchVel, -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
-            // No angle cap: he can flip all the way around and keep going.
-            _airPitch += _airPitchVel * Time.deltaTime;
-            // Friction so the spin settles instead of coasting forever.
+            bool wasSpinning = Mathf.Abs(_airPitchVel) > 1f;
             _airPitchVel = Mathf.MoveTowards(_airPitchVel, 0f, SimConfig.AirPitchDamp * Time.deltaTime);
 
-            // Free the body to rotate (the upright lock would fight the pitch), balance
-            // off, and drive the pelvis to facing pitched by _airPitch about its right
-            // axis. Yaw stays the current facing so the chest doesn't twist.
-            _ragdoll.UprightLock = false;
-            _ragdoll.BalanceEnabled = false;
-            Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-            _ragdoll.BodyOrientTarget = Quaternion.AngleAxis(_airPitch, axis) * _ragdoll.FacingRotation;
+            // Apply as a whole-body spin about the character's right axis (pitch/flip).
+            if (Mathf.Abs(_airPitchVel) > 1f)
+            {
+                Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
+                _ragdoll.SpinWholeBody(axis, _airPitchVel);
+            }
+            else if (wasSpinning)
+            {
+                // Spin just decayed to zero mid-air: cancel the leftover orbital linear
+                // velocity so he stops flipping cleanly instead of coasting in circles.
+                _ragdoll.StopBodySpin();
+            }
         }
 
         void NormalJump()
@@ -205,20 +210,14 @@ namespace Trickshot
 
         void ApplyLegRaises()
         {
-            // Ease each leg's raise amount toward its target (1 held, 0 released) instead
-            // of snapping. The instant clear on release let the body overshoot past
-            // neutral and snap back; easing out removes that jank.
-            float k = SimConfig.LegRaiseEase * Time.deltaTime;
-            _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? 1f : 0f, k);
-            _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? 1f : 0f, k);
-            if (_legRaiseL > 0.001f) RaiseLeg(Bone.ThighL, Bone.CalfL, _legRaiseL);
-            if (_legRaiseR > 0.001f) RaiseLeg(Bone.ThighR, Bone.CalfR, _legRaiseR);
+            if (_input.LeftLegHeld)  RaiseLeg(Bone.ThighL, Bone.CalfL);
+            if (_input.RightLegHeld) RaiseLeg(Bone.ThighR, Bone.CalfR);
         }
 
-        void RaiseLeg(Bone thigh, Bone calf, float amount)
+        void RaiseLeg(Bone thigh, Bone calf)
         {
-            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise * amount, 0f, 0f));
-            _ragdoll.SetPoseOverride(calf, new Vector3(20f * amount, 0f, 0f));
+            _ragdoll.SetPoseOverride(thigh, new Vector3(-SimConfig.LegSwingRaise, 0f, 0f));
+            _ragdoll.SetPoseOverride(calf, new Vector3(20f, 0f, 0f));
         }
 
         // Human-ish run: thighs alternate fore/aft, the knee of the SWING (forward)
@@ -295,7 +294,7 @@ namespace Trickshot
             // his run momentum, so he dives up-and-forward into it. Then a one-shot
             // forward-tilt torque about the right axis pitches him into the fall.
             Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel + Vector3.up * SimConfig.DiveUpVel);
+            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel);   // forward only, no upward pop
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
         }
@@ -305,12 +304,6 @@ namespace Trickshot
             _diveAir += Time.deltaTime;
             if (!grounded)
             {
-                // Sustain the upward momentum for a short window: feed in extra up-velocity
-                // each frame (partly cancelling gravity) so he hangs/rises a beat longer
-                // instead of the pop dying immediately.
-                if (_diveAir < SimConfig.DiveLiftTime)
-                    _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.DiveLiftAccel * Time.deltaTime);
-
                 // Light reach forward + trailing legs. The body is limp (DiveDriveScale)
                 // and the pelvis pitch is driven face-down by DiveYawLock, so this just
                 // shapes the pose slightly; it can't hold him upright.
@@ -328,7 +321,6 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
-            _airPitch = 0f;
             _airPitchVel = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
@@ -346,10 +338,7 @@ namespace Trickshot
             _airborneLock = 0f;
             _proneTimer = 0f;
             _spaceHeld = 0f;
-            _airPitch = 0f;
             _airPitchVel = 0f;
-            _legRaiseL = 0f;
-            _legRaiseR = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;
