@@ -42,8 +42,7 @@ namespace Trickshot
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
 
         // Recline (airborne back-flop) lifecycle.
-        float _reclineLeanTimer;      // driven lean-back window before he goes limp
-        Quaternion _reclineTarget;    // leaned-back orientation held during that window
+        Quaternion _reclineTarget;    // flat-on-back orientation held through the flop
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -216,20 +215,21 @@ namespace Trickshot
         }
 
         // ------------------------------------------------------------ recline
-        // Airborne Space: he ACTIVELY leans back to a clear angle (driven, so he really
-        // tilts), then goes LIMP and crumples to the ground. Two phases: a lean window
-        // where the pelvis is driven to a leaned-back target at full authority, then a
-        // release to limp so he drops slack.
+        // Airborne Space: he snaps FLAT ONTO HIS BACK (parallel to the ground) within a
+        // fraction of a second and is HELD there at full joint authority - a bicycle-kick
+        // setup - so LMB/RMB drive the legs exactly like when he is standing. Recovers
+        // after he settles on the ground.
         void StartRecline()
         {
             _mode = Trick.Recline;
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
-            _ragdoll.DriveScale = 1f;                 // full authority so the lean actually happens
-            _reclineLeanTimer = SimConfig.ReclineLeanTime;
+            _ragdoll.DriveScale = 1f;                 // full authority: snaps flat AND legs respond
             _proneTimer = SimConfig.ReclineProneTime;
 
-            // Driven leaned-back target: facing pitched BACK about its right axis.
+            // Target: facing pitched fully BACK about its right axis so he lies flat on
+            // his back, parallel to the ground. DrivePelvisOrientation reaches this in a
+            // couple of physics steps (well under 0.2s).
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _reclineTarget = Quaternion.AngleAxis(-SimConfig.ReclineLeanDeg, axis) * _ragdoll.FacingRotation;
             _ragdoll.BodyOrientTarget = _reclineTarget;
@@ -237,21 +237,13 @@ namespace Trickshot
 
         void ManageRecline(bool grounded)
         {
-            if (_reclineLeanTimer > 0f)
-            {
-                // Lean phase: hold him tilting back at full authority.
-                _reclineLeanTimer -= Time.deltaTime;
-                _ragdoll.BodyOrientTarget = _reclineTarget;
-                if (_reclineLeanTimer <= 0f)
-                {
-                    // Release: go limp and crumple the rest of the way down.
-                    _ragdoll.BodyOrientTarget = null;
-                    _ragdoll.DriveScale = SimConfig.ReclineDriveScale;
-                }
-            }
+            // Hold him flat on his back the whole time, and let LMB/RMB pump the legs
+            // just like standing (full drive, so the raises have real authority).
+            _ragdoll.BodyOrientTarget = _reclineTarget;
+            ApplyLegRaises();
 
             // Once he has settled on the ground, count down the prone timer and pop up.
-            if (grounded && _reclineLeanTimer <= 0f && (_proneTimer -= Time.deltaTime) <= 0f)
+            if (grounded && (_proneTimer -= Time.deltaTime) <= 0f)
                 EndTrick();
         }
 
@@ -277,8 +269,11 @@ namespace Trickshot
             _ragdoll.DiveYawLock = true;
             _ragdoll.DriveScale = SimConfig.DiveDriveScale;
 
-            // No launch velocity - his existing forward momentum carries. Just a one-shot
-            // forward-tilt torque about the right axis so he pitches forward into the fall.
+            // Forward-only launch (no upward pop): a horizontal burst along the facing on
+            // top of his run momentum, so he dives forward into it. Then a one-shot
+            // forward-tilt torque about the right axis pitches him into the fall.
+            Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
+            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel);
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
         }
@@ -305,7 +300,6 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
-            _reclineLeanTimer = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
             _ragdoll.BodyOrientTarget = null;
@@ -322,7 +316,6 @@ namespace Trickshot
             _airborneLock = 0f;
             _proneTimer = 0f;
             _spaceHeld = 0f;
-            _reclineLeanTimer = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;

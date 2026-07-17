@@ -141,18 +141,17 @@ namespace Trickshot
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
         // ---- Recline (airborne Space) ----
-        // He ACTIVELY leans back to a clear angle (driven so it really shows), then goes
-        // limp and crumples to the ground (roughly upright, not a full flip).
-        public const float ReclineLeanDeg = 75f;         // how far back he tilts during the lean
-        public const float ReclineLeanTime = 0.15f;      // driven lean window before he goes limp
-        public const float ReclineDriveScale = 0.12f;    // limp body so he drops slack after the lean
+        // He snaps FLAT onto his back (parallel to the ground) fast and is held there at
+        // full authority - a bicycle-kick setup where LMB/RMB drive the legs like normal.
+        public const float ReclineLeanDeg = 90f;         // 90 = fully parallel, flat on his back
         public const float ReclineProneTime = 0.7f;      // stays down this long after landing
 
         // ---- Dive header (hold Space while moving forward) ----
-        // No jump: a one-shot forward-tilt torque tips him into a belly-down header and
-        // he falls forward, keeping his run momentum until he hits the ground. Pelvis
-        // yaw+roll are pinned so the chest stays square-forward.
+        // No jump: a forward-only horizontal burst plus a one-shot forward-tilt torque
+        // launch him into a belly-down header, keeping his run momentum until he hits the
+        // ground. Pelvis yaw+roll are pinned so the chest stays square-forward.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
+        public const float DiveForwardVel = 8f;       // forward-only launch speed (no upward pop)
         public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
