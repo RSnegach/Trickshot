@@ -47,7 +47,7 @@ namespace Trickshot
         float _gaitPhase;
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
-        float _airPitchVel;    // wheel-driven whole-body spin velocity (deg/s) while airborne
+        float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -142,19 +142,19 @@ namespace Trickshot
             }
         }
 
-        // Mouse-wheel flips, ONLY while airborne. Scroll builds a WHOLE-BODY spin about
-        // his central (right) axis so he visibly rotates as one piece (front/back flips).
-        // Driving only the pelvis (the old way) just arched the spine against the joints -
-        // it never actually flipped. On the ground the upright lock owns his orientation
-        // and the wheel does nothing.
+        // Mouse-wheel flips, ONLY while airborne. Scroll accumulates a TARGET lean angle
+        // (about his central/right axis) that is CLAMPED to +/-90deg - parallel with the
+        // ground. The whole body is spun toward that target and stops there, so scrolling
+        // more once he is flat does nothing (no runaway spin). On the ground the upright
+        // lock owns his orientation and the wheel does nothing.
         void AirPitchControl(bool grounded)
         {
             if (grounded)
             {
                 // Landed: stop the spin and hand orientation back to balance/upright lock.
-                if (_airPitchVel != 0f || !_ragdoll.BalanceEnabled)
+                if (_airPitchTarget != 0f || !_ragdoll.BalanceEnabled)
                 {
-                    _airPitchVel = 0f;
+                    _airPitchTarget = 0f;
                     _ragdoll.StopBodySpin();
                     _ragdoll.BalanceEnabled = true;
                 }
@@ -166,30 +166,28 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = false;
             _ragdoll.BodyOrientTarget = null;
 
-            // Each scroll event adds a small FIXED spin increment by sign only (raw scroll
-            // magnitude is huge and mouse-dependent - ~120/notch on Windows - so any
-            // proportional gain instantly slams the cap). The LOW cap is what actually
-            // prevents pinwheeling: it bounds top spin to well under a rotation/sec.
-            // A free-spin wheel fires several events and ramps toward the cap; friction
-            // settles it quickly.
+            // Scroll moves the TARGET lean, clamped to +/-90 (parallel). Past that the
+            // scroll is ignored, so he holds flat instead of spinning on.
             float scroll = _input.Scroll;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
-                _airPitchVel = Mathf.Clamp(_airPitchVel + Mathf.Sign(scroll) * SimConfig.AirPitchImpulse,
-                                           -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
-            bool wasSpinning = Mathf.Abs(_airPitchVel) > 1f;
-            _airPitchVel = Mathf.MoveTowards(_airPitchVel, 0f, SimConfig.AirPitchDamp * Time.deltaTime);
+                _airPitchTarget = Mathf.Clamp(_airPitchTarget + Mathf.Sign(scroll) * SimConfig.AirPitchStep,
+                                              -SimConfig.AirPitchLimit, SimConfig.AirPitchLimit);
 
-            // Apply as a whole-body spin about the character's right axis (pitch/flip).
-            if (Mathf.Abs(_airPitchVel) > 1f)
+            // Current lean = signed angle of his right-axis pitch away from upright. Spin
+            // toward the target proportionally, capped, and stop cleanly at the target.
+            float axisRoll = Vector3.SignedAngle(Vector3.up, _ragdoll.Pelvis.transform.up,
+                                                 _ragdoll.FacingRotation * Vector3.right);
+            float err = Mathf.DeltaAngle(axisRoll, _airPitchTarget);
+            Vector3 spinAxis = _ragdoll.FacingRotation * Vector3.right;
+            if (Mathf.Abs(err) > 2f)
             {
-                Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-                _ragdoll.SpinWholeBody(axis, _airPitchVel);
+                float w = Mathf.Clamp(err * SimConfig.AirPitchGain,
+                                      -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
+                _ragdoll.SpinWholeBody(spinAxis, w);
             }
-            else if (wasSpinning)
+            else
             {
-                // Spin just decayed to zero mid-air: cancel the leftover orbital linear
-                // velocity so he stops flipping cleanly instead of coasting in circles.
-                _ragdoll.StopBodySpin();
+                _ragdoll.StopBodySpin();   // reached target lean: hold, no residual orbit
             }
         }
 
@@ -324,7 +322,7 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
-            _airPitchVel = 0f;
+            _airPitchTarget = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
             _ragdoll.BodyOrientTarget = null;
@@ -341,7 +339,7 @@ namespace Trickshot
             _airborneLock = 0f;
             _proneTimer = 0f;
             _spaceHeld = 0f;
-            _airPitchVel = 0f;
+            _airPitchTarget = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;

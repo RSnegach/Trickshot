@@ -141,14 +141,15 @@ namespace Trickshot
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
         // ---- Air flip control (mouse wheel, airborne only) ----
-        // Scroll builds a WHOLE-BODY spin (deg/s) about his right axis so he visibly flips
-        // front/back as one piece. Each event adds a small fixed step by sign; the LOW cap
-        // bounds top spin to well under a rotation/sec so it can't pinwheel. Friction
-        // settles it. Scroll to lie back for a bicycle kick.
+        // Scroll moves a TARGET lean angle about his right axis, clamped to +/-90 (parallel
+        // with the ground). The whole body is spun toward that target and stops there, so
+        // scrolling past parallel does nothing - no runaway spin. Scroll to lie flat for a
+        // bicycle kick.
         public const float ScrollDeadzone = 0.0001f;     // ignore only true zero/noise
-        public const float AirPitchImpulse = 60f;        // deg/s of spin added PER scroll event (by sign)
-        public const float AirPitchMaxSpeed = 200f;      // LOW cap (~0.55 rot/sec) so it can't pinwheel
-        public const float AirPitchDamp = 400f;          // deg/s^2 the spin bleeds off (settles quickly)
+        public const float AirPitchStep = 30f;           // deg the target lean moves per scroll event (by sign)
+        public const float AirPitchLimit = 90f;          // target clamp: 90 = parallel with the ground
+        public const float AirPitchGain = 8f;            // how hard he spins toward the target (1/s)
+        public const float AirPitchMaxSpeed = 500f;      // cap on the spin speed toward the target (deg/s)
         public const float BicycleUpnessMax = 0.4f;      // pelvis-up dot world-up below this = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----
@@ -157,7 +158,7 @@ namespace Trickshot
         // travel far. Pelvis yaw+roll pinned so the chest stays square.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
         public const float DiveUpVel = 3.5f;          // upward launch (modest hop)
-        public const float DiveForwardVel = 3.5f;     // forward launch (short reach)
+        public const float DiveForwardVel = 5f;       // forward launch (a bit more reach)
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
         public const float DiveDriveScale = 0.15f;    // limp body during the dive (spine won't hold upright)
