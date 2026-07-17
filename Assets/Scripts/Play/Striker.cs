@@ -136,7 +136,13 @@ namespace Trickshot
         {
             _spaceHeld = 0f;               // consumed -> next hold must re-accumulate
             _ragdoll.UprightLock = false;
-            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.JumpVelocity);
+            // Standing jumps go full height; jumps taken on the move are lower, and
+            // sprinting jumps lower still (momentum trades against pop).
+            bool moving = _input.Move.sqrMagnitude > 0.16f;
+            float jumpVel = SimConfig.JumpVelocity;
+            if (moving)
+                jumpVel *= _input.SprintHeld ? SimConfig.SprintJumpMul : SimConfig.RunJumpMul;
+            _ragdoll.AddVelocityToAll(Vector3.up * jumpVel);
             _airborneLock = 0.35f;
         }
 
@@ -227,9 +233,12 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;   // let the launch carry, don't steer it
 
-            // Chest stays facing forward: pin pelvis yaw+roll to the current facing.
+            // Chest stays facing forward: pin pelvis yaw+roll to the current facing and
+            // drive the pitch face-down. Go limp so the stiff spine can't hold him upright.
             _ragdoll.DiveYawFacing = _ragdoll.FacingRotation;
+            _ragdoll.DiveLayoutPitch = SimConfig.DiveLayoutPitch;
             _ragdoll.DiveYawLock = true;
+            _ragdoll.DriveScale = SimConfig.DiveDriveScale;
 
             // Jump: up + forward off the run direction, added on top of run momentum.
             Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
@@ -238,7 +247,6 @@ namespace Trickshot
             // One-shot forward-tilt torque about the right axis -> tips into the header.
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
-            _ragdoll.SetPose(RagdollPose.Stand, 12f);
         }
 
         void ManageDive(bool grounded)
@@ -246,8 +254,9 @@ namespace Trickshot
             _diveAir += Time.deltaTime;
             if (!grounded)
             {
-                // Reach forward + let the legs trail; no orientation drive, so it's a
-                // free forward ragdoll fall (no back-tilt, no arc).
+                // Light reach forward + trailing legs. The body is limp (DiveDriveScale)
+                // and the pelvis pitch is driven face-down by DiveYawLock, so this just
+                // shapes the pose slightly; it can't hold him upright.
                 _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(15f, 0f, 0f));
                 _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(25f, 0f, 0f));
                 _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(25f, 0f, 0f));
@@ -263,6 +272,7 @@ namespace Trickshot
             _mode = Trick.None;
             _spaceHeld = 0f;
             _ragdoll.DiveYawLock = false;
+            _ragdoll.DriveScale = 1f;      // stiffen back up
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
@@ -279,6 +289,7 @@ namespace Trickshot
             _spaceHeld = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
+            _ragdoll.DriveScale = 1f;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
