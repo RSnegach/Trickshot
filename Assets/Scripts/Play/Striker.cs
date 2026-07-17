@@ -50,7 +50,7 @@ namespace Trickshot
         float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90
         float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
         float _headerBend;              // eased 0..1 torso-forward amount for the airborne header
-        float _headerTimer;             // grace window keeping an airborne header live after the click
+        float _lmbTimer, _rmbTimer;     // per-button grace windows; header needs both live at once
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -220,16 +220,16 @@ namespace Trickshot
             }
             else
             {
-                // Airborne: LMB or RMB triggers a HEADER. A short grace window keeps the
-                // header "live" a few ms after the click (like the GK split forgiveness),
-                // so a slightly early press still heads. Legs come forward only minimally;
-                // the torso leans pronouncedly forward to drive the head into the ball.
-                if (_input.LeftClickPressed || _input.RightClickPressed || _input.LeftLegHeld || _input.RightLegHeld)
-                    _headerTimer = SimConfig.HeaderGrace;
-                else if (_headerTimer > 0f)
-                    _headerTimer -= Time.deltaTime;
+                // Airborne: a HEADER needs BOTH LMB and RMB. Each button holds a short
+                // grace window from its press (GK-split-style), so pressing them a few ms
+                // apart still counts as "both". Header = both windows live. Legs come
+                // forward only minimally; the torso leans pronouncedly forward.
+                if (_input.LeftLegHeld)  _lmbTimer = SimConfig.HeaderGrace;
+                else if (_lmbTimer > 0f) _lmbTimer -= Time.deltaTime;
+                if (_input.RightLegHeld)  _rmbTimer = SimConfig.HeaderGrace;
+                else if (_rmbTimer > 0f) _rmbTimer -= Time.deltaTime;
 
-                bool heading = _headerTimer > 0f;
+                bool heading = _lmbTimer > 0f && _rmbTimer > 0f;
                 float legTarget = heading ? SimConfig.HeaderLegRaiseMul : 0f;
                 _legRaiseL = Mathf.MoveTowards(_legRaiseL, legTarget, k);
                 _legRaiseR = Mathf.MoveTowards(_legRaiseR, legTarget, k);
@@ -370,7 +370,8 @@ namespace Trickshot
             _legRaiseL = 0f;
             _legRaiseR = 0f;
             _headerBend = 0f;
-            _headerTimer = 0f;
+            _lmbTimer = 0f;
+            _rmbTimer = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;
