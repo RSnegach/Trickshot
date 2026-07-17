@@ -96,7 +96,7 @@ namespace Trickshot
             // parts' centres so their local rotations map 1:1 to the joints.
             var tPelvis = MakeTarget(Bone.Pelvis, _targetRoot, basePos + Off(0f, 1.02f, 0f), facing);
             var tTorso  = MakeTarget(Bone.Torso,  tPelvis,     basePos + Off(0f, 1.34f, 0f), facing);
-            var tHead   = MakeTarget(Bone.Head,   tTorso,      basePos + Off(0f, 1.70f, 0f), facing);
+            var tHead   = MakeTarget(Bone.Head,   tTorso,      basePos + Off(0f, 1.72f, 0f), facing);
             var tThighL = MakeTarget(Bone.ThighL, tPelvis,     basePos + Off(-0.11f, 0.73f, 0f), facing);
             var tThighR = MakeTarget(Bone.ThighR, tPelvis,     basePos + Off( 0.11f, 0.73f, 0f), facing);
             var tCalfL  = MakeTarget(Bone.CalfL,  tThighL,     basePos + Off(-0.11f, 0.33f, 0f), facing);
@@ -120,10 +120,10 @@ namespace Trickshot
 
             MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
                      ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
-            // Head: 0.14 visible radius but a larger 0.22 collider (dims.y override) so
-            // headers connect more easily.
-            MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.70f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.14f, 0.22f, 0f), 4f, torsoMat);
+            // Head: bigger now - 0.19 visible radius with an even larger 0.27 collider
+            // (dims.y override) so headers connect easily.
+            MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.72f, 0f), facing,
+                     ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, torsoMat);
 
             MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat);
@@ -617,7 +617,7 @@ namespace Trickshot
             // Reposition each bone to its build offset and zero velocities.
             SnapBone(Bone.Pelvis, basePos + Off(0f, 1.02f, 0f), facing);
             SnapBone(Bone.Torso,  basePos + Off(0f, 1.34f, 0f), facing);
-            SnapBone(Bone.Head,   basePos + Off(0f, 1.70f, 0f), facing);
+            SnapBone(Bone.Head,   basePos + Off(0f, 1.72f, 0f), facing);
             SnapBone(Bone.ThighL, basePos + Off(-0.11f, 0.73f, 0f), facing);
             SnapBone(Bone.ThighR, basePos + Off(0.11f, 0.73f, 0f), facing);
             SnapBone(Bone.CalfL,  basePos + Off(-0.11f, 0.33f, 0f), facing);
