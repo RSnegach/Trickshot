@@ -5,11 +5,10 @@ namespace Trickshot
     /// <summary>
     /// The single game camera, with two modes:
     ///
-    ///  Follow (default gameplay): a third-person camera that sits behind the
-    ///  character the player currently controls and turns with that character's
-    ///  facing. Run into place, turn away from goal to set up the bike, and the
-    ///  camera orbits with you. Movement in Striker is camera-relative, so this
-    ///  is the usual stable third-person loop.
+    ///  Follow (default gameplay): an orbit camera around the striker driven by MOUSE
+    ///  MOVEMENT only, fully decoupled from WASD. Moving the mouse pans yaw/pitch
+    ///  around the striker. Toggle ball-lock (V) and the yaw instead swings to keep
+    ///  the ball framed behind the striker, for reading the incoming cross.
     ///
     ///  Broadcast (replays): a diagonal vantage across the penalty area that frames
     ///  everyone and tracks the ball, used for the slow-motion replay after contact.
@@ -24,20 +23,14 @@ namespace Trickshot
         Camera _cam;
         Mode _mode = Mode.Follow;
 
-        // follow refs
         Transform _followTarget;
-        System.Func<float> _yawSource;
-        float _curYaw;
+        System.Func<Vector2> _lookSource;   // mouse delta provider
+        float _yaw, _pitch = 22f;
         Vector3 _velPos;
 
-        // broadcast refs
         Transform _ball, _striker, _crosser, _goal;
         float _slowmoTimer;
-
-        // follow tuning
-        const float FollowDist = 5.8f;
-        const float FollowHeight = 2.9f;
-        const float LookHeight = 1.25f;
+        bool _ballCam;
 
         public void Init(Camera cam, Transform ball, Transform striker, Transform crosser, Transform goal)
         {
@@ -47,25 +40,24 @@ namespace Trickshot
             _crosser = crosser;
             _goal = goal;
             _followTarget = striker;
-            _curYaw = 0f;
         }
 
-        public void SetFollow(Transform target, System.Func<float> yawSource)
+        /// <summary>Set the orbit target and the mouse-delta source for camera control.</summary>
+        public void SetFollow(Transform target, System.Func<Vector2> lookSource)
         {
             _followTarget = target;
-            _yawSource = yawSource;
+            _lookSource = lookSource;
             _mode = Mode.Follow;
-            if (yawSource != null) _curYaw = yawSource();
         }
 
         public void SetMode(Mode m) => _mode = m;
         public void TriggerSlowMo(float seconds) => _slowmoTimer = Mathf.Max(_slowmoTimer, seconds);
         public bool SlowMoActive => _slowmoTimer > 0f;
 
-        // Ball-aware follow: stays behind you (body turn still orbits), but aims at a
-        // point biased toward the ball and widens FOV as the ball separates, so you
-        // can read the incoming cross's depth and height. Toggled with V.
-        bool _ballCam;
+        /// <summary>Current camera yaw (deg). The striker uses this as its look/turn
+        /// direction so movement is camera-relative, Minecraft third-person style.</summary>
+        public float Yaw => _yaw;
+
         public void ToggleBallCam() => _ballCam = !_ballCam;
         public bool BallCam => _ballCam;
 
@@ -73,7 +65,6 @@ namespace Trickshot
         {
             if (_cam == null) return;
             UpdateSlowMo();
-
             if (_mode == Mode.Follow) FollowUpdate();
             else BroadcastUpdate();
         }
@@ -92,31 +83,42 @@ namespace Trickshot
         {
             if (_followTarget == null) return;
             float dt = Time.unscaledDeltaTime;
-
-            float wantYaw = _yawSource != null ? _yawSource() : _curYaw;
-            _curYaw = Mathf.LerpAngle(_curYaw, wantYaw, 1f - Mathf.Exp(-7f * dt));
-
-            Vector3 fwd = new Vector3(Mathf.Sin(_curYaw * Mathf.Deg2Rad), 0f, Mathf.Cos(_curYaw * Mathf.Deg2Rad));
             Vector3 pivot = _followTarget.position;
-            Vector3 desired = pivot - fwd * FollowDist + Vector3.up * FollowHeight;
-            if (desired.y < 1.1f) desired.y = 1.1f;
 
-            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.14f, Mathf.Infinity, dt);
-
-            Vector3 lookAt = pivot + Vector3.up * LookHeight;
-            float targetFov = 55f;
             if (_ballCam && _ball != null)
             {
-                // Bias the aim toward the ball and open up FOV with separation so both
-                // the striker and the incoming ball stay in frame.
-                float sep = Vector3.Distance(_ball.position, pivot);
-                float w = Mathf.Clamp01(sep / 16f);                 // 0 when ball is on you, 1 far away
-                lookAt = Vector3.Lerp(pivot + Vector3.up * LookHeight, _ball.position, 0.35f + 0.3f * w);
-                targetFov = Mathf.Lerp(55f, 74f, w);
+                // Ball-lock: swing yaw so the camera sits opposite the ball (ball stays
+                // framed ahead of the striker). Mouse still nudges pitch.
+                Vector3 toBall = _ball.position - pivot; toBall.y = 0f;
+                if (toBall.sqrMagnitude > 0.01f)
+                {
+                    float ballYaw = Mathf.Atan2(toBall.x, toBall.z) * Mathf.Rad2Deg;
+                    _yaw = Mathf.LerpAngle(_yaw, ballYaw, 1f - Mathf.Exp(-6f * dt));
+                }
+                Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
+                _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
             }
+            else
+            {
+                // Free orbit: mouse movement pans yaw/pitch.
+                Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
+                _yaw += look.x * SimConfig.CamYawSpeed;
+                _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
+            }
+
+            Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
+            Vector3 offset = rot * new Vector3(0f, 0f, -SimConfig.CamDistance);
+            Vector3 desired = pivot + Vector3.up * SimConfig.CamLookHeight + offset;
+            if (desired.y < 0.6f) desired.y = 0.6f;
+
+            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.08f, Mathf.Infinity, dt);
+
+            Vector3 lookAt = pivot + Vector3.up * SimConfig.CamLookHeight;
+            if (_ballCam && _ball != null)
+                lookAt = Vector3.Lerp(lookAt, _ball.position, 0.35f);
             Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
-            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-10f * dt));
-            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, targetFov, 1f - Mathf.Exp(-5f * dt));
+            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-14f * dt));
+            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 58f, 1f - Mathf.Exp(-5f * dt));
         }
 
         void BroadcastUpdate()

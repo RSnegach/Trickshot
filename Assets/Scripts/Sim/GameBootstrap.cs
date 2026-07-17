@@ -14,6 +14,13 @@ namespace Trickshot
     /// </summary>
     public class GameBootstrap : MonoBehaviour
     {
+        // Hidden 4th role. Off by default; flip to spawn a dormant Sniper scaffold
+        // (see Sniper.cs). Even when spawned it does nothing until sniper.Active = true.
+        const bool EnableSniper = false;
+
+        // Goalkeeper temporarily removed while tuning the striker. Flip on to restore.
+        const bool EnableKeeper = false;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoStart()
         {
@@ -56,6 +63,9 @@ namespace Trickshot
             ballGo.AddComponent<Rigidbody>();
             var ball = ballGo.AddComponent<BallController>();
 
+            // Wire the ball into the flexible net so it billows on contact.
+            if (arena.net != null) arena.net.SetBall(ball.transform, SimConfig.BallRadius);
+
             // Crosser (capsule near the wing) + launch point at its feet
             var crosserGo = Make.Capsule("Crosser", 0.35f, 1.8f, SimConfig.CrosserStart + Vector3.up * 0.9f,
                                           Make.Mat(new Color(0.85f, 0.5f, 0.2f)), root);
@@ -65,7 +75,7 @@ namespace Trickshot
             // Reticle
             var reticleGo = Make.Empty("AimReticle", SimConfig.ReticleStart, root);
             var reticle = reticleGo.AddComponent<AimReticle>();
-            reticle.Init(cam, Make.Glow(new Color(1f, 0.85f, 0.2f)));
+            reticle.Init(Make.Glow(new Color(1f, 0.85f, 0.2f)));
 
             // Striker (active ragdoll)
             var strikerGo = new GameObject("Striker");
@@ -78,23 +88,26 @@ namespace Trickshot
             // ragdoll pelvis transform is what the camera follows / faces
             AttachKickDetectors(ragdoll, striker, ball);
 
-            // Keeper (kinematic capsule)
-            var keeperGo = Make.Capsule("Goalkeeper", 0.38f, 1.9f, SimConfig.KeeperStart + Vector3.up * 0.95f,
-                                         Make.Mat(new Color(0.9f, 0.85f, 0.2f)), root);
-            var keeperRb = keeperGo.AddComponent<Rigidbody>();
-            keeperRb.isKinematic = true;
-            keeperRb.useGravity = false;
-            keeperRb.interpolation = RigidbodyInterpolation.Interpolate;
-            var keeper = keeperGo.AddComponent<Goalkeeper>();
-            keeper.Init(ball);
+            // Keeper (kinematic capsule) - removed for now, gated off.
+            Goalkeeper keeper = null;
+            if (EnableKeeper)
+            {
+                var keeperGo = Make.Capsule("Goalkeeper", 0.38f, 1.9f, SimConfig.KeeperStart + Vector3.up * 0.95f,
+                                             Make.Mat(new Color(0.9f, 0.85f, 0.2f)), root);
+                var keeperRb = keeperGo.AddComponent<Rigidbody>();
+                keeperRb.isKinematic = true;
+                keeperRb.useGravity = false;
+                keeperRb.interpolation = RigidbodyInterpolation.Interpolate;
+                keeper = keeperGo.AddComponent<Goalkeeper>();
+                keeper.Init(ball);
+            }
 
-            // Camera controller
+            // Camera controller (mouse-orbit follow; GameManager sets the look source)
             var gameCam = camGo.AddComponent<GameCamera>();
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserGo.transform, arena.goalCenter);
-            gameCam.SetFollow(ragdoll.Pelvis.transform, () => striker.Yaw);
 
-            // Wire crosser
-            crosser.Init(GetInput(), reticle, ball, launch);
+            // Wire crosser (auto-server)
+            crosser.Init(reticle, ball, launch);
 
             // Game manager
             var gmGo = new GameObject("GameManager");
@@ -105,6 +118,16 @@ namespace Trickshot
             // Route valid tricks to the manager for slow-mo replay.
             foreach (var kd in strikerGo.GetComponentsInChildren<KickDetector>())
                 kd.OnValidTrick += gm.NotifyValidTrick;
+
+            // Hidden 4th role: dormant sniper scaffold (off by default).
+            if (EnableSniper)
+            {
+                var sniperGo = Make.Capsule("Sniper", 0.35f, 1.8f, SimConfig.SniperPerch,
+                                            Make.Mat(new Color(0.15f, 0.15f, 0.18f)), root);
+                var sniper = sniperGo.AddComponent<Sniper>();
+                sniper.Init(ragdoll.Pelvis.transform, ball.transform);
+                // sniper.Active stays false until the role is fleshed out.
+            }
 
             // ball starts parked
             ball.ResetTo(launch.position);

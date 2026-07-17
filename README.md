@@ -23,14 +23,19 @@ it works from an empty scene too.
 
 | Action | Input |
 | --- | --- |
-| Aim the cross | **Mouse** (reticle on the ground inside the box) |
-| Charge / launch cross | **Hold Space**, release to cross |
-| Curl the cross | **Q / E** while charging (inward / outward) |
-| Move the striker | **WASD** / arrows (world-relative) |
+| Move / look | **WASD** + **Mouse** (Minecraft third person: mouse turns you, A/D strafe) |
 | Jump | **Space** |
-| Bicycle kick | **Left Mouse** or **F** |
+| Diving header | **W + Space** (dive forward, land belly-down) |
+| Raise left / right leg | **Left Mouse** / **Right Mouse** (hold) |
+| Recline backward (airborne) | **E** (hold) — bicycle-kick setup, lands on the back |
 | Ball cam | **V** (toggle) |
-| Reset round | **R** |
+| Reset | **R** |
+
+Crosses are served automatically to a fixed spot every few seconds; you only
+control the striker. To score a trick: jump into the cross, hold **E** to recline
+onto your back, and hold a leg (**LMB/RMB**) into the ball while tipped back — or
+run in with **W + Space** for a diving header. Goals trigger a slow-motion sports
+replay.
 
 The camera follows the striker and turns with you: run into the box, turn away
 from goal to line up, and trigger the bike. Toggle **ball cam** (V) to bias the
@@ -42,20 +47,22 @@ clean trick the view cuts to a slow-motion broadcast replay, then resets.
 
 - **Active ragdoll** (`ActiveRagdoll.cs`): two skeletons. A target skeleton
   (invisible transforms) holds the intended pose; the physics skeleton is rigid
-  parts joined by `ConfigurableJoint`s whose slerp drives chase the target. The
-  pelvis is a free root kept upright by a PD balance torque, so ball impacts and
-  bad timing produce real ragdoll reactions. Joint target rotations use the
-  standard `SetTargetRotationLocal` conversion (`JointMath.cs`).
-- **Poses** (`RagdollPose.cs`): stand / load / bicycle, as per-bone local
-  rotation offsets that blend.
-- **Trick detection** (`KickDetector.cs`): a foot-ball contact only counts as a
-  bicycle kick if it lands during the kick window **and** the torso is inverted;
+  parts joined by `ConfigurableJoint`s whose slerp drives chase the target. While
+  grounded the pelvis is hard-locked upright (pitch/roll frozen) so the striker
+  cannot fall over; jumping or reclining releases the lock so the body can leave
+  the ground and tip. Joint target rotations use the standard
+  `SetTargetRotationLocal` conversion (`JointMath.cs`).
+- **Poses** (`RagdollPose.cs`): stand / load / bicycle, as per-bone local rotation
+  offsets that blend, plus additive per-bone overrides for the run cycle, leg
+  raises, and recline.
+- **Trick detection** (`KickDetector.cs`): a leg-ball contact only counts as a
+  bicycle kick if it lands while reclining **and** the torso is tipped well back;
   otherwise it is just a physical knock.
-- **Cross** (`Crosser.cs` + `BallController.cs`): a projectile solve puts the ball
-  on the reticle in a chosen time of flight; charge sets loft-vs-drive, Q/E add
-  curl during flight.
-- **Camera** (`GameCamera.cs`): third-person follow for play, diagonal broadcast
-  for replays, owns the slow-motion `Time.timeScale`.
+- **Auto serve** (`Crosser.cs` + `BallController.cs`): a projectile solve puts the
+  ball on a fixed spot in the box in a set time of flight, served on a timer.
+- **Camera** (`GameCamera.cs`): mouse-orbit follow (cursor locked centre) with a
+  ball-lock toggle for play, diagonal broadcast for replays, owns the slow-motion
+  `Time.timeScale`.
 
 ## Scope / not yet
 

@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// Sits on the kicking foot (and lower leg). Watches for ball contact and, when
-    /// the striker is in the bicycle window AND the body is sufficiently inverted,
+    /// the striker is reclining in the air AND the body is sufficiently tipped back,
     /// classifies it as a valid bicycle-kick contact: flags the ball as a trick shot,
     /// adds a bonus toward goal, and reports so the camera can go slow-mo. Contact at
     /// the wrong time is just a normal physical knock (an awkward failure).
@@ -36,12 +36,12 @@ namespace Trickshot
             var ball = c.collider.GetComponentInParent<BallController>();
             if (ball == null || ball != _ball) return;
 
-            if (!_striker.BicycleActive) return; // wrong timing -> just physics
+            if (!_striker.TrickActive) return; // must be reclining -> else just physics
 
-            // Body must be leaning back / inverting: pelvis up-vector should point
-            // away from world up (dot below threshold means tilted past ~80 deg).
+            // Body must be tipped back far enough: pelvis up-vector leaning away from
+            // world up (dot below threshold means reclined well past vertical).
             float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
-            if (upness > SimConfig.BicycleMinInvert) return; // not inverted enough
+            if (upness > SimConfig.BicycleMinInvert) return; // not reclined enough
 
             // Valid bicycle kick. Add a bonus impulse toward goal + upward.
             Vector3 toGoal = SimConfig.GoalCenter - ball.transform.position;
