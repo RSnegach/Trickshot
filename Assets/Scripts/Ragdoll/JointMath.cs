@@ -66,16 +66,19 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// Applies a critically-damped stabilising torque that drives a rigidbody's
-        /// orientation toward targetRot. Used to keep the pelvis upright and facing
-        /// a chosen direction. freq is roughly how fast it corrects (Hz), damping ~1
-        /// is critically damped. Torque is applied as Acceleration so it is mass
-        /// independent and easy to tune.
+        /// Applies a PD stabilising torque that drives a rigidbody's orientation
+        /// toward targetRot. Used to keep the pelvis upright and facing a chosen
+        /// direction. freq is roughly how fast it corrects (Hz); damping is the
+        /// damping ratio (1 = critically damped, i.e. fastest settle without
+        /// overshoot; &lt;1 wobbles more). Torque is applied as Acceleration so it is
+        /// mass independent and easy to tune.
         /// </summary>
         public static void DriveTowardRotation(Rigidbody rb, Quaternion targetRot, float freq, float damping)
         {
+            // kp = wn^2 with wn = 3*freq; critical kd = 2*wn = 6*freq, scaled by the
+            // damping ratio so 'damping' means what the docstring says.
             float kp = (6f * freq) * (6f * freq) * 0.25f;
-            float kd = 4.5f * freq * damping;
+            float kd = 6f * freq * damping;
 
             Quaternion delta = targetRot * Quaternion.Inverse(rb.rotation);
             // Ensure shortest path.
