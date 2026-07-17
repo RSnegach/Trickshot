@@ -85,7 +85,9 @@ namespace Trickshot
         Transform _targetRoot;
 
         // ---------------------------------------------------------------- build
-        public void Build(Vector3 basePos, Quaternion facing, Material torsoMat, Material limbMat)
+        // withGloves: the keeper wears big white gloves (with hitboxes); the striker does not.
+        public void Build(Vector3 basePos, Quaternion facing, Material torsoMat, Material limbMat,
+                          bool withGloves = true)
         {
             FacingRotation = facing;
 
@@ -184,9 +186,12 @@ namespace Trickshot
 
             IgnoreSelfCollisions();
 
-            // Big white gloves: visual-only spheres at the hand end of each forearm.
-            AddGlove(Bone.ForearmL);
-            AddGlove(Bone.ForearmR);
+            // Big white gloves at the hand end of each forearm (keeper only).
+            if (withGloves)
+            {
+                AddGlove(Bone.ForearmL);
+                AddGlove(Bone.ForearmR);
+            }
         }
 
         void AddGlove(Bone forearm)
