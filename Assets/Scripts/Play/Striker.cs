@@ -12,18 +12,14 @@ namespace Trickshot
     ///
     ///  - Grounded, the pelvis is hard-locked upright so he cannot fall over, and a
     ///    procedural run cycle picks up alternating feet with bent knees.
-    ///  - Space jumps. Space again while AIRBORNE ragdolls him onto his back (bicycle
-    ///    setup), staying down after landing for a moment. Space held while moving does
-    ///    a forward diving header, landing belly-down and staying prone briefly.
-    ///    LMB/RMB raise the legs.
-    ///
-    /// Tricks (recline / dive) release the upright lock and keep it off through the
-    /// landing via a prone timer, so the body actually rests flat instead of snapping
-    /// upright.
+    ///  - Space jumps. While AIRBORNE the MOUSE WHEEL pitches him about his central
+    ///    axis (scroll back to lie flat for a bicycle kick; raise legs with LMB/RMB).
+    ///    Space held while moving does a forward diving header, landing belly-down and
+    ///    staying prone briefly. LMB/RMB raise the legs.
     /// </summary>
     public class Striker : MonoBehaviour, IPlayerController
     {
-        enum Trick { None, Recline, Dive }
+        enum Trick { None, Dive }
 
         GameInput _input;
         ActiveRagdoll _ragdoll;
@@ -32,7 +28,8 @@ namespace Trickshot
         public bool ControlEnabled = true;
 
         Trick _mode = Trick.None;
-        public bool TrickActive => _mode == Trick.Recline;   // bicycle window for KickDetector
+        // Bicycle window for KickDetector: airborne and pitched back far enough.
+        public bool TrickActive => _mode == Trick.None && _airPitch <= -SimConfig.BicyclePitchMin;
 
         float _facingYaw;
         public float Yaw => _facingYaw;
@@ -40,9 +37,7 @@ namespace Trickshot
         float _gaitPhase;
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
-
-        // Recline (airborne back-flop) lifecycle.
-        Quaternion _reclineTarget;    // flat-on-back orientation held through the flop
+        float _airPitch;       // mouse-wheel-driven body pitch (deg) while airborne; <0 = leaning back
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -103,13 +98,7 @@ namespace Trickshot
                 if (_input.JumpHeld && grounded) _spaceHeld += Time.deltaTime;
                 else if (!grounded) _spaceHeld = 0f;
 
-                if (!grounded)
-                {
-                    // Airborne: a fresh Space press ragdolls him onto his back (bicycle
-                    // setup). Replaces the old E-recline.
-                    if (_input.JumpPressed) StartRecline();
-                }
-                else if (moving)
+                if (grounded && moving)
                 {
                     // Moving: distinguish a tap (jump) from a hold (diving header).
                     if (_input.JumpHeld && _spaceHeld >= SimConfig.DiveHoldTime)
@@ -117,7 +106,7 @@ namespace Trickshot
                     else if (_input.JumpReleased && _spaceHeld < SimConfig.DiveHoldTime)
                     { NormalJump(); _spaceHeld = 0f; }
                 }
-                else if (_input.JumpPressed)
+                else if (_input.JumpPressed && grounded)
                 {
                     // Standing still: jump straight up immediately (tap or hold).
                     NormalJump();
@@ -125,20 +114,52 @@ namespace Trickshot
                 }
             }
 
-            if (_mode == Trick.Recline) ManageRecline(grounded);
-            else if (_mode == Trick.Dive) ManageDive(grounded);
+            if (_mode == Trick.Dive) ManageDive(grounded);
+            else AirPitchControl(grounded);   // mouse-wheel body pitch while airborne
 
-            // Re-lock upright only in normal state, grounded, past the jump grace.
+            // Re-lock upright only in normal state, grounded, past the jump grace. (Not
+            // while airborne - the mouse wheel is controlling his pitch there.)
             if (_mode == Trick.None && _airborneLock <= 0f && grounded && !_ragdoll.UprightLock)
                 _ragdoll.UprightLock = true;
 
-            // Leg raises + run cycle only in normal control (not mid-dive/recline, whose
-            // pose overrides would otherwise be clobbered).
+            // Leg control (LMB/RMB) works the same grounded OR airborne - bicycle kicks
+            // come from raising legs while the wheel pitches him back. Run cycle only when
+            // grounded and locked upright.
             if (_mode == Trick.None)
             {
                 ApplyLegRaises();
                 if (grounded && _ragdoll.UprightLock) RunCycle(wish.magnitude);
             }
+        }
+
+        // Mouse-wheel body pitch, ONLY while airborne. Scroll rotates his target
+        // orientation about his central (right) axis - forward or backward flips - and
+        // the pelvis is driven+held there, yaw/roll pinned so it is pure pitch. On the
+        // ground the upright lock owns his orientation and the wheel does nothing.
+        void AirPitchControl(bool grounded)
+        {
+            if (grounded)
+            {
+                // Landed: hand orientation back to the grounded balance/upright lock.
+                if (_airPitch != 0f || _ragdoll.BodyOrientTarget.HasValue)
+                {
+                    _airPitch = 0f;
+                    _ragdoll.BodyOrientTarget = null;
+                    _ragdoll.BalanceEnabled = true;
+                }
+                return;
+            }
+
+            // Accumulate pitch from the wheel (scroll is ~120/notch on Windows).
+            _airPitch += _input.Scroll * SimConfig.AirPitchPerScroll;
+
+            // Free the body to rotate (the upright lock would fight the pitch), balance
+            // off, and drive the pelvis to facing pitched by _airPitch about its right
+            // axis. Yaw stays the current facing so the chest doesn't twist.
+            _ragdoll.UprightLock = false;
+            _ragdoll.BalanceEnabled = false;
+            Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
+            _ragdoll.BodyOrientTarget = Quaternion.AngleAxis(_airPitch, axis) * _ragdoll.FacingRotation;
         }
 
         void NormalJump()
@@ -214,38 +235,6 @@ namespace Trickshot
             _ragdoll.SetPoseOverride(foot, new Vector3(-sw * SimConfig.GaitFootPoint, 0f, 0f));
         }
 
-        // ------------------------------------------------------------ recline
-        // Airborne Space: he snaps FLAT ONTO HIS BACK (parallel to the ground) within a
-        // fraction of a second and is HELD there at full joint authority - a bicycle-kick
-        // setup - so LMB/RMB drive the legs exactly like when he is standing. Recovers
-        // after he settles on the ground.
-        void StartRecline()
-        {
-            _mode = Trick.Recline;
-            _ragdoll.UprightLock = false;
-            _ragdoll.BalanceEnabled = false;
-            _ragdoll.DriveScale = 1f;                 // full authority: snaps flat AND legs respond
-            _proneTimer = SimConfig.ReclineProneTime;
-
-            // Target: facing pitched fully BACK about its right axis so he lies flat on
-            // his back, parallel to the ground. DrivePelvisOrientation reaches this in a
-            // couple of physics steps (well under 0.2s).
-            Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-            _reclineTarget = Quaternion.AngleAxis(-SimConfig.ReclineLeanDeg, axis) * _ragdoll.FacingRotation;
-            _ragdoll.BodyOrientTarget = _reclineTarget;
-        }
-
-        void ManageRecline(bool grounded)
-        {
-            // Hold him flat on his back the whole time, and let LMB/RMB pump the legs
-            // just like standing (full drive, so the raises have real authority).
-            _ragdoll.BodyOrientTarget = _reclineTarget;
-            ApplyLegRaises();
-
-            // Once he has settled on the ground, count down the prone timer and pop up.
-            if (grounded && (_proneTimer -= Time.deltaTime) <= 0f)
-                EndTrick();
-        }
 
         // --------------------------------------------------- diving header
         // No jump: he just starts falling FORWARD from wherever he is, keeping the run
@@ -300,6 +289,7 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
+            _airPitch = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
             _ragdoll.BodyOrientTarget = null;
@@ -316,6 +306,7 @@ namespace Trickshot
             _airborneLock = 0f;
             _proneTimer = 0f;
             _spaceHeld = 0f;
+            _airPitch = 0f;
             _gaitPhase = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;

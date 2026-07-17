@@ -173,7 +173,7 @@ namespace Trickshot
             GUI.Label(new Rect(16, 52, 240, 20), $"Ball {_ball.Speed:0.0} m/s", st);
 
             var help = "Move: WASD   Camera: Mouse   Ball cam: V\n"
-                     + "Jump: Space   Left leg: LMB   Right leg: RMB   Back-flop (air): Space   Reset: R";
+                     + "Jump: Space   Left leg: LMB   Right leg: RMB   Air pitch: Mouse wheel   Reset: R";
             GUI.Label(new Rect(8, Screen.height - 44, 700, 40), help, st);
 
             if (_flashTime > 0f)
