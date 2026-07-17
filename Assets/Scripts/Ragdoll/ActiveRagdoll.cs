@@ -120,10 +120,11 @@ namespace Trickshot
 
             MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
                      ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
-            // Head: bigger now - 0.19 visible radius with an even larger 0.27 collider
-            // (dims.y override) so headers connect easily.
+            // Head: 0.19 visible radius, 0.27 collider (dims.y override), and the hitbox
+            // shifted forward (+Z) and a bit down (-Y) so headers reach in front of the face.
             MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.72f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, torsoMat);
+                     ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, torsoMat,
+                     1f, new Vector3(0f, -0.05f, 0.12f));
 
             MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat);
@@ -135,11 +136,12 @@ namespace Trickshot
             MakePart(Bone.CalfR, Phys(Bone.ThighR), basePos + Off(0.11f, 0.33f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat);
 
-            // Small, low-profile feet (the old 0.28-deep blocks were too chunky).
+            // Small, low-profile feet visually, but a ~1.6x larger collider (last arg)
+            // so the ball connects off the foot more easily.
             MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.04f, 0.04f), facing,
-                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat);
+                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
             MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.04f, 0.04f), facing,
-                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat);
+                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
 
             // Arms (upper arm + forearm), thinner capsules along Y.
             // Arms with thicker colliders -> bigger hitbox to reach shots.
@@ -207,7 +209,8 @@ namespace Trickshot
         enum ColliderKind { Box, Sphere, CapsuleY }
 
         void MakePart(Bone b, Transform parent, Vector3 worldPos, Quaternion facing,
-                      ColliderKind kind, Vector3 dims, float mass, Material mat)
+                      ColliderKind kind, Vector3 dims, float mass, Material mat,
+                      float colliderScale = 1f, Vector3 colliderOffset = default)
         {
             var go = new GameObject("P_" + b);
             go.transform.SetParent(parent, true);
@@ -225,6 +228,7 @@ namespace Trickshot
                     // dims.y (if > 0) is a collider-radius override so the hitbox can be
                     // bigger than the visible sphere (e.g. a generous header hitbox).
                     sc.radius = dims.y > 0f ? dims.y : dims.x;
+                    sc.center = colliderOffset;   // shift the hitbox (e.g. forward + down)
                     col = sc;
                     visual = Make.Sphere("v", dims.x * 2f, worldPos, mat, go.transform);
                     break;
@@ -242,7 +246,9 @@ namespace Trickshot
                 default: // Box
                 {
                     var bc = go.AddComponent<BoxCollider>();
-                    bc.size = dims;
+                    // Enlarge the hitbox on X/Z only (not vertical) so a bigger foot
+                    // collider doesn't poke through the ground and cause jitter.
+                    bc.size = new Vector3(dims.x * colliderScale, dims.y, dims.z * colliderScale);
                     col = bc;
                     visual = Make.Box("v", dims, worldPos, mat, go.transform, collider: false);
                     break;
