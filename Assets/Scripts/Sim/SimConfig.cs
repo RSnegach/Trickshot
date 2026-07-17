@@ -141,10 +141,11 @@ namespace Trickshot
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
         // ---- Recline (airborne Space) ----
-        // A TINY backward lean, then he goes limp and crumples to the ground roughly
-        // upright (not a full flip onto the back).
-        public const float ReclineImpulse = 4f;          // small lean-back nudge
-        public const float ReclineDriveScale = 0.12f;    // limp body so he drops slack
+        // He ACTIVELY leans back to a clear angle (driven so it really shows), then goes
+        // limp and crumples to the ground (roughly upright, not a full flip).
+        public const float ReclineLeanDeg = 45f;         // how far back he tilts during the lean
+        public const float ReclineLeanTime = 0.35f;      // driven lean window before he goes limp
+        public const float ReclineDriveScale = 0.12f;    // limp body so he drops slack after the lean
         public const float ReclineProneTime = 0.7f;      // stays down this long after landing
 
         // ---- Dive header (hold Space while moving forward) ----
