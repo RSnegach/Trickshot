@@ -240,12 +240,15 @@ namespace Trickshot
                 }
                 else
                 {
-                    // Single leg raises fully; bicycle kicks come from raising one leg
-                    // while the wheel has pitched him onto his back.
-                    _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? 1f : 0f, k);
-                    _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? 1f : 0f, k);
+                    // Single leg SNAPS up fast and high for a bicycle kick (a much quicker
+                    // ease-in than the grounded/header raise).
+                    float ks = SimConfig.BicycleLegEase * Time.deltaTime;
+                    _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? SimConfig.BicycleLegRaiseMul : 0f, ks);
+                    _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? SimConfig.BicycleLegRaiseMul : 0f, ks);
                 }
-                _headerBend = Mathf.MoveTowards(_headerBend, heading ? 1f : 0f, k);
+                // Torso snaps forward fast when heading (quicker than the release ease-out).
+                float kh = (heading ? SimConfig.HeaderBendEase : SimConfig.LegRaiseEase) * Time.deltaTime;
+                _headerBend = Mathf.MoveTowards(_headerBend, heading ? 1f : 0f, kh);
             }
 
             if (_legRaiseL > 0.001f) RaiseLeg(Bone.ThighL, Bone.CalfL, _legRaiseL);
