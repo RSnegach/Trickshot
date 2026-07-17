@@ -138,9 +138,12 @@ namespace Trickshot
         public const float ReclineProneTime = 1.2f;  // stays flat on back this long after landing
 
         // ---- Dive header (hold Space while moving forward) ----
-        // Instant: no crouch, no launch velocity - just release the upright lock and a
-        // one-shot forward-tilt torque, so he ragdoll-falls forward carrying run momentum.
+        // He JUMPS first (up + forward off the run), then a one-shot forward-tilt torque
+        // tips him into a belly-down header. Pelvis yaw+roll are pinned so the chest
+        // stays square-forward. Run momentum is preserved on top of the launch.
         public const float DiveHoldTime = 0.28f;      // hold Space (moving fwd) this long -> dive; below = tap-jump
+        public const float DiveUpVel = 6.5f;          // upward launch (the jump)
+        public const float DiveForwardVel = 4.5f;     // forward launch added off the run direction
         public const float DiveForwardImpulse = 14f;  // one-shot forward-tilt torque
         public const float DiveProneTime = 0.9f;      // stays prone this long after landing
         public const float BalanceFrequency = 3.2f;
