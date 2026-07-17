@@ -47,8 +47,8 @@ namespace Trickshot
         void Choose(GameMode m)
         {
             _chosen = true;
-            _onChoose?.Invoke(m);
             enabled = false;
+            _onChoose?.Invoke(m);   // may destroy this object; do nothing after
         }
     }
 }

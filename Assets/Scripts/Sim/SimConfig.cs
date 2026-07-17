@@ -18,9 +18,10 @@ namespace Trickshot
         // The playable box is a training-ground slice, not a full pitch.
         public const float FieldLength = 34f;   // along Z, toward goal
         public const float FieldWidth  = 24f;   // along X
-        public const float GoalWidth   = 7.32f; // regulation-ish
-        public const float GoalHeight  = 2.44f;
-        public const float GoalDepth   = 3.0f;   // deeper goal box
+        // Goal size is set from the pre-match screen, so these are mutable (not const).
+        public static float GoalWidth  = 7.32f;  // regulation-ish
+        public static float GoalHeight = 2.44f;
+        public static float GoalDepth  = 3.0f;    // deeper goal box
 
         // ---- Net (position-based-dynamics cloth) ----
         public const int NetCols = 24;             // grid resolution across the width
@@ -33,6 +34,9 @@ namespace Trickshot
         // surface. Must exceed the gap the backstop leaves (~one ball radius) or the
         // net never billows. Bigger = wider, deeper pocket.
         public const float NetBallReach = 0.85f;
+        // Hide the net when the camera's forward.y exceeds this (looking well up, where
+        // the net fills the view). ~0.55 ≈ looking up past ~33 degrees.
+        public const float NetHideLookUp = 0.55f;
         public const float PenaltyBoxDepth = 16.5f;
         public const float PenaltyBoxWidth = 20f; // slightly narrower than field
 
@@ -46,7 +50,7 @@ namespace Trickshot
         // ---- Goalkeeper (player-controlled keeper mode) ----
         // Keeper stands on the line facing OUT toward the pitch (-Z).
         public static readonly Vector3 KeeperFaceDir = new Vector3(0f, 0f, -1f);
-        public const float KeeperStrafeSpeed = 5.5f;   // A/D strafe + W/S move speed
+        public static float KeeperStrafeSpeed = 5.5f;  // A/D strafe + W/S move speed (pre-match slider)
         public const float KeeperStrafeXLimit = 4.2f;  // how far off centre he can shuffle
 
         // LMB/RMB reflex save: one-time sideways lunge, arm+leg out. He STAYS DOWN in
@@ -72,12 +76,13 @@ namespace Trickshot
         public const float KeeperDiveLayoutLow = 84f;    // low dash dive: nearly flat
         public const float KeeperDiveLayoutHigh = 90f;   // high dive: fully parallel at the apex
         public const float KeeperDiveRoll = 90f;         // strong initial roll kick -> lays out near-instantly
-        public const float KeeperDiveLeadKnee = 120f;    // leading leg folds up hard
-        public const float KeeperDiveBackKnee = 45f;     // back leg bends a little
+        public const float KeeperDiveLeadKnee = 130f;    // leading leg folds up hard
+        public const float KeeperDiveBackKnee = 95f;     // back leg also bends a good amount
         public const float KeeperDiveMinAir = 0.25f;     // min airborne time before we check for landing
         public const float KeeperDiveSettle = 0.25f;     // time on the ground after landing before getting up
         public const float KeeperDiveMaxTime = 2.5f;     // hard safety cap so a dive can never get stuck
-        public const float KeeperJumpVel = 6.5f;         // straight-up jump (Space, no direction)
+        public static float KeeperJumpVel = 6.5f;        // straight-up jump (Space); pre-match slider
+        public const float KeeperJumpVelBase = 6.5f;     // 1.0x reference for jump/dive-height scaling
         // Keeper camera slight mouse look (clamped, stays a behind-view).
         public const float KeeperCamLookYaw = 18f;        // max deg left/right the view pans
         public const float KeeperCamLookPitch = 12f;      // max deg up/down
@@ -98,7 +103,16 @@ namespace Trickshot
 
         // ---- Auto serve ----
         public const float ServeFirstDelay = 1.6f; // before the first cross
-        public const float ServeInterval = 2.0f;   // seconds between crosses (rapid-fire testing)
+        // Seconds between crosses (striker mode) - set from the pre-match screen.
+        public static float ServeInterval = 3.5f;
+
+        // ---- Pre-match match settings (set from PrematchUI) ----
+        // Striker mode: how good the AI keeper is (0 = does nothing, 1 = very active).
+        public static float KeeperAbility = 0.5f;
+        // Keeper mode: how hard the served shots are (0 = easy/slow, 1 = fast/tight).
+        public static float ShotDifficulty = 0.5f;
+        // Global multiplier on launched ball speed (crosses + shots). Pre-match slider.
+        public static float BallSpeedMul = 1.0f;
         // Testing: leave the striker wherever it is between serves (no teleport back to
         // start). Set true to restore per-serve repositioning.
         public const bool ResetStrikerOnServe = false;
@@ -135,7 +149,7 @@ namespace Trickshot
         public const float BalanceDamping = 0.85f;
 
         // ---- Striker locomotion ----
-        public const float StrikerMoveSpeed = 4.8f;
+        public static float StrikerMoveSpeed = 4.8f;   // pre-match slider
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
         public const float JumpVelocity = 8.0f;     // m/s upward added to the whole body on jump (higher)

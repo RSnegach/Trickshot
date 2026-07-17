@@ -52,17 +52,56 @@ namespace Trickshot
             _cam.farClipPlane = 400f;
             _camGo.AddComponent<AudioListener>();
 
-            // Start at the menu; the arena + chosen mode are built on selection.
+            ShowMainMenu();
+        }
+
+        // ---- Screen flow: main menu -> pre-match settings -> match (+ pause menu) ----
+        GameObject _matchRoot;   // holds everything spawned for a running match
+
+        void ShowMainMenu()
+        {
             var menuGo = new GameObject("MenuUI");
             var menu = menuGo.AddComponent<MenuUI>();
-            menu.Init(BuildMode);
+            menu.Init(mode =>
+            {
+                Destroy(menuGo);
+                ShowPrematch(mode);
+            });
+        }
+
+        void ShowPrematch(GameMode mode)
+        {
+            var go = new GameObject("PrematchUI");
+            var pm = go.AddComponent<PrematchUI>();
+            pm.Init(mode,
+                onStart: m => { Destroy(go); BuildMode(m); },
+                onBack:  () => { Destroy(go); ShowMainMenu(); });
+        }
+
+        void ReturnToMainMenu()
+        {
+            // Tear the match down and go back to the start menu.
+            if (_matchRoot != null) Destroy(_matchRoot);
+            var gc = _camGo.GetComponent<GameCamera>();
+            if (gc != null) Destroy(gc);
+            Time.timeScale = 1f;
+            Time.fixedDeltaTime = 0.02f;
+            ShowMainMenu();
         }
 
         void BuildMode(GameMode mode)
         {
-            var root = _root;
+            // Everything for this match lives under _matchRoot so it can be torn down.
+            _matchRoot = new GameObject("Match");
+            _matchRoot.transform.SetParent(_root, false);
+            var root = _matchRoot.transform;
             var cam = _cam;
             var camGo = _camGo;
+
+            // Pause menu (Esc): Resume / Main Menu.
+            var pauseGo = new GameObject("PauseMenu");
+            pauseGo.transform.SetParent(root, false);
+            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu);
 
             // --- Shared: arena, ball, camera controller ---
             var arena = Arena.Build(root);
@@ -103,13 +142,28 @@ namespace Trickshot
             striker.Init(GetInput(), ragdoll);
             AttachKickDetectors(ragdoll, striker, ball);
 
+            // AI keeper (kinematic), tracking scaled by the pre-match ability slider.
+            Goalkeeper keeper = null;
+            if (SimConfig.KeeperAbility > 0.001f)
+            {
+                var keeperGo = Make.Capsule("Goalkeeper", 0.38f, 1.9f, SimConfig.KeeperStart + Vector3.up * 0.95f,
+                                             Make.Mat(new Color(0.9f, 0.85f, 0.2f)), root);
+                var keeperRb = keeperGo.AddComponent<Rigidbody>();
+                keeperRb.isKinematic = true;
+                keeperRb.useGravity = false;
+                keeperRb.interpolation = RigidbodyInterpolation.Interpolate;
+                keeper = keeperGo.AddComponent<Goalkeeper>();
+                keeper.Init(ball);
+            }
+
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserGo.transform, arena.goalCenter);
             crosser.Init(reticle, ball, launch);
 
             var gmGo = new GameObject("GameManager");
             gmGo.transform.SetParent(root, true);
             var gm = gmGo.AddComponent<GameManager>();
-            gm.Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, null, gameCam, launch);
+            gm.Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
+            LockCursor();
 
             foreach (var kd in strikerGo.GetComponentsInChildren<KickDetector>())
                 kd.OnValidTrick += gm.NotifyValidTrick;
@@ -149,6 +203,13 @@ namespace Trickshot
             kgGo.transform.SetParent(root, true);
             var kg = kgGo.AddComponent<KeeperGame>();
             kg.Configure(GetInput(), server, ball, keeper, ragdoll, gameCam);
+            LockCursor();
+        }
+
+        static void LockCursor()
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         GameInput _input;

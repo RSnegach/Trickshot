@@ -50,6 +50,10 @@ namespace Trickshot
 
         public void LaunchTo(Vector3 targetPoint, float timeOfFlight, Vector3 curlAccel, float spin)
         {
+            // Ball-speed multiplier shortens the flight time (faster ball) while still
+            // solving to hit the same target - scaling v0 directly would miss.
+            timeOfFlight = Mathf.Max(0.2f, timeOfFlight / Mathf.Max(0.1f, SimConfig.BallSpeedMul));
+
             Vector3 g = Physics.gravity;
             Vector3 p0 = Rb.position;
             // v0 such that p0 + v0*t + 0.5*g*t^2 = target at t = timeOfFlight

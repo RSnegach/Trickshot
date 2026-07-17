@@ -35,6 +35,9 @@ namespace Trickshot
         struct Link { public int a, b; public float len; }
         Link[] _links;
 
+        MeshRenderer _renderer;
+        Camera _cam;
+
         readonly List<Vector3> _nodes = new List<Vector3>();
         readonly List<bool> _pins = new List<bool>();
         readonly List<int> _lines = new List<int>();
@@ -75,10 +78,10 @@ namespace Trickshot
             _mesh.RecalculateBounds();
             GetComponent<MeshFilter>().sharedMesh = _mesh;
 
-            var mr = GetComponent<MeshRenderer>();
-            mr.sharedMaterial = mat;
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.receiveShadows = false;
+            _renderer = GetComponent<MeshRenderer>();
+            _renderer.sharedMaterial = mat;
+            _renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _renderer.receiveShadows = false;
         }
 
         // Append one grid panel; boundary nodes are pinned, interior nodes flex.
@@ -184,6 +187,18 @@ namespace Trickshot
 
             _mesh.vertices = _pos;
             _mesh.RecalculateBounds();
+        }
+
+        void LateUpdate()
+        {
+            // Hide the net only when the camera is looking well UP (mouse pushed toward
+            // the top of its range), where the net would fill the view; render it the
+            // rest of the time. Based on the camera's actual world look direction, so it
+            // is unambiguous. forward.y rises as the camera tilts up.
+            if (_renderer == null) return;
+            if (_cam == null) _cam = Camera.main;
+            bool show = _cam == null || _cam.transform.forward.y < SimConfig.NetHideLookUp;
+            if (_renderer.enabled != show) _renderer.enabled = show;
         }
     }
 }

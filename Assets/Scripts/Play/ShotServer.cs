@@ -58,13 +58,16 @@ namespace Trickshot
             _ball.ResetTo(_spot);
 
             // On-target: aim at a random point inside the goal mouth (with a margin so
-            // it's inside the posts/bar).
+            // it's inside the posts/bar). Difficulty pushes the aim toward the corners.
+            float diff = Mathf.Clamp01(SimConfig.ShotDifficulty);
             float halfW = SimConfig.GoalWidth * 0.5f - 0.5f;
-            float tx = (Rand() * 2f - 1f) * halfW;
-            float ty = Mathf.Lerp(0.4f, SimConfig.GoalHeight - 0.4f, Rand());
+            float spread = Mathf.Lerp(0.55f, 1f, diff);   // harder -> uses more of the goal
+            float tx = (Rand() * 2f - 1f) * halfW * spread;
+            float ty = Mathf.Lerp(0.4f, SimConfig.GoalHeight - 0.4f, Mathf.Lerp(0.35f, Rand(), diff));
             _pendingTarget = new Vector3(tx, ty, SimConfig.GoalCenter.z);
 
-            float t = Mathf.Lerp(0.55f, 0.9f, Rand());   // time of flight: quickish shots
+            // Harder = faster (shorter flight time).
+            float t = Mathf.Lerp(0.9f, 0.42f, diff);
             _ball.LaunchTo(_pendingTarget, t, Vector3.zero, 0f);
             JustFired = true;
         }
