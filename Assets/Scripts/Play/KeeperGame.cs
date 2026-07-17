@@ -38,7 +38,12 @@ namespace Trickshot
             _cam = cam;
             _goalLineZ = SimConfig.GoalCenter.z;
 
-            _cam.SetKeeperFollow(_keeperRagdoll.Pelvis.transform, () => _keeperRagdoll.FacingRotation, () => _input.Look);
+            // The camera pans in a cone from a FIXED forward base; the keeper reads that
+            // same cone yaw and turns his body to it, so body + camera stay in lock-step.
+            _cam.SetKeeperFollow(_keeperRagdoll.Pelvis.transform,
+                                 () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
+                                 () => _input.Look);
+            _keeper.SetLookYawSource(() => _cam.KeeperLookYaw);
             EnterWaiting(SimConfig.ServeFirstDelay);
         }
 

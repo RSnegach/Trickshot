@@ -22,8 +22,8 @@ namespace Trickshot
         GameInput _input;
         ActiveRagdoll _ragdoll;
         Quaternion _facing;
-        float _lookYaw;        // body turn toward the mouse, clamped to +/-KeeperLookYawLimit
-        float _shufflePhase;   // procedural shuffle-step cadence while moving
+        System.Func<float> _lookYaw;   // camera cone yaw (deg); the body turns to match
+        float _shufflePhase;           // procedural shuffle-step cadence while moving
 
         State _state = State.Ready;
         Vector3[] _airPose;   // pose held while in the air (Dive or Jump)
@@ -45,10 +45,15 @@ namespace Trickshot
         {
             _input = input;
             _ragdoll = ragdoll;
-            // Keeper faces out toward the pitch and never turns.
+            // Keeper faces out toward the pitch; the body turns within a cone to match
+            // the camera look (SetLookYawSource).
             _facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
             _ragdoll.FacingRotation = _facing;
         }
+
+        /// <summary>Source of the camera's cone yaw (deg); the keeper turns his body to
+        /// it so facing and view stay locked together.</summary>
+        public void SetLookYawSource(System.Func<float> lookYaw) => _lookYaw = lookYaw;
 
         public void Tick()
         {
@@ -59,13 +64,11 @@ namespace Trickshot
             if (_state == State.Diving) { ManageDive(grounded); return; }
             if (_state == State.Saving) { ManageSave(); return; }
 
-            // Ready: he turns to face the mouse within a limited yaw (the camera rides
-            // behind this facing). Frozen when the mouse is still - a direct set from the
-            // accumulated look, no self-turning.
-            _lookYaw = Mathf.Clamp(_lookYaw + _input.Look.x * SimConfig.KeeperLookSpeed,
-                                   -SimConfig.KeeperLookYawLimit, SimConfig.KeeperLookYawLimit);
+            // Ready: the body faces the camera's cone look. Single source of truth (the
+            // camera owns the clamped yaw), so the body and view never desync.
+            float yaw = _lookYaw != null ? _lookYaw() : 0f;
             _facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up)
-                      * Quaternion.Euler(0f, _lookYaw, 0f);
+                      * Quaternion.Euler(0f, yaw, 0f);
             _ragdoll.FacingRotation = _facing;
 
             Vector3 kRight = _facing * Vector3.right;   // keeper's right in world space
@@ -191,7 +194,6 @@ namespace Trickshot
         void RecoverToReady()
         {
             _state = State.Ready;
-            _lookYaw = 0f;                       // face straight forward again after a dive/save
             _facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
             _ragdoll.FacingRotation = _facing;   // face forward again after getting up
             _ragdoll.BodyOrientTarget = null;    // stop driving the dive lay-out
@@ -324,7 +326,6 @@ namespace Trickshot
         public void ForceRecover()
         {
             _state = State.Ready;
-            _lookYaw = 0f;
             _saveReleaseTimer = -1f;
             _diveAir = 0f; _diveGround = 0f;
             _airPose = null;
