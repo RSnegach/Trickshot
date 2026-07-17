@@ -12,9 +12,10 @@ namespace Trickshot
     ///
     ///  - Grounded, the pelvis is hard-locked upright so he cannot fall over, and a
     ///    procedural run cycle picks up alternating feet with bent knees.
-    ///  - Space jumps. E (held, airborne) reclines onto his back (bicycle setup) and
-    ///    STAYS down after landing for a moment. W+Space does a forward diving header,
-    ///    landing belly-down and staying prone briefly. LMB/RMB raise the legs.
+    ///  - Space jumps. Space again while AIRBORNE ragdolls him onto his back (bicycle
+    ///    setup), staying down after landing for a moment. Space held while moving does
+    ///    a forward diving header, landing belly-down and staying prone briefly.
+    ///    LMB/RMB raise the legs.
     ///
     /// Tricks (recline / dive) release the upright lock and keep it off through the
     /// landing via a prone timer, so the body actually rests flat instead of snapping
@@ -99,7 +100,13 @@ namespace Trickshot
                 if (_input.JumpHeld && grounded) _spaceHeld += Time.deltaTime;
                 else if (!grounded) _spaceHeld = 0f;
 
-                if (grounded && moving)
+                if (!grounded)
+                {
+                    // Airborne: a fresh Space press ragdolls him onto his back (bicycle
+                    // setup). Replaces the old E-recline.
+                    if (_input.JumpPressed) StartRecline();
+                }
+                else if (moving)
                 {
                     // Moving: distinguish a tap (jump) from a hold (diving header).
                     if (_input.JumpHeld && _spaceHeld >= SimConfig.DiveHoldTime)
@@ -107,17 +114,11 @@ namespace Trickshot
                     else if (_input.JumpReleased && _spaceHeld < SimConfig.DiveHoldTime)
                     { NormalJump(); _spaceHeld = 0f; }
                 }
-                else if (_input.JumpPressed && grounded)
+                else if (_input.JumpPressed)
                 {
                     // Standing still: jump straight up immediately (tap or hold).
                     NormalJump();
                     _spaceHeld = 0f;
-                }
-
-                if (!_input.JumpHeld)
-                {
-                    _spaceHeld = 0f;
-                    if (_input.ReclineHeld && !grounded) StartRecline();
                 }
             }
 
@@ -229,10 +230,9 @@ namespace Trickshot
         void ManageRecline(bool grounded)
         {
             // The one-shot impulse in StartRecline does the rotation; nothing to drive
-            // per-frame. Just hold until E is released and we have settled on the ground.
-            if (_input.ReclineHeld)
-                _proneTimer = SimConfig.ReclineProneTime;
-            else if (grounded && (_proneTimer -= Time.deltaTime) <= 0f)
+            // per-frame. Once he has settled on his back on the ground, count down the
+            // prone timer and pop back up.
+            if (grounded && (_proneTimer -= Time.deltaTime) <= 0f)
                 EndTrick();
         }
 

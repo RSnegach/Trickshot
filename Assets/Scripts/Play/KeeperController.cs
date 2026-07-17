@@ -229,7 +229,9 @@ namespace Trickshot
 
         void Jump()
         {
-            // Straight up, arms overhead. Stays upright (no lay-out), lands, gets up.
+            // Straight up, arms overhead. Actively driven to stay UPRIGHT through the
+            // flight (the free pelvis would otherwise tip forward and faceplant), lands
+            // on his feet, gets up.
             _state = State.Diving;
             _diveIsJump = true;
             _diveAir = 0f; _diveGround = 0f;
@@ -237,7 +239,7 @@ namespace Trickshot
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;
-            _ragdoll.BodyOrientTarget = null;        // no active tilt; ballistic
+            _ragdoll.BodyOrientTarget = _facing;     // hold vertical, no forward topple
             _ragdoll.LaunchVerticalAll(SimConfig.KeeperJumpVel);
             _ragdoll.SetPose(KeeperPose.Jump, 16f);
         }
@@ -297,7 +299,12 @@ namespace Trickshot
         {
             if (_airPose != null) _ragdoll.SetPose(_airPose, 16f);
 
-            if (!_diveIsJump)
+            if (_diveIsJump)
+            {
+                // Keep driving him UPRIGHT the whole flight so he can't topple forward.
+                _ragdoll.BodyOrientTarget = _facing;
+            }
+            else
             {
                 // Keep driving the horizontal lay-out the whole flight.
                 _ragdoll.BodyOrientTarget = _diveOrient;
