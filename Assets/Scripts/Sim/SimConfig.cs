@@ -138,10 +138,17 @@ namespace Trickshot
         public const float ReclineProneTime = 1.2f;  // stays flat on back this long after landing
 
         // ---- Dive header (W + Space, forward dive) ----
-        public const float DiveForwardVel = 6.0f;    // forward launch speed
-        public const float DiveUpVel = 3.0f;         // upward launch speed
-        public const float DiveSpinRate = 300f;      // whole-body forward-pitch rate (deg/s) to go belly-down
-        public const float DiveProneTime = 1.1f;     // stays prone this long after landing
+        // Diving header (hold Space + W): crouch, then leap up and forward in an arc,
+        // land belly-down, recover. Driven to a held horizontal orientation (like the
+        // keeper dive) so it does NOT spin - the old constant spin ran away violently.
+        public const float DiveChargeTime = 0.4f;    // hold Space+W this long to trigger
+        public const float DiveCrouchTime = 0.12f;   // brief knee-bend before launch
+        public const float DiveForwardVel = 7.0f;    // forward launch speed
+        public const float DiveUpVel = 5.0f;         // upward launch speed (a real arc)
+        public const float DiveLayoutDeg = 80f;      // pitch-forward target so he lands belly-down
+        public const float DiveProneTime = 0.9f;     // stays prone this long after landing
+        public const float DiveCrouchKnee = 55f;     // knee bend during the pre-jump crouch
+        // (removed DiveSpinRate: the dive now uses a held orientation target, not a spin.)
         public const float BalanceFrequency = 3.2f;
         public const float BalanceDamping = 0.85f;
 
@@ -193,5 +200,10 @@ namespace Trickshot
         public const float HeaderPowerMul = 1.7f;    // extra power vs a normal strike
         public const float HeaderSwerve = 11f;       // added swerve (spin + lateral curl)
         public const float HeaderAccuracyMul = 1.9f; // stronger goal-ward steer than a normal contact
+        // A header REDIRECTS the ball onto a goal-ward horizontal line (not just faster
+        // in its old direction), so even a glancing touch flies fast toward goal.
+        public const float HeaderGoalBias = 0.85f;   // 0..1: how strongly it aims at goal
+        public const float HeaderMinSpeed = 15f;     // floor horizontal speed off a header (m/s)
+        public const float HeaderVerticalKeep = 0.35f; // fraction of incoming vertical kept (stays flat)
     }
 }

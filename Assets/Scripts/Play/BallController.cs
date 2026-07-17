@@ -121,33 +121,52 @@ namespace Trickshot
                 return;
             }
 
-            if (_assistCooldown > 0f) return;
             // Was this a striker limb? (KickDetector lives on limbs, or any ActiveRagdoll bone.)
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
 
-            // A HEAD contact (the P_Head part) is a header: extra power/swerve/accuracy.
+            // A HEAD contact (the P_Head part) is a header. Headers bypass the strike
+            // cooldown (they should always redirect, even right after a foot touch);
+            // non-header strikes still respect it to avoid multi-contact spam.
             bool header = c.collider.transform.parent != null && c.collider.transform.parent.name == "P_Head";
-
-            // Punch the horizontal velocity so a struck ball drives away with pace
-            // (leave vertical alone so lobs/loft still feel right). Capped so it stays
-            // arcadey-fast, not absurd. Headers hit harder.
-            float boost = SimConfig.StrikeHorizBoost * (header ? SimConfig.HeaderPowerMul : 1f);
-            float cap = SimConfig.StrikeHorizMax * (header ? SimConfig.HeaderPowerMul : 1f);
+            if (!header && _assistCooldown > 0f) return;
             Vector3 v = Rb.linearVelocity;
-            Vector3 flat = new Vector3(v.x, 0f, v.z);
-            flat = Vector3.ClampMagnitude(flat * boost, cap);
-            Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
 
             if (header)
             {
-                // Extra swerve (spin -> Magnus via the curl system) and a goal-ward
-                // accuracy nudge on top of the normal assist.
+                // REDIRECT onto a mostly-goal-ward horizontal line (a glancing touch is
+                // steered toward goal, not just sped up in its old direction) and give it
+                // real pace, floored so even a soft header flies. Vertical is largely
+                // flattened so it drives in low and hard.
                 Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
-                Vector3 lateral = Vector3.Cross(Vector3.up, toGoal.normalized);
+                if (toGoal.sqrMagnitude < 0.01f) toGoal = Vector3.forward;
+                toGoal.Normalize();
+
+                Vector3 flatIn = new Vector3(v.x, 0f, v.z);
+                float inSpeed = flatIn.magnitude;
+                Vector3 dir = flatIn.sqrMagnitude > 0.01f
+                    ? Vector3.Slerp(flatIn.normalized, toGoal, SimConfig.HeaderGoalBias)
+                    : toGoal;
+
+                float speed = Mathf.Max(SimConfig.HeaderMinSpeed,
+                                        inSpeed * SimConfig.HeaderPowerMul);
+                speed = Mathf.Min(speed, SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul);
+
+                Vector3 flat = dir * speed;
+                Rb.linearVelocity = new Vector3(flat.x, v.y * SimConfig.HeaderVerticalKeep, flat.z);
+
+                // Swerve toward goal via curl + spin.
+                Vector3 lateral = Vector3.Cross(Vector3.up, toGoal);
                 _curlAccel = lateral * SimConfig.HeaderSwerve;
                 _curlRemaining = SimConfig.AssistDuration + 0.3f;
                 Rb.angularVelocity += new Vector3(0f, SimConfig.HeaderSwerve, 0f);
+            }
+            else
+            {
+                // Normal strike: amplify the ball's existing horizontal velocity.
+                Vector3 flat = new Vector3(v.x, 0f, v.z);
+                flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost, SimConfig.StrikeHorizMax);
+                Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
             }
 
             _assistRemaining = SimConfig.AssistDuration;
