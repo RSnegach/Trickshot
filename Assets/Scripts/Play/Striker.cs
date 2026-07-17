@@ -166,13 +166,15 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = false;
             _ragdoll.BodyOrientTarget = null;
 
-            // Spin added is PROPORTIONAL to the scroll amount (no fixed per-event kick):
-            // a tiny nudge adds a tiny bit of spin, a hard spin adds a lot. The old fixed
-            // floor kick fired on every event, and a free-spin wheel emits many events per
-            // nudge, so they stacked into a pinwheel. Friction decays it.
+            // Each scroll event adds a small FIXED spin increment by sign only (raw scroll
+            // magnitude is huge and mouse-dependent - ~120/notch on Windows - so any
+            // proportional gain instantly slams the cap). The LOW cap is what actually
+            // prevents pinwheeling: it bounds top spin to well under a rotation/sec.
+            // A free-spin wheel fires several events and ramps toward the cap; friction
+            // settles it quickly.
             float scroll = _input.Scroll;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
-                _airPitchVel = Mathf.Clamp(_airPitchVel + scroll * SimConfig.AirPitchImpulse,
+                _airPitchVel = Mathf.Clamp(_airPitchVel + Mathf.Sign(scroll) * SimConfig.AirPitchImpulse,
                                            -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
             bool wasSpinning = Mathf.Abs(_airPitchVel) > 1f;
             _airPitchVel = Mathf.MoveTowards(_airPitchVel, 0f, SimConfig.AirPitchDamp * Time.deltaTime);
@@ -200,7 +202,11 @@ namespace Trickshot
             bool moving = _input.Move.sqrMagnitude > 0.16f;
             float jumpVel = SimConfig.JumpVelocity;
             if (moving)
+            {
                 jumpVel *= _input.SprintHeld ? SimConfig.SprintJumpMul : SimConfig.RunJumpMul;
+                // Bleed off carried run momentum so a moving jump doesn't sail forward.
+                _ragdoll.ScaleHorizontalVelocity(SimConfig.RunJumpForwardKeep);
+            }
             _ragdoll.AddVelocityToAll(Vector3.up * jumpVel);
             _airborneLock = 0.35f;
         }
