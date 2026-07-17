@@ -40,6 +40,13 @@ namespace Trickshot
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
 
+        // Diving header lifecycle.
+        float _diveCharge;     // how long Space+W held (grounded) toward triggering
+        float _crouchTimer;    // brief knee-bend before the leap
+        float _diveAir;        // time since the dive launched
+        bool _diveLaunched;    // crouch done, in the air
+        Quaternion _diveOrient;// held belly-down target (drives lay-out, no runaway spin)
+
         public void Init(GameInput input, ActiveRagdoll ragdoll)
         {
             _input = input;
@@ -83,15 +90,19 @@ namespace Trickshot
             // --- trigger tricks / jump ---
             if (_mode == Trick.None)
             {
-                bool forward = mv.y > 0.5f;
-                if (_input.JumpPressed && grounded)
+                // Hold Space + W (grounded) to charge a diving header. A quick Space tap
+                // (no W, or not held long enough) is a normal jump.
+                bool holdingDiveInputs = _input.JumpHeld && _input.ForwardHeld && grounded;
+                if (holdingDiveInputs)
                 {
-                    if (forward) StartDive();
-                    else NormalJump();
+                    _diveCharge += Time.deltaTime;
+                    if (_diveCharge >= SimConfig.DiveChargeTime) StartDive();
                 }
-                else if (_input.ReclineHeld && !grounded)
+                else
                 {
-                    StartRecline();
+                    _diveCharge = 0f;
+                    if (_input.JumpPressed && grounded) NormalJump();
+                    else if (_input.ReclineHeld && !grounded) StartRecline();
                 }
             }
 
@@ -102,11 +113,13 @@ namespace Trickshot
             if (_mode == Trick.None && _airborneLock <= 0f && grounded && !_ragdoll.UprightLock)
                 _ragdoll.UprightLock = true;
 
-            // Leg raises run AFTER trick pose so clicks visibly override the rest pose.
-            ApplyLegRaises();
-
-            if (_mode == Trick.None && grounded && _ragdoll.UprightLock)
-                RunCycle(wish.magnitude);
+            // Leg raises + run cycle only in normal control (not mid-dive/recline, whose
+            // pose overrides would otherwise be clobbered).
+            if (_mode == Trick.None)
+            {
+                ApplyLegRaises();
+                if (grounded && _ragdoll.UprightLock) RunCycle(wish.magnitude);
+            }
         }
 
         void NormalJump()
@@ -184,41 +197,76 @@ namespace Trickshot
                 EndTrick();
         }
 
-        // ------------------------------------------------------------ dive header
+        // --------------------------------------------------- diving header
+        // Phase 1: crouch (still grounded, upright, bending knees) for a beat, then
+        // launch. _diveLaunched flips false->true when the crouch ends.
         void StartDive()
         {
             _mode = Trick.Dive;
-            _ragdoll.UprightLock = false;
-            _ragdoll.BalanceEnabled = false;
+            _diveCharge = 0f;
+            _crouchTimer = SimConfig.DiveCrouchTime;
+            _diveLaunched = false;
+            _diveAir = 0f;
             _proneTimer = SimConfig.DiveProneTime;
-            Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel + Vector3.up * SimConfig.DiveUpVel);
-            _ragdoll.SetPose(RagdollPose.Stand, 16f);
+            // Belly-down target: facing pitched forward about the right axis so he lands
+            // face/chest down. Driven+held (no runaway spin).
+            Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
+            _diveOrient = Quaternion.AngleAxis(SimConfig.DiveLayoutDeg, axis) * _ragdoll.FacingRotation;
+            // Stay upright & locked during the crouch so he loads before leaving ground.
+            _ragdoll.SetPose(RagdollPose.Load, 16f);
         }
 
         void ManageDive(bool grounded)
         {
+            if (!_diveLaunched)
+            {
+                // Crouch: bend the knees briefly, still on the ground and upright.
+                _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-SimConfig.DiveCrouchKnee * 0.6f, 0f, 0f));
+                _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(-SimConfig.DiveCrouchKnee * 0.6f, 0f, 0f));
+                _ragdoll.SetPoseOverride(Bone.CalfL, new Vector3(SimConfig.DiveCrouchKnee, 0f, 0f));
+                _ragdoll.SetPoseOverride(Bone.CalfR, new Vector3(SimConfig.DiveCrouchKnee, 0f, 0f));
+                _crouchTimer -= Time.deltaTime;
+                if (_crouchTimer <= 0f) LaunchDive();
+                return;
+            }
+
+            _diveAir += Time.deltaTime;
             if (!grounded)
             {
-                // Rotate the WHOLE body forward so it lands belly-down, not on its feet
-                // (forward pitch about the character's right axis).
-                Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
-                _ragdoll.SpinWholeBody(axis, SimConfig.DiveSpinRate);
-                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(20f, 0f, 0f));   // reach forward
-                // Legs trail straight behind.
-                _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(30f, 0f, 0f));
-                _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(30f, 0f, 0f));
+                // Drive-and-HOLD the belly-down orientation (no constant spin), so he
+                // arcs over and lands chest-first, then stays down.
+                _ragdoll.BodyOrientTarget = _diveOrient;
+                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(15f, 0f, 0f));   // reach forward
+                _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(25f, 0f, 0f));  // legs trail
+                _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(25f, 0f, 0f));
             }
-            else if ((_proneTimer -= Time.deltaTime) <= 0f)
+            else if (_diveAir > 0.2f && (_proneTimer -= Time.deltaTime) <= 0f)
             {
                 EndTrick();
             }
         }
 
+        // Phase 2: leap up and forward in an arc.
+        void LaunchDive()
+        {
+            _diveLaunched = true;
+            _ragdoll.UprightLock = false;
+            _ragdoll.BalanceEnabled = false;
+            _ragdoll.LocomotionEnabled = false;
+            Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
+            _ragdoll.AddVelocityToAll(fwd * SimConfig.DiveForwardVel + Vector3.up * SimConfig.DiveUpVel);
+            _ragdoll.SetPose(RagdollPose.Stand, 16f);
+        }
+
         void EndTrick()
         {
             _mode = Trick.None;
+            _diveLaunched = false;
+            _diveCharge = 0f;
+            _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
+            _ragdoll.LocomotionEnabled = true;
+            _ragdoll.UprightLock = true;   // pop back to his feet
             _facingYaw = _ragdoll.FacingRotation.eulerAngles.y;
             _ragdoll.SetPose(RagdollPose.Stand, 5f);
         }
@@ -228,8 +276,12 @@ namespace Trickshot
             _mode = Trick.None;
             _airborneLock = 0f;
             _proneTimer = 0f;
+            _diveCharge = 0f;
+            _diveLaunched = false;
             _gaitPhase = 0f;
+            _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
+            _ragdoll.LocomotionEnabled = true;
             _ragdoll.ClearPoseOverrides();
             _ragdoll.SetPose(RagdollPose.Stand, 5f);
         }
