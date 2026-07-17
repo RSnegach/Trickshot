@@ -39,7 +39,7 @@ namespace Trickshot
             Rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             Rb.maxAngularVelocity = 60f;
             _col.radius = 0.5f; // primitive sphere radius in local space
-            _col.material = Make.PhysMat("Ball", SimConfig.BallBounciness, 0.4f, 0.4f);
+            _col.material = Make.PhysMat("Ball", SimConfig.BallBounciness, 0.2f, 0.2f);
 
             _trail = gameObject.AddComponent<TrailRenderer>();
             _trail.time = 0.35f;

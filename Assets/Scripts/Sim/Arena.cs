@@ -31,7 +31,8 @@ namespace Trickshot
             float pad = 14f;
             var ground = Make.Box("Pitch", new Vector3(SimConfig.FieldWidth + pad, 1f, SimConfig.FieldLength + pad),
                                    new Vector3(0f, -0.5f, 0f), grass, root);
-            ground.GetComponent<Collider>().material = Make.PhysMat("Turf", 0.15f, 0.7f, 0.7f);
+            // Low-friction turf so the ball skips and rolls without losing much pace.
+            ground.GetComponent<Collider>().material = Make.PhysMat("Turf", 0.15f, 0.25f, 0.25f);
 
             // Penalty box markings (thin flat boxes on the turf, no colliders)
             float goalZ = SimConfig.GoalCenter.z;

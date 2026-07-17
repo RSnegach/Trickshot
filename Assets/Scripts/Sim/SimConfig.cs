@@ -89,8 +89,8 @@ namespace Trickshot
         public const float Gravity = -19.6f;      // 2x real gravity: snappier, arcade feel
         public const float BallMass = 0.43f;
         public const float BallRadius = 0.22f;
-        public const float BallDrag = 0.05f;
-        public const float BallAngularDrag = 0.05f;
+        public const float BallDrag = 0.02f;        // lower -> keeps pace, rolls further
+        public const float BallAngularDrag = 0.02f;
         public const float BallBounciness = 0.55f;
 
         // ---- Cross tuning ----
@@ -190,8 +190,8 @@ namespace Trickshot
         public const float StrikeHorizMax = 26f;     // cap on resulting horizontal speed (m/s)
 
         // ---- Headers (head contact) get a little extra ----
-        public const float HeaderPowerMul = 1.25f;   // extra power vs a normal strike
-        public const float HeaderSwerve = 6f;        // added swerve (spin + lateral curl)
-        public const float HeaderAccuracyMul = 1.7f; // stronger goal-ward steer than a normal contact
+        public const float HeaderPowerMul = 1.7f;    // extra power vs a normal strike
+        public const float HeaderSwerve = 11f;       // added swerve (spin + lateral curl)
+        public const float HeaderAccuracyMul = 1.9f; // stronger goal-ward steer than a normal contact
     }
 }
