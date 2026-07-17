@@ -143,8 +143,8 @@ namespace Trickshot
         // ---- Recline (airborne Space) ----
         // He ACTIVELY leans back to a clear angle (driven so it really shows), then goes
         // limp and crumples to the ground (roughly upright, not a full flip).
-        public const float ReclineLeanDeg = 45f;         // how far back he tilts during the lean
-        public const float ReclineLeanTime = 0.35f;      // driven lean window before he goes limp
+        public const float ReclineLeanDeg = 75f;         // how far back he tilts during the lean
+        public const float ReclineLeanTime = 0.15f;      // driven lean window before he goes limp
         public const float ReclineDriveScale = 0.12f;    // limp body so he drops slack after the lean
         public const float ReclineProneTime = 0.7f;      // stays down this long after landing
 
