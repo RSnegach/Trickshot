@@ -27,7 +27,7 @@ namespace Trickshot
     {
         InputActionAsset _asset;
         InputActionMap _map;
-        InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint;
+        InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
         PlayerInput _playerInput;
 
         public void Init()
@@ -55,6 +55,7 @@ namespace Trickshot
             _ballCam = _map.AddAction("BallCam", InputActionType.Button, "<Keyboard>/v");
             _sprint = _map.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
             _sprint.AddBinding("<Keyboard>/rightShift");
+            _scroll = _map.AddAction("Scroll", InputActionType.Value, "<Mouse>/scroll/y");
 
             _map.Enable();
 
@@ -111,5 +112,9 @@ namespace Trickshot
 
         // Shift held: sprint.
         public bool SprintHeld => _sprint != null && _sprint.IsPressed();
+
+        // Mouse wheel Y this frame (raw; ~120 per notch on Windows). Used to pitch the
+        // striker about his central axis while airborne.
+        public float Scroll => _scroll != null ? _scroll.ReadValue<float>() : 0f;
     }
 }

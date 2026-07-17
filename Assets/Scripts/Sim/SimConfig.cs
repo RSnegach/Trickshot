@@ -140,11 +140,12 @@ namespace Trickshot
         public const float JointDamper = 150f;      // a touch more damping -> smoother, less jitter
         public const float JointMaxForce = 60000f;  // finite, but strong enough for quick swings
 
-        // ---- Recline (airborne Space) ----
-        // He snaps FLAT onto his back (parallel to the ground) fast and is held there at
-        // full authority - a bicycle-kick setup where LMB/RMB drive the legs like normal.
-        public const float ReclineLeanDeg = 90f;         // 90 = fully parallel, flat on his back
-        public const float ReclineProneTime = 0.7f;      // stays down this long after landing
+        // ---- Air pitch control (mouse wheel, airborne only) ----
+        // The wheel pitches the striker about his central (right) axis while airborne;
+        // scroll back to lie flat for a bicycle kick (raise legs with LMB/RMB). Scroll is
+        // ~120 per notch on Windows, so a small per-unit factor gives a usable range.
+        public const float AirPitchPerScroll = 0.30f;    // deg of body pitch per scroll unit
+        public const float BicyclePitchMin = 55f;        // pitched back at least this far = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----
         // A forward burst plus a small upward pop and a one-shot forward-tilt torque
