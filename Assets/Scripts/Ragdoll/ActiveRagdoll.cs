@@ -445,15 +445,16 @@ namespace Trickshot
             Pelvis.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
             _lockApplied = true;
 
-            // Snap any residual tilt out and steer yaw to the desired facing.
-            Vector3 e = Pelvis.rotation.eulerAngles;
-            float curYaw = e.y;
+            // Steer yaw to the desired facing via MoveRotation only, and kill ALL angular
+            // velocity. Preserving yaw spin (the old behaviour) let a ball impact or an
+            // asymmetric gait spin the body up and MoveRotation could not overpower it -
+            // the runaway "random spinning". With yaw fully MoveRotation-driven he turns
+            // cleanly toward the target and never keeps spinning on his own.
+            float curYaw = Pelvis.rotation.eulerAngles.y;
             float wantYaw = FacingRotation.eulerAngles.y;
             float yaw = Mathf.MoveTowardsAngle(curYaw, wantYaw, 900f * Time.fixedDeltaTime);
             Pelvis.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
-            // Kill any pitch/roll angular velocity component that slipped in.
-            Vector3 av = Pelvis.angularVelocity;
-            Pelvis.angularVelocity = new Vector3(0f, av.y, 0f);
+            Pelvis.angularVelocity = Vector3.zero;
         }
 
         void ReleaseUprightLock()
