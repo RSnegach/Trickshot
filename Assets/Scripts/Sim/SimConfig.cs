@@ -191,6 +191,7 @@ namespace Trickshot
         public const float SprintKneeBend = 160f;   // knee folds more toward the body
         public const float GaitTorsoLean = 8f;      // deg forward lean while running
         public const float LegSwingRaise = 130f;    // deg a leg raises on LMB/RMB (knee to chest)
+        public const float HeaderTorsoBend = 55f;    // deg the torso folds forward when both legs up (heading)
         // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
         // elbows held bent. Reads as a runner's arm carriage over the glide.
         public const float ArmPumpSwing = 45f;      // deg upper arm swings fore/aft
