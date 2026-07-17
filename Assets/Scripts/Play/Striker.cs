@@ -256,9 +256,10 @@ namespace Trickshot
         }
 
         // --------------------------------------------------- diving header
-        // He JUMPS first: an up + forward launch off the run, then tips forward into a
-        // belly-down header. The pelvis yaw+roll are pinned (DiveYawLock) so the chest
-        // stays square-forward the whole way and never twists. Lands, then recovers.
+        // No jump: he just starts falling FORWARD from wherever he is, keeping the run
+        // momentum he already had (locomotion off so it isn't steered/arrested), and
+        // tips into a belly-down header until he hits the ground. Pelvis yaw+roll are
+        // pinned (DiveYawLock) so the chest stays square-forward and never twists.
         void StartDive()
         {
             _mode = Trick.Dive;
@@ -267,7 +268,7 @@ namespace Trickshot
             _proneTimer = SimConfig.DiveProneTime;
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
-            _ragdoll.LocomotionEnabled = false;   // let the launch carry, don't steer it
+            _ragdoll.LocomotionEnabled = false;   // preserve run momentum, don't steer it
 
             // Chest stays facing forward: pin pelvis yaw+roll to the current facing and
             // drive the pitch face-down. Go limp so the stiff spine can't hold him upright.
@@ -276,11 +277,8 @@ namespace Trickshot
             _ragdoll.DiveYawLock = true;
             _ragdoll.DriveScale = SimConfig.DiveDriveScale;
 
-            // Jump: up + forward off the run direction, added on top of run momentum.
-            Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.DiveUpVel + fwd * SimConfig.DiveForwardVel);
-
-            // One-shot forward-tilt torque about the right axis -> tips into the header.
+            // No launch velocity - his existing forward momentum carries. Just a one-shot
+            // forward-tilt torque about the right axis so he pitches forward into the fall.
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
         }
