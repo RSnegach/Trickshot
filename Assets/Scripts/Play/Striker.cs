@@ -90,22 +90,26 @@ namespace Trickshot
             // --- trigger tricks / jump ---
             if (_mode == Trick.None)
             {
-                // Space TAP (grounded) = normal jump - works while running too.
-                // Space HELD past DiveHoldTime while moving forward = diving header.
+                bool movingFwd = mv.y > 0.4f;
                 if (_input.JumpHeld && grounded)
                     _spaceHeld += Time.deltaTime;
 
-                bool movingFwd = mv.y > 0.4f;
-                if (_input.JumpHeld && grounded && movingFwd && _spaceHeld >= SimConfig.DiveHoldTime)
+                if (grounded && movingFwd)
                 {
-                    StartDive();               // held long enough while moving fwd -> dive
+                    // Moving forward: distinguish a tap (jump) from a hold (diving header).
+                    if (_input.JumpHeld && _spaceHeld >= SimConfig.DiveHoldTime)
+                        StartDive();
+                    else if (_input.JumpReleased && _spaceHeld < SimConfig.DiveHoldTime)
+                    { NormalJump(); _spaceHeld = 0f; }
                 }
-                else if (_input.JumpReleased && grounded)
+                else if (_input.JumpPressed && grounded)
                 {
-                    NormalJump();              // released without diving -> jump (tap OR long hold that didn't dive)
+                    // Not moving forward: jump straight up immediately (tap or hold).
+                    NormalJump();
                     _spaceHeld = 0f;
                 }
-                else if (!_input.JumpHeld)
+
+                if (!_input.JumpHeld)
                 {
                     _spaceHeld = 0f;
                     if (_input.ReclineHeld && !grounded) StartRecline();
