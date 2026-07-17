@@ -293,10 +293,12 @@ namespace Trickshot
             _ragdoll.DiveYawLock = true;
             _ragdoll.DriveScale = SimConfig.DiveDriveScale;
 
-            // Jump-style launch: up like a normal jump, plus forward off the facing, on
-            // top of run momentum. Then only gravity acts - a natural arc into a flop.
+            // Kill carried run momentum first so the dive is a controlled short hop, not
+            // run-speed + launch (which sent him flying). Then a modest up + forward
+            // launch; gravity arcs him into the flop.
+            _ragdoll.ScaleHorizontalVelocity(0f);
             Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.JumpVelocity
+            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.DiveUpVel
                                       + fwd * SimConfig.DiveForwardVel);
         }
 
