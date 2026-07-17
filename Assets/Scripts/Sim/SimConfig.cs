@@ -107,10 +107,30 @@ namespace Trickshot
         public const float CrossTimeDrive = 0.95f; // driven serve: faster, flatter
         public const float MaxCurlAccel = 8f;      // lateral accel while airborne
 
+        // ---- Crosser (ragdoll leg-swing before a perfect launch) ----
+        // He plants, plays a right-leg swing, and the ball leaves at contact - but the
+        // launch is still solved perfectly by code every time (the swing is cosmetic).
+        public const float CrosserWindupTime = 0.45f; // time from telegraph->contact the leg swings through
+        public const float CrosserSwingThigh = 95f;   // deg the kicking thigh swings through (back then through)
+        public const float CrosserSwingCalf = 70f;    // deg the knee extends on follow-through
+        public const float CrosserPlantLean = 12f;    // deg torso lean into the kick
+
+        // ---- AI goalkeeper (striker mode): a ragdoll that shuffles + dives ----
+        public const float AiKeeperReactZ = 14f;      // ball within this Z of goal -> keeper reacts
+        public const float AiKeeperDiveThresh = 1.6f; // |x| offset beyond which he dives instead of shuffling
+        public const float AiKeeperDiveLead = 0.9f;   // predicted ball-x lead time for the dive commit (s)
+        public const float AiKeeperDiveCooldown = 1.1f; // min seconds between dives
+        public const float AiKeeperDiveHoriz = 6.5f;  // dive lunge speed (scaled by ability)
+        public const float AiKeeperDiveUp = 3.0f;     // dive upward pop (scaled by ability)
+
         // ---- Auto serve ----
         public const float ServeFirstDelay = 1.6f; // before the first cross
         // Seconds between crosses (striker mode) - set from the pre-match screen.
         public static float ServeInterval = 3.5f;
+        // Keeper mode: fixed continuous 2s cadence, and a snappy resolve so callouts
+        // don't hold up the next ball.
+        public const float KeeperServeInterval = 2f;
+        public const float KeeperResolveTime = 0.4f;
 
         // ---- Pre-match match settings (set from PrematchUI) ----
         // Striker mode: how good the AI keeper is (0 = does nothing, 1 = very active).

@@ -9,8 +9,6 @@ namespace Trickshot
     /// </summary>
     public class KeeperGame : MonoBehaviour
     {
-        enum State { Waiting, Live, Resolve }
-
         GameInput _input;
         ShotServer _server;
         BallController _ball;
@@ -18,8 +16,7 @@ namespace Trickshot
         ActiveRagdoll _keeperRagdoll;
         GameCamera _cam;
 
-        State _state = State.Waiting;
-        float _liveTime, _restTimer, _resolveTimer;
+        float _liveTime, _restTimer;
         bool _resolved;
         bool _keeperTouched;    // did the ball contact the keeper this attempt
 
@@ -51,59 +48,55 @@ namespace Trickshot
         {
             if (_input == null) return;
             if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
-            if (_input.ResetPressed) { ResetShot(SimConfig.ServeFirstDelay); return; }
+            if (_input.ResetPressed) { FullReset(); return; }
 
             _keeper.Tick();
 
-            switch (_state)
+            // Continuous rapid fire: the server self-loops and fires every ~2s no matter
+            // what happened to the last ball. A fire opens a fresh (unresolved) attempt.
+            if (_server.Tick())
             {
-                case State.Waiting: if (_server.Tick()) BeginLive(); break;
-                case State.Live:    TickLive(); break;
-                case State.Resolve: TickResolve(); break;
+                _shots++;
+                _resolved = false;
+                _keeperTouched = false;
+                _liveTime = 0f;
+                _restTimer = 0f;
+                Flash("SHOT!");
             }
+
+            TrackOutcome();
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
         }
 
         void EnterWaiting(float delay)
         {
-            _state = State.Waiting;
             _server.Arm(delay);
-            _resolved = false;
+            _resolved = true;   // nothing live until the first fire
             _keeperTouched = false;
         }
 
-        void BeginLive()
+        // Non-blocking outcome watcher: flags a goal/save/miss once per served ball for
+        // the callout, without gating or delaying the next serve.
+        void TrackOutcome()
         {
-            _state = State.Live;
-            _liveTime = 0f;
-            _restTimer = 0f;
-            _shots++;
-            Flash("SHOT!");
-        }
-
-        void TickLive()
-        {
+            if (_resolved) return;
             _liveTime += Time.deltaTime;
             Vector3 c = _ball.transform.position;
 
-            // Did the ball touch the keeper's body? (used to credit a save)
             if (!_keeperTouched && KeeperContactedBall()) _keeperTouched = true;
 
-            // Whole ball over the line inside the frame = goal.
             float r = SimConfig.BallRadius, halfW = SimConfig.GoalWidth * 0.5f;
             bool inGoal = c.z - r >= _goalLineZ && c.z <= _goalLineZ + SimConfig.GoalDepth
                           && Mathf.Abs(c.x) <= halfW - r && c.y >= r && c.y <= SimConfig.GoalHeight - r;
-            if (!_resolved && inGoal) { OnGoal(); return; }
+            if (inGoal) { OnGoal(); return; }
 
             if (_ball.Speed < 0.7f) _restTimer += Time.deltaTime; else _restTimer = 0f;
 
             bool wide = c.z > _goalLineZ + 0.6f && (Mathf.Abs(c.x) > halfW || c.y > SimConfig.GoalHeight);
-            bool dead = _restTimer > 1.2f || _liveTime > 6f;
+            bool dead = _restTimer > 0.4f || _liveTime > 1.9f;
 
-            if (!_resolved && (wide || dead))
+            if (wide || dead)
             {
-                // Ball didn't go in. If the keeper got a touch (or it died near him),
-                // credit a save; otherwise it's a miss (shot off target / no attempt).
                 if (_keeperTouched || Vector3.Distance(c, _keeperRagdoll.Pelvis.position) < 2.4f)
                     OnSave();
                 else
@@ -113,30 +106,23 @@ namespace Trickshot
 
         bool KeeperContactedBall()
         {
-            // Cheap proximity check against the keeper's bones.
             foreach (var t in _keeperRagdoll.BoneTransforms)
                 if (t != null && Vector3.Distance(t.position, _ball.transform.position) < SimConfig.BallRadius + 0.28f)
                     return true;
             return false;
         }
 
-        void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); EnterResolve(1.2f); }
-        void OnSave() { _resolved = true; _saves++; Flash("SAVE!"); EnterResolve(1.2f); }
-        void OnMiss() { _resolved = true; Flash("MISS"); EnterResolve(1.0f); }
+        void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); }
+        void OnSave() { _resolved = true; _saves++; Flash("SAVE!"); }
+        void OnMiss() { _resolved = true; Flash("MISS"); }
 
-        void EnterResolve(float t) { _state = State.Resolve; _resolveTimer = t; }
-
-        void TickResolve()
-        {
-            _resolveTimer -= Time.deltaTime;
-            if (_resolveTimer <= 0f) ResetShot(SimConfig.ServeInterval);
-        }
-
-        void ResetShot(float delay)
+        // R only: full reset of keeper + serve loop (not per-ball, which would yank the
+        // player-controlled keeper around every 2s).
+        void FullReset()
         {
             _keeper.ForceRecover();
             _keeperRagdoll.ResetTo(SimConfig.KeeperStart, Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up));
-            EnterWaiting(delay);
+            EnterWaiting(SimConfig.ServeFirstDelay);
         }
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }

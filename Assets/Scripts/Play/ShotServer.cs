@@ -31,6 +31,9 @@ namespace Trickshot
             _ball.ResetTo(RandomTakePoint());
         }
 
+        /// <summary>Self-looping: fires a ball, then re-arms KeeperServeInterval later -
+        /// continuously, regardless of the previous ball's outcome. Returns true on the
+        /// frame a ball fires.</summary>
         public bool Tick()
         {
             JustFired = false;
@@ -38,6 +41,7 @@ namespace Trickshot
             if (_timer <= 0f)
             {
                 Fire();
+                _timer = SimConfig.KeeperServeInterval;   // constant 2s cadence
                 return true;
             }
             return false;
