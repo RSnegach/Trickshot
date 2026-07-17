@@ -121,6 +121,7 @@ namespace Trickshot
             var go = Make.Box("Backstop", size, pos, null, root, collider: true);
             var r = go.GetComponent<Renderer>(); if (r != null) Object.Destroy(r);
             go.GetComponent<Collider>().material = phys;
+            go.AddComponent<NetBackstop>();   // ball kills its rebound on contact (see BallController)
         }
 
         static void MakeWall(Transform root, Material m, Vector3 pos, Vector3 size)

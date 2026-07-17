@@ -14,7 +14,11 @@ namespace Trickshot
         CalfR  = 6,
         FootL  = 7,
         FootR  = 8,
-        Count  = 9
+        UpperArmL = 9,
+        UpperArmR = 10,
+        ForearmL = 11,
+        ForearmR = 12,
+        Count  = 13
     }
 
     /// <summary>

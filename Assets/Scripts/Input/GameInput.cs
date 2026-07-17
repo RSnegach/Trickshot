@@ -27,7 +27,7 @@ namespace Trickshot
     {
         InputActionAsset _asset;
         InputActionMap _map;
-        InputAction _move, _look, _jump, _reset, _legL, _legR, _recline, _ballCam;
+        InputAction _move, _look, _jump, _reset, _legL, _legR, _recline, _ballCam, _sprint;
         PlayerInput _playerInput;
 
         public void Init()
@@ -54,6 +54,8 @@ namespace Trickshot
             _legR   = _map.AddAction("LegR",   InputActionType.Button, "<Mouse>/rightButton");
             _recline = _map.AddAction("Recline", InputActionType.Button, "<Keyboard>/e");
             _ballCam = _map.AddAction("BallCam", InputActionType.Button, "<Keyboard>/v");
+            _sprint = _map.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
+            _sprint.AddBinding("<Keyboard>/rightShift");
 
             _map.Enable();
 
@@ -93,6 +95,9 @@ namespace Trickshot
         public Vector2 Look => _look != null ? _look.ReadValue<Vector2>() : Vector2.zero;
 
         public bool JumpPressed => _jump != null && _jump.WasPressedThisFrame();
+        public bool JumpHeld => _jump != null && _jump.IsPressed();
+        // Forward (W / up) held, read from the Move composite's y axis.
+        public bool ForwardHeld => Move.y > 0.4f;
         public bool ResetPressed => _reset != null && _reset.WasPressedThisFrame();
         public bool BallCamPressed => _ballCam != null && _ballCam.WasPressedThisFrame();
 
@@ -105,5 +110,8 @@ namespace Trickshot
 
         // E held: recline backward while airborne (bicycle setup).
         public bool ReclineHeld => _recline != null && _recline.IsPressed();
+
+        // Shift held: sprint.
+        public bool SprintHeld => _sprint != null && _sprint.IsPressed();
     }
 }

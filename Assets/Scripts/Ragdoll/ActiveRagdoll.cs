@@ -99,6 +99,11 @@ namespace Trickshot
             var tCalfR  = MakeTarget(Bone.CalfR,  tThighR,     basePos + Off( 0.11f, 0.33f, 0f), facing);
             MakeTarget(Bone.FootL, tCalfL, basePos + Off(-0.11f, 0.09f, 0.06f), facing);
             MakeTarget(Bone.FootR, tCalfR, basePos + Off( 0.11f, 0.09f, 0.06f), facing);
+            // Arms: shoulders on the torso, hanging down at rest.
+            var tUpArmL = MakeTarget(Bone.UpperArmL, tTorso, basePos + Off(-0.26f, 1.40f, 0f), facing);
+            var tUpArmR = MakeTarget(Bone.UpperArmR, tTorso, basePos + Off( 0.26f, 1.40f, 0f), facing);
+            MakeTarget(Bone.ForearmL, tUpArmL, basePos + Off(-0.26f, 1.08f, 0f), facing);
+            MakeTarget(Bone.ForearmR, tUpArmR, basePos + Off( 0.26f, 1.08f, 0f), facing);
 
             // capture rest local rotations of target bones (identity by construction)
             for (int i = 0; i < (int)Bone.Count; i++)
@@ -129,6 +134,16 @@ namespace Trickshot
             MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.06f, 0.06f), facing,
                      ColliderKind.Box, new Vector3(0.11f, 0.08f, 0.28f), 2f, limbMat);
 
+            // Arms (upper arm + forearm), thinner capsules along Y.
+            MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.06f, 0.32f, 0f), 3f, limbMat);
+            MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.06f, 0.32f, 0f), 3f, limbMat);
+            MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.26f, 1.08f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.052f, 0.32f, 0f), 2f, limbMat);
+            MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.26f, 1.08f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.052f, 0.32f, 0f), 2f, limbMat);
+
             // Joints: child -> parent (connectedBody). Pelvis has no joint (free root).
             AddJoint(Bone.Torso,  Bone.Pelvis, Off(0f, -0.23f, 0f));
             AddJoint(Bone.Head,   Bone.Torso,  Off(0f, -0.14f, 0f));
@@ -138,6 +153,10 @@ namespace Trickshot
             AddJoint(Bone.CalfR,  Bone.ThighR, Off(0f, 0.21f, 0f));
             AddJoint(Bone.FootL,  Bone.CalfL,  Off(0f, 0.16f, -0.06f));
             AddJoint(Bone.FootR,  Bone.CalfR,  Off(0f, 0.16f, -0.06f));
+            AddJoint(Bone.UpperArmL, Bone.Torso,     Off(0f, 0.17f, 0f));
+            AddJoint(Bone.UpperArmR, Bone.Torso,     Off(0f, 0.17f, 0f));
+            AddJoint(Bone.ForearmL,  Bone.UpperArmL, Off(0f, 0.16f, 0f));
+            AddJoint(Bone.ForearmR,  Bone.UpperArmR, Off(0f, 0.16f, 0f));
 
             IgnoreSelfCollisions();
         }
@@ -290,6 +309,11 @@ namespace Trickshot
 
             _poseT = Mathf.Min(1f, _poseT + Time.fixedDeltaTime * _poseSpeed);
 
+            // Keep the whole target skeleton oriented to the current facing, so when the
+            // body turns (e.g. facing the mouse while idle) the limb pose turns with it
+            // instead of the legs fighting the old direction it was built in.
+            if (_targetRoot != null) _targetRoot.rotation = FacingRotation;
+
             // 1) Push the target skeleton toward the blended pose + additive override.
             for (int i = 0; i < (int)Bone.Count; i++)
             {
@@ -361,8 +385,11 @@ namespace Trickshot
             Vector3 horiz = AverageHorizontalVelocity();
             Vector3 desired = new Vector3(MoveInput.x, 0f, MoveInput.z);
             Vector3 delta = desired - horiz;
+            // Cap scales with the current desired speed so sprint isn't throttled by
+            // the base-speed cap.
+            float capSpeed = Mathf.Max(SimConfig.StrikerMoveSpeed, desired.magnitude);
             Vector3 accel = Vector3.ClampMagnitude(delta * SimConfig.StrikerAccel,
-                                                   SimConfig.StrikerAccel * SimConfig.StrikerMoveSpeed);
+                                                   SimConfig.StrikerAccel * capSpeed);
             for (int i = 0; i < (int)Bone.Count; i++)
                 if (_rb[i] != null) _rb[i].AddForce(accel, ForceMode.Acceleration);
         }
@@ -420,17 +447,28 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// Rotate the whole body toward a target tilt about a world axis and STOP there
-        /// (used for the recline: tip to ~180 deg onto the back, then hold). Pass the
-        /// signed remaining angle in degrees (positive = keep rotating along +axis);
-        /// the spin rate eases down as the remaining angle shrinks so it settles
-        /// instead of over-rotating.
+        /// Stop a whole-body spin cleanly. Zeroing angular velocity alone is NOT enough:
+        /// SpinWholeBody also gave each bone a tangential LINEAR velocity so the body
+        /// orbits its centre, and that leftover momentum keeps flinging the bones in
+        /// circles (the "keeps rotating all the way around" bug). So also replace every
+        /// bone's linear velocity with the shared centre-of-mass velocity, removing the
+        /// tangential component while keeping the fall.
         /// </summary>
-        public void SpinWholeBodyToward(Vector3 axisWorld, float remainingDeg, float maxRateDeg)
+        public void StopBodySpin()
         {
-            // Ease: full rate until ~35 deg out, then proportional so it decelerates.
-            float rate = Mathf.Sign(remainingDeg) * Mathf.Min(maxRateDeg, Mathf.Abs(remainingDeg) * 4f);
-            SetBodyAngularVelocity(axisWorld.normalized * (rate * Mathf.Deg2Rad));
+            Vector3 comVel = Vector3.zero; float m = 0f;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                comVel += _rb[i].linearVelocity * _rb[i].mass; m += _rb[i].mass;
+            }
+            if (m > 0f) comVel /= m;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                _rb[i].angularVelocity = Vector3.zero;
+                _rb[i].linearVelocity = comVel;
+            }
         }
 
         void SetBodyAngularVelocity(Vector3 w)
@@ -449,15 +487,6 @@ namespace Trickshot
             }
         }
 
-        /// <summary>Signed pitch of the torso relative to upright, about the given world
-        /// axis, in degrees. 0 = upright, ~180 = flat on the back. Used to know when the
-        /// recline has reached the back so it can stop.</summary>
-        public float TorsoTiltDegrees()
-        {
-            // Angle between the torso's up vector and world up.
-            Vector3 up = Rb(Bone.Torso) != null ? Rb(Bone.Torso).transform.up : Pelvis.transform.up;
-            return Vector3.Angle(up, Vector3.up);
-        }
 
         Vector3 CenterOfMass()
         {
@@ -475,6 +504,14 @@ namespace Trickshot
         {
             for (int i = 0; i < (int)Bone.Count; i++)
                 if (_rb[i] != null) _rb[i].AddForce(deltaV, ForceMode.VelocityChange);
+        }
+
+        /// <summary>Launch straight up: cancel all horizontal velocity and set a clean
+        /// vertical speed on every bone (a pure jump with no sideways/backward drift).</summary>
+        public void LaunchVerticalAll(float upSpeed)
+        {
+            for (int i = 0; i < (int)Bone.Count; i++)
+                if (_rb[i] != null) _rb[i].linearVelocity = new Vector3(0f, upSpeed, 0f);
         }
 
         /// <summary>Set an additive pose offset (Euler deg) for a bone, layered on the base pose.</summary>
@@ -520,6 +557,10 @@ namespace Trickshot
             SnapBone(Bone.CalfR,  basePos + Off(0.11f, 0.33f, 0f), facing);
             SnapBone(Bone.FootL,  basePos + Off(-0.11f, 0.06f, 0.06f), facing);
             SnapBone(Bone.FootR,  basePos + Off(0.11f, 0.06f, 0.06f), facing);
+            SnapBone(Bone.UpperArmL, basePos + Off(-0.26f, 1.40f, 0f), facing);
+            SnapBone(Bone.UpperArmR, basePos + Off(0.26f, 1.40f, 0f), facing);
+            SnapBone(Bone.ForearmL,  basePos + Off(-0.26f, 1.08f, 0f), facing);
+            SnapBone(Bone.ForearmR,  basePos + Off(0.26f, 1.08f, 0f), facing);
         }
 
         void SnapBone(Bone b, Vector3 worldPos, Quaternion facing)
