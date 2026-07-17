@@ -58,6 +58,12 @@ namespace Trickshot
         public bool UprightLock = true;
         bool _lockApplied;
 
+        // Dive lock: pelvis may PITCH forward freely (the belly-down fall) but its yaw
+        // and roll are pinned to DiveYawFacing, so the chest stays square-forward and
+        // never twists sideways through the dive. Set by the striker's diving header.
+        public bool DiveYawLock = false;
+        public Quaternion DiveYawFacing = Quaternion.identity;
+
         public Rigidbody Pelvis => _rb[(int)Bone.Pelvis];
         public Rigidbody Rb(Bone b) => _rb[(int)b];
         public Transform Phys(Bone b) => _rb[(int)b] != null ? _rb[(int)b].transform : null;
@@ -387,6 +393,10 @@ namespace Trickshot
             {
                 ApplyUprightLock();
             }
+            else if (DiveYawLock)
+            {
+                ApplyDiveYawLock();
+            }
             else
             {
                 ReleaseUprightLock();
@@ -450,6 +460,27 @@ namespace Trickshot
             if (!_lockApplied) return;
             Pelvis.constraints = RigidbodyConstraints.None;
             _lockApplied = false;
+        }
+
+        // Diving header: allow the pelvis to PITCH forward about the character's right
+        // axis (the belly-down fall) but pin yaw and roll so the chest stays square and
+        // never twists sideways. Rigidbody constraints only freeze WORLD axes, and the
+        // pitch axis rotates with facing, so we instead rebuild the rotation each step
+        // as (locked yaw) * (pitch only) and keep only the right-axis spin component.
+        void ApplyDiveYawLock()
+        {
+            ReleaseUprightLock();   // no world-axis constraints; we correct in code
+            Quaternion yaw = Quaternion.Euler(0f, DiveYawFacing.eulerAngles.y, 0f);
+            // Tilt = deviation of the pelvis from the locked yaw. Extract pitch about the
+            // facing's right axis, discard yaw drift and roll.
+            Quaternion tilt = Quaternion.Inverse(yaw) * Pelvis.rotation;
+            Vector3 te = tilt.eulerAngles;
+            float pitch = Mathf.DeltaAngle(0f, te.x);
+            Pelvis.MoveRotation(yaw * Quaternion.Euler(pitch, 0f, 0f));
+            // Keep only the angular-velocity component about the facing's right axis.
+            Vector3 rightAxis = yaw * Vector3.right;
+            Vector3 av = Pelvis.angularVelocity;
+            Pelvis.angularVelocity = rightAxis * Vector3.Dot(av, rightAxis);
         }
 
         void ApplyLocomotion()
@@ -619,6 +650,7 @@ namespace Trickshot
             BalanceEnabled = true;
             LocomotionEnabled = true;
             BodyOrientTarget = null;
+            DiveYawLock = false;
             UprightLock = true;
             _lockApplied = false;
             if (Pelvis != null) Pelvis.constraints = RigidbodyConstraints.None;

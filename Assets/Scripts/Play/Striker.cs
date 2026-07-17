@@ -214,9 +214,9 @@ namespace Trickshot
         }
 
         // --------------------------------------------------- diving header
-        // Instant: no crouch, no launch velocity. Release the upright lock and apply a
-        // one-shot forward-tilt torque so he immediately ragdoll-falls forward, carrying
-        // whatever run momentum he already had. Lands, then recovers.
+        // He JUMPS first: an up + forward launch off the run, then tips forward into a
+        // belly-down header. The pelvis yaw+roll are pinned (DiveYawLock) so the chest
+        // stays square-forward the whole way and never twists. Lands, then recovers.
         void StartDive()
         {
             _mode = Trick.Dive;
@@ -225,8 +225,17 @@ namespace Trickshot
             _proneTimer = SimConfig.DiveProneTime;
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
-            _ragdoll.LocomotionEnabled = false;   // keep his run momentum, don't steer it
-            // Forward-tilt torque about the character's right axis -> tips forward NOW.
+            _ragdoll.LocomotionEnabled = false;   // let the launch carry, don't steer it
+
+            // Chest stays facing forward: pin pelvis yaw+roll to the current facing.
+            _ragdoll.DiveYawFacing = _ragdoll.FacingRotation;
+            _ragdoll.DiveYawLock = true;
+
+            // Jump: up + forward off the run direction, added on top of run momentum.
+            Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
+            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.DiveUpVel + fwd * SimConfig.DiveForwardVel);
+
+            // One-shot forward-tilt torque about the right axis -> tips into the header.
             Vector3 axis = _ragdoll.FacingRotation * Vector3.right;
             _ragdoll.AddTorqueToPelvis(axis * SimConfig.DiveForwardImpulse);
             _ragdoll.SetPose(RagdollPose.Stand, 12f);
@@ -253,6 +262,7 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
+            _ragdoll.DiveYawLock = false;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
@@ -268,6 +278,7 @@ namespace Trickshot
             _proneTimer = 0f;
             _spaceHeld = 0f;
             _gaitPhase = 0f;
+            _ragdoll.DiveYawLock = false;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
