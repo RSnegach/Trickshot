@@ -37,6 +37,7 @@ namespace Trickshot
 
         MeshRenderer _renderer;
         Camera _cam;
+        GameCamera _gameCam;
 
         readonly List<Vector3> _nodes = new List<Vector3>();
         readonly List<bool> _pins = new List<bool>();
@@ -191,13 +192,16 @@ namespace Trickshot
 
         void LateUpdate()
         {
-            // Hide the net only when the camera is looking well UP (mouse pushed toward
-            // the top of its range), where the net would fill the view; render it the
-            // rest of the time. Based on the camera's actual world look direction, so it
-            // is unambiguous. forward.y rises as the camera tilts up.
+            // Hide the net only when the keeper camera is angled into the LOWEST 25% of
+            // its look range (mouse pushed down / low angle), where the mesh clutters the
+            // view; render it the other 75% of the time.
             if (_renderer == null) return;
-            if (_cam == null) _cam = Camera.main;
-            bool show = _cam == null || _cam.transform.forward.y < SimConfig.NetHideLookUp;
+            if (_gameCam == null)
+            {
+                if (_cam == null) _cam = Camera.main;
+                if (_cam != null) _gameCam = _cam.GetComponent<GameCamera>();
+            }
+            bool show = _gameCam == null || _gameCam.KeeperLookDownFraction < 0.6f;
             if (_renderer.enabled != show) _renderer.enabled = show;
         }
     }

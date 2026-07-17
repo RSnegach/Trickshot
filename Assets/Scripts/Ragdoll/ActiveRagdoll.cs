@@ -120,8 +120,10 @@ namespace Trickshot
 
             MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
                      ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
+            // Head: 0.14 visible radius but a larger 0.22 collider (dims.y override) so
+            // headers connect more easily.
             MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.70f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.14f, 0f, 0f), 4f, torsoMat);
+                     ColliderKind.Sphere, new Vector3(0.14f, 0.22f, 0f), 4f, torsoMat);
 
             MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat);
@@ -220,7 +222,9 @@ namespace Trickshot
                 case ColliderKind.Sphere:
                 {
                     var sc = go.AddComponent<SphereCollider>();
-                    sc.radius = dims.x;
+                    // dims.y (if > 0) is a collider-radius override so the hitbox can be
+                    // bigger than the visible sphere (e.g. a generous header hitbox).
+                    sc.radius = dims.y > 0f ? dims.y : dims.x;
                     col = sc;
                     visual = Make.Sphere("v", dims.x * 2f, worldPos, mat, go.transform);
                     break;
