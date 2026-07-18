@@ -123,6 +123,19 @@ namespace Trickshot
         public const float AiKeeperDiveHoriz = 6.5f;  // dive lunge speed (scaled by ability)
         public const float AiKeeperDiveUp = 3.0f;     // dive upward pop (scaled by ability)
 
+        // ---- Challenge modes (set from their pre-match screens) ----
+        // Time Trial: round length in seconds.
+        public static float TimeTrialSeconds = 60f;
+        // Accuracy: round length and how many targets are up at once.
+        public static float AccuracySeconds = 90f;
+        public static int   AccuracyTargetCount = 4;
+        // Free Kick / Penalty: where the dead ball sits and the defensive wall setup.
+        public static float FreeKickDistance = 20f;    // metres out from goal for a free kick
+        public static bool  PenaltyMode = false;        // true = penalty spot, no wall
+        public static int   WallCount = 4;              // defenders in the wall
+        public static float WallDistance = 9.15f;       // wall distance from the ball (regulation)
+        public static float WallLateralOffset = 0f;     // shift the wall along the goal-parallel axis
+
         // ---- Auto serve ----
         public const float ServeFirstDelay = 1.6f; // before the first cross
         // Seconds between crosses (striker mode) - set from the pre-match screen.

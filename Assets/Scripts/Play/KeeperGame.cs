@@ -120,7 +120,7 @@ namespace Trickshot
 
         void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); }
         // A save touched while diving/lunging is an EPIC SAVE; a stationary block is a SAVE.
-        void OnSave() { _resolved = true; _saves++; Flash(_touchedCommitting ? "EPIC SAVE!" : "SAVE!"); }
+        void OnSave() { _resolved = true; _saves++; Flash(_touchedCommitting ? "EPIC SAVE!" : "SAVE!"); CrowdCheer.Celebrate(); }
         void OnMiss() { _resolved = true; Flash("MISS"); }
 
         // R only: full reset of keeper + serve loop (not per-ball, which would yank the
