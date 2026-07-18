@@ -20,29 +20,15 @@ namespace Trickshot
         {
             var refs = new Refs();
 
-            var grass = Make.Mat(new Color(0.24f, 0.42f, 0.24f), 0.05f);
             var line  = Make.Glow(new Color(0.9f, 0.9f, 0.9f));
             var post  = Make.Mat(Color.white, 0.2f);
             var wall  = Make.Mat(new Color(0.3f, 0.3f, 0.34f, 1f), 0.05f);
 
-            // Pitch. Extend well past the field on every side so there is floor BEHIND
-            // and around the goal (the goal line sits at the field edge, so the ball
-            // must have ground under the net or it falls into the void).
-            float pad = 14f;
-            var ground = Make.Box("Pitch", new Vector3(SimConfig.FieldWidth + pad, 1f, SimConfig.FieldLength + pad),
-                                   new Vector3(0f, -0.5f, 0f), grass, root);
-            // Low-friction turf so the ball skips and rolls without losing much pace.
-            ground.GetComponent<Collider>().material = Make.PhysMat("Turf", 0.15f, 0.25f, 0.25f);
-
-            // Penalty box markings (thin flat boxes on the turf, no colliders)
-            float goalZ = SimConfig.GoalCenter.z;
-            float boxNearZ = goalZ - SimConfig.PenaltyBoxDepth;
-            Line(root, line, new Vector3(0f, 0.01f, boxNearZ),
-                 new Vector3(SimConfig.PenaltyBoxWidth, 0.02f, 0.2f)); // 18-yard line
-            Line(root, line, new Vector3(-SimConfig.PenaltyBoxWidth * 0.5f, 0.01f, (goalZ + boxNearZ) * 0.5f),
-                 new Vector3(0.2f, 0.02f, SimConfig.PenaltyBoxDepth));
-            Line(root, line, new Vector3(SimConfig.PenaltyBoxWidth * 0.5f, 0.01f, (goalZ + boxNearZ) * 0.5f),
-                 new Vector3(0.2f, 0.02f, SimConfig.PenaltyBoxDepth));
+            // NOTE: the ground plane and pitch line markings are built by PitchBuilder now
+            // (the full regulation pitch). Arena used to build its own small pitch + box
+            // markings at y=0, which sat COPLANAR with PitchBuilder's and Z-fought (the
+            // white flickering streaks). Arena now only builds the goal, net, backstops,
+            // and boundary walls.
 
             // Goal
             var goalRoot = Make.Empty("Goal", SimConfig.GoalCenter, root).transform;
@@ -63,8 +49,7 @@ namespace Trickshot
             Make.Cylinder("RailL", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork);
             Make.Cylinder("RailR", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork);
 
-            // Goal line: a bright flat marking exactly on the goal line (z = GoalCenter.z).
-            Line(root, line, new Vector3(0f, 0.02f, SimConfig.GoalCenter.z), new Vector3(gw + 0.4f, 0.03f, 0.14f));
+            // (Goal-line marking is drawn by PitchBuilder as part of the full pitch.)
 
             // See-through flexible net wrapping back + sides + top, rendered as net
             // strings (line grid) with an unlit material so it never shades to black.
