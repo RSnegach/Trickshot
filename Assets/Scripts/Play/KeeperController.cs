@@ -28,6 +28,10 @@ namespace Trickshot
         State _state = State.Ready;
         Vector3[] _airPose;   // pose held while in the air (Dive or Jump)
 
+        // True while diving or lunging (for the EPIC SAVE callout - a save made while
+        // fully committed rather than a stationary block).
+        public bool IsCommitting => _state == State.Diving || _state == State.Saving;
+
         // Dive lifecycle: landing detection.
         float _diveDir;       // -1 left / +1 right (for the leading-leg bend)
         Quaternion _diveOrient;  // held horizontal lay-out target for the current dive

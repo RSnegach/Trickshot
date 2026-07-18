@@ -138,14 +138,31 @@ namespace Trickshot
             _resolved = true;
             _goals++;
             if (trick) _trickGoals++;
-            Flash(trick ? "TRICK GOAL!" : "GOAL!");
+            Flash(GoalCallout(_ball.LastShotType, trick));
+        }
+
+        // Goal callout by how it was scored.
+        static string GoalCallout(ShotType type, bool trick)
+        {
+            switch (type)
+            {
+                case ShotType.Bicycle:      return "BICYCLE KICK GOAL!";
+                case ShotType.DivingHeader: return "DIVING HEADER GOAL!";
+                case ShotType.Header:       return "HEADER GOAL!";
+                default:                    return trick ? "TRICK GOAL!" : "GOAL!";
+            }
         }
 
         void OnMiss()
         {
             _resolved = true;
+            // A save close to the keeper is normal; one where he had to DIVE (far from his
+            // guard spot, i.e. a big lateral reach) is an EPIC SAVE.
             if (_keeper != null && Vector3.Distance(_ball.transform.position, _keeper.PelvisPos) < 2.2f)
-            { _saves++; Flash("SAVED"); }
+            {
+                _saves++;
+                Flash(_keeper.WasDivingSave ? "EPIC SAVE!" : "SAVE!");
+            }
             else Flash("MISS");
         }
 

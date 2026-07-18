@@ -49,6 +49,7 @@ namespace Trickshot
             Vector3 dir = (toGoal.normalized + Vector3.up * 0.55f).normalized;
             ball.Rb.AddForce(dir * SimConfig.ValidHitBonus, ForceMode.VelocityChange);
             ball.LastShotWasTrick = true;
+            ball.LastShotType = ShotType.Bicycle;
 
             _cooldown = 0.5f;
             OnValidTrick?.Invoke();

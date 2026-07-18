@@ -21,6 +21,9 @@ namespace Trickshot
         float _curlRemaining;
 
         public bool LastShotWasTrick;   // set by KickDetector when a valid trick connects
+        // How the ball was last struck by the player, for goal callouts. Set at contact
+        // (header/diving-header here, bicycle by KickDetector), cleared on reset/launch.
+        public ShotType LastShotType = ShotType.Normal;
 
         // Arcade aim-assist: after a striker touch, briefly steer the flat velocity
         // partway toward the goal so more shots are on target (subtle).
@@ -65,6 +68,7 @@ namespace Trickshot
             _curlAccel = curlAccel;
             _curlRemaining = timeOfFlight;
             LastShotWasTrick = false;
+            LastShotType = ShotType.Normal;
             _trail.emitting = true;
             _trail.Clear();
         }
@@ -132,6 +136,15 @@ namespace Trickshot
             if (!header && _assistCooldown > 0f) return;
             Vector3 v = Rb.linearVelocity;
 
+            // Tag the shot type for goal callouts. A head contact is a header; if the
+            // striker who owns this ragdoll is mid-dive, it's a DIVING header. Bicycle is
+            // tagged separately by KickDetector (a foot contact while reclined).
+            if (header)
+            {
+                var st = ragdoll.GetComponent<Striker>();
+                LastShotType = (st != null && st.IsDiving) ? ShotType.DivingHeader : ShotType.Header;
+            }
+
             if (header)
             {
                 // REDIRECT onto a mostly-goal-ward horizontal line (a glancing touch is
@@ -186,6 +199,7 @@ namespace Trickshot
             _assistRemaining = 0f;
             _assistCooldown = 0f;
             LastShotWasTrick = false;
+            LastShotType = ShotType.Normal;
             _trail.emitting = false;
             _trail.Clear();
         }
