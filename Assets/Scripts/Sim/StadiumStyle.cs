@@ -62,7 +62,7 @@ namespace Trickshot
                 {
                     Name = "Town Park", Blurb = "Small community ground. Low open terraces, trees and houses beyond.",
                     StandRows = 6, RowRise = 0.75f, RowDepth = 1.2f, HasRoof = false,
-                    Grass = new Color(0.26f, 0.46f, 0.24f),
+                    Grass = new Color(0.15f, 0.30f, 0.15f),
                     Seats = new Color(0.20f, 0.20f, 0.22f),
                     Concrete = new Color(0.62f, 0.60f, 0.55f),
                     Accent = new Color(0.20f, 0.55f, 0.30f),
@@ -75,7 +75,7 @@ namespace Trickshot
                 {
                     Name = "Olympic Stadium", Blurb = "Vast tiered bowl with a full roof and a running track ringing the pitch.",
                     StandRows = 34, RowRise = 0.95f, RowDepth = 1.05f, HasRoof = true,
-                    Grass = new Color(0.22f, 0.40f, 0.22f),
+                    Grass = new Color(0.13f, 0.27f, 0.14f),
                     Seats = new Color(0.13f, 0.13f, 0.15f),
                     Concrete = new Color(0.72f, 0.72f, 0.74f),
                     Roof = new Color(0.16f, 0.16f, 0.20f),
@@ -89,7 +89,7 @@ namespace Trickshot
                 {
                     Name = "Arena", Blurb = "Modern enclosed arena. Tall, steep stands right on the pitch, packed and loud.",
                     StandRows = 28, RowRise = 1.05f, RowDepth = 0.95f, HasRoof = true,
-                    Grass = new Color(0.20f, 0.44f, 0.22f),
+                    Grass = new Color(0.12f, 0.28f, 0.14f),
                     Seats = new Color(0.10f, 0.10f, 0.12f),
                     Concrete = new Color(0.30f, 0.32f, 0.38f),
                     Roof = new Color(0.08f, 0.08f, 0.10f),
@@ -104,7 +104,7 @@ namespace Trickshot
                 {
                     Name = "Sunset Beach", Blurb = "Open seaside pitch. Small stands, palm trees and sand all around.",
                     StandRows = 8, RowRise = 0.7f, RowDepth = 1.25f, HasRoof = false,
-                    Grass = new Color(0.30f, 0.50f, 0.26f),
+                    Grass = new Color(0.18f, 0.34f, 0.17f),
                     Seats = new Color(0.22f, 0.20f, 0.20f),
                     Concrete = new Color(0.80f, 0.74f, 0.60f),
                     Accent = new Color(0.95f, 0.55f, 0.25f),
@@ -117,7 +117,7 @@ namespace Trickshot
                 {
                     Name = "National Stadium", Blurb = "Classic national ground. Big steep tiers, flags flying, statues outside.",
                     StandRows = 30, RowRise = 1.0f, RowDepth = 1.0f, HasRoof = true,
-                    Grass = new Color(0.23f, 0.42f, 0.23f),
+                    Grass = new Color(0.14f, 0.29f, 0.15f),
                     Seats = new Color(0.12f, 0.12f, 0.14f),
                     Concrete = new Color(0.66f, 0.64f, 0.62f),
                     Roof = new Color(0.18f, 0.16f, 0.14f),

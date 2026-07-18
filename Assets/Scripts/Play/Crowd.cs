@@ -111,6 +111,11 @@ namespace Trickshot
 
             _count = w;
             _built = true;
+
+            // Fans never move, so STATIC-BATCH the whole crowd: Unity merges the thousands
+            // of same-material fan meshes into a few combined draws. This is the single
+            // biggest perf win for the crowd (turns ~4*fans draw calls into a handful).
+            StaticBatchingUtility.Combine(gameObject);
         }
 
         /// <summary>No-op: fans are static. Kept so goal callouts can call it harmlessly.</summary>
