@@ -161,6 +161,11 @@ namespace Trickshot
             else if (roll < 0.83f) { radius = 0.42f; points = 2; edgeBias = 0.5f;  color = new Color(1f, 0.85f, 0.1f); }
             else                   { radius = 0.3f;  points = 3; edgeBias = 0.85f; color = new Color(1f, 0.24f, 0.16f); }
 
+            // Shrink targets when the goal is smaller than default so they still fit and
+            // don't overlap (min goal size collapsed the placement band otherwise).
+            float goalScale = Mathf.Min(SimConfig.GoalWidth / 7.32f, SimConfig.GoalHeight / 2.44f);
+            radius *= Mathf.Clamp(goalScale, 0.55f, 1f);
+
             Vector3 pos = Vector3.zero;
             for (int attempt = 0; attempt < 24; attempt++)
             {

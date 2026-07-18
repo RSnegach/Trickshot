@@ -26,6 +26,12 @@ namespace Trickshot
         bool _telegraphed;
         float _swing;        // 0 = neutral, ramps to 1 at contact (drives the leg pose)
 
+        // Delivery overrides (freeplay). If TargetOverride is set, serves land there
+        // instead of SimConfig.ServeTarget. If OriginOverride is set, the ball launches
+        // from that world point (a corner flag) instead of the crosser's launch point.
+        public Vector3? TargetOverride;
+        public Vector3? OriginOverride;
+
         public bool JustServed { get; private set; }
 
         public void Init(AimReticle reticle, BallController ball, Transform launchPoint, ActiveRagdoll ragdoll)
@@ -50,7 +56,7 @@ namespace Trickshot
             _swing = 0f;
             JustServed = false;
             _reticle.Hide();
-            _ball.ResetTo(_launchPoint.position);
+            _ball.ResetTo(Origin);
         }
 
         /// <summary>Advance the serve timer and self-loop: winds up + swings the leg, fires
@@ -103,16 +109,19 @@ namespace Trickshot
 
         void PickServe()
         {
-            // Same landing spot and flight every serve, no curl (predictable practice).
-            _pendingTarget = SimConfig.ServeTarget;
+            // Landing spot: the delivery override (aim spot / corner target) or the
+            // default cross target. Flight is fixed, no curl (predictable practice).
+            _pendingTarget = TargetOverride ?? SimConfig.ServeTarget;
             _pendingTime = SimConfig.ServeTime;
             _pendingCurl = Vector3.zero;
             _pendingSpin = 0f;
         }
 
+        Vector3 Origin => OriginOverride ?? _launchPoint.position;
+
         void Launch()
         {
-            _ball.ResetTo(_launchPoint.position);
+            _ball.ResetTo(Origin);
             _ball.LaunchTo(_pendingTarget, _pendingTime, _pendingCurl, _pendingSpin);
             _reticle.Hide();
             _swing = 1f;         // held on the follow-through a moment
