@@ -28,6 +28,8 @@ namespace Trickshot
         Transform _launchPoint;
 
         bool _resolved;   // has the current served ball's outcome been tallied yet
+        SimConfig.Delivery _delivery;
+        float _refeedTimer;   // ball-at-feet: delay before respawning after it leaves play
 
         int _goals, _crosses;
         string _flash = "";
@@ -52,10 +54,57 @@ namespace Trickshot
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
             _striker.SetCameraYaw(() => _cam.Yaw);
-
             _cam.SetMode(GameCamera.Mode.Follow);
+
+            // Crosser paths have no live ball until the first serve; ball-at-feet has one
+            // immediately (ConfigureDelivery clears _resolved for it).
+            _resolved = true;
+            ConfigureDelivery();
+        }
+
+        // Set up the crosser (or ball-at-feet) for the chosen freeplay delivery.
+        void ConfigureDelivery()
+        {
+            _delivery = SimConfig.FreeplayDelivery;
+            if (_delivery == SimConfig.Delivery.BallAtFeet)
+            {
+                // No crosser: park a stationary ball in front of the striker to strike.
+                // Clear _resolved so the FIRST struck ball can score (Configure/Recenter
+                // both leave it true; without this the first goal is never tallied).
+                _ball.ResetTo(SimConfig.BallAtFeetSpot);
+                _resolved = false;
+                _refeedTimer = 0f;
+                return;
+            }
+
+            // Crosser-driven deliveries. Point the crosser's target/origin per type.
+            switch (_delivery)
+            {
+                case SimConfig.Delivery.AimSpot:
+                    _crosser.TargetOverride = SimConfig.FreeplayAimTarget;
+                    _crosser.OriginOverride = null;
+                    break;
+                case SimConfig.Delivery.CornerLeft:
+                    _crosser.OriginOverride = CornerFlag(-1f);
+                    _crosser.TargetOverride = SimConfig.ServeTarget;   // whip into the box
+                    break;
+                case SimConfig.Delivery.CornerRight:
+                    _crosser.OriginOverride = CornerFlag(1f);
+                    _crosser.TargetOverride = SimConfig.ServeTarget;
+                    break;
+                default: // AutoCross
+                    _crosser.TargetOverride = null;
+                    _crosser.OriginOverride = null;
+                    break;
+            }
             _crosser.Arm(SimConfig.ServeFirstDelay);
-            _resolved = true;   // no live ball yet
+        }
+
+        // Corner flag position: at the attacking goal line, out by the near touchline.
+        Vector3 CornerFlag(float xSign)
+        {
+            float halfW = PitchLayout.HalfWidth - 0.5f;
+            return new Vector3(xSign * halfW, 0.4f, SimConfig.GoalCenter.z - 0.5f);
         }
 
         void Update()
@@ -68,17 +117,22 @@ namespace Trickshot
 
             _striker.Tick();
 
-            // The crosser self-loops and serves every ServeInterval no matter what
-            // happened to the last ball. A serve marks the current ball unresolved so
-            // its outcome is tallied once.
-            if (_crosser.Tick())
+            if (_delivery == SimConfig.Delivery.BallAtFeet)
             {
-                _crosses++;
-                _resolved = false;
-                Flash("CROSS!");
+                BallAtFeetUpdate();
             }
-
-            TrackOutcome();
+            else
+            {
+                // The crosser self-loops and serves every ServeInterval. A serve marks the
+                // current ball unresolved so its outcome is tallied once.
+                if (_crosser.Tick())
+                {
+                    _crosses++;
+                    _resolved = false;
+                    Flash("CROSS!");
+                }
+                TrackOutcome();
+            }
 
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
         }
@@ -101,6 +155,28 @@ namespace Trickshot
                              || Mathf.Abs(c.z) > SimConfig.FieldLength
                              || behindGoal;
             if (outOfPlay) _resolved = true;
+        }
+
+        // Ball-at-feet: strike the stationary ball; once it goes in or leaves play, wait
+        // a beat then respawn it on the spot for another go.
+        void BallAtFeetUpdate()
+        {
+            Vector3 c = _ball.transform.position;
+
+            if (_refeedTimer > 0f)
+            {
+                _refeedTimer -= Time.deltaTime;
+                if (_refeedTimer <= 0f) { _ball.ResetTo(SimConfig.BallAtFeetSpot); _resolved = false; }
+                return;
+            }
+
+            if (!_resolved && BallFullyInGoal(c)) { OnGoal(); _refeedTimer = 1.2f; return; }
+
+            bool leftPlay = c.y < -3f
+                            || Mathf.Abs(c.x) > SimConfig.FieldWidth
+                            || Mathf.Abs(c.z) > SimConfig.FieldLength
+                            || (_ball.Speed < 0.4f && Vector3.Distance(c, SimConfig.BallAtFeetSpot) > 3f);
+            if (leftPlay) { _resolved = true; _refeedTimer = 0.8f; }
         }
 
         // A goal the instant the WHOLE ball is over the line and inside the frame.
@@ -130,8 +206,9 @@ namespace Trickshot
             _striker.ForceRecover();
             _strikerRagdoll.ResetTo(SimConfig.StrikerStart, Quaternion.identity);
             _cam.SetMode(GameCamera.Mode.Follow);
-            _crosser.Arm(SimConfig.ServeFirstDelay);
+            _refeedTimer = 0f;
             _resolved = true;
+            ConfigureDelivery();   // clears _resolved for ball-at-feet (live ball on the spot)
         }
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
@@ -143,10 +220,10 @@ namespace Trickshot
             var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
 
-            GUI.Box(new Rect(8, 8, 250, 76), GUIContent.none);
-            GUI.Label(new Rect(16, 12, 240, 20), "FREEPLAY", st);
-            GUI.Label(new Rect(16, 32, 240, 20), $"Goals {_goals}   Crosses {_crosses}", st);
-            GUI.Label(new Rect(16, 52, 240, 20), $"Ball {_ball.Speed:0.0} m/s", st);
+            GUI.Box(new Rect(8, 8, 260, 76), GUIContent.none);
+            GUI.Label(new Rect(16, 12, 250, 20), "FREEPLAY - " + DeliveryLabel(_delivery), st);
+            GUI.Label(new Rect(16, 32, 250, 20), $"Goals {_goals}   Crosses {_crosses}", st);
+            GUI.Label(new Rect(16, 52, 250, 20), $"Ball {_ball.Speed:0.0} m/s", st);
 
             var help = "Move: WASD   Camera: Mouse   Ball cam: V\n"
                      + "Jump: Space   Left leg: LMB   Right leg: RMB   Air pitch: Mouse wheel   Reset: R";
@@ -160,5 +237,17 @@ namespace Trickshot
         }
 
         GUIStyle CenteredBig(GUIStyle s) => new GUIStyle(s) { alignment = TextAnchor.UpperCenter };
+
+        static string DeliveryLabel(SimConfig.Delivery d)
+        {
+            switch (d)
+            {
+                case SimConfig.Delivery.CornerLeft:  return "Corner (L)";
+                case SimConfig.Delivery.CornerRight: return "Corner (R)";
+                case SimConfig.Delivery.AimSpot:     return "Aimed cross";
+                case SimConfig.Delivery.BallAtFeet:  return "Ball at feet";
+                default:                             return "Auto cross";
+            }
+        }
     }
 }

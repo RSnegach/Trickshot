@@ -156,9 +156,20 @@ namespace Trickshot
         // start). Set true to restore per-serve repositioning.
         public const bool ResetStrikerOnServe = false;
         public const float ServeTime = 1.25f;       // fixed time of flight
-        // Fixed landing spot (same every serve): centred, a bit off the goal line.
+        // Default landing spot (same every serve): centred, a bit off the goal line.
         public static readonly Vector3 ServeTarget =
             new Vector3(0f, 0.25f, GoalCenter.z - 8f);
+
+        // ---- Freeplay delivery (set from the Freeplay pre-match screen) ----
+        // How the ball comes to the player in freeplay.
+        public enum Delivery { AutoCross, CornerLeft, CornerRight, AimSpot, BallAtFeet }
+        public static Delivery FreeplayDelivery = Delivery.AutoCross;
+        // Where an AimSpot cross lands (X across the mouth, Z off the line). Set by the
+        // clickable penalty-box map. Defaults to the standard cross target.
+        public static Vector3 FreeplayAimTarget = new Vector3(0f, 0.25f, GoalCenter.z - 8f);
+        // Where a ball-at-feet spawns and respawns (in front of the striker's start).
+        public static readonly Vector3 BallAtFeetSpot =
+            new Vector3(0f, BallRadius, GoalCenter.z - 10f);
 
         // ---- Camera (mouse orbit / ball lock) ----
         public const float CamYawSpeed = 0.42f;    // deg per mouse-delta unit
