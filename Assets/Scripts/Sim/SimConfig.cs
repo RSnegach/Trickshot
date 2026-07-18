@@ -310,7 +310,7 @@ namespace Trickshot
 
         // ---- Headers (head contact) get a little extra ----
         public const float HeaderPowerMul = 1.7f;    // extra power vs a normal strike
-        public const float HeaderSwerve = 11f;       // added swerve (spin + lateral curl)
+        public const float HeaderSwerve = 3f;        // added swerve (spin + lateral curl) - minimal by default
         public const float HeaderAccuracyMul = 1.9f; // stronger goal-ward steer than a normal contact
         // A header REDIRECTS the ball onto a goal-ward horizontal line (not just faster
         // in its old direction), so even a glancing touch flies fast toward goal.
