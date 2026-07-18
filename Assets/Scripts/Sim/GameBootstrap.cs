@@ -65,8 +65,18 @@ namespace Trickshot
             menu.Init(mode =>
             {
                 Destroy(menuGo);
-                ShowPrematch(mode);
+                ShowStadiumSelect(mode);
             });
+        }
+
+        // Mode -> pick stadium -> pre-match config -> play.
+        void ShowStadiumSelect(GameMode mode)
+        {
+            var go = new GameObject("StadiumSelectUI");
+            var ss = go.AddComponent<StadiumSelectUI>();
+            ss.Init(
+                onPicked: () => { Destroy(go); ShowPrematch(mode); },
+                onBack:   () => { Destroy(go); ShowMainMenu(); });
         }
 
         void ShowPrematch(GameMode mode)
@@ -75,7 +85,7 @@ namespace Trickshot
             var pm = go.AddComponent<PrematchUI>();
             pm.Init(mode,
                 onStart: m => { Destroy(go); BuildMode(m); },
-                onBack:  () => { Destroy(go); ShowMainMenu(); });
+                onBack:  () => { Destroy(go); ShowStadiumSelect(mode); });
         }
 
         void ReturnToMainMenu()
@@ -104,6 +114,8 @@ namespace Trickshot
             pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu);
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
+            // Tint the sky to the selected venue.
+            _cam.backgroundColor = StadiumStyle.Active.Sky;
             var arena = Arena.Build(root);
             // Full pitch markings + far goal, the stadium bowl, and the animated crowd.
             // All read the shared PitchLayout contract so they line up. Crowd is stored so

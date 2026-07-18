@@ -21,12 +21,9 @@ namespace Trickshot
     public static class StadiumBuilder
     {
         // ---- Palette ----
-        static readonly Color ConcreteColor = new Color(0.60f, 0.60f, 0.63f);   // stand terraces
-        static readonly Color RoofColor     = new Color(0.13f, 0.13f, 0.16f);   // roof + dark undersides
-        static readonly Color AccentColor   = new Color(0.15f, 0.45f, 0.90f);   // team colour: wall + tread nosing
-        static readonly Color TunnelColor   = new Color(0.05f, 0.05f, 0.06f);   // recessed tunnel mouth
-        static readonly Color PylonColor    = new Color(0.28f, 0.28f, 0.31f);   // floodlight steel
-        static readonly Color LampColor     = new Color(1.00f, 0.97f, 0.85f);   // emissive floodlamp
+        // Colors now come from StadiumStyle.Active per venue; only the tunnel mouth is
+        // a fixed near-black recess.
+        static readonly Color TunnelColor = new Color(0.05f, 0.05f, 0.06f);
 
         // ---- Terrace step geometry ----
         const float StepOverlap = 0.15f;   // vertical overlap so stacked steps read as one solid bank
@@ -71,27 +68,32 @@ namespace Trickshot
         public static void Build(Transform root)
         {
             var stadium = Make.Empty("Stadium", Vector3.zero, root).transform;
+            var s = StadiumStyle.Active;
 
-            var concrete = Make.Mat(ConcreteColor, 0.05f);
-            var roofMat  = Make.Mat(RoofColor, 0.1f);
-            var accent   = Make.Mat(AccentColor, 0.15f);
-            var pylonMat = Make.Mat(PylonColor, 0.2f, 0.4f);
-            var lampMat  = Make.Glow(LampColor);
+            // Colors come from the selected venue. Seats are a separate (dark) material
+            // from the concrete structure, per request.
+            var seatMat  = Make.Mat(s.Seats, 0.05f);
+            var concrete = Make.Mat(s.Concrete, 0.05f);
+            var roofMat  = Make.Mat(s.Roof, 0.1f);
+            var accent   = Make.Mat(s.Accent, 0.15f);
+            var pylonMat = Make.Mat(s.Pylon, 0.2f, 0.4f);
+            var lampMat  = Make.Glow(s.Lamp);
             var tunnelMat = Make.Mat(TunnelColor, 0.0f);
             var wallPhys = Make.PhysMat("StadiumWall", 0.3f, 0.4f, 0.4f);
 
             foreach (var side in PitchLayout.AllSides)
             {
                 var sideRoot = Make.Empty(side + "Stand", Vector3.zero, stadium).transform;
-                BuildTerrace(sideRoot, side, concrete, accent);
+                BuildTerrace(sideRoot, side, seatMat, accent);
                 BuildPerimeterWall(sideRoot, side, accent, wallPhys);
                 BuildBackWall(sideRoot, side, concrete, wallPhys);
-                BuildRoof(sideRoot, side, roofMat);
+                if (s.HasRoof) BuildRoof(sideRoot, side, roofMat);
                 if (side == TunnelSide) BuildTunnel(sideRoot, side, tunnelMat);
             }
 
             BuildCorners(stadium, concrete);
             BuildPylons(stadium, pylonMat, roofMat, lampMat);
+            SurroundBuilder.Build(stadium, s);
         }
 
         // ---------------------------------------------------------------- Terrace

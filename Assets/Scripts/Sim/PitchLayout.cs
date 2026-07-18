@@ -33,13 +33,14 @@ namespace Trickshot
         // ---- Stands (one per side, tiered terraces of seats) ----
         // A stand is a raked bank of rows rising away from the pitch. Seats step UP and
         // BACK each row. The crowd fills these seats; the stadium builds the structure
-        // (steps, walls, roof) over the same footprint.
-        public const int   StandRows      = 22;      // rows per stand (depth up the rake)
-        public const float RowRise        = 0.9f;    // metres each row rises
-        public const float RowDepth       = 1.1f;    // metres each row steps back
-        public const float SeatSpacing    = 1.15f;   // metres between fans along a row
-        public const float StandFrontGap  = Runoff + 2f;  // distance from the line to row 0
-        public const float StandBaseHeight = 1.2f;   // the terrace front wall height
+        // (steps, walls, roof) over the same footprint. The rake shape comes from the
+        // SELECTED venue (StadiumStyle.Active) so every builder that reads these agrees.
+        public static int   StandRows       => StadiumStyle.Active.StandRows;
+        public static float RowRise         => StadiumStyle.Active.RowRise;
+        public static float RowDepth        => StadiumStyle.Active.RowDepth;
+        public static float StandBaseHeight => StadiumStyle.Active.StandBaseHeight;
+        public const  float SeatSpacing     = 1.15f;   // metres between fans along a row
+        public const  float StandFrontGap   = Runoff + 2f;  // distance from the line to row 0
 
         public enum Side { PlusX, MinusX, AttackEnd, FarEnd }
 

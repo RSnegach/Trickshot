@@ -48,7 +48,7 @@ namespace Trickshot
         {
             var pitchRoot = Make.Empty("FullPitch", Vector3.zero, root).transform;
 
-            var grass = Make.Mat(new Color(0.22f, 0.45f, 0.24f), 0.05f);
+            var grass = Make.Mat(StadiumStyle.Active.Grass, 0.05f);
             var line  = Make.Unlit(new Color(0.95f, 0.95f, 0.95f, 1f));
 
             float attackLineZ = PitchLayout.AttackGoalLineZ;
