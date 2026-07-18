@@ -292,10 +292,21 @@ namespace Trickshot
         // toward goal). Strong foot/leg is the reference (full); weak side is half; a body
         // (torso/pelvis) touch is scrappy and inaccurate. Head is handled by heading rules.
         public const float ArmHitboxScale = 1.9f;    // arm collider radius vs the thin visible arm (stops ball phasing)
+        public const float LegHitboxScale = 1.6f;    // keeper/striker leg collider radius vs the visible leg
         public const float StrongFootAccuracy = 1.0f;
-        public const float WeakFootAccuracy   = 0.5f;   // weak leg/foot: half the accuracy
-        public const float BodyAccuracy       = 0.35f;  // chest/torso: low
-        public const float BodyPowerMul       = 0.7f;   // body contacts are weaker in general
+        public const float WeakFootAccuracy   = 0.3f;    // weak leg/foot: much less accurate
+        public const float WeakFootPowerMul   = 0.6f;    // and weaker
+        public const float BodyAccuracy       = 0.1f;    // body/arms: basically no aim help
+        public const float BodyPowerMul       = 0.25f;   // body/arms: super weak - traps the ball, drops it
+
+        // ---- Kick vs. run-into: only a SWINGING leg imparts real power ----
+        // The struck bone's own speed decides how live the touch is. A kick swings the
+        // foot/leg fast; just running into the ball translates the whole body at move
+        // speed. Below the floor speed the touch barely nudges the ball (a trap/dribble);
+        // above the full speed it strikes at full power; it lerps between.
+        public const float KickSpeedFloor = 4f;      // bone speed (m/s) below this = a dead touch
+        public const float KickSpeedFull  = 9f;      // bone speed at/above this = a full strike
+        public const float DeadTouchPower = 0.12f;   // velocity kept on a dead (non-kicking) touch
 
         // ---- Headers (head contact) get a little extra ----
         public const float HeaderPowerMul = 1.7f;    // extra power vs a normal strike
