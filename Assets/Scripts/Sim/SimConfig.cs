@@ -122,6 +122,17 @@ namespace Trickshot
         public const float AiKeeperDiveCooldown = 1.1f; // min seconds between dives
         public const float AiKeeperDiveHoriz = 6.5f;  // dive lunge speed (scaled by ability)
         public const float AiKeeperDiveUp = 3.0f;     // dive upward pop (scaled by ability)
+        // Low / grounded shots. By how far the ball is off the keeper (predicted x minus
+        // his x):
+        //   within AiKeeperSplayReach   -> Split (central) / SaveLeft-Right splay in place;
+        //   within AiKeeperLowDiveReach -> a LOW dive (down + across to a bottom corner);
+        //   beyond that                 -> shuffle a step or two toward it first, then dive.
+        public const float AiKeeperLowBallHeight = 1.0f;  // predicted ball height below this = low save
+        public const float AiKeeperSplitWidth = 1.2f;     // |ball x - centre| under this = Split, else side splay
+        public const float AiKeeperLowSaveUp = 1.2f;      // small hop on a side splay (stays low)
+        public const float AiKeeperSplayReach = 1.6f;     // low ball within this of the keeper = splay/split in place
+        public const float AiKeeperLowDiveReach = 4.5f;   // low ball within this = commit a low dive; beyond = step closer first
+        public const float AiKeeperLowDiveUp = 1.6f;      // small upward pop on a low dive (stays low)
 
         // ---- Challenge modes (set from their pre-match screens) ----
         // Time Trial: round length in seconds.
@@ -275,6 +286,16 @@ namespace Trickshot
         // ---- Strike power (on striker contact) ----
         public const float StrikeHorizBoost = 1.6f;  // multiply horizontal velocity when struck
         public const float StrikeHorizMax = 26f;     // cap on resulting horizontal speed (m/s)
+
+        // ---- Body-part accuracy + power (which part of the body struck the ball) ----
+        // Accuracy = the fraction of AssistSteerFrac applied (how much the shot is helped
+        // toward goal). Strong foot/leg is the reference (full); weak side is half; a body
+        // (torso/pelvis) touch is scrappy and inaccurate. Head is handled by heading rules.
+        public const float ArmHitboxScale = 1.9f;    // arm collider radius vs the thin visible arm (stops ball phasing)
+        public const float StrongFootAccuracy = 1.0f;
+        public const float WeakFootAccuracy   = 0.5f;   // weak leg/foot: half the accuracy
+        public const float BodyAccuracy       = 0.35f;  // chest/torso: low
+        public const float BodyPowerMul       = 0.7f;   // body contacts are weaker in general
 
         // ---- Headers (head contact) get a little extra ----
         public const float HeaderPowerMul = 1.7f;    // extra power vs a normal strike

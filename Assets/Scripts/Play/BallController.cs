@@ -29,7 +29,7 @@ namespace Trickshot
         // partway toward the goal so more shots are on target (subtle).
         float _assistRemaining;
         float _assistCooldown;
-        bool _headerAssist;   // current assist window came from a header (stronger steer)
+        float _accuracyMul = 1f;   // goal-steer strength for the current assist window (per body part)
 
         void Awake()
         {
@@ -87,7 +87,7 @@ namespace Trickshot
             {
                 _assistRemaining -= Time.fixedDeltaTime;
                 ApplyGoalAssist();
-                if (_assistRemaining <= 0f) _headerAssist = false;
+                if (_assistRemaining <= 0f) _accuracyMul = 1f;
             }
         }
 
@@ -104,8 +104,9 @@ namespace Trickshot
 
             Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
             if (toGoal.sqrMagnitude < 0.01f) return;
-            // Headers steer harder toward goal (more accuracy).
-            float steer = SimConfig.AssistSteerFrac * (_headerAssist ? SimConfig.HeaderAccuracyMul : 1f);
+            // Accuracy = how strongly the shot is steered toward goal, set per contact
+            // (strong foot full, weak foot half, body low, header high).
+            float steer = SimConfig.AssistSteerFrac * _accuracyMul;
             Vector3 desiredDir = Vector3.Slerp(flat.normalized, toGoal.normalized, Mathf.Clamp01(steer));
             Vector3 desiredVel = desiredDir * speed;                 // preserve horizontal speed
             Vector3 delta = desiredVel - flat;
@@ -129,20 +130,44 @@ namespace Trickshot
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
 
-            // A HEAD contact (the P_Head part) is a header. Headers bypass the strike
-            // cooldown (they should always redirect, even right after a foot touch);
-            // non-header strikes still respect it to avoid multi-contact spam.
-            bool header = c.collider.transform.parent != null && c.collider.transform.parent.name == "P_Head";
+            // Which body part struck the ball. The collider lives ON the P_<Bone> object
+            // (its visual child collider is destroyed at build), so read the collider's
+            // OWN transform name, not its parent (parent is the next bone up the chain).
+            string part = c.collider.transform.name;   // e.g. "P_Head", "P_FootR", "P_Torso"
+            bool header = part == "P_Head";
             if (!header && _assistCooldown > 0f) return;
             Vector3 v = Rb.linearVelocity;
 
-            // Tag the shot type for goal callouts. A head contact is a header; if the
-            // striker who owns this ragdoll is mid-dive, it's a DIVING header. Bicycle is
-            // tagged separately by KickDetector (a foot contact while reclined).
+            var striker = ragdoll.GetComponent<Striker>();
+            if (header)
+                LastShotType = (striker != null && striker.IsDiving) ? ShotType.DivingHeader : ShotType.Header;
+
+            // Build trait: a heavier/taller player strikes harder (player only; AI = 1.0).
+            float shotMul = striker != null ? PlayerProfile.ShotPowerMul : 1f;
+
+            // Per-part accuracy + power. Foot/leg on the STRONG side is full accuracy; the
+            // weak side is half; torso/pelvis (body) contacts are weak and scrappy. Header
+            // accuracy is the header rule. AI bodies (no profile) treat both feet as strong.
+            bool isLeg = part.StartsWith("P_Foot") || part.StartsWith("P_Calf") || part.StartsWith("P_Thigh");
+            bool isBody = part == "P_Torso" || part == "P_Pelvis";
+            bool leftSide = part.EndsWith("L");
             if (header)
             {
-                var st = ragdoll.GetComponent<Striker>();
-                LastShotType = (st != null && st.IsDiving) ? ShotType.DivingHeader : ShotType.Header;
+                _accuracyMul = SimConfig.HeaderAccuracyMul;
+            }
+            else if (isLeg)
+            {
+                bool strong = striker == null || (leftSide == PlayerProfile.LeftFooted);
+                _accuracyMul = strong ? SimConfig.StrongFootAccuracy : SimConfig.WeakFootAccuracy;
+            }
+            else if (isBody)
+            {
+                _accuracyMul = SimConfig.BodyAccuracy;
+                shotMul *= SimConfig.BodyPowerMul;   // body touches are weaker
+            }
+            else
+            {
+                _accuracyMul = SimConfig.StrongFootAccuracy;   // arms/other: neutral
             }
 
             if (header)
@@ -162,8 +187,8 @@ namespace Trickshot
                     : toGoal;
 
                 float speed = Mathf.Max(SimConfig.HeaderMinSpeed,
-                                        inSpeed * SimConfig.HeaderPowerMul);
-                speed = Mathf.Min(speed, SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul);
+                                        inSpeed * SimConfig.HeaderPowerMul) * shotMul;
+                speed = Mathf.Min(speed, SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul * shotMul);
 
                 Vector3 flat = dir * speed;
                 Rb.linearVelocity = new Vector3(flat.x, v.y * SimConfig.HeaderVerticalKeep, flat.z);
@@ -176,16 +201,17 @@ namespace Trickshot
             }
             else
             {
-                // Normal strike: amplify the ball's existing horizontal velocity.
+                // Normal strike: amplify the ball's existing horizontal velocity (scaled
+                // by the striker's shot-power trait).
                 Vector3 flat = new Vector3(v.x, 0f, v.z);
-                flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost, SimConfig.StrikeHorizMax);
+                flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost * shotMul,
+                                              SimConfig.StrikeHorizMax * shotMul);
                 Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
             }
 
             _assistRemaining = SimConfig.AssistDuration;
             _assistCooldown = 0.4f;   // don't re-trigger every micro-contact
-            // Headers get a stronger goal-ward steer (accuracy) than a normal contact.
-            _headerAssist = header;
+            // _accuracyMul (set above per body part) drives the goal-steer during the window.
         }
 
         public void ResetTo(Vector3 pos)
