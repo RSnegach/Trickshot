@@ -149,10 +149,11 @@ namespace Trickshot
 
             MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
                      ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
-            // Head: 0.19 visible radius, 0.27 collider (dims.y override), and the hitbox
-            // shifted forward (+Z) and a bit down (-Y) so headers reach in front of the face.
+            // Head: 0.19 visible radius, 0.22 collider (dims.y override) - narrower than
+            // before so the header hitbox doesn't overlap the shoulders, still a bit bigger
+            // than the visible head. Shifted forward (+Z) and down (-Y) to reach in front.
             MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.72f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, limbMat,
+                     ColliderKind.Sphere, new Vector3(0.19f, 0.22f, 0f), 4.5f, limbMat,
                      1f, new Vector3(0f, -0.05f, 0.12f));
 
             // Leg hitboxes are fattened (LegHitboxScale) beyond the visible leg so the ball
