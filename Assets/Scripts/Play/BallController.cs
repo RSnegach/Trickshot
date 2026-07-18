@@ -145,12 +145,13 @@ namespace Trickshot
             // Build trait: a heavier/taller player strikes harder (player only; AI = 1.0).
             float shotMul = striker != null ? PlayerProfile.ShotPowerMul : 1f;
 
-            // Per-part accuracy + power. Foot/leg on the STRONG side is full accuracy; the
-            // weak side is half; torso/pelvis (body) contacts are weak and scrappy. Header
-            // accuracy is the header rule. AI bodies (no profile) treat both feet as strong.
+            // Per-part accuracy + power. A LEG/FOOT is a real strike (full on the strong
+            // side, weak + less powerful on the other); the HEAD uses heading rules;
+            // anything else (torso, arms, pelvis) is a scrappy touch that mostly kills the
+            // ball so it drops at the player's feet (a trap), imparting almost no power.
             bool isLeg = part.StartsWith("P_Foot") || part.StartsWith("P_Calf") || part.StartsWith("P_Thigh");
-            bool isBody = part == "P_Torso" || part == "P_Pelvis";
             bool leftSide = part.EndsWith("L");
+            bool deadTrap = false;
             if (header)
             {
                 _accuracyMul = SimConfig.HeaderAccuracyMul;
@@ -159,15 +160,34 @@ namespace Trickshot
             {
                 bool strong = striker == null || (leftSide == PlayerProfile.LeftFooted);
                 _accuracyMul = strong ? SimConfig.StrongFootAccuracy : SimConfig.WeakFootAccuracy;
-            }
-            else if (isBody)
-            {
-                _accuracyMul = SimConfig.BodyAccuracy;
-                shotMul *= SimConfig.BodyPowerMul;   // body touches are weaker
+                if (!strong) shotMul *= SimConfig.WeakFootPowerMul;
+
+                // Kick-vs-run: only a fast-SWINGING leg imparts power. The struck bone's
+                // own speed distinguishes a kick from just running into the ball. Below the
+                // floor it is a dead touch (the ball barely moves - lets the player dribble
+                // / control it instead of shooting by walking into it).
+                float boneSpeed = c.collider.attachedRigidbody != null
+                    ? c.collider.attachedRigidbody.linearVelocity.magnitude : 0f;
+                float kick = Mathf.InverseLerp(SimConfig.KickSpeedFloor, SimConfig.KickSpeedFull, boneSpeed);
+                if (kick <= 0.001f) deadTrap = true;
+                else shotMul *= kick;   // scale strike power by how hard the leg swung
             }
             else
             {
-                _accuracyMul = SimConfig.StrongFootAccuracy;   // arms/other: neutral
+                // Body / arms / pelvis: kill it. Low accuracy, and treat as a dead trap.
+                _accuracyMul = SimConfig.BodyAccuracy;
+                shotMul *= SimConfig.BodyPowerMul;
+                deadTrap = true;
+            }
+
+            // A dead touch traps the ball: strip most of its velocity so it drops and
+            // settles at the player's feet, then skip the strike amplification entirely.
+            if (deadTrap)
+            {
+                Rb.linearVelocity *= SimConfig.DeadTouchPower;
+                Rb.angularVelocity *= 0.3f;
+                _assistCooldown = 0.25f;
+                return;
             }
 
             if (header)

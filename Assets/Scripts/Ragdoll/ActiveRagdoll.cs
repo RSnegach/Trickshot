@@ -155,15 +155,18 @@ namespace Trickshot
                      ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, limbMat,
                      1f, new Vector3(0f, -0.05f, 0.12f));
 
+            // Leg hitboxes are fattened (LegHitboxScale) beyond the visible leg so the ball
+            // connects off the legs reliably instead of clipping through.
+            float legHb = SimConfig.LegHitboxScale;
             MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat, legHb);
             MakePart(Bone.ThighR, Phys(Bone.Pelvis), basePos + Off(0.11f, 0.73f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat, legHb);
 
             MakePart(Bone.CalfL, Phys(Bone.ThighL), basePos + Off(-0.11f, 0.33f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat, legHb);
             MakePart(Bone.CalfR, Phys(Bone.ThighR), basePos + Off(0.11f, 0.33f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat);
+                     ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat, legHb);
 
             // Small, low-profile feet visually, but a ~1.6x larger collider (last arg)
             // so the ball connects off the foot more easily.
