@@ -227,6 +227,11 @@ namespace Trickshot
                 flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost * shotMul,
                                               SimConfig.StrikeHorizMax * shotMul);
                 Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
+                // Minimal swerve by default: clear any curl carried from the serve and
+                // damp the spin so a struck shot flies mostly straight.
+                _curlAccel = Vector3.zero;
+                _curlRemaining = 0f;
+                Rb.angularVelocity *= 0.2f;
             }
 
             _assistRemaining = SimConfig.AssistDuration;
