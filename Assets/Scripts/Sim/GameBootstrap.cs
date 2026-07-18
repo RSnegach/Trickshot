@@ -103,8 +103,15 @@ namespace Trickshot
             pauseGo.transform.SetParent(root, false);
             pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu);
 
-            // --- Shared: arena, ball, camera controller ---
+            // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
             var arena = Arena.Build(root);
+            // Full pitch markings + far goal, the stadium bowl, and the animated crowd.
+            // All read the shared PitchLayout contract so they line up. Crowd is stored so
+            // goal callouts can make it Celebrate().
+            PitchBuilder.Build(root);
+            StadiumBuilder.Build(root);
+            _crowd = Crowd.Create(root);
+            CrowdCheer.Register(_crowd);   // drivers call CrowdCheer.Celebrate() on goals
 
             var ballGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ballGo.name = "Ball";
@@ -117,9 +124,18 @@ namespace Trickshot
 
             var gameCam = camGo.AddComponent<GameCamera>();
 
-            if (mode == GameMode.Goalkeeper) BuildKeeperMode(root, cam, gameCam, ball, arena);
-            else BuildStrikerMode(root, cam, gameCam, ball, arena);
+            switch (mode)
+            {
+                case GameMode.Goalkeeper: BuildKeeperMode(root, cam, gameCam, ball, arena); break;
+                case GameMode.Freeplay:
+                case GameMode.TimeTrial:
+                case GameMode.Accuracy:   BuildChallengeMode(mode, root, cam, gameCam, ball, arena); break;
+                case GameMode.FreeKick:   BuildFreeKickMode(root, cam, gameCam, ball, arena); break;
+                default:                  BuildStrikerMode(root, cam, gameCam, ball, arena); break;
+            }
         }
+
+        Crowd _crowd;   // shared crowd, so modes can Celebrate() on goals
 
         // ---------------------------------------------------------- Striker mode
         void BuildStrikerMode(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
@@ -186,6 +202,105 @@ namespace Trickshot
             }
 
             ball.ResetTo(launch.position);
+        }
+
+        // ---- Shared builders reused by the challenge modes ----
+
+        // Builds the player striker (ragdoll + Striker + kick detectors). Returns both.
+        void BuildStrikerPlayer(Transform root, BallController ball,
+                                out Striker striker, out ActiveRagdoll ragdoll)
+        {
+            var strikerGo = new GameObject("Striker");
+            strikerGo.transform.SetParent(root, true);
+            ragdoll = strikerGo.AddComponent<ActiveRagdoll>();
+            ragdoll.Build(SimConfig.StrikerStart, Quaternion.identity,
+                          Make.Mat(new Color(0.2f, 0.45f, 0.85f)), Make.Mat(new Color(0.15f, 0.32f, 0.6f)),
+                          withGloves: false);
+            striker = strikerGo.AddComponent<Striker>();
+            striker.Init(GetInput(), ragdoll);
+            AttachKickDetectors(ragdoll, striker, ball);
+        }
+
+        // Builds the ragdoll crosser + its launch point + the aim reticle.
+        void BuildCrosser(Transform root, BallController ball,
+                          out Crosser crosser, out ActiveRagdoll crosserRagdoll,
+                          out Transform launch, out AimReticle reticle)
+        {
+            var crosserGo = new GameObject("Crosser");
+            crosserGo.transform.SetParent(root, true);
+            crosserRagdoll = crosserGo.AddComponent<ActiveRagdoll>();
+            Vector3 toGoalFlat = SimConfig.GoalCenter - SimConfig.CrosserStart; toGoalFlat.y = 0f;
+            var crosserFacing = Quaternion.LookRotation(toGoalFlat.normalized, Vector3.up);
+            crosserRagdoll.Build(SimConfig.CrosserStart, crosserFacing,
+                                 Make.Mat(new Color(0.85f, 0.5f, 0.2f)), Make.Mat(new Color(0.65f, 0.38f, 0.15f)),
+                                 withGloves: false);
+            crosser = crosserGo.AddComponent<Crosser>();
+            launch = Make.Empty("LaunchPoint", SimConfig.CrosserStart + new Vector3(0f, 0.4f, 0.5f), crosserGo.transform).transform;
+            var reticleGo = Make.Empty("AimReticle", SimConfig.ReticleStart, root);
+            reticle = reticleGo.AddComponent<AimReticle>();
+            reticle.Init(Make.Glow(new Color(1f, 0.85f, 0.2f)));
+            crosser.Init(reticle, ball, launch, crosserRagdoll);
+        }
+
+        // Builds an AI goalkeeper ragdoll (with gloves). Returns null if ability is ~0.
+        Goalkeeper BuildAiKeeper(Transform root, BallController ball, out ActiveRagdoll keeperRagdoll)
+        {
+            keeperRagdoll = null;
+            if (SimConfig.KeeperAbility <= 0.001f) return null;
+            var keeperGo = new GameObject("Goalkeeper");
+            keeperGo.transform.SetParent(root, true);
+            keeperRagdoll = keeperGo.AddComponent<ActiveRagdoll>();
+            var kFacing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
+            keeperRagdoll.Build(SimConfig.KeeperStart, kFacing,
+                                Make.Mat(new Color(0.9f, 0.85f, 0.2f)), Make.Mat(new Color(0.7f, 0.62f, 0.15f)));
+            var keeper = keeperGo.AddComponent<Goalkeeper>();
+            keeper.Init(keeperRagdoll, ball);
+            return keeper;
+        }
+
+        // ------------------------------------------- Freeplay / Time Trial / Accuracy
+        void BuildChallengeMode(GameMode mode, Transform root, Camera cam, GameCamera gameCam,
+                                BallController ball, Arena.Refs arena)
+        {
+            BuildCrosser(root, ball, out var crosser, out var crosserRagdoll, out var launch, out var reticle);
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
+
+            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
+
+            var go = new GameObject(mode + "Game");
+            go.transform.SetParent(root, true);
+            if (mode == GameMode.Freeplay)
+                go.AddComponent<FreeplayGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
+            else if (mode == GameMode.TimeTrial)
+                go.AddComponent<TimeTrialGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
+            else
+                go.AddComponent<AccuracyGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
+
+            LockCursor();
+            ball.ResetTo(launch.position);
+        }
+
+        // ------------------------------------------------ Free Kick / Penalty mode
+        void BuildFreeKickMode(Transform root, Camera cam, GameCamera gameCam,
+                               BallController ball, Arena.Refs arena)
+        {
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
+            var keeper = BuildAiKeeper(root, ball, out var keeperRagdoll);
+
+            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
+            gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
+            striker.SetCameraYaw(() => gameCam.Yaw);
+
+            var wall = new DefensiveWall();
+            var go = new GameObject("FreeKickGame");
+            go.transform.SetParent(root, true);
+            var fk = go.AddComponent<FreeKickGame>();
+            fk.Configure(GetInput(), ball, striker, ragdoll, keeper, keeperRagdoll, wall, gameCam);
+
+            foreach (var kd in striker.GetComponentsInChildren<KickDetector>())
+                kd.OnValidTrick += fk.NotifyValidTrick;
+
+            LockCursor();
         }
 
         // -------------------------------------------------------- Goalkeeper mode

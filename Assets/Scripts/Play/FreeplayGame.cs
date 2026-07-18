@@ -3,23 +3,20 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Round state machine, scoring, goal detection, replay, and the IMGUI HUD.
+    /// Freeplay driver: endless practice with no scoring pressure and no clock.
     ///
-    /// The player controls only the striker. Crosses are served automatically on a
-    /// timer.
+    /// The crosser self-loops and serves forever, the ball lives freely, and the
+    /// player controls only the striker (same control scheme as striker mode). A
+    /// running goals tally is kept purely for feedback and "GOAL!" flashes on each
+    /// one, but nothing gates the next serve and there is no keeper, no MISS/SAVE.
     ///
-    /// Loop:
-    ///   Serving  - crosser counts down and serves a ball to a random spot in the box,
-    ///              telegraphing the landing point. Striker is fully controllable.
-    ///   BallLive - the cross is in flight. Run to the spot, line up with the mouse
-    ///              camera, jump / raise legs (LMB/RMB) / bicycle (F). Goal detection
-    ///              is a frame-independent line-cross test.
-    ///   Replay   - on a goal or clean trick, time slows and the broadcast camera
-    ///              shows it, then the next serve is armed.
+    /// Press R to recenter the striker. V toggles the ball cam.
     ///
-    /// Press R any time to reset the striker and re-arm serving.
+    /// Mirrors GameManager's structure: it pumps _striker.Tick(), self-loops the
+    /// crosser via _crosser.Tick(), watches the live ball with a frame-independent
+    /// BallFullyInGoal test, and draws an IMGUI HUD in OnGUI.
     /// </summary>
-    public class GameManager : MonoBehaviour
+    public class FreeplayGame : MonoBehaviour
     {
         GameInput _input;
         Crosser _crosser;
@@ -27,21 +24,19 @@ namespace Trickshot
         BallController _ball;
         Striker _striker;
         ActiveRagdoll _strikerRagdoll;
-        Goalkeeper _keeper;
         GameCamera _cam;
         Transform _launchPoint;
 
-        bool _resolved;        // has the current served ball's outcome been called out yet
+        bool _resolved;   // has the current served ball's outcome been tallied yet
 
-        int _goals, _trickGoals, _attempts, _saves;
+        int _goals, _crosses;
         string _flash = "";
         float _flashTime;
 
         float _goalLineZ;
 
         public void Configure(GameInput input, Crosser crosser, AimReticle reticle, BallController ball,
-                              Striker striker, ActiveRagdoll strikerRagdoll, Goalkeeper keeper,
-                              GameCamera cam, Transform launchPoint)
+                              Striker striker, ActiveRagdoll strikerRagdoll, GameCamera cam, Transform launchPoint)
         {
             _input = input;
             _crosser = crosser;
@@ -49,7 +44,6 @@ namespace Trickshot
             _ball = ball;
             _striker = striker;
             _strikerRagdoll = strikerRagdoll;
-            _keeper = keeper;
             _cam = cam;
             _launchPoint = launchPoint;
             _goalLineZ = SimConfig.GoalCenter.z;
@@ -59,16 +53,9 @@ namespace Trickshot
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
             _striker.SetCameraYaw(() => _cam.Yaw);
 
-            // Constant rapid-fire in striker mode: no post-goal replay (it would freeze
-            // the world and fight the every-2s serve), so no replay recorder here.
             _cam.SetMode(GameCamera.Mode.Follow);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;   // no live ball yet
-        }
-
-        public void NotifyValidTrick()
-        {
-            Flash("TRICK CONNECT!");
         }
 
         void Update()
@@ -76,37 +63,35 @@ namespace Trickshot
             if (_input == null) return;
             if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
 
-            if (_input.ResetPressed) { ResetRound(); return; }
+            if (_input.ResetPressed) { Recenter(); return; }
             if (_input.BallCamPressed) _cam.ToggleBallCam();
 
             _striker.Tick();
-            if (_keeper != null) _keeper.Tick();   // AI keeper goaltends
 
-            // Constant rapid-fire: the crosser self-loops and serves every ServeInterval
-            // no matter what happened to the last ball. A serve marks the current ball
-            // unresolved so its outcome can be called out once.
+            // The crosser self-loops and serves every ServeInterval no matter what
+            // happened to the last ball. A serve marks the current ball unresolved so
+            // its outcome is tallied once.
             if (_crosser.Tick())
             {
-                _attempts++;
+                _crosses++;
                 _resolved = false;
                 Flash("CROSS!");
             }
 
-            // Watch the live ball for a goal / miss / save purely to flash a callout.
-            // Never blocks or delays the next serve.
             TrackOutcome();
 
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
         }
 
-        // Non-blocking outcome watcher: flags a goal/miss/save once per served ball for
-        // the callout, without gating serves or freezing for a replay.
+        // Non-blocking watcher: tally a goal once per served ball for the callout, and
+        // mark out-of-play balls resolved so a dead ball drifting into the mouth later
+        // can't score a phantom goal. No MISS/SAVE in freeplay.
         void TrackOutcome()
         {
             if (_resolved) return;
             Vector3 c = _ball.transform.position;
 
-            if (BallFullyInGoal(c)) { OnGoal(_ball.LastShotWasTrick); return; }
+            if (BallFullyInGoal(c)) { OnGoal(); return; }
 
             float halfGoal = SimConfig.GoalWidth * 0.5f;
             bool behindGoal = c.z > _goalLineZ + 0.6f
@@ -115,7 +100,7 @@ namespace Trickshot
                              || Mathf.Abs(c.x) > SimConfig.FieldWidth
                              || Mathf.Abs(c.z) > SimConfig.FieldLength
                              || behindGoal;
-            if (outOfPlay) OnMiss();
+            if (outOfPlay) _resolved = true;
         }
 
         // A goal the instant the WHOLE ball is over the line and inside the frame.
@@ -133,45 +118,17 @@ namespace Trickshot
                    && c.y <= SimConfig.GoalHeight - r;
         }
 
-        void OnGoal(bool trick)
+        void OnGoal()
         {
             _resolved = true;
             _goals++;
-            if (trick) _trickGoals++;
-            Flash(GoalCallout(_ball.LastShotType, trick));
-            CrowdCheer.Celebrate();
+            Flash("GOAL!");
         }
 
-        // Goal callout by how it was scored.
-        static string GoalCallout(ShotType type, bool trick)
-        {
-            switch (type)
-            {
-                case ShotType.Bicycle:      return "BICYCLE KICK GOAL!";
-                case ShotType.DivingHeader: return "DIVING HEADER GOAL!";
-                case ShotType.Header:       return "HEADER GOAL!";
-                default:                    return trick ? "TRICK GOAL!" : "GOAL!";
-            }
-        }
-
-        void OnMiss()
-        {
-            _resolved = true;
-            // A save close to the keeper is normal; one where he had to DIVE (far from his
-            // guard spot, i.e. a big lateral reach) is an EPIC SAVE.
-            if (_keeper != null && Vector3.Distance(_ball.transform.position, _keeper.PelvisPos) < 2.2f)
-            {
-                _saves++;
-                Flash(_keeper.WasDivingSave ? "EPIC SAVE!" : "SAVE!");
-            }
-            else Flash("MISS");
-        }
-
-        void ResetRound()
+        void Recenter()
         {
             _striker.ForceRecover();
             _strikerRagdoll.ResetTo(SimConfig.StrikerStart, Quaternion.identity);
-            if (_keeper != null) _keeper.ResetTo(SimConfig.KeeperStart);
             _cam.SetMode(GameCamera.Mode.Follow);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;
@@ -187,8 +144,8 @@ namespace Trickshot
             var big = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
 
             GUI.Box(new Rect(8, 8, 250, 76), GUIContent.none);
-            GUI.Label(new Rect(16, 12, 240, 20), $"Goals {_goals}   Trick {_trickGoals}", st);
-            GUI.Label(new Rect(16, 32, 240, 20), $"Crosses {_attempts}   Saves {_saves}", st);
+            GUI.Label(new Rect(16, 12, 240, 20), "FREEPLAY", st);
+            GUI.Label(new Rect(16, 32, 240, 20), $"Goals {_goals}   Crosses {_crosses}", st);
             GUI.Label(new Rect(16, 52, 240, 20), $"Ball {_ball.Speed:0.0} m/s", st);
 
             var help = "Move: WASD   Camera: Mouse   Ball cam: V\n"
