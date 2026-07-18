@@ -28,6 +28,9 @@ namespace Trickshot
         public Vector3 PelvisPos => _ragdoll != null && _ragdoll.Pelvis != null
                                     ? _ragdoll.Pelvis.position : transform.position;
 
+        // True if he is diving now or dived very recently (for the EPIC SAVE callout).
+        public bool WasDivingSave => _state == State.Diving || _diveCooldown > SimConfig.AiKeeperDiveCooldown - 0.6f;
+
         public void Init(ActiveRagdoll ragdoll, BallController ball)
         {
             _ragdoll = ragdoll;

@@ -19,6 +19,7 @@ namespace Trickshot
         float _liveTime, _restTimer;
         bool _resolved;
         bool _keeperTouched;    // did the ball contact the keeper this attempt
+        bool _touchedCommitting; // was he diving/lunging at the moment of that touch
 
         int _goals, _saves, _shots;
         string _flash = ""; float _flashTime;
@@ -59,6 +60,7 @@ namespace Trickshot
                 _shots++;
                 _resolved = false;
                 _keeperTouched = false;
+                _touchedCommitting = false;
                 _liveTime = 0f;
                 _restTimer = 0f;
                 Flash("SHOT!");
@@ -83,7 +85,11 @@ namespace Trickshot
             _liveTime += Time.deltaTime;
             Vector3 c = _ball.transform.position;
 
-            if (!_keeperTouched && KeeperContactedBall()) _keeperTouched = true;
+            if (!_keeperTouched && KeeperContactedBall())
+            {
+                _keeperTouched = true;
+                _touchedCommitting = _keeper.IsCommitting;   // latch: was he diving at contact
+            }
 
             float r = SimConfig.BallRadius, halfW = SimConfig.GoalWidth * 0.5f;
             bool inGoal = c.z - r >= _goalLineZ && c.z <= _goalLineZ + SimConfig.GoalDepth
@@ -113,7 +119,8 @@ namespace Trickshot
         }
 
         void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); }
-        void OnSave() { _resolved = true; _saves++; Flash("SAVE!"); }
+        // A save touched while diving/lunging is an EPIC SAVE; a stationary block is a SAVE.
+        void OnSave() { _resolved = true; _saves++; Flash(_touchedCommitting ? "EPIC SAVE!" : "SAVE!"); }
         void OnMiss() { _resolved = true; Flash("MISS"); }
 
         // R only: full reset of keeper + serve loop (not per-ball, which would yank the

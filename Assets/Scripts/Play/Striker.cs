@@ -28,6 +28,8 @@ namespace Trickshot
         public bool ControlEnabled = true;
 
         Trick _mode = Trick.None;
+        // True while a diving header is in progress (for the DIVING HEADER goal callout).
+        public bool IsDiving => _mode == Trick.Dive;
         // Bicycle window for KickDetector: airborne and actually tipped away from upright
         // (read from the real pelvis, since the flip is now a whole-body spin). Below the
         // threshold his pelvis-up still points mostly skyward. KickDetector re-confirms.
