@@ -88,7 +88,9 @@ namespace Trickshot
 
             Vector2 mv = _input.Move;                     // x = strafe, y = forward
             Vector3 wish = Vector3.ClampMagnitude(camFwd * mv.y + camRight * mv.x, 1f);
-            float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f);
+            // Build traits: lighter/shorter = quicker; sprint is weighted separately.
+            float traitSpeed = _input.SprintHeld ? PlayerProfile.SprintSpeedMul : PlayerProfile.MoveSpeedMul;
+            float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f) * traitSpeed;
             _ragdoll.MoveInput = wish * speed;
 
             // Body faces where the mouse points (the camera yaw), set directly. camYaw
@@ -198,7 +200,7 @@ namespace Trickshot
             // Standing jumps go full height; jumps taken on the move are lower, and
             // sprinting jumps lower still (momentum trades against pop).
             bool moving = _input.Move.sqrMagnitude > 0.16f;
-            float jumpVel = SimConfig.JumpVelocity;
+            float jumpVel = SimConfig.JumpVelocity * PlayerProfile.JumpMul;   // light/short jump highest
             if (moving)
             {
                 jumpVel *= _input.SprintHeld ? SimConfig.SprintJumpMul : SimConfig.RunJumpMul;

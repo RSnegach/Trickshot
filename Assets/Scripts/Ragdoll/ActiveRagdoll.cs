@@ -84,7 +84,25 @@ namespace Trickshot
         Transform _physRoot;
         Transform _targetRoot;
 
+        // Build-time body scaling (1 = default build). Set by BuildScaled before laying
+        // out parts: heights (Y offsets) scale by _hScale, girth (part X/Z + capsule
+        // length) by _gScale, and every bone mass by _massMul. Grounding uses _hScale.
+        float _hScale = 1f, _gScale = 1f, _massMul = 1f;
+        public float HeightScale => _hScale;
+
         // ---------------------------------------------------------------- build
+        // Build the player with a custom height/girth/mass from a PlayerProfile-style set
+        // of scales, then delegate to the normal Build. Only the player striker uses this;
+        // everyone else builds at 1.0 via Build().
+        public void BuildScaled(Vector3 basePos, Quaternion facing, Material torsoMat, Material limbMat,
+                                float heightScale, float girthScale, float massMul, bool withGloves = true)
+        {
+            _hScale = Mathf.Max(0.5f, heightScale);
+            _gScale = Mathf.Max(0.5f, girthScale);
+            _massMul = Mathf.Max(0.3f, massMul);
+            Build(basePos, facing, torsoMat, limbMat, withGloves);
+        }
+
         // withGloves: the keeper wears big white gloves (with hitboxes); the striker does not.
         public void Build(Vector3 basePos, Quaternion facing, Material torsoMat, Material limbMat,
                           bool withGloves = true)
@@ -123,16 +141,18 @@ namespace Trickshot
                 if (_target[i] != null) _targetRestLocal[i] = _target[i].localRotation;
 
             // --- physics skeleton ---
-            // Pelvis (root rigidbody, box)
+            // Only the TORSO wears the jersey (torsoMat, which may carry the painted
+            // texture). The pelvis (shorts) and head use limbMat so the jersey art does
+            // NOT bleed onto the shorts or the head.
             MakePart(Bone.Pelvis, _physRoot, basePos + Off(0f, 1.02f, 0f), facing,
-                     ColliderKind.Box, new Vector3(0.32f, 0.20f, 0.20f), 12f, torsoMat);
+                     ColliderKind.Box, new Vector3(0.32f, 0.20f, 0.20f), 12f, limbMat);
 
             MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
                      ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
             // Head: 0.19 visible radius, 0.27 collider (dims.y override), and the hitbox
             // shifted forward (+Z) and a bit down (-Y) so headers reach in front of the face.
             MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.72f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, torsoMat,
+                     ColliderKind.Sphere, new Vector3(0.19f, 0.27f, 0f), 4.5f, limbMat,
                      1f, new Vector3(0f, -0.05f, 0.12f));
 
             MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
@@ -147,9 +167,10 @@ namespace Trickshot
 
             // Small, low-profile feet visually, but a ~1.6x larger collider (last arg)
             // so the ball connects off the foot more easily.
-            MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.04f, 0.04f), facing,
+            // Foot rest offset (0.06, 0.06) matches ResetTo so a round reset doesn't pop.
+            MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.06f, 0.06f), facing,
                      ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
-            MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.04f, 0.04f), facing,
+            MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.06f, 0.06f), facing,
                      ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
             // Frictionless feet: grounding is a pelvis SphereCast (not foot contact), so
             // slick feet slide over the turf instead of catching and making the run janky.
@@ -161,14 +182,19 @@ namespace Trickshot
 
             // Arms (upper arm + forearm): thin, skinny capsules that weigh almost nothing
             // so they barely affect the body's momentum / spin.
-            MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.24f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat);
-            MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.24f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat);
-            MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.24f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat);
-            MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.24f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat);
+            // X = 0.26 to match the target skeleton + ResetTo (so a round reset doesn't
+            // pre-stress the shoulder/elbow joints, which girth scaling would amplify).
+            // Arm HITBOXES are fattened (colliderScale ArmHitboxScale) beyond the thin
+            // visible arm so the ball stops phasing through the keeper's arms.
+            float armHb = SimConfig.ArmHitboxScale;
+            MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat, armHb);
+            MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat, armHb);
+            MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.26f, 1.08f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat, armHb);
+            MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.26f, 1.08f, 0f), facing,
+                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat, armHb);
 
             // Joints: child -> parent (connectedBody). Pelvis has no joint (free root).
             AddJoint(Bone.Torso,  Bone.Pelvis, Off(0f, -0.23f, 0f));
@@ -215,7 +241,9 @@ namespace Trickshot
             }
         }
 
-        Vector3 Off(float x, float y, float z) => new Vector3(x, y, z);
+        // Layout offset. Heights (y) scale with the build height; lateral spacing (x/z)
+        // scales with girth so a wider body's limbs sit further out. Default build = 1.
+        Vector3 Off(float x, float y, float z) => new Vector3(x * _gScale, y * _hScale, z * _gScale);
 
         Transform MakeTarget(Bone b, Transform parent, Vector3 worldPos, Quaternion facing)
         {
@@ -231,6 +259,20 @@ namespace Trickshot
                       ColliderKind kind, Vector3 dims, float mass, Material mat,
                       float colliderScale = 1f, Vector3 colliderOffset = default)
         {
+            // Apply the build scale to this part: girth widens X/Z (and capsule radius),
+            // height lengthens the vertical extent, and mass scales with weight. For a
+            // CapsuleY, dims.x is radius (girth) and dims.y is length (height). For a
+            // Sphere, dims.x is visible radius and dims.y an optional collider-radius
+            // override (both girth). For a Box, dims = full size (x/z girth, y height).
+            if (kind == ColliderKind.CapsuleY)
+                dims = new Vector3(dims.x * _gScale, dims.y * _hScale, dims.z);
+            else if (kind == ColliderKind.Sphere)
+                dims = new Vector3(dims.x * _gScale, dims.y * _gScale, dims.z);
+            else // Box
+                dims = new Vector3(dims.x * _gScale, dims.y * _hScale, dims.z * _gScale);
+            colliderOffset = new Vector3(colliderOffset.x * _gScale, colliderOffset.y * _hScale, colliderOffset.z * _gScale);
+            mass *= _massMul;
+
             var go = new GameObject("P_" + b);
             go.transform.SetParent(parent, true);
             go.transform.position = worldPos;
@@ -256,7 +298,9 @@ namespace Trickshot
                 {
                     var cc = go.AddComponent<CapsuleCollider>();
                     cc.direction = 1; // Y
-                    cc.radius = dims.x;
+                    // colliderScale thickens the hitbox radius beyond the visible capsule
+                    // (used to fatten thin arms so the ball stops phasing through them).
+                    cc.radius = dims.x * colliderScale;
                     cc.height = dims.y;
                     col = cc;
                     visual = Make.Capsule("v", dims.x, dims.y, worldPos, mat, go.transform);
@@ -525,8 +569,10 @@ namespace Trickshot
         {
             IsGrounded = false;
             Vector3 origin = Pelvis.position;
-            float radius = 0.18f;
-            float maxDist = 1.05f;
+            // Cast scales with the build: a taller player's pelvis sits higher, so the
+            // ground is further below it; a wider player needs a slightly wider probe.
+            float radius = 0.18f * _gScale;
+            float maxDist = 1.05f * _hScale;
             var hits = Physics.SphereCastAll(origin, radius, Vector3.down, maxDist,
                                              ~0, QueryTriggerInteraction.Ignore);
             foreach (var h in hits)

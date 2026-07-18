@@ -28,6 +28,18 @@ namespace Trickshot
             return m;
         }
 
+        /// <summary>Standard material with a main texture (e.g. the painted jersey). Tint
+        /// is white so the texture shows as painted.</summary>
+        public static Material MatTex(Texture2D tex, float smoothness = 0.1f)
+        {
+            var m = new Material(Standard);
+            m.color = Color.white;
+            m.mainTexture = tex;
+            m.SetFloat("_Glossiness", smoothness);
+            m.SetFloat("_Metallic", 0f);
+            return m;
+        }
+
         static Shader s_Unlit;
         /// <summary>Flat unlit colour: always shows the same regardless of light angle.
         /// Used for net strings so they never shade to black and read as see-through.</summary>

@@ -69,14 +69,32 @@ namespace Trickshot
             });
         }
 
-        // Mode -> pick stadium -> pre-match config -> play.
+        // Mode -> pick stadium -> (customize your player, striker modes) -> pre-match -> play.
         void ShowStadiumSelect(GameMode mode)
         {
             var go = new GameObject("StadiumSelectUI");
             var ss = go.AddComponent<StadiumSelectUI>();
             ss.Init(
-                onPicked: () => { Destroy(go); ShowPrematch(mode); },
+                onPicked: () => { Destroy(go); AfterStadium(mode); },
                 onBack:   () => { Destroy(go); ShowMainMenu(); });
+        }
+
+        // Customization applies to the player STRIKER, so keeper mode skips it.
+        static bool UsesCustomPlayer(GameMode mode) => mode != GameMode.Goalkeeper;
+
+        void AfterStadium(GameMode mode)
+        {
+            if (UsesCustomPlayer(mode)) ShowCustomize(mode);
+            else ShowPrematch(mode);
+        }
+
+        void ShowCustomize(GameMode mode)
+        {
+            var go = new GameObject("CustomizeUI");
+            var cu = go.AddComponent<CustomizeUI>();
+            cu.Init(
+                onDone: () => { Destroy(go); ShowPrematch(mode); },
+                onBack: () => { Destroy(go); ShowStadiumSelect(mode); });
         }
 
         void ShowPrematch(GameMode mode)
@@ -85,7 +103,10 @@ namespace Trickshot
             var pm = go.AddComponent<PrematchUI>();
             pm.Init(mode,
                 onStart: m => { Destroy(go); BuildMode(m); },
-                onBack:  () => { Destroy(go); ShowStadiumSelect(mode); });
+                // Back goes to the previous screen: Customize for striker modes, the
+                // stadium picker for keeper mode (which skips Customize). AfterStadium is
+                // a forward-router and would re-show Prematch for keeper, so branch here.
+                onBack:  () => { Destroy(go); if (UsesCustomPlayer(mode)) ShowCustomize(mode); else ShowStadiumSelect(mode); });
         }
 
         void ReturnToMainMenu()
@@ -169,15 +190,8 @@ namespace Trickshot
             var reticle = reticleGo.AddComponent<AimReticle>();
             reticle.Init(Make.Glow(new Color(1f, 0.85f, 0.2f)));
 
-            var strikerGo = new GameObject("Striker");
-            strikerGo.transform.SetParent(root, true);
-            var ragdoll = strikerGo.AddComponent<ActiveRagdoll>();
-            ragdoll.Build(SimConfig.StrikerStart, Quaternion.identity,
-                          Make.Mat(new Color(0.2f, 0.45f, 0.85f)), Make.Mat(new Color(0.15f, 0.32f, 0.6f)),
-                          withGloves: false);   // striker has no keeper gloves
-            var striker = strikerGo.AddComponent<Striker>();
-            striker.Init(GetInput(), ragdoll);
-            AttachKickDetectors(ragdoll, striker, ball);
+            // Player striker: scaled to the customized build and wearing the painted jersey.
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
 
             // AI keeper: an active-ragdoll goaltender (with gloves) that shuffles + dives.
             Goalkeeper keeper = null;
@@ -202,7 +216,7 @@ namespace Trickshot
             gm.Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
             LockCursor();
 
-            foreach (var kd in strikerGo.GetComponentsInChildren<KickDetector>())
+            foreach (var kd in striker.GetComponentsInChildren<KickDetector>())
                 kd.OnValidTrick += gm.NotifyValidTrick;
 
             if (EnableSniper)
@@ -218,19 +232,31 @@ namespace Trickshot
 
         // ---- Shared builders reused by the challenge modes ----
 
-        // Builds the player striker (ragdoll + Striker + kick detectors). Returns both.
+        // Builds the player striker (ragdoll + Striker + kick detectors), scaled to the
+        // customized height/weight and wearing the painted jersey. Returns both.
         void BuildStrikerPlayer(Transform root, BallController ball,
                                 out Striker striker, out ActiveRagdoll ragdoll)
         {
             var strikerGo = new GameObject("Striker");
             strikerGo.transform.SetParent(root, true);
             ragdoll = strikerGo.AddComponent<ActiveRagdoll>();
-            ragdoll.Build(SimConfig.StrikerStart, Quaternion.identity,
-                          Make.Mat(new Color(0.2f, 0.45f, 0.85f)), Make.Mat(new Color(0.15f, 0.32f, 0.6f)),
-                          withGloves: false);
+            Material torso = JerseyMaterial();
+            Material limbs = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
+            ragdoll.BuildScaled(SimConfig.StrikerStart, Quaternion.identity, torso, limbs,
+                                PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
+                                withGloves: false);
             striker = strikerGo.AddComponent<Striker>();
             striker.Init(GetInput(), ragdoll);
             AttachKickDetectors(ragdoll, striker, ball);
+        }
+
+        // Torso material for the player: the painted jersey texture if one exists, else
+        // the plain jersey base colour.
+        static Material JerseyMaterial()
+        {
+            return PlayerProfile.JerseyTex != null
+                ? Make.MatTex(PlayerProfile.JerseyTex)
+                : Make.Mat(PlayerProfile.JerseyBase);
         }
 
         // Builds the ragdoll crosser + its launch point + the aim reticle.
