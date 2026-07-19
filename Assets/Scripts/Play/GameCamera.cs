@@ -34,6 +34,11 @@ namespace Trickshot
         float _slowmoTimer;
         bool _ballCam;
 
+        // Auto ball-cam pulse (fired on a shot): forces ball-cam for a few seconds, then
+        // restores whatever the manual V toggle was set to.
+        float _shotCamTimer;
+        bool _shotCamPrevBallCam;
+
         public void Init(Camera cam, Transform ball, Transform striker, Transform crosser, Transform goal)
         {
             _cam = cam;
@@ -92,8 +97,24 @@ namespace Trickshot
             }
         }
 
-        public void ToggleBallCam() => _ballCam = !_ballCam;
+        public void ToggleBallCam()
+        {
+            // A manual toggle cancels an active shot-cam pulse and takes over from here.
+            _shotCamTimer = 0f;
+            _ballCam = !_ballCam;
+        }
         public bool BallCam => _ballCam;
+
+        /// <summary>Fire the auto ball-cam pulse: cut to ball-cam for `seconds`, then
+        /// revert to whatever the manual toggle was. Called on a genuine shot. Only acts
+        /// in Follow mode (keeper/broadcast views ignore it).</summary>
+        public void PulseBallCam(float seconds)
+        {
+            if (_mode != Mode.Follow || seconds <= 0f) return;
+            if (_shotCamTimer <= 0f) _shotCamPrevBallCam = _ballCam;   // remember only on the FIRST pulse
+            _shotCamTimer = Mathf.Max(_shotCamTimer, seconds);
+            _ballCam = true;
+        }
 
         void LateUpdate()
         {
@@ -102,6 +123,14 @@ namespace Trickshot
             // back toward 1 every frame and defeats the pause freeze.
             if (PauseMenu.Paused) return;
             UpdateSlowMo();
+
+            // Auto ball-cam pulse countdown (real time, so slow-mo doesn't stretch it).
+            if (_shotCamTimer > 0f)
+            {
+                _shotCamTimer -= Time.unscaledDeltaTime;
+                if (_shotCamTimer <= 0f) _ballCam = _shotCamPrevBallCam;   // revert to the manual state
+            }
+
             if (_mode == Mode.Follow) FollowUpdate();
             else if (_mode == Mode.KeeperFollow) KeeperFollowUpdate();
             else BroadcastUpdate();

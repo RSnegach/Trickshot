@@ -222,6 +222,7 @@ namespace Trickshot
             }
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
+            ball.SetCamera(gameCam);   // auto ball-cam on a shot
             crosser.Init(reticle, ball, launch, crosserRagdoll);
 
             var gmGo = new GameObject("GameManager");
@@ -318,6 +319,7 @@ namespace Trickshot
             BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
+            ball.SetCamera(gameCam);   // auto ball-cam on a shot
 
             var go = new GameObject(mode + "Game");
             go.transform.SetParent(root, true);
@@ -341,6 +343,7 @@ namespace Trickshot
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
             gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
+            ball.SetCamera(gameCam);   // auto ball-cam on a shot
             striker.SetCameraYaw(() => gameCam.Yaw);
 
             var wall = new DefensiveWall();
