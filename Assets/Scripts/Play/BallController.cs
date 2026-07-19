@@ -152,10 +152,15 @@ namespace Trickshot
             // Aim assist only applies when the striker is actually FACING the opponents'
             // goal. Turned side-on or facing his own goal -> no goal-ward steering of any
             // kind (foot shot keeps its true direction, header is a plain deflection).
+            // EXCEPTION: a bicycle attempt (airborne + reclined) is kicked back over the
+            // head, so the body faces AWAY from goal by design - the trick mechanic itself
+            // aims it goalward, so it should keep its assist. Treat it as facing the goal.
+            bool bicycleAttempt = striker.TrickActive;
             Vector3 faceFwd = ragdoll.FacingRotation * Vector3.forward; faceFwd.y = 0f;
             Vector3 faceToGoal = SimConfig.GoalCenter - ragdoll.Pelvis.transform.position; faceToGoal.y = 0f;
-            bool facingGoal = faceToGoal.sqrMagnitude > 0.01f && faceFwd.sqrMagnitude > 0.01f
-                              && Vector3.Dot(faceFwd.normalized, faceToGoal.normalized) >= SimConfig.AssistFacingDot;
+            bool facingGoal = bicycleAttempt
+                              || (faceToGoal.sqrMagnitude > 0.01f && faceFwd.sqrMagnitude > 0.01f
+                                  && Vector3.Dot(faceFwd.normalized, faceToGoal.normalized) >= SimConfig.AssistFacingDot);
 
             if (header)
                 LastShotType = striker.IsDiving ? ShotType.DivingHeader : ShotType.Header;
