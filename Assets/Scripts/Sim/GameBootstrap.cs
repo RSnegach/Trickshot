@@ -243,7 +243,7 @@ namespace Trickshot
             Material torso = JerseyMaterial();
             Material limbs = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
             ragdoll.BuildScaled(SimConfig.StrikerStart, Quaternion.identity, torso, limbs,
-                                PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
+                                PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.EffectiveMassMul,
                                 withGloves: false);
             striker = strikerGo.AddComponent<Striker>();
             striker.Init(GetInput(), ragdoll);

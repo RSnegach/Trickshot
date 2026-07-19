@@ -188,8 +188,10 @@ namespace Trickshot
                                                  _ragdoll.FacingRotation * Vector3.right);
             float err = Mathf.DeltaAngle(axisRoll, _airPitchTarget);
             Vector3 spinAxis = _ragdoll.FacingRotation * Vector3.right;
-            float w = Mathf.Clamp(err * SimConfig.AirPitchGain,
-                                  -SimConfig.AirPitchMaxSpeed, SimConfig.AirPitchMaxSpeed);
+            // Agility tree makes air control snappier: scale gain + cap by the flip mul.
+            float flip = PlayerProfile.AirFlipMul;
+            float w = Mathf.Clamp(err * SimConfig.AirPitchGain * flip,
+                                  -SimConfig.AirPitchMaxSpeed * flip, SimConfig.AirPitchMaxSpeed * flip);
             _ragdoll.SpinWholeBody(spinAxis, w);   // w -> 0 smoothly as err -> 0
         }
 
