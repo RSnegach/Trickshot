@@ -30,6 +30,14 @@ namespace Trickshot
         Trick _mode = Trick.None;
         // True while a diving header is in progress (for the DIVING HEADER goal callout).
         public bool IsDiving => _mode == Trick.Dive;
+        // Busy with a trick (dive, etc.): the Dribble system suspends the leash while true.
+        public bool IsBusy => _mode != Trick.None;
+        // Flat forward direction the striker faces (== camera yaw while grounded). The
+        // dribble carry point sits along this, and dribble shots launch along it.
+        public Vector3 FacingForward
+        {
+            get { Vector3 f = _ragdoll.FacingRotation * Vector3.forward; f.y = 0f; return f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward; }
+        }
         // Bicycle window for KickDetector: airborne and actually tipped away from upright
         // (read from the real pelvis, since the flip is now a whole-body spin). Below the
         // threshold his pelvis-up still points mostly skyward. KickDetector re-confirms.

@@ -115,6 +115,41 @@ namespace Trickshot
         // All refunds cascade (a bare node with no dependents just removes itself).
         public static void Refund(Node n) => RefundCascade(n);
 
+        // ---------------------------------------------------------------- presets
+        // One-click builds. Each is a hand-verified valid spend: prereqs included and the
+        // total cost <= Budget. ApplyPreset clears the tree and grants exactly these nodes.
+        public class Preset { public string Name; public string Desc; public string[] Ids; }
+
+        public static readonly Preset[] Presets =
+        {
+            // Accent per skill area (full branch to capstone + a themed dip). Each = 32.
+            new Preset { Name = "Pace Merchant",   Desc = "Blistering speed; a dash of agility",
+                Ids = new[]{ "p0","p1a","p1b","p2a","p2b","pcap", "a0","a1a","a2a" } },
+            new Preset { Name = "Sniper",          Desc = "Deadly shooting; a touch of control",
+                Ids = new[]{ "s0","s1a","s1b","s2a","s2b","scap", "c0","c1a","c1b" } },
+            new Preset { Name = "Power Header",    Desc = "Aerial threat; extra strength to win duels",
+                Ids = new[]{ "h0","h1a","h1b","h2a","h2b","hcap", "st0","st1a","st2a" } },
+            new Preset { Name = "Brick Shithouse", Desc = "Immovable strength; aerial presence",
+                Ids = new[]{ "st0","st1a","st1b","st2a","st2b","stcap", "h0","h1a","h2a" } },
+            new Preset { Name = "Maestro",         Desc = "Silky control; pace to drive at defenders",
+                Ids = new[]{ "c0","c1a","c1b","c2a","c2b","ccap", "p0","p1a","p2a" } },
+            new Preset { Name = "Showboat",        Desc = "Acrobatic agility; pace for flair on the run",
+                Ids = new[]{ "a0","a1a","a1b","a2a","a2b","acap", "p0","p1a","p2a" } },
+            // Balanced jack-of-all-trades: every area's root + first upgrade (30/32).
+            new Preset { Name = "Default Chud",    Desc = "Balanced spend across every area",
+                Ids = new[]{ "p0","p1a", "s0","s1a", "h0","h1a", "st0","st1a", "c0","c1a", "a0","a1a" } },
+        };
+
+        // Wipe the tree and grant exactly the preset's nodes (they are self-consistent, so
+        // add directly rather than routing through CanBuy).
+        public static void ApplyPreset(Preset p)
+        {
+            Owned.Clear();
+            if (p == null) return;
+            foreach (var id in p.Ids)
+                if (_byId.ContainsKey(id)) Owned.Add(id);
+        }
+
         public static void Clear() => Owned.Clear();
 
         public static IEnumerable<Node> InCategory(Category c)

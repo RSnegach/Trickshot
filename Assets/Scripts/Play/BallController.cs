@@ -36,6 +36,14 @@ namespace Trickshot
         GameCamera _cam;
         public void SetCamera(GameCamera cam) => _cam = cam;
 
+        // Dribble hand-off. While the Dribble component is carrying the ball it OWNS it:
+        // the striker's own strike/trap contact logic is skipped so the run cycle's foot
+        // taps don't fight the soft-magnet. Dribble toggles this on capture/release. After
+        // a dribble shot a brief suppression stops the launching foot from re-striking.
+        public bool DribbleHold { get; set; }   // true while the Dribble component is carrying
+        float _strikeSuppress;                   // >0: skip striker strike logic (post-shot settle)
+        public void SuppressStrike(float t) => _strikeSuppress = Mathf.Max(_strikeSuppress, t);
+
         void Awake()
         {
             Rb = GetComponent<Rigidbody>();
@@ -87,6 +95,7 @@ namespace Trickshot
             }
 
             if (_assistCooldown > 0f) _assistCooldown -= Time.fixedDeltaTime;
+            if (_strikeSuppress > 0f) _strikeSuppress -= Time.fixedDeltaTime;
 
             if (_assistRemaining > 0f)
             {
@@ -140,6 +149,11 @@ namespace Trickshot
             // head/foot touch would get steered toward the goal it defends (own goals).
             var striker = ragdoll.GetComponent<Striker>();
             if (striker == null) return;
+
+            // While the ball is being dribbled (or just after a dribble shot), the Dribble
+            // component owns the ball's motion. Skip the strike/trap logic so the run-cycle
+            // foot contacts don't fight the soft-magnet or double-hit a released shot.
+            if (DribbleHold || _strikeSuppress > 0f) return;
 
             // Which body part struck the ball. The collider lives ON the P_<Bone> object
             // (its visual child collider is destroyed at build), so read the collider's
@@ -317,6 +331,34 @@ namespace Trickshot
             }
         }
 
+        // A shot launched by the Dribble component (release-on-kick). Sets the shot
+        // velocity, then folds into the SAME systems a normal strike uses: the facing-
+        // gated goal assist and the 2s ball-cam pulse. Suppresses re-strike/re-capture so
+        // the launching foot doesn't immediately re-hit the ball.
+        public void DribbleShot(Vector3 dir, float speed, bool facingGoal)
+        {
+            Rb.linearVelocity = dir * speed;
+            Rb.angularVelocity = Vector3.zero;
+            _curlAccel = Vector3.zero;
+            _curlRemaining = 0f;
+
+            if (facingGoal)
+            {
+                // Strong-foot-style accuracy plus the Shooting/Control accuracy nodes.
+                _accuracyMul = SimConfig.StrongFootAccuracy + (PlayerProfile.ShotAccuracyMul - 1f);
+                _assistRemaining = SimConfig.AssistDuration;
+                if (_cam != null)
+                {
+                    Vector3 flat = dir * speed; flat.y = 0f;
+                    if (flat.magnitude >= SimConfig.ShotCamMinSpeed) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
+                }
+            }
+            else _accuracyMul = 0f;
+
+            _assistCooldown = 0.4f;
+            SuppressStrike(SimConfig.DribbleRecaptureCooldown);
+        }
+
         public void ResetTo(Vector3 pos)
         {
             Rb.position = pos;
@@ -327,6 +369,8 @@ namespace Trickshot
             _curlAccel = Vector3.zero;
             _assistRemaining = 0f;
             _assistCooldown = 0f;
+            _strikeSuppress = 0f;
+            DribbleHold = false;   // never leave the leash flag stuck after a reset (would disable strikes)
             LastShotWasTrick = false;
             LastShotType = ShotType.Normal;
             _trail.emitting = false;
