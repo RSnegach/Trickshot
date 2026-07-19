@@ -76,17 +76,45 @@ namespace Trickshot
             return true;
         }
 
-        // Refund allowed only if nothing OWNED still depends on this node.
-        public static bool CanRefund(Node n)
+        // Any owned node can be refunded; refunding an upstream node also refunds
+        // everything built on top of it (see RefundCascade).
+        public static bool CanRefund(Node n) => n != null && Owned.Contains(n.Id);
+
+        // True if some OWNED node (directly) depends on this one - refunding it will
+        // therefore also drop dependents. Used only to label the action.
+        public static bool HasOwnedDependents(Node n)
         {
-            if (n == null || !Owned.Contains(n.Id)) return false;
+            if (n == null) return false;
             foreach (var m in All)
-                if (m.Requires == n.Id && Owned.Contains(m.Id)) return false;
-            return true;
+                if (m.Requires == n.Id && Owned.Contains(m.Id)) return true;
+            return false;
         }
 
-        public static void Buy(Node n)    { if (CanBuy(n)) Owned.Add(n.Id); }
-        public static void Refund(Node n) { if (CanRefund(n)) Owned.Remove(n.Id); }
+        public static void Buy(Node n) { if (CanBuy(n)) Owned.Add(n.Id); }
+
+        // Refund a node AND every node that (transitively) requires it: remove the node,
+        // then repeatedly drop any owned node whose prerequisite is no longer owned. Each
+        // pass breaks another link down the chain, so the whole downstream subtree clears.
+        public static void RefundCascade(Node n)
+        {
+            if (n == null || !Owned.Contains(n.Id)) return;
+            Owned.Remove(n.Id);
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                foreach (var m in All)
+                    if (Owned.Contains(m.Id) && !string.IsNullOrEmpty(m.Requires) && !Owned.Contains(m.Requires))
+                    {
+                        Owned.Remove(m.Id);
+                        changed = true;
+                    }
+            }
+        }
+
+        // All refunds cascade (a bare node with no dependents just removes itself).
+        public static void Refund(Node n) => RefundCascade(n);
+
         public static void Clear() => Owned.Clear();
 
         public static IEnumerable<Node> InCategory(Category c)
