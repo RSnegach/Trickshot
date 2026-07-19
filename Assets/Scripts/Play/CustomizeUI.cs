@@ -269,6 +269,9 @@ namespace Trickshot
             if (_stage == Stage.Jersey)
                 GUI.Label(new Rect(previewRect.x, previewRect.yMax - 26f, previewW, 20f), "Drag the model to spin it", hint);
 
+            // Skill stage: one-click build presets down the left column, over the model.
+            if (_stage == Stage.Skill) SkillPresetButtons(previewRect);
+
             // Control panel.
             float x = ox + previewW + gap;
             float panelW = contentW;
@@ -515,6 +518,49 @@ namespace Trickshot
 
             var help = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
             GUI.Label(new Rect(lx, y + ph - 62f, lw, 20f), "Click an empty node to buy, an owned node to refund it (and anything built on top). Lines show prerequisites; the ringed node is a capstone perk.", help);
+        }
+
+        // One-click build presets, overlaid down the left preview column during the skill
+        // stage. Each wipes the tree and applies a themed spend; the currently-matching
+        // preset (if any) is highlighted so you can see which build you're on.
+        void SkillPresetButtons(Rect previewRect)
+        {
+            var presets = SkillTree.Presets;
+            float pad = 12f;
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+            // Bottom half of the column so the model head/torso still shows above.
+            float top = previewRect.y + previewRect.height * 0.5f;
+            GUI.Label(new Rect(previewRect.x + pad, top, previewRect.width - pad * 2f, 20f), "QUICK BUILDS", hdr);
+
+            float bx = previewRect.x + pad, bw = previewRect.width - pad * 2f;
+            float bh = 30f, bgap = 6f, row = top + 26f;
+            for (int i = 0; i < presets.Length; i++)
+            {
+                var p = presets[i];
+                bool active = PresetMatches(p);
+                var prev = GUI.color;
+                GUI.color = active ? new Color(0.22f, 0.55f, 0.3f) : new Color(0.2f, 0.21f, 0.26f);
+                var r = new Rect(bx, row, bw, bh);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                if (active) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
+                GUI.color = prev;
+
+                var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+                GUI.Label(r, p.Name, lbl);
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { SkillTree.ApplyPreset(p); _selNode = null; }
+                row += bh + bgap;
+            }
+
+            var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
+            GUI.Label(new Rect(bx, row + 2f, bw, 34f), "Presets replace your current spend. Tweak nodes after.", note);
+        }
+
+        // A preset "matches" when the owned set is exactly its node list.
+        static bool PresetMatches(SkillTree.Preset p)
+        {
+            if (SkillTree.Owned.Count != p.Ids.Length) return false;
+            foreach (var id in p.Ids) if (!SkillTree.Owned.Contains(id)) return false;
+            return true;
         }
 
         // Draw a straight line between two screen points using a rotated 1px texture.

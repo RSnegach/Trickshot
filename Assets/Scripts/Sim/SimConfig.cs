@@ -325,6 +325,37 @@ namespace Trickshot
         public const float KickSpeedFull  = 9f;      // bone speed at/above this = a full strike
         public const float DeadTouchPower = 0.12f;   // velocity kept on a dead (non-kicking) touch
 
+        // ---- Dribble (soft-magnet close control) ----
+        // The ball auto-sticks to a carry point just in front of the grounded striker's
+        // feet whenever it is close and slow, travelling with him arcade-style. A kick
+        // (leg button or a genuinely fast leg swing) releases it as a real shot.
+        //
+        // Capture: ball must be within CaptureRadius of the carry point, moving slower
+        // than CaptureMaxBallSpeed, with the striker grounded and not mid-trick.
+        public const float DribbleCaptureRadius   = 1.4f;   // how near the carry point the ball is grabbed
+        public const float DribbleCaptureMaxSpeed  = 12f;   // ball must be slower than this to be captured (m/s)
+        public const float DribbleReleaseRadius    = 2.6f;  // if the ball ends up beyond this from the carry point, drop the leash
+        // Carry point: sits this far in front of the feet at a walk; sprint pushes it out
+        // toward the far distance (heavier touch). Height rides at the ball radius.
+        public const float DribbleNearDistance     = 0.55f; // carry distance at a stand/walk
+        public const float DribbleSprintDistance    = 1.35f; // carry distance at full sprint (knocked further ahead)
+        // Follow spring: acceleration = k * offset - c * relativeVel. Higher k = stickier.
+        public const float DribbleFollowAccel      = 26f;    // spring stiffness toward the carry point
+        public const float DribbleFollowDamp       = 7f;     // velocity damping (settles without orbiting)
+        public const float DribbleMaxAccel         = 120f;   // cap on the follow acceleration (m/s^2)
+        // A little forward carry velocity so the ball leads with the run instead of lagging.
+        public const float DribbleLeadSpeedFrac    = 0.9f;   // fraction of striker speed fed to the ball as lead
+        public const float DribbleSpinScale        = 2.2f;   // rolling spin visual per m/s of carry speed
+        // Shot on release (kick): the carried ball is launched in the aim/facing direction.
+        public const float DribbleShotSpeed        = 17f;    // base release shot speed (m/s), scaled by ShotPowerMul
+        public const float DribbleShotLift         = 0.16f;  // upward fraction added so it isn't a pure ground roll
+        public const float DribbleKickBoneSpeed    = 5f;     // a leg bone moving faster than this while carrying = a real kick -> release+shoot
+        public const float DribbleRecaptureCooldown = 0.45f; // after a shot, don't re-grab the ball for this long
+        // Control trap stat tightens the touch: at TrapMul = 2 (fully invested) the carry
+        // sits this fraction closer and captures from this much wider a net.
+        public const float DribbleTrapTightenMax   = 0.35f;  // up to 35% closer carry with full Control
+        public const float DribbleTrapCaptureBonus  = 0.6f;  // up to +0.6m capture radius with full Control
+
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
         public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)

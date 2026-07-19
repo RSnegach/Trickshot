@@ -263,6 +263,11 @@ namespace Trickshot
             striker = strikerGo.AddComponent<Striker>();
             striker.Init(GetInput(), ragdoll);
             AttachKickDetectors(ragdoll, striker, ball);
+
+            // Arcade close-control dribbling: soft-magnet the ball to the feet, release on
+            // a kick. Lives on the striker so it ticks with him and tears down with the match.
+            var dribble = strikerGo.AddComponent<Dribble>();
+            dribble.Init(GetInput(), striker, ragdoll, ball);
         }
 
         // Torso material for the player: the painted jersey texture if one exists, else
