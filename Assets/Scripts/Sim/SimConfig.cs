@@ -351,7 +351,6 @@ namespace Trickshot
         // Shot on release (kick): the carried ball is launched in the aim/facing direction.
         public const float DribbleShotSpeed        = 17f;    // base release shot speed (m/s), scaled by ShotPowerMul
         public const float DribbleShotLift         = 0.16f;  // upward fraction added so it isn't a pure ground roll
-        public const float DribbleKickBoneSpeed    = 5f;     // a leg bone moving faster than this while carrying = a real kick -> release+shoot
         public const float DribbleRecaptureCooldown = 0.45f; // after a shot, don't re-grab the ball for this long
         // Control trap stat tightens the touch: at TrapMul = 2 (fully invested) the carry
         // sits this fraction closer and captures from this much wider a net.
