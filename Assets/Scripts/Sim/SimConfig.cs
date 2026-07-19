@@ -286,6 +286,10 @@ namespace Trickshot
         public const float AssistDuration = 0.45f;   // seconds the curve is applied after contact
         public const float AssistMinSpeed = 3.5f;    // only assist shots hit with some pace
         public const float AssistMaxAccel = 18f;     // cap on the sideways/steer accel
+        // Aim assist only kicks in when the striker is actually FACING the opponents' goal.
+        // Facing dir . dir-to-goal must exceed this cosine (0.34 ~= within a ~70deg half
+        // cone). Turned side-on or facing his own goal -> no assist at all.
+        public const float AssistFacingDot = 0.34f;
 
         // ---- Strike power (on striker contact) ----
         // Base power is modest by default; Shooting nodes + body traits multiply it up.

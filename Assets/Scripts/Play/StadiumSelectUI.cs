@@ -48,13 +48,10 @@ namespace Trickshot
                 bool selected = i == StadiumStyle.SelectedIndex;
                 var r = new Rect(x + 30f, row, panelW - 60f, rowH);
                 string tag = (selected ? "▶ " : "   ") + all[i].Name;
+                // Row click SELECTS only (highlights it); a dedicated Next button advances,
+                // so the flow matches the other screens' back/forward buttons.
                 if (GUI.Button(r, tag, name))
-                {
                     StadiumStyle.SelectedIndex = i;
-                    enabled = false;
-                    _onPicked?.Invoke();
-                    return;
-                }
                 GUI.Label(new Rect(r.x + 14f, row + 34f, r.width - 28f, rowH - 36f), all[i].Blurb, blurb);
                 row += rowH + gap;
             }
@@ -64,6 +61,11 @@ namespace Trickshot
             {
                 enabled = false;
                 _onBack?.Invoke();
+            }
+            if (GUI.Button(new Rect(x + panelW - 190f, y + panelH - 56f, 160f, 42f), "Next", btn))
+            {
+                enabled = false;
+                _onPicked?.Invoke();
             }
         }
     }
