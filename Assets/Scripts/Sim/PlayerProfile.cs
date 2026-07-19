@@ -93,6 +93,12 @@ namespace Trickshot
         public static float TrapMul         => SkillTree.Mul("trap");       // better first touch (deader trap)
         public static float AirFlipMul      => SkillTree.Mul("flip");       // air-pitch spin responsiveness
 
+        // Ground-recovery time after a dive/flop. Agility "recovery" nodes store NEGATIVE
+        // amounts, so Mul("recovery") < 1 shortens the prone time; the Acrobat capstone
+        // divides it further. Result is a multiplier on SimConfig.DiveProneTime, floored.
+        public static float RecoveryTimeMul => SkillTree.Mul("recovery")
+                                               / (PerkAcrobat ? SimConfig.AcrobatRecoveryMul : 1f);
+
         // ---- Capstone perks ----
         public static bool PerkAfterburners => SkillTree.HasPerk("afterburners");
         public static bool PerkCannon       => SkillTree.HasPerk("cannon");

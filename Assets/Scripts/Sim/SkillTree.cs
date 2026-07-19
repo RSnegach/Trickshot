@@ -150,11 +150,11 @@ namespace Trickshot
 
             // ============================ AGILITY (flip, jump) ==========================
             Node_("a0","Spring","+10% jump height",Category.Agility,2,null,"^",0.5f,0,null, E("jump",0.10f));
-            Node_("a1a","Nimble","+20% air-flip control",Category.Agility,3,"a0","@",0.25f,1,null, E("flip",0.20f));
+            Node_("a1a","Nimble","+20% air-flip control, -15% ground recovery time",Category.Agility,3,"a0","@",0.25f,1,null, E("flip",0.20f), E("recovery",-0.15f));
             Node_("a1b","Bounce","+12% jump height",Category.Agility,3,"a0","^^",0.75f,1,null, E("jump",0.12f));
-            Node_("a2a","Twist","+22% air-flip control",Category.Agility,4,"a1a","%",0.25f,2,null, E("flip",0.22f));
+            Node_("a2a","Twist","+22% air-flip control, -20% ground recovery time",Category.Agility,4,"a1a","%",0.25f,2,null, E("flip",0.22f), E("recovery",-0.20f));
             Node_("a2b","Elevation","+12% jump height",Category.Agility,4,"a1b","^!",0.75f,2,null, E("jump",0.12f));
-            Node_("acap","Acrobat","Whip-fast air control for chained flips",Category.Agility,7,"a2a","X",0.25f,3,"acrobat");
+            Node_("acap","Acrobat","Whip-fast air control + snap off the ground for chained flips",Category.Agility,7,"a2a","X",0.25f,3,"acrobat");
 
             All = list.ToArray();
             foreach (var n in All) _byId[n.Id] = n;

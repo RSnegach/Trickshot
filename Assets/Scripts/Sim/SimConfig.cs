@@ -217,7 +217,9 @@ namespace Trickshot
         public const float DiveLayoutPitch = 90f;     // target forward pitch (deg); 90 = belly-down
         public const float DivePitchGain = 10f;       // how hard the pelvis is driven to that pitch
         public const float DiveDriveScale = 0.15f;    // limp body during the dive (spine won't hold upright)
-        public const float DiveProneTime = 0.9f;      // stays prone this long after landing
+        public const float DiveProneTime = 1.5f;      // base time prone after a dive/flop lands (Agility recovery nodes cut this)
+        public const float DiveProneMinTime = 0.55f;  // floor: recovery upgrades can't drop below this
+        public const float AcrobatRecoveryMul = 1.4f; // Acrobat capstone: extra divisor on prone recovery time
         public const float BalanceFrequency = 3.2f;
         public const float BalanceDamping = 0.85f;
 
