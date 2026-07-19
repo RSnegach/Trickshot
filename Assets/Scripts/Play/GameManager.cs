@@ -138,20 +138,8 @@ namespace Trickshot
             _resolved = true;
             _goals++;
             if (trick) _trickGoals++;
-            Flash(GoalCallout(_ball.LastShotType, trick));
+            Flash("GOAL!");   // plain callout, no shot-type specification
             CrowdCheer.Celebrate();
-        }
-
-        // Goal callout by how it was scored.
-        static string GoalCallout(ShotType type, bool trick)
-        {
-            switch (type)
-            {
-                case ShotType.Bicycle:      return "BICYCLE KICK GOAL!";
-                case ShotType.DivingHeader: return "DIVING HEADER GOAL!";
-                case ShotType.Header:       return "HEADER GOAL!";
-                default:                    return trick ? "TRICK GOAL!" : "GOAL!";
-            }
         }
 
         void OnMiss()

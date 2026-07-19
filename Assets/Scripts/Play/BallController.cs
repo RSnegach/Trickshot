@@ -130,6 +130,12 @@ namespace Trickshot
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
 
+            // Strike/redirect logic is ONLY for the human player striker. An AI keeper or
+            // crosser just deflects the ball with normal physics - otherwise an AI keeper's
+            // head/foot touch would get steered toward the goal it defends (own goals).
+            var striker = ragdoll.GetComponent<Striker>();
+            if (striker == null) return;
+
             // Which body part struck the ball. The collider lives ON the P_<Bone> object
             // (its visual child collider is destroyed at build), so read the collider's
             // OWN transform name, not its parent (parent is the next bone up the chain).
@@ -138,12 +144,14 @@ namespace Trickshot
             if (!header && _assistCooldown > 0f) return;
             Vector3 v = Rb.linearVelocity;
 
-            var striker = ragdoll.GetComponent<Striker>();
             if (header)
-                LastShotType = (striker != null && striker.IsDiving) ? ShotType.DivingHeader : ShotType.Header;
+                LastShotType = striker.IsDiving ? ShotType.DivingHeader : ShotType.Header;
 
-            // Build trait: a heavier/taller player strikes harder (player only; AI = 1.0).
-            float shotMul = striker != null ? PlayerProfile.ShotPowerMul : 1f;
+            // From here the striker is the human player, so all traits/skills apply.
+            // Build trait * Shooting tree: heavier/taller + shot nodes hit harder.
+            float shotMul = PlayerProfile.ShotPowerMul;
+            // Cannon capstone raises the speed ceiling so shots can fly much faster.
+            float capMul = PlayerProfile.PerkCannon ? SimConfig.CannonCapMul : 1f;
 
             // Per-part accuracy + power. A LEG/FOOT is a real strike (full on the strong
             // side, weak + less powerful on the other); the HEAD uses heading rules;
@@ -154,13 +162,26 @@ namespace Trickshot
             bool deadTrap = false;
             if (header)
             {
-                _accuracyMul = SimConfig.HeaderAccuracyMul;
+                // Heading tree scales accuracy + power.
+                _accuracyMul = SimConfig.HeaderAccuracyMul * PlayerProfile.HeaderAccuracyMul;
+                shotMul *= PlayerProfile.HeaderPowerMul;
             }
             else if (isLeg)
             {
-                bool strong = striker == null || (leftSide == PlayerProfile.LeftFooted);
-                _accuracyMul = strong ? SimConfig.StrongFootAccuracy : SimConfig.WeakFootAccuracy;
-                if (!strong) shotMul *= SimConfig.WeakFootPowerMul;
+                // Strong foot = full; weak = reduced, but the Control tree's weak-foot node
+                // (and the Silky capstone -> both feet strong) claw that back.
+                bool strong = (leftSide == PlayerProfile.LeftFooted) || PlayerProfile.PerkSilky;
+                if (strong)
+                {
+                    _accuracyMul = SimConfig.StrongFootAccuracy;
+                }
+                else
+                {
+                    float wf = PlayerProfile.WeakFootMul;   // 1.0..~1.7 with Control nodes
+                    _accuracyMul = SimConfig.WeakFootAccuracy * wf;
+                    shotMul *= SimConfig.WeakFootPowerMul * wf;
+                }
+                _accuracyMul += PlayerProfile.ShotAccuracyMul - 1f;   // Shooting/Control accuracy nodes
 
                 // Kick-vs-run: only a fast-SWINGING leg imparts power. The struck bone's
                 // own speed distinguishes a kick from just running into the ball. Below the
@@ -182,9 +203,11 @@ namespace Trickshot
 
             // A dead touch traps the ball: strip most of its velocity so it drops and
             // settles at the player's feet, then skip the strike amplification entirely.
+            // The Control tree's first-touch nodes deaden it further (ball settles closer).
             if (deadTrap)
             {
-                Rb.linearVelocity *= SimConfig.DeadTouchPower;
+                float trap = SimConfig.DeadTouchPower / PlayerProfile.TrapMul;   // Control tree deadens further
+                Rb.linearVelocity *= trap;
                 Rb.angularVelocity *= 0.3f;
                 _assistCooldown = 0.25f;
                 return;
@@ -200,18 +223,24 @@ namespace Trickshot
                 if (toGoal.sqrMagnitude < 0.01f) toGoal = Vector3.forward;
                 toGoal.Normalize();
 
+                // Aerial capstone: steer harder toward goal and keep more of the incoming
+                // pace/vertical (a more dangerous header).
+                bool aerial = PlayerProfile.PerkAerial;
+                float goalBias = aerial ? SimConfig.AerialGoalBias : SimConfig.HeaderGoalBias;
+                float vKeep = aerial ? SimConfig.AerialPaceKeep : SimConfig.HeaderVerticalKeep;
+
                 Vector3 flatIn = new Vector3(v.x, 0f, v.z);
                 float inSpeed = flatIn.magnitude;
                 Vector3 dir = flatIn.sqrMagnitude > 0.01f
-                    ? Vector3.Slerp(flatIn.normalized, toGoal, SimConfig.HeaderGoalBias)
+                    ? Vector3.Slerp(flatIn.normalized, toGoal, goalBias)
                     : toGoal;
 
                 float speed = Mathf.Max(SimConfig.HeaderMinSpeed,
                                         inSpeed * SimConfig.HeaderPowerMul) * shotMul;
-                speed = Mathf.Min(speed, SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul * shotMul);
+                speed = Mathf.Min(speed, SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul * shotMul * capMul);
 
                 Vector3 flat = dir * speed;
-                Rb.linearVelocity = new Vector3(flat.x, v.y * SimConfig.HeaderVerticalKeep, flat.z);
+                Rb.linearVelocity = new Vector3(flat.x, v.y * vKeep, flat.z);
 
                 // Swerve toward goal via curl + spin.
                 Vector3 lateral = Vector3.Cross(Vector3.up, toGoal);
@@ -225,7 +254,7 @@ namespace Trickshot
                 // by the striker's shot-power trait).
                 Vector3 flat = new Vector3(v.x, 0f, v.z);
                 flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost * shotMul,
-                                              SimConfig.StrikeHorizMax * shotMul);
+                                              SimConfig.StrikeHorizMax * shotMul * capMul);
                 Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
                 // Minimal swerve by default: clear any curl carried from the serve and
                 // damp the spin so a struck shot flies mostly straight.

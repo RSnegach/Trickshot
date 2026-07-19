@@ -278,13 +278,16 @@ namespace Trickshot
         // ---- Arcade aim assist (on striker contact) ----
         // Subtle, brief curve that biases a struck ball toward the goal so more shots
         // are on target, without removing the challenge. Kept small on purpose.
-        public const float AssistSteerFrac = 0.30f;  // how far the flat velocity direction bends toward goal (0..1)
+        // Base aim assist is LOW so an untrained player is inaccurate; Shooting/Control
+        // skill nodes raise it noticeably (ShotAccuracyMul stacks on top).
+        public const float AssistSteerFrac = 0.16f;  // base goal-ward bend (0..1); low by default
         public const float AssistDuration = 0.45f;   // seconds the curve is applied after contact
         public const float AssistMinSpeed = 3.5f;    // only assist shots hit with some pace
         public const float AssistMaxAccel = 18f;     // cap on the sideways/steer accel
 
         // ---- Strike power (on striker contact) ----
-        public const float StrikeHorizBoost = 1.6f;  // multiply horizontal velocity when struck
+        // Base power is modest by default; Shooting nodes + body traits multiply it up.
+        public const float StrikeHorizBoost = 1.25f; // multiply horizontal velocity when struck (low base)
         public const float StrikeHorizMax = 26f;     // cap on resulting horizontal speed (m/s)
 
         // ---- Body-part accuracy + power (which part of the body struck the ball) ----
@@ -308,10 +311,18 @@ namespace Trickshot
         public const float KickSpeedFull  = 9f;      // bone speed at/above this = a full strike
         public const float DeadTouchPower = 0.12f;   // velocity kept on a dead (non-kicking) touch
 
-        // ---- Headers (head contact) get a little extra ----
-        public const float HeaderPowerMul = 1.7f;    // extra power vs a normal strike
+        // ---- Skill-tree capstone perk magnitudes ----
+        public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
+        public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)
+        public const float AfterburnerMul   = 1.15f;  // Afterburners: extra sprint speed on top
+        public const float AerialPaceKeep   = 0.5f;   // Aerial: header keeps this fraction of vertical (vs HeaderVerticalKeep)
+        public const float AerialGoalBias   = 0.95f;  // Aerial: header steers harder to goal (vs HeaderGoalBias)
+
+        // ---- Headers (head contact). Low base power/accuracy; the Heading tree ramps
+        //      both up noticeably (HeaderPowerMul/HeaderAccuracyMul from the profile). ----
+        public const float HeaderPowerMul = 1.3f;    // extra power vs a normal strike (low base)
         public const float HeaderSwerve = 3f;        // added swerve (spin + lateral curl) - minimal by default
-        public const float HeaderAccuracyMul = 1.9f; // stronger goal-ward steer than a normal contact
+        public const float HeaderAccuracyMul = 1.35f; // base goal-ward steer on a header (low; Heading tree adds more)
         // A header REDIRECTS the ball onto a goal-ward horizontal line (not just faster
         // in its old direction), so even a glancing touch flies fast toward goal.
         public const float HeaderGoalBias = 0.85f;   // 0..1: how strongly it aims at goal

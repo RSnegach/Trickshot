@@ -62,30 +62,44 @@ namespace Trickshot
         // Mass multiplier vs the default build (drives push resistance + shot inertia).
         public static float MassMul => Weight / DefaultWeight;
 
-        // ---- Derived TRAIT multipliers (1.0 = default build) ----
-        // Lighter = quicker off the mark; heavier = sluggish. Height adds a mild cost.
-        public static float MoveSpeedMul =>
-            Mathf.Clamp(1f + (0.5f - WeightT) * 0.30f + (0.5f - HeightT) * 0.10f, 0.75f, 1.25f);
+        // ---- Body baselines (1.0 = default build), from height/weight only ----
+        static float BodyMove   => Mathf.Clamp(1f + (0.5f - WeightT) * 0.30f + (0.5f - HeightT) * 0.10f, 0.75f, 1.25f);
+        static float BodySprint => Mathf.Clamp(1f + (0.5f - WeightT) * 0.40f + (0.5f - HeightT) * 0.12f, 0.7f, 1.3f);
+        static float BodyJump   => Mathf.Clamp(1f + (0.5f - WeightT) * 0.45f + (0.5f - HeightT) * 0.18f, 0.65f, 1.35f);
+        static float BodyShot   => Mathf.Clamp(1f + (WeightT - 0.5f) * 0.45f + (HeightT - 0.5f) * 0.15f, 0.75f, 1.35f);
+        static float BodyPush   => Mathf.Clamp(1f + (WeightT - 0.5f) * 0.6f  + (HeightT - 0.5f) * 0.2f,  0.7f, 1.5f);
+        static float BodyReach  => Mathf.Clamp(1f + (HeightT - 0.5f) * 0.35f, 0.85f, 1.2f);
 
-        // Sprint is hit harder by weight (big players top out slower).
-        public static float SprintSpeedMul =>
-            Mathf.Clamp(1f + (0.5f - WeightT) * 0.40f + (0.5f - HeightT) * 0.12f, 0.7f, 1.3f);
+        // ---- Final TRAIT multipliers = body baseline * skill-tree bonus (STACKED). ----
+        public static float MoveSpeedMul   => BodyMove   * SkillTree.Mul("move");
+        public static float SprintSpeedMul => BodySprint * SkillTree.Mul("sprint")
+                                              * (PerkAfterburners ? SimConfig.AfterburnerMul : 1f);
+        public static float JumpMul        => BodyJump   * SkillTree.Mul("jump");
+        public static float ShotPowerMul   => BodyShot   * SkillTree.Mul("shotpower");
+        public static float PushMul        => BodyPush   * SkillTree.Mul("push") * SkillTree.Mul("massbonus")
+                                              * (PerkImmovable ? SimConfig.ImmovableMassMul : 1f);
+        public static float ReachMul       => BodyReach  * SkillTree.Mul("reach");
 
-        // Jump: light + short leap highest; heavy + tall lowest.
-        public static float JumpMul =>
-            Mathf.Clamp(1f + (0.5f - WeightT) * 0.45f + (0.5f - HeightT) * 0.18f, 0.65f, 1.35f);
+        // Effective mass for the ragdoll build: weight + strength "massbonus" nodes +
+        // the Immovable capstone. Heavier bones = harder to shove off the ball.
+        public static float EffectiveMassMul => MassMul * SkillTree.Mul("massbonus")
+                                                * (PerkImmovable ? SimConfig.ImmovableMassMul : 1f);
 
-        // Shot/header power: mass + a little height leverage make the ball fly faster.
-        public static float ShotPowerMul =>
-            Mathf.Clamp(1f + (WeightT - 0.5f) * 0.45f + (HeightT - 0.5f) * 0.15f, 0.75f, 1.35f);
+        // ---- Skill-only multipliers (no body baseline; 1.0 with an empty tree) ----
+        public static float ShotAccuracyMul => SkillTree.Mul("shotacc");    // extra goal-steer on shots
+        public static float HeaderPowerMul  => SkillTree.Mul("headpower");
+        public static float HeaderAccuracyMul => SkillTree.Mul("headacc");
+        public static float WeakFootMul     => SkillTree.Mul("weakfoot");   // scales weak-foot accuracy + power
+        public static float TrapMul         => SkillTree.Mul("trap");       // better first touch (deader trap)
+        public static float AirFlipMul      => SkillTree.Mul("flip");       // air-pitch spin responsiveness
 
-        // Push strength when bodies collide: dominated by mass/weight.
-        public static float PushMul =>
-            Mathf.Clamp(1f + (WeightT - 0.5f) * 0.6f + (HeightT - 0.5f) * 0.2f, 0.7f, 1.5f);
-
-        // Reach (arms/legs/head extension for headers + tackles): height.
-        public static float ReachMul =>
-            Mathf.Clamp(1f + (HeightT - 0.5f) * 0.35f, 0.85f, 1.2f);
+        // ---- Capstone perks ----
+        public static bool PerkAfterburners => SkillTree.HasPerk("afterburners");
+        public static bool PerkCannon       => SkillTree.HasPerk("cannon");
+        public static bool PerkAerial       => SkillTree.HasPerk("aerial");
+        public static bool PerkImmovable    => SkillTree.HasPerk("immovable");
+        public static bool PerkSilky        => SkillTree.HasPerk("silky");
+        public static bool PerkAcrobat      => SkillTree.HasPerk("acrobat");
 
         public static void ResetToDefault()
         {
@@ -95,6 +109,7 @@ namespace Trickshot
             Number = 10;
             LeftFooted = false;
             JerseyTex = null;
+            SkillTree.Clear();
         }
     }
 }

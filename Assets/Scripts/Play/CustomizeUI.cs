@@ -4,22 +4,29 @@ namespace Trickshot
 {
     /// <summary>
     /// Player customization, shown after the stadium is picked and before the pre-match
-    /// screen, for striker-based modes only. Three stages, Next/Back between them:
+    /// screen, for striker-based modes only. Four stages, Next/Back between them, with a
+    /// live 3D model preview on the left:
     ///   1. BODY   - height + weight sliders with a live trait readout, and footedness.
-    ///   2. NAME   - name text + shirt number; baked into the jersey next stage.
-    ///   3. JERSEY - paint on a 2D jersey canvas (color wheel, brush size + opacity,
+    ///   2. SKILL  - spend a fixed point pool into a branching skill tree drawn as a
+    ///               clickable node graph (six categories, capstone perks).
+    ///   3. NAME   - name text + shirt number; baked into the jersey next stage.
+    ///   4. JERSEY - paint on a 2D jersey canvas (color wheel, brush size + opacity,
     ///               drag to paint, undo, clear) AROUND the baked name/number.
-    /// All results are written to PlayerProfile (read by the ragdoll builder + traits).
-    /// IMGUI, runtime-only, no assets.
+    /// All results are written to PlayerProfile + SkillTree (read by the ragdoll builder,
+    /// traits, and contact model). IMGUI, runtime-only, no assets.
     /// </summary>
     public class CustomizeUI : MonoBehaviour
     {
         System.Action _onDone;
         System.Action _onBack;
 
-        // Name/number are chosen BEFORE the jersey so the player can draw around them.
-        enum Stage { Body, Name, Jersey }
+        // Body -> Skill tree -> Name -> Jersey (name/number before jersey so you can draw
+        // around them).
+        enum Stage { Body, Skill, Name, Jersey }
         Stage _stage = Stage.Body;
+
+        // Skill tree UI state.
+        SkillTree.Category _skillCat = SkillTree.Category.Pace;
 
         // Working copies (committed to PlayerProfile on Done).
         float _height, _weight;
@@ -273,6 +280,7 @@ namespace Trickshot
             switch (_stage)
             {
                 case Stage.Body:   BodyStage(x, y, panelW, panelH); break;
+                case Stage.Skill:  SkillStage(x, y, panelW, panelH); break;
                 case Stage.Jersey: JerseyStage(x, y, panelW, panelH); break;
                 case Stage.Name:   NameStage(x, y, panelW, panelH); break;
             }
@@ -349,6 +357,149 @@ namespace Trickshot
             GUI.color = prev;
             GUI.Label(new Rect(barX + barW + 6f, row, 44f, 18f), $"{mul:0.00}x", st);
             row += 20f;
+        }
+
+        // ------------------------------------------------------------- Skill tree stage
+        // Drawn as an ACTUAL node graph: nodes at their grid positions, connector lines to
+        // prerequisites, clickable icon badges (left-click buys, right-click refunds), and
+        // a detail strip for the selected node.
+        string _selNode;   // currently selected node id (for the detail strip)
+
+        void SkillStage(float x, float y, float pw, float ph)
+        {
+            float lx = x + 28f, lw = pw - 56f;
+
+            var big = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+            GUI.Label(new Rect(lx, y + 52f, lw, 24f), $"Skill points: {SkillTree.Remaining} / {SkillTree.Budget}", big);
+
+            // Category tabs.
+            var cats = (SkillTree.Category[])System.Enum.GetValues(typeof(SkillTree.Category));
+            float tw = (lw - (cats.Length - 1) * 4f) / cats.Length;
+            for (int i = 0; i < cats.Length; i++)
+            {
+                bool sel = _skillCat == cats[i];
+                var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+                if (sel) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(lx + i * (tw + 4f), y + 84f, tw, 26f), cats[i].ToString(), tb))
+                    _skillCat = cats[i];
+            }
+
+            // Graph area for the selected category.
+            var area = new Rect(lx, y + 120f, lw, ph - 120f - 130f);
+            const float nodeSz = 46f;
+            int maxTier = 3;   // rows 0..3
+            float colPad = nodeSz;
+            float usableW = area.width - colPad * 2f;
+            float rowGap = (area.height - nodeSz) / maxTier;
+
+            // Node centre for a node in this category.
+            Vector2 Centre(SkillTree.Node n) => new Vector2(
+                area.x + colPad + n.GridX * usableW,
+                area.y + nodeSz * 0.5f + n.GridY * rowGap);
+
+            // Pass 1: connector lines (node -> its prerequisite), drawn under the badges.
+            foreach (var n in SkillTree.InCategory(_skillCat))
+            {
+                if (string.IsNullOrEmpty(n.Requires)) continue;
+                var req = SkillTree.ById(n.Requires);
+                if (req == null) continue;
+                bool lit = SkillTree.Owned.Contains(n.Id);
+                DrawLine(Centre(req), Centre(n), lit ? new Color(0.4f, 0.85f, 0.5f) : new Color(0.4f, 0.4f, 0.45f), lit ? 3f : 2f);
+            }
+
+            // Pass 2: node badges.
+            var iconSt = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var costSt = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.4f) } };
+            foreach (var n in SkillTree.InCategory(_skillCat))
+            {
+                Vector2 c = Centre(n);
+                bool owned = SkillTree.Owned.Contains(n.Id);
+                bool canBuy = SkillTree.CanBuy(n);
+                bool capstone = n.Perk != null;
+                var r = new Rect(c.x - nodeSz * 0.5f, c.y - nodeSz * 0.5f, nodeSz, nodeSz);
+
+                var prev = GUI.color;
+                GUI.color = owned ? new Color(0.25f, 0.6f, 0.32f)
+                          : canBuy ? new Color(0.28f, 0.34f, 0.5f)
+                          : new Color(0.18f, 0.18f, 0.22f);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                // Capstone gets a gold ring.
+                if (capstone) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
+                if (_selNode == n.Id) { GUI.color = Color.white; DrawRectOutline(new Rect(r.x-2,r.y-2,r.width+4,r.height+4), 2f); }
+                GUI.color = prev;
+
+                GUI.Label(new Rect(r.x, r.y + 2f, r.width, r.height - 12f), n.Icon, iconSt);
+                GUI.Label(new Rect(r.x, r.yMax - 14f, r.width, 12f), owned ? "✓" : n.Cost.ToString(), costSt);
+
+                // Click: select; left-click also buys if possible, right-click refunds.
+                Event e = Event.current;
+                if (e.type == EventType.MouseDown && r.Contains(e.mousePosition))
+                {
+                    _selNode = n.Id;
+                    if (e.button == 1) SkillTree.Refund(n);
+                    else if (canBuy) SkillTree.Buy(n);
+                    e.Use();
+                }
+            }
+
+            // Detail strip for the selected node.
+            var sel = _selNode != null ? SkillTree.ById(_selNode) : null;
+            if (sel != null && sel.Cat == _skillCat)
+            {
+                float dy = y + ph - 124f;
+                var box = new Rect(lx, dy, lw, 58f);
+                var prev = GUI.color; GUI.color = new Color(0.12f, 0.13f, 0.16f); GUI.DrawTexture(box, Texture2D.whiteTexture); GUI.color = prev;
+                var nameSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
+                var descSt = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = new Color(0.85f,0.85f,0.88f) } };
+                string tag = sel.Perk != null ? "  [CAPSTONE PERK]" : "";
+                GUI.Label(new Rect(box.x + 10f, box.y + 5f, lw - 130f, 18f), sel.Name + tag, nameSt);
+                GUI.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), sel.Desc, descSt);
+
+                var actBtn = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
+                var actRect = new Rect(box.xMax - 112f, box.y + 15f, 100f, 28f);
+                if (SkillTree.Owned.Contains(sel.Id))
+                {
+                    bool canRefund = SkillTree.CanRefund(sel);
+                    GUI.enabled = canRefund;
+                    if (GUI.Button(actRect, canRefund ? $"Refund {sel.Cost}" : "Locked in", actBtn)) SkillTree.Refund(sel);
+                    GUI.enabled = true;
+                }
+                else
+                {
+                    bool canBuy = SkillTree.CanBuy(sel);
+                    GUI.enabled = canBuy;
+                    bool needReq = !string.IsNullOrEmpty(sel.Requires) && !SkillTree.Owned.Contains(sel.Requires);
+                    if (GUI.Button(actRect, needReq ? "Needs prereq" : $"Buy {sel.Cost}", actBtn)) SkillTree.Buy(sel);
+                    GUI.enabled = true;
+                }
+            }
+
+            var help = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
+            GUI.Label(new Rect(lx, y + ph - 62f, lw, 20f), "Click a node to buy (right-click to refund). Lines show prerequisites; the ringed node is a capstone perk.", help);
+        }
+
+        // Draw a straight line between two screen points using a rotated 1px texture.
+        static void DrawLine(Vector2 a, Vector2 b, Color col, float width)
+        {
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len < 0.01f) return;
+            float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+            var prev = GUI.color; var m = GUI.matrix;
+            GUI.color = col;
+            GUIUtility.RotateAroundPivot(ang, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, len, width), Texture2D.whiteTexture);
+            GUI.matrix = m; GUI.color = prev;
+        }
+
+        // Draw a rectangle outline (thickness t) using the current GUI.color.
+        static void DrawRectOutline(Rect r, float t)
+        {
+            var tex = Texture2D.whiteTexture;
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, t), tex);                 // top
+            GUI.DrawTexture(new Rect(r.x, r.yMax - t, r.width, t), tex);          // bottom
+            GUI.DrawTexture(new Rect(r.x, r.y, t, r.height), tex);               // left
+            GUI.DrawTexture(new Rect(r.xMax - t, r.y, t, r.height), tex);         // right
         }
 
         // ----------------------------------------------------------- Jersey stage
@@ -581,7 +732,7 @@ namespace Trickshot
                 else _stage -= 1;
             }
 
-            // Jersey is the last stage now (Body -> Name -> Jersey), so it carries Confirm.
+            // Flow is Body -> Skill -> Name -> Jersey; Jersey is last so it carries Confirm.
             string nextLabel = _stage == Stage.Jersey ? "Confirm" : "Next";
             if (GUI.Button(new Rect(x + pw - 188f, by, 160f, 44f), nextLabel, btn))
             {
