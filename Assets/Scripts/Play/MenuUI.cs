@@ -2,14 +2,14 @@ using UnityEngine;
 
 namespace Trickshot
 {
-    // Core roles plus the single-player challenge modes.
-    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick }
+    // Core roles plus the single-player modes and the full scrimmage match.
+    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Scrimmage }
 
     /// <summary>
-    /// IMGUI start menu. Top level: Striker, Goalkeeper, Challenges. "Challenges" opens
-    /// a submenu of the four extra single-player modes (Freeplay, Time Trial, Accuracy,
-    /// Free Kick). Invokes a callback with the chosen mode. Kept as IMGUI so it needs no
-    /// Canvas/EventSystem wiring (consistent with the rest of the runtime build).
+    /// IMGUI start menu. Top level: Striker, Goalkeeper, Mode. "Mode" opens a submenu of
+    /// the extra modes (Freeplay, Time Trial, Accuracy, Free Kick, Scrimmage). Invokes a
+    /// callback with the chosen mode. Kept as IMGUI so it needs no Canvas/EventSystem
+    /// wiring (consistent with the rest of the runtime build).
     /// </summary>
     public class MenuUI : MonoBehaviour
     {
@@ -46,17 +46,18 @@ namespace Trickshot
                 GUI.Label(new Rect(0, cy - 120f, Screen.width, 80f), "TRICKSHOT", title);
                 if (GUI.Button(new Rect(cx, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
                 if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Challenges", btn)) _inChallenges = true;
+                if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Mode", btn)) _inChallenges = true;
             }
             else
             {
-                float cy = Screen.height * 0.5f - (h * 2.5f + gap * 2f);
-                GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "CHALLENGES", title);
-                if (GUI.Button(new Rect(cx, cy, w, h), "Freeplay", btn)) Choose(GameMode.Freeplay);
-                if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Time Trial", btn)) Choose(GameMode.TimeTrial);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Back", btn)) _inChallenges = false;
+                float cy = Screen.height * 0.5f - (h * 3f + gap * 2.5f);
+                GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "MODE", title);
+                if (GUI.Button(new Rect(cx, cy, w, h), "Scrimmage", btn)) Choose(GameMode.Scrimmage);
+                if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Freeplay", btn)) Choose(GameMode.Freeplay);
+                if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Time Trial", btn)) Choose(GameMode.TimeTrial);
+                if (GUI.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
+                if (GUI.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
+                if (GUI.Button(new Rect(cx, cy + (h + gap) * 5f, w, h), "Back", btn)) _inChallenges = false;
             }
         }
 

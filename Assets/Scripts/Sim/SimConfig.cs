@@ -379,6 +379,41 @@ namespace Trickshot
         public const float DribbleTurnRateLow  = 220f;  // deg/sec facing slew while dribbling, no Control
         public const float DribbleTurnRateHigh = 620f;  // deg/sec facing slew while dribbling, full Control
 
+        // ---- Scrimmage (full match: two goals, teams, AI, passing) ----
+        // Chosen role + team size come from the pre-match screen.
+        public enum ScrimRole { Outfield, Keeper }
+        public static ScrimRole ScrimmageRole = ScrimRole.Outfield;
+        public static int ScrimmagePerSide = 3;   // outfielders per side (3 / 5 / 11); keepers extra
+
+        // The scrimmage pitch is its OWN square-ish field centred on origin, sized to the
+        // team count, with a goal at each end (+Z and -Z) and walls all round. Independent
+        // of the single-goal training arena so nothing else has to change.
+        public static float ScrimHalfLength(int perSide) => perSide >= 11 ? 52f : perSide >= 5 ? 34f : 24f;
+        public static float ScrimHalfWidth(int perSide)  => perSide >= 11 ? 34f : perSide >= 5 ? 22f : 16f;
+
+        // Player (human) attacks +Z and defends -Z, matching the Striker/KeeperController
+        // hardcoded facing. The team attacking +Z is "Home"; attacking -Z is "Away".
+        public const float ScrimKickoffBallHeight = 0.3f;
+
+        // Passing (controlled outfielder). A pass picks the teammate nearest the aim ray.
+        public const float PassGroundSpeed   = 12f;   // ground (rolled) pass base speed (m/s), scaled by ShotPowerMul
+        public const float PassLoftedSpeed   = 13f;   // lofted (chipped) pass base speed
+        public const float PassLoftedArc     = 0.55f; // upward fraction of a lofted pass (higher = floatier)
+        public const float PassAimConeDot    = 0.2f;  // teammate must be within this cone of the aim to be picked
+        public const float PassMaxRange      = 45f;   // don't target teammates further than this
+        public const float PassLeadFrac      = 0.25f; // lead a moving target by this fraction of range/speed
+
+        // Auto-switch: control the teammate nearest the ball (outfield role). A manual
+        // switch key cycles too. A brief lockout stops rapid flip-flopping.
+        public const float SwitchLockout     = 0.6f;  // min seconds on a player before an auto-switch
+
+        // Outfield AI.
+        public const float AiOutfieldSpeed    = 4.6f;  // base run speed for AI outfielders
+        public const float AiChaseStopDist    = 0.6f;  // stop closing when this near the ball
+        public const float AiShootRange       = 16f;   // shoot when this close to the target goal with the ball
+        public const float AiSupportSpread    = 6f;    // how far off-ball teammates spread from the carrier
+        public const float AiKickBoneImpulse  = 8f;    // leg-swing velocity an AI adds to "kick" the ball
+
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
         public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)

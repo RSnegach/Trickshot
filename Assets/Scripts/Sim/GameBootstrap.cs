@@ -148,9 +148,13 @@ namespace Trickshot
             pauseGo.transform.SetParent(root, false);
             pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode));
 
-            // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
-            // Tint the sky to the selected venue.
             _cam.backgroundColor = StadiumStyle.Active.Sky;
+
+            // Scrimmage builds its OWN two-goal, fully-walled pitch (not the single-goal
+            // training arena / regulation pitch / stadium), then spawns teams.
+            if (mode == GameMode.Scrimmage) { BuildScrimmageMode(root, camGo); return; }
+
+            // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
             var arena = Arena.Build(root);
             // Full pitch markings + far goal, the stadium bowl, and the animated crowd.
             // All read the shared PitchLayout contract so they line up. Crowd is stored so
@@ -374,6 +378,121 @@ namespace Trickshot
                 kd.OnValidTrick += fk.NotifyValidTrick;
 
             LockCursor();
+        }
+
+        // -------------------------------------------------------- Scrimmage mode
+        void BuildScrimmageMode(Transform root, GameObject camGo)
+        {
+            int perSide = SimConfig.ScrimmagePerSide;
+            var arena = ScrimmageArena.Build(root, perSide);
+
+            // Ball.
+            var ballGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            ballGo.name = "Ball";
+            ballGo.transform.SetParent(root, true);
+            ballGo.transform.localScale = Vector3.one * (SimConfig.BallRadius * 2f);
+            ballGo.GetComponent<Renderer>().sharedMaterial = Make.Mat(new Color(0.95f, 0.95f, 0.95f), 0.3f);
+            ballGo.AddComponent<Rigidbody>();
+            var ball = ballGo.AddComponent<BallController>();
+
+            var gameCam = camGo.AddComponent<GameCamera>();
+
+            // Team colours.
+            Material homeTorso = JerseyMaterial();                          // player's painted kit for Home
+            Material homeLimb  = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
+            Material awayTorso = Make.Mat(new Color(0.75f, 0.2f, 0.2f));
+            Material awayLimb  = Make.Mat(new Color(0.5f, 0.13f, 0.13f));
+            Material gloveMat  = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            var gmGo = new GameObject("ScrimmageGame");
+            gmGo.transform.SetParent(root, true);
+            var game = gmGo.AddComponent<ScrimmageGame>();
+
+            var home = new System.Collections.Generic.List<Footballer>();
+            var away = new System.Collections.Generic.List<Footballer>();
+
+            // Spawn outfielders for both teams.
+            for (int t = 0; t < 2; t++)
+            {
+                var list = t == 0 ? home : away;
+                Material torso = t == 0 ? homeTorso : awayTorso;
+                Material limb  = t == 0 ? homeLimb  : awayLimb;
+                for (int i = 0; i < perSide; i++)
+                    list.Add(BuildFootballer(root, ball, game, t, keeper: false, torso, limb, gloveMat: null, index: i));
+            }
+
+            // Keepers (both AI unless the player picks the keeper role for Home).
+            bool humanKeeper = SimConfig.ScrimmageRole == SimConfig.ScrimRole.Keeper;
+            Footballer homeKeeper = null, awayKeeper = null;
+            KeeperController humanKeeperCtrl = null; ActiveRagdoll humanKeeperRag = null;
+
+            awayKeeper = BuildFootballer(root, ball, game, team: 1, keeper: true, awayTorso, awayLimb, gloveMat, index: 0);
+
+            if (humanKeeper)
+            {
+                // Human keeper: a KeeperController ragdoll at the Home end (defends -Z goal).
+                var kGo = new GameObject("HumanKeeper");
+                kGo.transform.SetParent(root, true);
+                humanKeeperRag = kGo.AddComponent<ActiveRagdoll>();
+                var facing = Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up);
+                humanKeeperRag.Build(new Vector3(0f, 0f, arena.awayGoalCenter.z + 1.0f), facing, homeTorso, homeLimb);
+                humanKeeperCtrl = kGo.AddComponent<KeeperController>();
+                humanKeeperCtrl.Init(GetInput(), humanKeeperRag);
+                // 5th arg (goal Transform) is only used by the unused Broadcast cam; pass null.
+                gameCam.Init(_cam, ball.transform, humanKeeperRag.Pelvis.transform, null, null);
+                gameCam.SetKeeperFollow(humanKeeperRag.Pelvis.transform,
+                    () => Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up), () => GetInput().Look);
+                humanKeeperCtrl.SetLookYawSource(() => gameCam.KeeperLookYaw);
+            }
+            else
+            {
+                homeKeeper = BuildFootballer(root, ball, game, team: 0, keeper: true, homeTorso, homeLimb, gloveMat, index: 0);
+                // Outfield role: the driver's SwitchTo sets the follow target; init with a
+                // valid transform. 5th arg (goal Transform) unused here -> null.
+                gameCam.Init(_cam, ball.transform, home[0].Ragdoll.Pelvis.transform, null, null);
+            }
+
+            // The human's striker/dribble refs point at whichever Home player is controlled;
+            // the driver assigns control in Configure/Kickoff. Pass the first home player's
+            // components as an initial handle.
+            Striker humanStriker = home.Count > 0 ? home[0].GetComponent<Striker>() : null;
+            Dribble humanDribble = home.Count > 0 ? home[0].GetComponent<Dribble>() : null;
+
+            ball.SetCamera(gameCam);
+            game.Configure(GetInput(), ball, gameCam, arena, SimConfig.ScrimmageRole,
+                           home, away, homeKeeper, awayKeeper,
+                           humanStriker, humanDribble, humanKeeperCtrl, humanKeeperRag);
+            LockCursor();
+        }
+
+        // Builds one scrimmage footballer: an active ragdoll + Striker + Dribble + kick
+        // detectors + a Footballer AI component. Striker/Dribble are DISABLED (AI/idle)
+        // until the driver hands this body control.
+        Footballer BuildFootballer(Transform root, BallController ball, ScrimmageGame game,
+                                   int team, bool keeper, Material torso, Material limb,
+                                   Material gloveMat, int index)
+        {
+            var go = new GameObject((team == 0 ? "Home" : "Away") + (keeper ? "GK" : "P" + index));
+            go.transform.SetParent(root, true);
+            var ragdoll = go.AddComponent<ActiveRagdoll>();
+            var facing = Quaternion.LookRotation(new Vector3(0f, 0f, team == 0 ? 1f : -1f), Vector3.up);
+            ragdoll.Build(new Vector3(0f, 0f, 0f), facing, torso, limb, withGloves: keeper && gloveMat != null);
+
+            var striker = go.AddComponent<Striker>();
+            striker.Init(GetInput(), ragdoll);
+            striker.ControlEnabled = false;   // AI by default; driver flips this on takeover
+            AttachKickDetectors(ragdoll, striker, ball);
+
+            var dribble = go.AddComponent<Dribble>();
+            dribble.Init(GetInput(), striker, ragdoll, ball);
+            striker.SetDribble(dribble);
+            dribble.Enabled = false;
+
+            var f = go.AddComponent<Footballer>();
+            // Home (team 0) attacks +Z (HomeGoal), Away attacks -Z, in every role.
+            float attackZ = team == 0 ? 1f : -1f;
+            f.Init(game, ball, ragdoll, team, keeper, attackZ, Vector3.zero);
+            return f;
         }
 
         // -------------------------------------------------------- Goalkeeper mode

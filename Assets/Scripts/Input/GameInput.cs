@@ -28,6 +28,7 @@ namespace Trickshot
         InputActionAsset _asset;
         InputActionMap _map;
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
+        InputAction _passGround, _passLofted, _switchPlayer;   // scrimmage
         PlayerInput _playerInput;
 
         public void Init()
@@ -56,6 +57,11 @@ namespace Trickshot
             _sprint = _map.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
             _sprint.AddBinding("<Keyboard>/rightShift");
             _scroll = _map.AddAction("Scroll", InputActionType.Value, "<Mouse>/scroll/y");
+
+            // Scrimmage: ground pass (Q), lofted pass (E), switch controlled player (F).
+            _passGround  = _map.AddAction("PassGround",  InputActionType.Button, "<Keyboard>/q");
+            _passLofted  = _map.AddAction("PassLofted",  InputActionType.Button, "<Keyboard>/e");
+            _switchPlayer = _map.AddAction("SwitchPlayer", InputActionType.Button, "<Keyboard>/f");
 
             _map.Enable();
 
@@ -116,5 +122,10 @@ namespace Trickshot
         // Mouse wheel Y this frame (raw; ~120 per notch on Windows). Used to pitch the
         // striker about his central axis while airborne.
         public float Scroll => _scroll != null ? _scroll.ReadValue<float>() : 0f;
+
+        // Scrimmage edges: Q ground pass, E lofted pass, F switch player.
+        public bool PassGroundPressed => _passGround != null && _passGround.WasPressedThisFrame();
+        public bool PassLoftedPressed => _passLofted != null && _passLofted.WasPressedThisFrame();
+        public bool SwitchPressed => _switchPlayer != null && _switchPlayer.WasPressedThisFrame();
     }
 }

@@ -45,6 +45,10 @@ namespace Trickshot
         static SimConfig.Delivery _delivery = SimConfig.Delivery.AutoCross;
         static Vector3 _aimTarget = SimConfig.ServeTarget;   // where an aimed cross lands
 
+        // Scrimmage
+        static int _scrimPerSide = 3;                                  // 3 / 5 / 11
+        static SimConfig.ScrimRole _scrimRole = SimConfig.ScrimRole.Outfield;
+
         // ---- Layout ----
         const float PanelW = 480f;
         const float RowH = 52f;      // vertical space per slider row (label + track + gap)
@@ -63,6 +67,9 @@ namespace Trickshot
         // How many slider/toggle rows this mode shows, so the panel is sized to fit.
         int RowCount()
         {
+            // Scrimmage: two picker rows only (team size + role), no goal/ball sliders.
+            if (_mode == GameMode.Scrimmage) return 2;
+
             int n = 3; // goal width, goal height, ball velocity (all modes)
             if (_mode == GameMode.Striker) n += 3;
             else if (_mode == GameMode.Goalkeeper) n += 3;
@@ -98,6 +105,14 @@ namespace Trickshot
 
             float row = y + HeadH;
             float lx = x + 30f, lw = PanelW - 60f;
+
+            // Scrimmage: pickers only (no goal/ball sliders), then Back/Start.
+            if (_mode == GameMode.Scrimmage)
+            {
+                ScrimmagePickers(lx, ref row, lw);
+                DrawNav(x, y, panelH);
+                return;
+            }
 
             // Multiplier sliders with per-slider ranges. Goal/ball apply to every mode.
             _goalWidth  = Slider(lx, ref row, lw, "Goal width",   _goalWidth,  0.6f, 1.5f, 1f);
@@ -152,7 +167,12 @@ namespace Trickshot
                 }
             }
 
-            // Back/Start anchored to the far left/right screen edges.
+            DrawNav(x, y, panelH);
+        }
+
+        // Back/Start anchored to the far left/right screen edges.
+        void DrawNav(float x, float y, float panelH)
+        {
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
             float by = y + panelH - FootH + 20f;
             float bw = 170f, edge = 24f;
@@ -160,9 +180,49 @@ namespace Trickshot
             if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
         }
 
+        // Scrimmage pickers: team size (per side) and the human's role.
+        void ScrimmagePickers(float lx, ref float row, float lw)
+        {
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
+
+            GUI.Label(new Rect(lx, row, lw, 20f), "Team size:", st);
+            int[] sizes = { 3, 5, 11 };
+            string[] sizeNames = { "3 v 3", "5 v 5", "11 v 11" };
+            float bw = (lw - 8f * (sizes.Length - 1)) / sizes.Length;
+            for (int i = 0; i < sizes.Length; i++)
+            {
+                bool sel = _scrimPerSide == sizes[i];
+                var b = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(lx + i * (bw + 8f), row + 22f, bw, 28f), sizeNames[i], b)) _scrimPerSide = sizes[i];
+            }
+            row += RowH;
+
+            GUI.Label(new Rect(lx, row, lw, 20f), "You play as:", st);
+            string[] roleNames = { "Outfielder", "Goalkeeper" };
+            var roles = new[] { SimConfig.ScrimRole.Outfield, SimConfig.ScrimRole.Keeper };
+            float rbw = (lw - 8f) * 0.5f;
+            for (int i = 0; i < roles.Length; i++)
+            {
+                bool sel = _scrimRole == roles[i];
+                var b = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(lx + i * (rbw + 8f), row + 22f, rbw, 28f), roleNames[i], b)) _scrimRole = roles[i];
+            }
+            row += RowH;
+        }
+
         // Map the sliders onto SimConfig values.
         void Apply()
         {
+            // Scrimmage only uses its two pickers.
+            if (_mode == GameMode.Scrimmage)
+            {
+                SimConfig.ScrimmagePerSide = _scrimPerSide;
+                SimConfig.ScrimmageRole = _scrimRole;
+                return;
+            }
+
             SimConfig.GoalWidth  = BaseGoalWidth  * _goalWidth;
             SimConfig.GoalHeight = BaseGoalHeight * _goalHeight;
             SimConfig.BallSpeedMul = _ballSpeed;
