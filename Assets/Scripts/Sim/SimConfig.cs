@@ -344,9 +344,12 @@ namespace Trickshot
         public const float DribbleFollowAccel      = 48f;    // spring stiffness toward the carry point (very sticky)
         public const float DribbleFollowDamp       = 14f;    // velocity damping (near-critical: no overshoot/orbit)
         public const float DribbleMaxAccel         = 160f;   // cap on the follow acceleration (m/s^2)
-        // A little forward carry velocity so the ball leads with the run instead of lagging.
-        // Kept small so it doesn't fling the ball ahead of the carry point at a walk.
-        public const float DribbleLeadSpeedFrac    = 0.3f;   // fraction of striker speed fed to the ball as lead
+        // Feed-forward of the striker's velocity so the ball tracks the MOVING carry point
+        // without lagging behind it. The carry point travels at the striker's speed, so the
+        // ball must too; anything below 1.0 leaves a steady-state trailing offset that grows
+        // with speed (why the ball used to lag behind on the run). 1.0 = the ball keeps pace
+        // and sits on the carry point in front of the feet.
+        public const float DribbleLeadSpeedFrac    = 1.0f;   // match striker speed: no trailing lag
         public const float DribbleSpinScale        = 2.2f;   // rolling spin visual per m/s of carry speed
         // Shot on release (kick): the carried ball is launched in the aim/facing direction.
         public const float DribbleShotSpeed        = 17f;    // base release shot speed (m/s), scaled by ShotPowerMul

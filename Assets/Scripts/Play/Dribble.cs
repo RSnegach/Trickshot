@@ -139,8 +139,10 @@ namespace Trickshot
             var rb = _ball.Rb;
             Vector3 toCarry = carry - rb.position;
 
-            // Striker's horizontal velocity, fed forward as lead so the ball leads the run.
-            Vector3 strikerVel = _ragdoll.Pelvis.linearVelocity; strikerVel.y = 0f;
+            // Feed-forward the striker's INTENDED horizontal velocity (MoveInput, the clean
+            // target the locomotion steers toward - smoother than the noisy pelvis velocity)
+            // so the ball keeps pace with the moving carry point instead of trailing.
+            Vector3 strikerVel = _ragdoll.MoveInput; strikerVel.y = 0f;
             Vector3 lead = strikerVel * SimConfig.DribbleLeadSpeedFrac;
 
             Vector3 relVel = rb.linearVelocity - lead;
