@@ -172,9 +172,12 @@ namespace Trickshot
             bool bicycleAttempt = striker.TrickActive;
             Vector3 faceFwd = ragdoll.FacingRotation * Vector3.forward; faceFwd.y = 0f;
             Vector3 faceToGoal = SimConfig.GoalCenter - ragdoll.Pelvis.transform.position; faceToGoal.y = 0f;
-            bool facingGoal = bicycleAttempt
-                              || (faceToGoal.sqrMagnitude > 0.01f && faceFwd.sqrMagnitude > 0.01f
-                                  && Vector3.Dot(faceFwd.normalized, faceToGoal.normalized) >= SimConfig.AssistFacingDot);
+            float facingDot = (faceToGoal.sqrMagnitude > 0.01f && faceFwd.sqrMagnitude > 0.01f)
+                              ? Vector3.Dot(faceFwd.normalized, faceToGoal.normalized) : -1f;
+            bool facingGoal = bicycleAttempt || facingDot >= SimConfig.AssistFacingDot;
+            // Ball-cam cut uses its OWN, wider cone: cut for angled shots too, but NEVER when
+            // facing the striker's own goal. Bicycles always qualify (aimed goalward).
+            bool camFacingGoal = bicycleAttempt || facingDot > SimConfig.ShotCamFacingDot;
 
             if (header)
                 LastShotType = striker.IsDiving ? ShotType.DivingHeader : ShotType.Header;
@@ -320,10 +323,10 @@ namespace Trickshot
             // _accuracyMul (set above per body part) drives the goal-steer during the window.
 
             // Auto ball-cam: a dead trap already returned above, so this is a real strike
-            // (foot shot or header). Cut to ball-cam only for a genuine SHOT taken IN THE
-            // SIGHT CONE (facing the goal, same gate as the aim assist) and hit with real
-            // pace. A struck ball while turned side-on / away, or a slow touch, doesn't cut.
-            if (_cam != null && facingGoal)
+            // (foot shot or header). Cut to ball-cam for a genuine SHOT hit with real pace,
+            // using the WIDER ball-cam cone (angled shots still cut) - but never when facing
+            // his own goal (camFacingGoal is false there).
+            if (_cam != null && camFacingGoal)
             {
                 Vector3 outV = Rb.linearVelocity; outV.y = 0f;
                 if (outV.magnitude >= SimConfig.ShotCamMinSpeed)
@@ -335,25 +338,28 @@ namespace Trickshot
         // velocity, then folds into the SAME systems a normal strike uses: the facing-
         // gated goal assist and the 2s ball-cam pulse. Suppresses re-strike/re-capture so
         // the launching foot doesn't immediately re-hit the ball.
-        public void DribbleShot(Vector3 dir, float speed, bool facingGoal)
+        public void DribbleShot(Vector3 dir, float speed, bool facingGoal, bool camFacingGoal)
         {
             Rb.linearVelocity = dir * speed;
             Rb.angularVelocity = Vector3.zero;
             _curlAccel = Vector3.zero;
             _curlRemaining = 0f;
 
+            // Assist uses the tight cone.
             if (facingGoal)
             {
                 // Strong-foot-style accuracy plus the Shooting/Control accuracy nodes.
                 _accuracyMul = SimConfig.StrongFootAccuracy + (PlayerProfile.ShotAccuracyMul - 1f);
                 _assistRemaining = SimConfig.AssistDuration;
-                if (_cam != null)
-                {
-                    Vector3 flat = dir * speed; flat.y = 0f;
-                    if (flat.magnitude >= SimConfig.ShotCamMinSpeed) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
-                }
             }
             else _accuracyMul = 0f;
+
+            // Ball-cam cut uses the WIDER cone (never when facing own goal).
+            if (camFacingGoal && _cam != null)
+            {
+                Vector3 flat = dir * speed; flat.y = 0f;
+                if (flat.magnitude >= SimConfig.ShotCamMinSpeed) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
+            }
 
             _assistCooldown = 0.4f;
             SuppressStrike(SimConfig.DribbleRecaptureCooldown);

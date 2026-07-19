@@ -24,8 +24,11 @@ namespace Trickshot
         GameInput _input;
         ActiveRagdoll _ragdoll;
         System.Func<float> _camYaw;
+        Dribble _dribble;   // optional; when carrying, movement slows + facing slews (Control claws both back)
 
         public bool ControlEnabled = true;
+
+        public void SetDribble(Dribble d) => _dribble = d;
 
         Trick _mode = Trick.None;
         // True while a diving header is in progress (for the DIVING HEADER goal callout).
@@ -99,15 +102,30 @@ namespace Trickshot
             // Build traits: lighter/shorter = quicker; sprint is weighted separately.
             float traitSpeed = _input.SprintHeld ? PlayerProfile.SprintSpeedMul : PlayerProfile.MoveSpeedMul;
             float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f) * traitSpeed;
+
+            // While dribbling, the striker is SLOWER and turns SLOWER - Control claws both
+            // back. dribbling = the Dribble component is actively carrying the ball.
+            bool dribbling = _dribble != null && _dribble.Carrying;
+            if (dribbling)
+            {
+                float t = PlayerProfile.DribbleTightness;  // 0 (no Control) .. 1 (full)
+                speed *= Mathf.Lerp(SimConfig.DribbleMoveMulLow, SimConfig.DribbleMoveMulHigh, t);
+            }
             _ragdoll.MoveInput = wish * speed;
 
-            // Body faces where the mouse points (the camera yaw), set directly. camYaw
-            // only changes while the mouse moves, so facing freezes the instant the
-            // mouse is still - he never turns on his own. WASD is relative to this
-            // facing: W/S run forward/back along it, A/D shuffle sideways (strafe).
+            // Body faces where the mouse points (the camera yaw). Normally set directly, so
+            // facing freezes the instant the mouse stops (he never turns on his own). While
+            // DRIBBLING the facing SLEWS toward the aim at a Control-scaled turn rate, so a
+            // raw build turns ponderously with the ball and a Control build turns sharply.
             if (_mode == Trick.None)
             {
-                _facingYaw = camYaw;
+                if (dribbling)
+                {
+                    float t = PlayerProfile.DribbleTightness;
+                    float turnRate = Mathf.Lerp(SimConfig.DribbleTurnRateLow, SimConfig.DribbleTurnRateHigh, t);
+                    _facingYaw = Mathf.MoveTowardsAngle(_facingYaw, camYaw, turnRate * Time.deltaTime);
+                }
+                else _facingYaw = camYaw;
                 _ragdoll.FacingRotation = Quaternion.Euler(0f, _facingYaw, 0f);
             }
 

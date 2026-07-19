@@ -268,6 +268,7 @@ namespace Trickshot
             // a kick. Lives on the striker so it ticks with him and tears down with the match.
             var dribble = strikerGo.AddComponent<Dribble>();
             dribble.Init(GetInput(), striker, ragdoll, ball);
+            striker.SetDribble(dribble);   // striker slows + turns slower while carrying
         }
 
         // Torso material for the player: the painted jersey texture if one exists, else
