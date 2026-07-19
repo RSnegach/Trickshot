@@ -466,12 +466,15 @@ namespace Trickshot
 
                 GUI.Label(new Rect(r.x, r.yMax - 14f, r.width, 12f), owned ? "✓" : n.Cost.ToString(), costSt);
 
-                // Click: select; left-click also buys if possible, right-click refunds.
+                // Click: select, then act. Clicking an OWNED node refunds it (and cascades
+                // to every node built on top of it); clicking a buyable node buys it.
+                // Right-click also refunds, for muscle memory.
                 Event e = Event.current;
                 if (e.type == EventType.MouseDown && r.Contains(e.mousePosition))
                 {
                     _selNode = n.Id;
-                    if (e.button == 1) SkillTree.Refund(n);
+                    if (owned) SkillTree.Refund(n);        // left OR right click on owned = refund (cascades)
+                    else if (e.button == 1) SkillTree.Refund(n);
                     else if (canBuy) SkillTree.Buy(n);
                     e.Use();
                 }
@@ -491,13 +494,14 @@ namespace Trickshot
                 GUI.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), selNode.Desc, descSt);
 
                 var actBtn = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
-                var actRect = new Rect(box.xMax - 112f, box.y + 15f, 100f, 28f);
+                var actRect = new Rect(box.xMax - 128f, box.y + 15f, 116f, 28f);
                 if (SkillTree.Owned.Contains(selNode.Id))
                 {
-                    bool canRefund = SkillTree.CanRefund(selNode);
-                    GUI.enabled = canRefund;
-                    if (GUI.Button(actRect, canRefund ? $"Refund {selNode.Cost}" : "Locked in", actBtn)) SkillTree.Refund(selNode);
-                    GUI.enabled = true;
+                    // Any owned node refunds; if dependents are built on it the refund
+                    // cascades, so say so on the button.
+                    bool cascades = SkillTree.HasOwnedDependents(selNode);
+                    if (GUI.Button(actRect, cascades ? "Refund chain" : $"Refund {selNode.Cost}", actBtn))
+                        SkillTree.Refund(selNode);
                 }
                 else
                 {
@@ -510,7 +514,7 @@ namespace Trickshot
             }
 
             var help = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
-            GUI.Label(new Rect(lx, y + ph - 62f, lw, 20f), "Click a node to buy (right-click to refund). Lines show prerequisites; the ringed node is a capstone perk.", help);
+            GUI.Label(new Rect(lx, y + ph - 62f, lw, 20f), "Click an empty node to buy, an owned node to refund it (and anything built on top). Lines show prerequisites; the ringed node is a capstone perk.", help);
         }
 
         // Draw a straight line between two screen points using a rotated 1px texture.
