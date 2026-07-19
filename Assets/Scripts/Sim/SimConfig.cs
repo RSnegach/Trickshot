@@ -202,7 +202,7 @@ namespace Trickshot
         // bicycle kick.
         public const float ScrollDeadzone = 0.0001f;     // ignore only true zero/noise
         public const float AirPitchStep = 30f;           // deg the target lean moves per scroll event (by sign)
-        public const float AirPitchLimit = 90f;          // target clamp: 90 = parallel with the ground
+        public const float AirPitchLimit = 115f;         // target clamp: 90 = parallel; a bit past horizontal (not a full 180 flip)
         public const float AirPitchGain = 8f;            // how hard he spins toward the target (1/s)
         public const float AirPitchMaxSpeed = 500f;      // cap on the spin speed toward the target (deg/s)
         public const float BicycleUpnessMax = 0.4f;      // pelvis-up dot world-up below this = bicycle window
