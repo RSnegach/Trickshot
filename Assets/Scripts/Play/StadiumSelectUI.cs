@@ -56,13 +56,15 @@ namespace Trickshot
                 row += rowH + gap;
             }
 
+            // Back/Next anchored to the far left/right screen edges.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
-            if (GUI.Button(new Rect(x + 30f, y + panelH - 56f, 160f, 42f), "Back", btn))
+            float bw = 150f, edge = 24f, by = y + panelH - 56f;
+            if (GUI.Button(new Rect(edge, by, bw, 42f), "Back", btn))
             {
                 enabled = false;
                 _onBack?.Invoke();
             }
-            if (GUI.Button(new Rect(x + panelW - 190f, y + panelH - 56f, 160f, 42f), "Next", btn))
+            if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 42f), "Next", btn))
             {
                 enabled = false;
                 _onPicked?.Invoke();
