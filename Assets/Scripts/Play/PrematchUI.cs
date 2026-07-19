@@ -24,23 +24,26 @@ namespace Trickshot
 
         // ---- Multiplier sliders (value is a multiplier; ranges chosen so every point
         //      on the slider is playable). Defaults are all 1.0x except abilities. ----
-        float _goalWidth = 1f, _goalHeight = 1f, _ballSpeed = 1f;
-        float _crossInterval = 1f, _keeperAbility = 0.5f, _strikerSpeed = 1f;   // striker
-        float _shotDifficulty = 0.5f, _keeperSpeed = 1f, _keeperJump = 1f;      // keeper
+        // STATIC so the last-dialed setup survives leaving and reopening this screen
+        // (e.g. pausing to Match Setup mid-match). Resets to defaults only on a new
+        // session or the Reset All button.
+        static float _goalWidth = 1f, _goalHeight = 1f, _ballSpeed = 1f;
+        static float _crossInterval = 1f, _keeperAbility = 0.5f, _strikerSpeed = 1f;   // striker
+        static float _shotDifficulty = 0.5f, _keeperSpeed = 1f, _keeperJump = 1f;      // keeper
 
         // ---- Challenge-mode raw settings ----
-        float _timeTrialSeconds = 60f;
-        float _accuracySeconds = 90f;
-        float _accuracyTargets = 4f;
-        bool  _penaltyMode = false;
-        float _freeKickDistance = 20f;
-        float _wallCount = 4f;
-        float _wallDistance = 9.15f;
-        float _wallOffset = 0f;
+        static float _timeTrialSeconds = 60f;
+        static float _accuracySeconds = 90f;
+        static float _accuracyTargets = 4f;
+        static bool  _penaltyMode = false;
+        static float _freeKickDistance = 20f;
+        static float _wallCount = 4f;
+        static float _wallDistance = 9.15f;
+        static float _wallOffset = 0f;
 
         // Freeplay delivery
-        SimConfig.Delivery _delivery = SimConfig.Delivery.AutoCross;
-        Vector3 _aimTarget = SimConfig.ServeTarget;   // where an aimed cross lands
+        static SimConfig.Delivery _delivery = SimConfig.Delivery.AutoCross;
+        static Vector3 _aimTarget = SimConfig.ServeTarget;   // where an aimed cross lands
 
         // ---- Layout ----
         const float PanelW = 480f;

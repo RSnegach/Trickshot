@@ -109,15 +109,29 @@ namespace Trickshot
                 onBack:  () => { Destroy(go); if (UsesCustomPlayer(mode)) ShowCustomize(mode); else ShowStadiumSelect(mode); });
         }
 
-        void ReturnToMainMenu()
+        // Tears down the running match (match objects + camera controller) and restores
+        // time. Shared by both pause-menu exits.
+        void TearDownMatch()
         {
-            // Tear the match down and go back to the start menu.
             if (_matchRoot != null) Destroy(_matchRoot);
             var gc = _camGo.GetComponent<GameCamera>();
             if (gc != null) Destroy(gc);
             Time.timeScale = 1f;
             Time.fixedDeltaTime = 0.02f;
+        }
+
+        void ReturnToMainMenu()
+        {
+            TearDownMatch();
             ShowMainMenu();
+        }
+
+        // Pause -> Match Setup: tear the match down and reopen the pre-match config for the
+        // same mode. Start rebuilds the match; Back walks to the previous pregame screen.
+        void ReturnToMatchSetup(GameMode mode)
+        {
+            TearDownMatch();
+            ShowPrematch(mode);
         }
 
         void BuildMode(GameMode mode)
@@ -129,10 +143,10 @@ namespace Trickshot
             var cam = _cam;
             var camGo = _camGo;
 
-            // Pause menu (Esc): Resume / Main Menu.
+            // Pause menu (Esc): Resume / Match Setup / Main Menu.
             var pauseGo = new GameObject("PauseMenu");
             pauseGo.transform.SetParent(root, false);
-            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu);
+            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode));
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
             // Tint the sky to the selected venue.
