@@ -144,11 +144,12 @@ namespace Trickshot
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
 
-            // Strike/redirect logic is ONLY for the human player striker. An AI keeper or
-            // crosser just deflects the ball with normal physics - otherwise an AI keeper's
-            // head/foot touch would get steered toward the goal it defends (own goals).
+            // Strike/redirect logic is ONLY for the HUMAN-controlled striker. An AI keeper,
+            // crosser, or AI footballer (which also carries a Striker for takeover, but with
+            // ControlEnabled off) just deflects the ball with normal physics - otherwise its
+            // head/foot touch would get steered toward the goal it attacks (or its own).
             var striker = ragdoll.GetComponent<Striker>();
-            if (striker == null) return;
+            if (striker == null || !striker.ControlEnabled) return;
 
             // While the ball is being dribbled (or just after a dribble shot), the Dribble
             // component owns the ball's motion. Skip the strike/trap logic so the run-cycle
@@ -363,6 +364,20 @@ namespace Trickshot
 
             _assistCooldown = 0.4f;
             SuppressStrike(SimConfig.DribbleRecaptureCooldown);
+        }
+
+        // Generic kick/pass: set the ball's velocity directly and clear curl/spin. Used by
+        // AI footballers and the passing system (no aim assist - AI/passes aim themselves).
+        // Suppresses the strike/dribble hooks briefly so the kicking foot doesn't re-hit it.
+        public void KickTo(Vector3 velocity)
+        {
+            Rb.linearVelocity = velocity;
+            Rb.angularVelocity = Vector3.zero;
+            _curlAccel = Vector3.zero;
+            _curlRemaining = 0f;
+            _assistRemaining = 0f;
+            _accuracyMul = 1f;
+            SuppressStrike(0.3f);
         }
 
         public void ResetTo(Vector3 pos)
