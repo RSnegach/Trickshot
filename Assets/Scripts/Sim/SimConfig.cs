@@ -298,6 +298,12 @@ namespace Trickshot
         // A contact only counts as a "shot" (worth cutting to ball-cam) if the ball leaves
         // with at least this much horizontal pace toward the goal.
         public const float ShotCamMinSpeed = 8f;
+        // The ball-cam auto-cut has its OWN, wider forward cone (distinct from the aim-assist
+        // cone). A shot only cuts to ball-cam when the striker faces roughly goal-ward - but
+        // more permissively than assist, so angled shots still get the fly-on view. The one
+        // hard rule: NEVER cut when facing his own goal (dot <= this cutoff = no cam).
+        // 0.0 = must face into the attacking half at all (>90deg from own goal).
+        public const float ShotCamFacingDot = 0.0f;
 
         // ---- Strike power (on striker contact) ----
         // Base power is modest by default; Shooting nodes + body traits multiply it up.
@@ -336,9 +342,11 @@ namespace Trickshot
         public const float DribbleCaptureMaxSpeed  = 12f;   // ball must be slower than this to be captured (m/s)
         public const float DribbleReleaseRadius    = 2.0f;  // if the ball ends up beyond this from the carry point, drop the leash
         // Carry point: sits this far in front of the feet at a walk; sprint pushes it out
-        // toward the far distance (heavier touch). Height rides at the ball radius.
-        public const float DribbleNearDistance     = 0.22f; // carry distance at a stand/walk (glued to the feet)
-        public const float DribbleSprintDistance    = 0.65f; // carry distance at full sprint (only a little further out)
+        // toward the far distance (heavier touch). Height rides at the ball radius. These
+        // are the LOOSE defaults (no Control); the Control trap stat pulls them in a lot
+        // (see DribbleTrapTightenMax) so investing in Control gives a visibly tighter touch.
+        public const float DribbleNearDistance     = 0.75f; // carry distance at a stand/walk, no Control
+        public const float DribbleSprintDistance    = 1.7f;  // carry distance at full sprint, no Control
         // Follow spring: acceleration = k * offset - c * relativeVel. Higher k = stickier,
         // higher damp = settles without overshooting past the carry point.
         public const float DribbleFollowAccel      = 48f;    // spring stiffness toward the carry point (very sticky)
@@ -355,10 +363,21 @@ namespace Trickshot
         public const float DribbleShotSpeed        = 17f;    // base release shot speed (m/s), scaled by ShotPowerMul
         public const float DribbleShotLift         = 0.16f;  // upward fraction added so it isn't a pure ground roll
         public const float DribbleRecaptureCooldown = 0.45f; // after a shot, don't re-grab the ball for this long
-        // Control trap stat tightens the touch: at TrapMul = 2 (fully invested) the carry
+        // Control trap stat tightens the touch: at full DribbleTightness (1) the carry
         // sits this fraction closer and captures from this much wider a net.
-        public const float DribbleTrapTightenMax   = 0.35f;  // up to 35% closer carry with full Control
+        public const float DribbleTrapTightenMax   = 0.62f;  // up to 62% closer carry with full Control (0.75->0.29 walk)
         public const float DribbleTrapCaptureBonus  = 0.6f;  // up to +0.6m capture radius with full Control
+
+        // While carrying, the striker moves SLOWER and turns SLOWER by default; the Control
+        // trap stat claws both back (a Control build dribbles nearly at full pace and turns
+        // sharply, a raw build is ponderous with the ball). DribbleTightness (0..1) lerps
+        // each penalty from its "no Control" value to "full Control".
+        public const float DribbleMoveMulLow  = 0.62f;  // move-speed factor while dribbling, no Control
+        public const float DribbleMoveMulHigh = 0.92f;  // move-speed factor while dribbling, full Control
+        // Turn rate = how fast the facing yaw slews toward the mouse aim while carrying
+        // (deg/sec). Low with no Control (ponderous), snappy with full Control.
+        public const float DribbleTurnRateLow  = 220f;  // deg/sec facing slew while dribbling, no Control
+        public const float DribbleTurnRateHigh = 620f;  // deg/sec facing slew while dribbling, full Control
 
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling

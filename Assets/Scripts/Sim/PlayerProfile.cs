@@ -94,11 +94,13 @@ namespace Trickshot
         public static float AirFlipMul      => SkillTree.Mul("flip");       // air-pitch spin responsiveness
 
         // Dribble close-control, 0 (no Control) .. 1 (fully invested trap nodes), derived
-        // from the same trap stat as first touch. Drives a tighter carry + wider capture
-        // net so a Control build keeps the ball glued; a raw build has a looser touch.
-        // TrapMul is 1.0 with an empty tree; the Control trap branch (First Touch +0.25,
-        // Cushion +0.25) stacks to 1.5, so map [1.0 .. 1.5] onto [0 .. 1].
-        public static float DribbleTightness => Mathf.InverseLerp(1f, 1.5f, TrapMul);
+        // from the same trap stat as first touch. Drives a tighter carry, faster + sharper
+        // turning, and higher move speed with the ball, plus a wider capture net - so a
+        // Control build keeps the ball glued and mobile; a raw build is loose and ponderous.
+        // TrapMul is 1.0 with an empty tree; the Control trap nodes (First Touch +0.25,
+        // Cushion +0.25, Close Control +0.15, Dribbler +0.20) stack to 1.85, so map
+        // [1.0 .. 1.85] onto [0 .. 1].
+        public static float DribbleTightness => Mathf.InverseLerp(1f, 1.85f, TrapMul);
 
         // Ground-recovery time after a dive/flop. Agility "recovery" nodes store NEGATIVE
         // amounts, so Mul("recovery") < 1 shortens the prone time; the Acrobat capstone

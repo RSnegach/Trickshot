@@ -182,11 +182,12 @@ namespace Trickshot
             // Same sight-cone gate as a struck shot: only assist when facing the goal.
             Vector3 toGoal = SimConfig.GoalCenter - _ragdoll.Pelvis.position; toGoal.y = 0f;
             Vector3 face = _striker.FacingForward;
-            bool facingGoal = toGoal.sqrMagnitude > 0.01f
-                              && Vector3.Dot(face, toGoal.normalized) >= SimConfig.AssistFacingDot;
+            float dot = toGoal.sqrMagnitude > 0.01f ? Vector3.Dot(face, toGoal.normalized) : -1f;
+            bool facingGoal = dot >= SimConfig.AssistFacingDot;        // tight cone: aim assist
+            bool camFacingGoal = dot > SimConfig.ShotCamFacingDot;     // wide cone: ball-cam (never facing own goal)
 
             StopCarry();   // drop the leash BEFORE the shot so DribbleHold doesn't block it
-            _ball.DribbleShot(dir, speed, facingGoal);
+            _ball.DribbleShot(dir, speed, facingGoal, camFacingGoal);
             _cooldown = SimConfig.DribbleRecaptureCooldown;
         }
 

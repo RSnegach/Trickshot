@@ -351,6 +351,35 @@ namespace Trickshot
                     ArrowSeg(45f, 24f, 48f, 34f, 2.4f, 6f);
                     Dot(32f, 30f, 3f); break;
 
+                // ---------------- middle-branch (hybrid) nodes ----------------
+                case "p1c": // Agile Feet - boot + small motion tick
+                    Boot(28f, 30f, 1.1f, 1); ChevronR(46f, 40f, 6f, 2.4f); break;
+                case "p2c": // Explosive - double chevrons + burst
+                    ChevronR(26f, C, 10f, 3f); ChevronR(37f, C, 10f, 3f); Burst(48f, C, 3f, 7f); break;
+                case "s1c": // Technique - ball + small target
+                    Ball(26f, 30f, 8f); Ring(44f, 38f, 7f, 2f); Dot(44f, 38f, 2f); break;
+                case "s2c": // Drilled - ball + downward drive arrow
+                    Ball(32f, 40f, 9f); ArrowSeg(32f, 30f, 32f, 14f, 2.6f, 7f); break;
+                case "h1c": // Glancing - head + angled deflect arrow
+                    Head(26f, 30f, 11f); ArrowSeg(34f, 30f, 50f, 44f, 2.4f, 6f); break;
+                case "h2c": // Pinpoint - head + target
+                    Head(24f, 30f, 10f); Ring(44f, 38f, 8f, 2f); Dot(44f, 38f, 2.2f); break;
+                case "st1c": // Sturdy - short wall (2 rows)
+                    Stroke(18f, 26f, 46f, 26f, 2f); Stroke(18f, 38f, 46f, 38f, 2f);
+                    Stroke(18f, 26f, 18f, 38f, 2f); Stroke(46f, 26f, 46f, 38f, 2f);
+                    Stroke(32f, 26f, 32f, 32f, 1.8f); Stroke(25f, 32f, 25f, 38f, 1.8f); Stroke(39f, 32f, 39f, 38f, 1.8f); break;
+                case "st2c": // Bulldozer - flex arm + burst
+                    FlexArm(); Burst(44f, 20f, 2f, 6f); break;
+                case "c1c": // Close Control - ball hugged by an arc
+                    Ball(32f, 34f, 8f); Arc(32f, 34f, 14f, 200f, 340f, 2.2f); break;
+                case "c2c": // Dribbler - boot + small trailing ball
+                    Boot(26f, 30f, 1.0f, 1); Ball(46f, 22f, 6f); break;
+                case "a1c": // Balanced - scales-ish balance mark
+                    Stroke(18f, 32f, 46f, 32f, 2.4f); Dot(32f, 32f, 2.4f);
+                    Arc(24f, 32f, 8f, 200f, 340f, 2f); Arc(40f, 32f, 8f, 200f, 340f, 2f); break;
+                case "a2c": // Cat-Like - down-arrow into ground (soft landing)
+                    ArrowSeg(C, 48f, C, 22f, 2.6f, 7f); GroundLine(); break;
+
                 default:
                     Ring(32f, 32f, 14f, 2.4f); break;
             }
