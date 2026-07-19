@@ -31,6 +31,11 @@ namespace Trickshot
         float _assistCooldown;
         float _accuracyMul = 1f;   // goal-steer strength for the current assist window (per body part)
 
+        // Camera to pulse into ball-cam on a genuine shot (optional; null in modes that
+        // don't want it). Set by the mode builder.
+        GameCamera _cam;
+        public void SetCamera(GameCamera cam) => _cam = cam;
+
         void Awake()
         {
             Rb = GetComponent<Rigidbody>();
@@ -294,6 +299,17 @@ namespace Trickshot
             _assistRemaining = SimConfig.AssistDuration;
             _assistCooldown = 0.4f;   // don't re-trigger every micro-contact
             // _accuracyMul (set above per body part) drives the goal-steer during the window.
+
+            // Auto ball-cam: a dead trap already returned above, so this is a real strike
+            // (foot shot or header). Only cut to ball-cam if it left with genuine SHOT pace
+            // toward the goal, so a slow dribble touch or a backward knock doesn't trigger.
+            if (_cam != null)
+            {
+                Vector3 outV = Rb.linearVelocity; outV.y = 0f;
+                bool towardGoal = (SimConfig.GoalCenter.z - Rb.position.z) * outV.z > 0f;
+                if (towardGoal && outV.magnitude >= SimConfig.ShotCamMinSpeed)
+                    _cam.PulseBallCam(SimConfig.ShotCamSeconds);
+            }
         }
 
         public void ResetTo(Vector3 pos)

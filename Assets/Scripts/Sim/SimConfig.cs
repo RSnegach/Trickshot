@@ -291,6 +291,14 @@ namespace Trickshot
         // cone). Turned side-on or facing his own goal -> no assist at all.
         public const float AssistFacingDot = 0.34f;
 
+        // ---- Auto ball-cam on a shot ----
+        // After a genuine SHOT (not a trap/dead touch), the camera snaps to ball-cam for
+        // this long so the player can watch it fly on or off target, then reverts.
+        public const float ShotCamSeconds = 2f;
+        // A contact only counts as a "shot" (worth cutting to ball-cam) if the ball leaves
+        // with at least this much horizontal pace toward the goal.
+        public const float ShotCamMinSpeed = 8f;
+
         // ---- Strike power (on striker contact) ----
         // Base power is modest by default; Shooting nodes + body traits multiply it up.
         public const float StrikeHorizBoost = 1.25f; // multiply horizontal velocity when struck (low base)
