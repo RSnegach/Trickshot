@@ -516,8 +516,8 @@ namespace Trickshot
                 }
             }
 
-            var help = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
-            GUI.Label(new Rect(lx, y + ph - 62f, lw, 20f), "Click an empty node to buy, an owned node to refund it (and anything built on top). Lines show prerequisites; the ringed node is a capstone perk.", help);
+            var help = new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
+            GUI.Label(new Rect(lx, y + ph - 96f, lw, 34f), "Click an empty node to buy, an owned node to refund it (and anything built on top). Lines show prerequisites; the ringed node is a capstone perk.", help);
         }
 
         // One-click build presets, overlaid down the left preview column during the skill
@@ -526,21 +526,32 @@ namespace Trickshot
         void SkillPresetButtons(Rect previewRect)
         {
             var presets = SkillTree.Presets;
-            float pad = 12f;
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
-            // Bottom half of the column so the model head/torso still shows above.
-            float top = previewRect.y + previewRect.height * 0.5f;
-            GUI.Label(new Rect(previewRect.x + pad, top, previewRect.width - pad * 2f, 20f), "QUICK BUILDS", hdr);
+            float edge = 24f, gap = 12f, pad = 10f;
+            // Own column in the empty margin to the LEFT of the preview, not over the model.
+            // Width fills the available margin (capped), right edge just left of the preview.
+            float bw = Mathf.Min(200f, previewRect.x - edge - gap);
+            float colX = Mathf.Max(edge, previewRect.x - gap - bw);
 
-            float bx = previewRect.x + pad, bw = previewRect.width - pad * 2f;
-            float bh = 30f, bgap = 6f, row = top + 26f;
+            float bh = 32f, bgap = 6f;
+            float contentH = 26f + presets.Length * (bh + bgap) + 34f;
+            float colY = previewRect.y + Mathf.Max(0f, (previewRect.height - contentH) * 0.5f);
+
+            // Backing panel.
+            var prevC = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.4f);
+            GUI.DrawTexture(new Rect(colX - pad, colY - pad, bw + pad * 2f, contentH + pad * 2f), Texture2D.whiteTexture);
+            GUI.color = prevC;
+
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+            GUI.Label(new Rect(colX, colY, bw, 20f), "QUICK BUILDS", hdr);
+
+            float row = colY + 26f;
             for (int i = 0; i < presets.Length; i++)
             {
                 var p = presets[i];
                 bool active = PresetMatches(p);
                 var prev = GUI.color;
                 GUI.color = active ? new Color(0.22f, 0.55f, 0.3f) : new Color(0.2f, 0.21f, 0.26f);
-                var r = new Rect(bx, row, bw, bh);
+                var r = new Rect(colX, row, bw, bh);
                 GUI.DrawTexture(r, Texture2D.whiteTexture);
                 if (active) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
                 GUI.color = prev;
@@ -552,7 +563,7 @@ namespace Trickshot
             }
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
-            GUI.Label(new Rect(bx, row + 2f, bw, 34f), "Presets replace your current spend. Tweak nodes after.", note);
+            GUI.Label(new Rect(colX, row + 2f, bw, 34f), "Presets replace your spend. Tweak nodes after.", note);
         }
 
         // A preset "matches" when the owned set is exactly its node list.
@@ -809,9 +820,12 @@ namespace Trickshot
         void NavButtons(float x, float y, float pw, float ph)
         {
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
-            float by = y + ph - 64f;
+            // Anchor Back/Next to the far LEFT and RIGHT of the screen (not the panel), so
+            // they clear the panel content and sit at the window edges.
+            float by = y + ph - 44f;
+            float bw = 150f, edge = 24f;
 
-            if (GUI.Button(new Rect(x + 28f, by, 160f, 44f), "Back", btn))
+            if (GUI.Button(new Rect(edge, by, bw, 44f), "Back", btn))
             {
                 if (_stage == Stage.Body) { enabled = false; _onBack?.Invoke(); }
                 else _stage -= 1;
@@ -819,7 +833,7 @@ namespace Trickshot
 
             // Flow is Body -> Skill -> Name -> Jersey; Jersey is last so it carries Confirm.
             string nextLabel = _stage == Stage.Jersey ? "Confirm" : "Next";
-            if (GUI.Button(new Rect(x + pw - 188f, by, 160f, 44f), nextLabel, btn))
+            if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 44f), nextLabel, btn))
             {
                 if (_stage == Stage.Jersey) { Commit(); enabled = false; _onDone?.Invoke(); }
                 else

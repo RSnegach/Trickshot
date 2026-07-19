@@ -337,14 +337,16 @@ namespace Trickshot
         public const float DribbleReleaseRadius    = 2.6f;  // if the ball ends up beyond this from the carry point, drop the leash
         // Carry point: sits this far in front of the feet at a walk; sprint pushes it out
         // toward the far distance (heavier touch). Height rides at the ball radius.
-        public const float DribbleNearDistance     = 0.55f; // carry distance at a stand/walk
-        public const float DribbleSprintDistance    = 1.35f; // carry distance at full sprint (knocked further ahead)
-        // Follow spring: acceleration = k * offset - c * relativeVel. Higher k = stickier.
-        public const float DribbleFollowAccel      = 26f;    // spring stiffness toward the carry point
-        public const float DribbleFollowDamp       = 7f;     // velocity damping (settles without orbiting)
+        public const float DribbleNearDistance     = 0.35f; // carry distance at a stand/walk (tight to the feet)
+        public const float DribbleSprintDistance    = 0.95f; // carry distance at full sprint (knocked further ahead)
+        // Follow spring: acceleration = k * offset - c * relativeVel. Higher k = stickier,
+        // higher damp = settles without overshooting past the carry point.
+        public const float DribbleFollowAccel      = 34f;    // spring stiffness toward the carry point
+        public const float DribbleFollowDamp       = 11f;    // velocity damping (near-critical: no overshoot/orbit)
         public const float DribbleMaxAccel         = 120f;   // cap on the follow acceleration (m/s^2)
         // A little forward carry velocity so the ball leads with the run instead of lagging.
-        public const float DribbleLeadSpeedFrac    = 0.9f;   // fraction of striker speed fed to the ball as lead
+        // Kept modest so it doesn't fling the ball ahead of the carry point at a walk.
+        public const float DribbleLeadSpeedFrac    = 0.5f;   // fraction of striker speed fed to the ball as lead
         public const float DribbleSpinScale        = 2.2f;   // rolling spin visual per m/s of carry speed
         // Shot on release (kick): the carried ball is launched in the aim/facing direction.
         public const float DribbleShotSpeed        = 17f;    // base release shot speed (m/s), scaled by ShotPowerMul

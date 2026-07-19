@@ -152,10 +152,12 @@ namespace Trickshot
                 }
             }
 
+            // Back/Start anchored to the far left/right screen edges.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
             float by = y + panelH - FootH + 20f;
-            if (GUI.Button(new Rect(x + 30f, by, 180f, 48f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
-            if (GUI.Button(new Rect(x + PanelW - 210f, by, 180f, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
+            float bw = 170f, edge = 24f;
+            if (GUI.Button(new Rect(edge, by, bw, 48f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
+            if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
         }
 
         // Map the sliders onto SimConfig values.
