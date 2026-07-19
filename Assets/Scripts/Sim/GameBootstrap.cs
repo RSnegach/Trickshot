@@ -493,6 +493,9 @@ namespace Trickshot
             striker.SetDribble(dribble);
             dribble.Enabled = false;
 
+            // Celebration emotes (played when the human controls this body + opens the wheel).
+            go.AddComponent<Celebration>().Init(ragdoll);
+
             var f = go.AddComponent<Footballer>();
             // Home (team 0) attacks +Z (HomeGoal), Away attacks -Z, in every role.
             float attackZ = team == 0 ? 1f : -1f;

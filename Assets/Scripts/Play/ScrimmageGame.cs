@@ -37,7 +37,12 @@ namespace Trickshot
         SimConfig.ScrimRole _role;
         Striker _humanStriker;            // outfield role: the striker component on the controlled body
         Dribble _humanDribble;
+        Celebration _controlledCeleb;     // emote component on the controlled body
         Footballer _controlled;           // which footballer the human drives (outfield role)
+
+        // Emote wheel state.
+        bool _wheelOpen, _wheelWasOpen;
+        int _wheelSel = -1;               // hovered slice index, -1 = none
         KeeperController _humanKeeper;    // keeper role
         ActiveRagdoll _humanKeeperRagdoll;
         float _switchLock;
@@ -92,6 +97,10 @@ namespace Trickshot
             _kickoffTimer = SimConfig.ScrimKickoffFreeze;   // brief set-and-ready freeze
             Flash("KICK OFF");
 
+            // Cancel any celebration still running (SwitchTo only cancels when the body
+            // changes; on a reset the same player is often still nearest, so cancel here).
+            if (_controlledCeleb != null) _controlledCeleb.Cancel();
+
             // In outfield role, hand control to the Home player nearest the ball.
             if (_role == SimConfig.ScrimRole.Outfield) SwitchTo(NearestHomeOutfielderToBall());
         }
@@ -138,19 +147,39 @@ namespace Trickshot
             }
             else
             {
-                if (_input.SwitchPressed && _switchLock <= 0f)
-                    SwitchTo(NearestHomeOutfielderToBall(exclude: _controlled));
-                if (_switchLock > 0f) _switchLock -= Time.deltaTime;
+                // Emote wheel: held open with B. While open (or an emote is playing) the
+                // player's normal control is suspended so the two don't fight.
+                _wheelOpen = _input.EmoteHeld;
+                bool emoting = _wheelOpen || (_controlledCeleb != null && _controlledCeleb.Playing);
+                if (_wheelOpen)
+                {
+                    UpdateWheelSelection();
+                    // Stand still while browsing the wheel (Striker.Tick is suspended, so it
+                    // won't refresh MoveInput; without this the last velocity keeps gliding).
+                    if (_controlled != null && _controlled.Ragdoll != null)
+                        _controlled.Ragdoll.MoveInput = Vector3.zero;
+                }
+                // Releasing B with a slice selected performs that emote.
+                if (!_input.EmoteHeld && _wheelWasOpen && _wheelSel >= 0 && _controlledCeleb != null)
+                    _controlledCeleb.Play(Celebration.Menu[_wheelSel].e);
+                _wheelWasOpen = _wheelOpen;
 
-                if (_humanStriker != null) _humanStriker.Tick();
+                if (!emoting)
+                {
+                    if (_input.SwitchPressed && _switchLock <= 0f)
+                        SwitchTo(NearestHomeOutfielderToBall(exclude: _controlled));
+                    if (_switchLock > 0f) _switchLock -= Time.deltaTime;
 
-                // Passing (only meaningful when controlling an outfielder).
-                if (_input.PassGroundPressed) TryPass(lofted: false);
-                else if (_input.PassLoftedPressed) TryPass(lofted: true);
+                    if (_humanStriker != null) _humanStriker.Tick();
 
-                // Auto-switch to whoever's now nearest the ball (defense especially), unless
-                // the human's current player is carrying / very close to the ball.
-                MaybeAutoSwitch();
+                    // Passing (only meaningful when controlling an outfielder).
+                    if (_input.PassGroundPressed) TryPass(lofted: false);
+                    else if (_input.PassLoftedPressed) TryPass(lofted: true);
+
+                    // Auto-switch to whoever's now nearest the ball, unless the human's
+                    // current player is carrying / very close to the ball.
+                    MaybeAutoSwitch();
+                }
             }
 
             // --- AI: every footballer that isn't the human-controlled one ---
@@ -175,6 +204,68 @@ namespace Trickshot
 
         // Teammates of a given team (for AI spacing). Read-only view.
         public List<Footballer> TeamList(int team) => team == 0 ? _home : _away;
+
+        // ------------------------------------------------------------- emote wheel
+        // Pick the hovered slice from the mouse position relative to screen centre. Mouse
+        // is a locked FPS pointer, so we accumulate its delta into a virtual cursor while
+        // the wheel is open; a big enough push toward a slice selects it.
+        Vector2 _wheelCursor;
+        void UpdateWheelSelection()
+        {
+            if (!_wheelWasOpen) _wheelCursor = Vector2.zero;   // recentre on open
+            _wheelCursor += _input.Look * 0.15f;
+            _wheelCursor = Vector2.ClampMagnitude(_wheelCursor, 120f);
+
+            if (_wheelCursor.magnitude < 30f) { _wheelSel = -1; return; }   // dead zone at centre
+            // Angle: 0 = up, clockwise. Slice 0 at the top.
+            float ang = Mathf.Atan2(_wheelCursor.x, _wheelCursor.y) * Mathf.Rad2Deg;
+            if (ang < 0f) ang += 360f;
+            int n = Celebration.Menu.Length;
+            _wheelSel = Mathf.FloorToInt((ang + 360f / n * 0.5f) % 360f / (360f / n));
+            if (_wheelSel >= n) _wheelSel = 0;
+        }
+
+        void DrawEmoteWheel()
+        {
+            float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
+            float rad = 150f;
+            int n = Celebration.Menu.Length;
+
+            // Dim backdrop.
+            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.35f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            var lbl = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            for (int i = 0; i < n; i++)
+            {
+                float ang = (360f / n * i) * Mathf.Deg2Rad;   // 0 = up
+                float sx = cx + Mathf.Sin(ang) * rad;
+                float sy = cy - Mathf.Cos(ang) * rad;
+                bool sel = i == _wheelSel;
+                float bw = 128f, bh = 40f;
+                var r = new Rect(sx - bw * 0.5f, sy - bh * 0.5f, bw, bh);
+                GUI.color = sel ? new Color(0.22f, 0.6f, 0.32f) : new Color(0.12f, 0.13f, 0.16f, 0.95f);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                if (sel) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawOutline(r, 2f); }
+                GUI.color = Color.white;
+                lbl.normal.textColor = sel ? Color.white : new Color(0.85f, 0.85f, 0.88f);
+                GUI.Label(r, Celebration.Menu[i].name, lbl);
+            }
+            GUI.color = prev;
+
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(cx - 150f, cy - 10f, 300f, 20f), "Aim + release B", hint);
+        }
+
+        static void DrawOutline(Rect r, float t)
+        {
+            var tex = Texture2D.whiteTexture;
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, t), tex);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - t, r.width, t), tex);
+            GUI.DrawTexture(new Rect(r.x, r.y, t, r.height), tex);
+            GUI.DrawTexture(new Rect(r.xMax - t, r.y, t, r.height), tex);
+        }
 
         void UpdatePossession()
         {
@@ -203,13 +294,15 @@ namespace Trickshot
         {
             if (f == null || f == _controlled) return;
 
-            // Detach the old body: its Striker/Dribble go dormant (AI takes it over).
+            // Detach the old body: its Striker/Dribble go dormant (AI takes it over), and
+            // any in-progress emote is cancelled.
             if (_controlled != null)
             {
                 var s = _controlled.GetComponent<Striker>();
                 if (s != null) s.ControlEnabled = false;
                 var d = _controlled.GetComponent<Dribble>();
                 if (d != null) d.Enabled = false;
+                if (_controlledCeleb != null) _controlledCeleb.Cancel();
             }
 
             _controlled = f;
@@ -217,6 +310,7 @@ namespace Trickshot
 
             _humanStriker = f.GetComponent<Striker>();
             _humanDribble = f.GetComponent<Dribble>();
+            _controlledCeleb = f.GetComponent<Celebration>();
             if (_humanStriker != null) _humanStriker.ControlEnabled = true;
             if (_humanDribble != null) _humanDribble.Enabled = true;
 
@@ -372,7 +466,7 @@ namespace Trickshot
 
             string help = _role == SimConfig.ScrimRole.Keeper
                 ? "Keeper:  A/D move   Space/LMB/RMB dive   Reset: R"
-                : "Move WASD   Camera Mouse   Shoot LMB/RMB   Q pass   E lofted pass   F switch   V ball cam   R reset";
+                : "Move WASD   Camera Mouse   Shoot LMB/RMB   Q pass   E lofted pass   F switch   B emote   V ball cam   R reset";
             GUI.Label(new Rect(8, Screen.height - 26, Screen.width - 16, 22), help, st);
 
             if (_flashTime > 0f)
@@ -380,6 +474,8 @@ namespace Trickshot
                 var c = big.normal.textColor; c.a = Mathf.Clamp01(_flashTime / 1.6f); big.normal.textColor = c;
                 GUI.Label(new Rect(0, 60, Screen.width, 44), _flash, big);
             }
+
+            if (_wheelOpen) DrawEmoteWheel();
         }
     }
 }
