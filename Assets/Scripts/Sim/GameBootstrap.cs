@@ -205,7 +205,8 @@ namespace Trickshot
             reticle.Init(Make.Glow(new Color(1f, 0.85f, 0.2f)));
 
             // Player striker: scaled to the customized build and wearing the painted jersey.
-            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
+            // Striker mode is shooting-on-goal, so dribbling stays OFF (default).
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out _);
 
             // AI keeper: an active-ragdoll goaltender (with gloves) that shuffles + dives.
             Goalkeeper keeper = null;
@@ -248,9 +249,10 @@ namespace Trickshot
         // ---- Shared builders reused by the challenge modes ----
 
         // Builds the player striker (ragdoll + Striker + kick detectors), scaled to the
-        // customized height/weight and wearing the painted jersey. Returns both.
+        // customized height/weight and wearing the painted jersey. Returns the striker,
+        // ragdoll, and its Dribble component (disabled by default; the mode opts in).
         void BuildStrikerPlayer(Transform root, BallController ball,
-                                out Striker striker, out ActiveRagdoll ragdoll)
+                                out Striker striker, out ActiveRagdoll ragdoll, out Dribble dribble)
         {
             var strikerGo = new GameObject("Striker");
             strikerGo.transform.SetParent(root, true);
@@ -266,7 +268,9 @@ namespace Trickshot
 
             // Arcade close-control dribbling: soft-magnet the ball to the feet, release on
             // a kick. Lives on the striker so it ticks with him and tears down with the match.
-            var dribble = strikerGo.AddComponent<Dribble>();
+            // DISABLED by default - only a real-match mode enables it (dribble.Enabled = true);
+            // the goal-shooting modes leave it off so the ball never snaps to the feet.
+            dribble = strikerGo.AddComponent<Dribble>();
             dribble.Init(GetInput(), striker, ragdoll, ball);
             striker.SetDribble(dribble);   // striker slows + turns slower while carrying
         }
@@ -322,7 +326,11 @@ namespace Trickshot
                                 BallController ball, Arena.Refs arena)
         {
             BuildCrosser(root, ball, out var crosser, out var crosserRagdoll, out var launch, out var reticle);
-            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
+
+            // Freeplay is the open sandbox: enable dribbling there. Time Trial / Accuracy are
+            // score-on-goal, so they leave it off (the ball never sticks to the feet).
+            dribble.Enabled = mode == GameMode.Freeplay;
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
             ball.SetCamera(gameCam);   // auto ball-cam on a shot
@@ -344,7 +352,11 @@ namespace Trickshot
         void BuildFreeKickMode(Transform root, Camera cam, GameCamera gameCam,
                                BallController ball, Arena.Refs arena)
         {
-            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll);
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
+            // Set piece: dribbling stays OFF, and the set-piece flag guarantees the ball
+            // parked at the spot is never auto-captured to the feet as the taker walks up.
+            dribble.Enabled = false;
+            dribble.SetPieceActive = true;
             var keeper = BuildAiKeeper(root, ball, out var keeperRagdoll);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);

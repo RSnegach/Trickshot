@@ -31,6 +31,16 @@ namespace Trickshot
         bool _carrying;
         float _cooldown;        // after a shot, don't re-capture for a moment
 
+        // Master switch: dribbling is only ENABLED in modes that want it (a real match).
+        // Shooting-on-goal modes (Striker, challenges, keeper) leave this false so the ball
+        // never snaps to the feet. Off by default; the mode builder opts in.
+        public bool Enabled = false;
+
+        // Set-piece suspension: a free kick / penalty (or any dead-ball setup) turns this on
+        // so the ball parked at the spot is NOT auto-captured while the taker walks up. The
+        // game mode clears it once the kick is taken / play is live again.
+        public bool SetPieceActive = false;
+
         public bool Carrying => _carrying;
 
         public void Init(GameInput input, Striker striker, ActiveRagdoll ragdoll, BallController ball)
@@ -64,6 +74,12 @@ namespace Trickshot
         void FixedUpdate()
         {
             if (_ball == null || _ragdoll == null || _ragdoll.Pelvis == null) return;
+
+            // Off entirely unless the mode enables dribbling, and never during a set piece
+            // (free kick / penalty) - the ball must stay parked at the spot, not snap to the
+            // feet. Drop any carry and bail so nothing captures.
+            if (!Enabled || SetPieceActive) { StopCarry(); return; }
+
             if (_cooldown > 0f) _cooldown -= Time.fixedDeltaTime;
 
             // Can't dribble airborne or mid-trick (dive/bicycle own the body + ball).
