@@ -196,7 +196,7 @@ namespace Trickshot
             float speed = SimConfig.DribbleShotSpeed * PlayerProfile.ShotPowerMul;
 
             // Same sight-cone gate as a struck shot: only assist when facing the goal.
-            Vector3 toGoal = SimConfig.GoalCenter - _ragdoll.Pelvis.position; toGoal.y = 0f;
+            Vector3 toGoal = SimConfig.AttackGoalCenter - _ragdoll.Pelvis.position; toGoal.y = 0f;
             Vector3 face = _striker.FacingForward;
             float dot = toGoal.sqrMagnitude > 0.01f ? Vector3.Dot(face, toGoal.normalized) : -1f;
             bool facingGoal = dot >= SimConfig.AssistFacingDot;        // tight cone: aim assist

@@ -164,6 +164,9 @@ namespace Trickshot
             TrackGoals();
         }
 
+        // Teammates of a given team (for AI spacing). Read-only view.
+        public List<Footballer> TeamList(int team) => team == 0 ? _home : _away;
+
         void UpdatePossession()
         {
             // Nearest outfielder of either team to the ball claims possession for AI logic.

@@ -52,13 +52,12 @@ namespace Trickshot
 
             Vector3 me = Pos; me.y = 0f;
             Vector3 ball = _ball.transform.position; ball.y = 0f;
-            bool weAttackPlus = AttackZ > 0f;
-            bool ballInOurAttackingHalf = weAttackPlus ? ball.z > 0f : ball.z < 0f;
+            bool teamHasBall = _game.PossessionTeam == Team;
 
             Vector3 target;
             if (isClosest)
             {
-                // Chase the ball; once on it, kick.
+                // Only the closest man presses the ball; once on it, act.
                 target = ball;
                 float dist = Vector3.Distance(me, ball);
                 if (dist < SimConfig.AiChaseStopDist + SimConfig.BallRadius + 0.3f && _kickCooldown <= 0f)
@@ -66,28 +65,46 @@ namespace Trickshot
             }
             else
             {
-                // Support / mark. Attacking team: spread ahead of the ball toward goal.
-                // Defending: sit goal-side, between ball and own goal.
-                bool teamHasBall = _game.PossessionTeam == Team;
-                if (teamHasBall)
-                {
-                    float sideSign = (GetInstanceID() % 2 == 0) ? 1f : -1f;
-                    target = ball + new Vector3(sideSign * SimConfig.AiSupportSpread, 0f, AttackZ * SimConfig.AiSupportSpread);
-                }
-                else
-                {
-                    Vector3 toOwn = (OwnGoal - ball); toOwn.y = 0f;
-                    target = ball + toOwn.normalized * (SimConfig.AiSupportSpread * 0.7f);
-                }
-                // Keep formation width so they don't all clump on the ball.
-                target = Vector3.Lerp(target, _homeSpot, 0.25f);
+                // Everyone else holds a ROLE SLOT: their kickoff anchor shifted toward the
+                // ball's end of the pitch, so the shape slides with play but stays spread.
+                // Attacking: push the anchor forward (toward the target goal). Defending:
+                // drop it goal-side (toward own goal). This keeps width instead of clumping.
+                float shift = teamHasBall ? SimConfig.AiSupportSpread : -SimConfig.AiSupportSpread * 0.8f;
+                Vector3 anchor = _homeSpot + new Vector3(0f, 0f, AttackZ * shift);
+                // Slide the whole line toward the ball's z a little so they don't hang back.
+                anchor.z = Mathf.Lerp(anchor.z, ball.z, 0.35f);
+                // Track the ball's x band so the nearest-side players cover it.
+                anchor.x = Mathf.Lerp(anchor.x, ball.x, 0.2f);
+                target = anchor;
             }
+
+            // Inter-player spacing: push away from the nearest teammate so they don't stack.
+            target += Separation(me);
 
             // Clamp inside the pitch.
             target.x = Mathf.Clamp(target.x, -_game.HalfWidth + 0.5f, _game.HalfWidth - 0.5f);
             target.z = Mathf.Clamp(target.z, -_game.HalfLength + 0.5f, _game.HalfLength - 0.5f);
 
             Drive(me, target);
+        }
+
+        // Small steering offset that pushes this player away from any teammate within a
+        // spacing radius, so outfielders keep their distance instead of piling on the ball.
+        Vector3 Separation(Vector3 me)
+        {
+            const float radius = 3.5f;
+            Vector3 push = Vector3.zero;
+            var team = _game.TeamList(Team);
+            for (int i = 0; i < team.Count; i++)
+            {
+                var o = team[i];
+                if (o == null || o == this || o.IsKeeper) continue;
+                Vector3 d = me - o.Pos; d.y = 0f;
+                float dist = d.magnitude;
+                if (dist > 0.01f && dist < radius)
+                    push += d / dist * (radius - dist);   // stronger the closer they are
+            }
+            return push;
         }
 
         // AI keeper: hover just in front of the OWN goal line, shadow the ball's x within
@@ -140,8 +157,8 @@ namespace Trickshot
             RunGait(speed / Mathf.Max(0.1f, SimConfig.AiOutfieldSpeed));
         }
 
-        // Decide what to do with the ball when on it: shoot if near the target goal,
-        // otherwise drive it forward (a firm touch toward goal). Kicks via the ball.
+        // Decide what to do with the ball when on it: SHOOT if in range of the target
+        // goal; else PASS to an open teammate further forward; else DRIVE it up the pitch.
         void TryKick(Vector3 me, Vector3 ball)
         {
             _kickCooldown = 0.5f;
@@ -151,16 +168,46 @@ namespace Trickshot
 
             if (goalDist < SimConfig.AiShootRange)
             {
-                // Shoot: firm and slightly lofted at the goal.
                 Vector3 v = (dir + Vector3.up * 0.18f).normalized * (SimConfig.DribbleShotSpeed * 0.95f);
                 _ball.KickTo(v);
+                return;
             }
-            else
+
+            // Look for a teammate meaningfully further toward goal to pass to.
+            var mate = BestForwardMate(ball);
+            if (mate != null)
             {
-                // Drive forward: a controlled push up the pitch.
-                Vector3 v = dir * SimConfig.AiKickBoneImpulse + Vector3.up * 0.4f;
+                Vector3 to = mate.Pos - ball; to.y = 0f;
+                float d = to.magnitude;
+                Vector3 pdir = to / Mathf.Max(0.01f, d);
+                // Ground pass, a touch of lift, speed scaled to distance.
+                Vector3 v = pdir * Mathf.Clamp(d * 1.1f, 8f, SimConfig.PassGroundSpeed + 6f) + Vector3.up * 1.2f;
                 _ball.KickTo(v);
+                return;
             }
+
+            // Drive forward: a controlled push up the pitch.
+            _ball.KickTo(dir * SimConfig.AiKickBoneImpulse + Vector3.up * 0.4f);
+        }
+
+        // A teammate who is clearly ahead (toward the target goal) and not too far, best in
+        // line with the forward direction. Returns null if nobody good to pass to.
+        Footballer BestForwardMate(Vector3 ball)
+        {
+            var team = _game.TeamList(Team);
+            Footballer best = null; float bestScore = 0.35f;   // require a decent forward option
+            foreach (var f in team)
+            {
+                if (f == null || f == this || f.IsKeeper) continue;
+                Vector3 to = f.Pos - ball; to.y = 0f;
+                float d = to.magnitude;
+                if (d < 4f || d > SimConfig.PassMaxRange) continue;
+                // Must be forward of the ball (toward goal) by the attack sign.
+                if ((f.Pos.z - ball.z) * AttackZ < 2f) continue;
+                float fwdness = Vector3.Dot(to.normalized, new Vector3(0f, 0f, AttackZ));
+                if (fwdness > bestScore) { bestScore = fwdness; best = f; }
+            }
+            return best;
         }
 
         // Cosmetic alternating-leg run + arm pump (same shape as the striker gait).
