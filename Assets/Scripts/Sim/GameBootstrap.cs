@@ -150,6 +150,9 @@ namespace Trickshot
 
             _cam.backgroundColor = StadiumStyle.Active.Sky;
 
+            // Default the aim-target to the training goal; scrimmage repoints it.
+            SimConfig.AttackGoalCenter = SimConfig.GoalCenter;
+
             // Scrimmage builds its OWN two-goal, fully-walled pitch (not the single-goal
             // training arena / regulation pitch / stadium), then spawns teams.
             if (mode == GameMode.Scrimmage) { BuildScrimmageMode(root, camGo); return; }
@@ -385,6 +388,8 @@ namespace Trickshot
         {
             int perSide = SimConfig.ScrimmagePerSide;
             var arena = ScrimmageArena.Build(root, perSide);
+            // The human (Home) attacks the +Z goal; aim assist / dribble / ball-cam target it.
+            SimConfig.AttackGoalCenter = arena.homeGoalCenter;
 
             // Ball.
             var ballGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);

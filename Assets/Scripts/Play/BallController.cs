@@ -116,7 +116,7 @@ namespace Trickshot
             if (speed < SimConfig.AssistMinSpeed) return;
             if (v.z <= 0.1f) return; // only help shots already heading toward the goal (+Z)
 
-            Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
+            Vector3 toGoal = SimConfig.AttackGoalCenter - Rb.position; toGoal.y = 0f;
             if (toGoal.sqrMagnitude < 0.01f) return;
             // Accuracy = how strongly the shot is steered toward goal, set per contact
             // (strong foot full, weak foot half, body low, header high).
@@ -172,7 +172,7 @@ namespace Trickshot
             // aims it goalward, so it should keep its assist. Treat it as facing the goal.
             bool bicycleAttempt = striker.TrickActive;
             Vector3 faceFwd = ragdoll.FacingRotation * Vector3.forward; faceFwd.y = 0f;
-            Vector3 faceToGoal = SimConfig.GoalCenter - ragdoll.Pelvis.transform.position; faceToGoal.y = 0f;
+            Vector3 faceToGoal = SimConfig.AttackGoalCenter - ragdoll.Pelvis.transform.position; faceToGoal.y = 0f;
             float facingDot = (faceToGoal.sqrMagnitude > 0.01f && faceFwd.sqrMagnitude > 0.01f)
                               ? Vector3.Dot(faceFwd.normalized, faceToGoal.normalized) : -1f;
             bool facingGoal = bicycleAttempt || facingDot >= SimConfig.AssistFacingDot;
@@ -260,7 +260,7 @@ namespace Trickshot
                 // real pace, floored so even a soft header flies. Vertical is largely
                 // flattened so it drives in low and hard. Only when FACING the goal; a
                 // header while turned away is a plain deflection along its incoming line.
-                Vector3 toGoal = SimConfig.GoalCenter - Rb.position; toGoal.y = 0f;
+                Vector3 toGoal = SimConfig.AttackGoalCenter - Rb.position; toGoal.y = 0f;
                 if (toGoal.sqrMagnitude < 0.01f) toGoal = Vector3.forward;
                 toGoal.Normalize();
 

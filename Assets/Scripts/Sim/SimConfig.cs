@@ -39,6 +39,10 @@ namespace Trickshot
 
         // Goal sits at +Z end. Crosser starts near a wing at -Z / +X corner.
         public static readonly Vector3 GoalCenter    = new Vector3(0f, 0f, FieldLength * 0.5f);
+        // The goal the human striker is AIMING AT. Aim assist, dribble shots, and the auto
+        // ball-cam steer toward this. Defaults to the training goal; scrimmage repoints it
+        // to the actual attacked goal (at the pitch half-length) so shots aren't aimed short.
+        public static Vector3 AttackGoalCenter = new Vector3(0f, 0f, FieldLength * 0.5f);
         public static readonly Vector3 CrosserStart   = new Vector3(9.5f, 0f, FieldLength * 0.5f - 5.5f);
         public static readonly Vector3 StrikerStart   = new Vector3(-1.5f, 0f, FieldLength * 0.5f - 8.5f);
         public static readonly Vector3 KeeperStart    = new Vector3(0f, 0f, FieldLength * 0.5f - 0.6f);
