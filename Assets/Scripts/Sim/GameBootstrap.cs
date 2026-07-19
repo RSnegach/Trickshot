@@ -16,7 +16,7 @@ namespace Trickshot
     {
         // Hidden 4th role. Off by default; flip to spawn a dormant Sniper scaffold
         // (see Sniper.cs). Even when spawned it does nothing until sniper.Active = true.
-        const bool EnableSniper = false;
+        static readonly bool EnableSniper = false;   // static readonly (not const) so the guarded block isn't flagged unreachable
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoStart()
