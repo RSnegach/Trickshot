@@ -331,7 +331,8 @@ namespace Trickshot
             _mode = Trick.Dive;
             _spaceHeld = 0f;
             _diveAir = 0f;
-            _proneTimer = SimConfig.DiveProneTime;
+            _proneTimer = Mathf.Max(SimConfig.DiveProneMinTime,
+                                    SimConfig.DiveProneTime * PlayerProfile.RecoveryTimeMul);
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;   // preserve the launch, don't steer it
