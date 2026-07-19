@@ -301,13 +301,13 @@ namespace Trickshot
             // _accuracyMul (set above per body part) drives the goal-steer during the window.
 
             // Auto ball-cam: a dead trap already returned above, so this is a real strike
-            // (foot shot or header). Only cut to ball-cam if it left with genuine SHOT pace
-            // toward the goal, so a slow dribble touch or a backward knock doesn't trigger.
-            if (_cam != null)
+            // (foot shot or header). Cut to ball-cam only for a genuine SHOT taken IN THE
+            // SIGHT CONE (facing the goal, same gate as the aim assist) and hit with real
+            // pace. A struck ball while turned side-on / away, or a slow touch, doesn't cut.
+            if (_cam != null && facingGoal)
             {
                 Vector3 outV = Rb.linearVelocity; outV.y = 0f;
-                bool towardGoal = (SimConfig.GoalCenter.z - Rb.position.z) * outV.z > 0f;
-                if (towardGoal && outV.magnitude >= SimConfig.ShotCamMinSpeed)
+                if (outV.magnitude >= SimConfig.ShotCamMinSpeed)
                     _cam.PulseBallCam(SimConfig.ShotCamSeconds);
             }
         }
