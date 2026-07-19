@@ -108,6 +108,7 @@ namespace Trickshot
         {
             _carrying = true;
             _ball.DribbleHold = true;   // BallController skips its strike/trap logic while held
+            IgnoreStrikerCollision(true);  // the SPRING owns the ball; feet can't punt it
         }
 
         void StopCarry()
@@ -115,6 +116,19 @@ namespace Trickshot
             if (!_carrying) return;
             _carrying = false;
             _ball.DribbleHold = false;
+            IgnoreStrikerCollision(false);
+        }
+
+        // Toggle physical collision between the ball and the striker's own body colliders.
+        // While carrying, the run/walk gait would otherwise boot the held ball around; with
+        // collisions off, only the follow spring moves it, so the carry stays glued.
+        void IgnoreStrikerCollision(bool ignore)
+        {
+            var ballCol = _ball.GetComponent<Collider>();
+            if (ballCol == null) return;
+            var own = _ragdoll.OwnColliders;
+            for (int i = 0; i < own.Count; i++)
+                if (own[i] != null) Physics.IgnoreCollision(ballCol, own[i], ignore);
         }
 
         // Spring the ball toward the carry point with a capped acceleration, plus a little
@@ -145,23 +159,13 @@ namespace Trickshot
             }
         }
 
-        // A kick request: either leg button pressed this frame, or a leg bone is swinging
-        // fast enough near the ball to count as a real strike.
+        // A kick request: a leg button (LMB/RMB) pressed this frame. ONLY the button
+        // breaks the leash - the run/walk gait swings the feet past any speed threshold,
+        // so a fast-swing test would boot the ball just from moving. Button-only means
+        // walking and running with the ball is a pure carry; you shoot only on purpose.
         bool WantsKick()
         {
-            if (_input != null && (_input.LeftClickPressed || _input.RightClickPressed)) return true;
-
-            // Fast leg swing detection: any foot/calf moving faster than the kick threshold.
-            return BoneSpeed(Bone.FootR) > SimConfig.DribbleKickBoneSpeed
-                || BoneSpeed(Bone.FootL) > SimConfig.DribbleKickBoneSpeed
-                || BoneSpeed(Bone.CalfR) > SimConfig.DribbleKickBoneSpeed
-                || BoneSpeed(Bone.CalfL) > SimConfig.DribbleKickBoneSpeed;
-        }
-
-        float BoneSpeed(Bone b)
-        {
-            var rb = _ragdoll.Rb(b);
-            return rb != null ? rb.linearVelocity.magnitude : 0f;
+            return _input != null && (_input.LeftClickPressed || _input.RightClickPressed);
         }
 
         // Release the leash and launch the ball as a shot along the facing/aim direction,
