@@ -49,7 +49,9 @@ namespace Trickshot
         string _flash = "";
         float _flashTime;
         bool _resolved;                   // goal handled this dead-ball
-        float _kickoffTimer;
+        float _kickoffTimer;              // brief freeze after kickoff/goal before play + scoring
+        float _matchClock;                // counts up, seconds
+        bool _clockRunning;
 
         public void Configure(GameInput input, BallController ball, GameCamera cam,
                               ScrimmageArena.Refs arena, SimConfig.ScrimRole role,
@@ -80,13 +82,15 @@ namespace Trickshot
             foreach (var f in _all) if (f != null) f.ResetTo(f == _homeKeeper || f == _awayKeeper ? KeeperSpot(f) : SpawnSpot(f));
             if (_humanKeeper != null && _humanKeeperRagdoll != null)
             {
+                // Human keeper defends the -Z (Away) goal - 1m in front of that line.
                 _humanKeeper.ForceRecover();
-                _humanKeeperRagdoll.ResetTo(new Vector3(0f, 0f, HomeGoal.z - 1.0f),
+                _humanKeeperRagdoll.ResetTo(new Vector3(0f, 0f, AwayGoal.z + 1.0f),
                                             Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up));
             }
             _ball.ResetTo(new Vector3(0f, SimConfig.ScrimKickoffBallHeight, 0f));
             _resolved = false;
-            _kickoffTimer = 0.5f;
+            _kickoffTimer = SimConfig.ScrimKickoffFreeze;   // brief set-and-ready freeze
+            Flash("KICK OFF");
 
             // In outfield role, hand control to the Home player nearest the ball.
             if (_role == SimConfig.ScrimRole.Outfield) SwitchTo(NearestHomeOutfielderToBall());
@@ -120,6 +124,11 @@ namespace Trickshot
             if (_input.BallCamPressed) _cam.ToggleBallCam();
             if (_kickoffTimer > 0f) _kickoffTimer -= Time.deltaTime;
 
+            // Match clock runs once the kickoff freeze clears.
+            _clockRunning = _kickoffTimer <= 0f;
+            if (_clockRunning) _matchClock += Time.deltaTime;
+
+            StuckBallWatchdog();
             UpdatePossession();
 
             // --- Human control ---
@@ -287,6 +296,28 @@ namespace Trickshot
             return best;
         }
 
+        // If the ball goes nearly still for a while (jammed against a wall / corner) with no
+        // goal, nudge it back to centre so play resumes. Belt-and-braces; the full walls
+        // already keep it in.
+        float _stuckTimer;
+        void StuckBallWatchdog()
+        {
+            if (_kickoffTimer > 0f) { _stuckTimer = 0f; return; }
+            Vector3 c = _ball.transform.position;
+            bool nearWall = Mathf.Abs(c.x) > HalfWidth - 1.2f || Mathf.Abs(c.z) > HalfLength - 1.2f;
+            bool slow = _ball.Speed < SimConfig.ScrimStuckSpeed;
+            if (nearWall && slow) _stuckTimer += Time.deltaTime; else _stuckTimer = 0f;
+            if (_stuckTimer > SimConfig.ScrimStuckTime)
+            {
+                _stuckTimer = 0f;
+                // Drop it in from the nearest touchline point, a little toward centre.
+                Vector3 spot = new Vector3(Mathf.Clamp(c.x, -HalfWidth + 3f, HalfWidth - 3f), SimConfig.ScrimKickoffBallHeight,
+                                           Mathf.Clamp(c.z, -HalfLength + 3f, HalfLength - 3f));
+                _ball.ResetTo(spot);
+                Flash("BALL IN");
+            }
+        }
+
         // ------------------------------------------------------------- scoring
         void TrackGoals()
         {
@@ -316,9 +347,12 @@ namespace Trickshot
         {
             _resolved = true;
             if (awayScored) { _awayScore++; Flash("AWAY SCORES!"); }
-            else { _homeScore++; Flash("GOAL!  HOME SCORES!"); CrowdCheer.Celebrate(); }
-            _kickoffTimer = 1.5f;
-            Invoke(nameof(Kickoff), 1.6f);
+            else { _homeScore++; Flash("GOAL!  HOME SCORES!"); }
+            CrowdCheer.Celebrate();
+            // Freeze scoring, celebrate, then re-kickoff.
+            _kickoffTimer = 3f;
+            CancelInvoke(nameof(Kickoff));
+            Invoke(nameof(Kickoff), 3f);
         }
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
@@ -332,6 +366,9 @@ namespace Trickshot
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
 
             GUI.Label(new Rect(0, 10, Screen.width, 34), $"HOME  {_homeScore} - {_awayScore}  AWAY", score);
+            int mm = Mathf.FloorToInt(_matchClock / 60f), ss = Mathf.FloorToInt(_matchClock % 60f);
+            var clock = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
+            GUI.Label(new Rect(0, 40, Screen.width, 22), $"{mm}:{ss:00}", clock);
 
             string help = _role == SimConfig.ScrimRole.Keeper
                 ? "Keeper:  A/D move   Space/LMB/RMB dive   Reset: R"

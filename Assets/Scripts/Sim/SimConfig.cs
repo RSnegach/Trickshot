@@ -398,6 +398,11 @@ namespace Trickshot
         // Player (human) attacks +Z and defends -Z, matching the Striker/KeeperController
         // hardcoded facing. The team attacking +Z is "Home"; attacking -Z is "Away".
         public const float ScrimKickoffBallHeight = 0.3f;
+        public const float ScrimKickoffFreeze     = 1.2f;   // ball/scoring frozen this long after kickoff/goal
+        // Out-of-play safety: if the ball somehow sits nearly still against a wall for this
+        // long, drop it back to a sensible in-play spot so a match can't stall.
+        public const float ScrimStuckTime         = 4f;
+        public const float ScrimStuckSpeed        = 0.5f;   // "nearly still" threshold (m/s)
 
         // Passing (controlled outfielder). A pass picks the teammate nearest the aim ray.
         public const float PassGroundSpeed   = 12f;   // ground (rolled) pass base speed (m/s), scaled by ShotPowerMul
