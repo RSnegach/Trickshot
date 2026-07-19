@@ -443,33 +443,33 @@ namespace Trickshot
             }
 
             // Detail strip for the selected node.
-            var sel = _selNode != null ? SkillTree.ById(_selNode) : null;
-            if (sel != null && sel.Cat == _skillCat)
+            var selNode = _selNode != null ? SkillTree.ById(_selNode) : null;
+            if (selNode != null && selNode.Cat == _skillCat)
             {
                 float dy = y + ph - 124f;
                 var box = new Rect(lx, dy, lw, 58f);
                 var prev = GUI.color; GUI.color = new Color(0.12f, 0.13f, 0.16f); GUI.DrawTexture(box, Texture2D.whiteTexture); GUI.color = prev;
                 var nameSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
                 var descSt = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = new Color(0.85f,0.85f,0.88f) } };
-                string tag = sel.Perk != null ? "  [CAPSTONE PERK]" : "";
-                GUI.Label(new Rect(box.x + 10f, box.y + 5f, lw - 130f, 18f), sel.Name + tag, nameSt);
-                GUI.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), sel.Desc, descSt);
+                string tag = selNode.Perk != null ? "  [CAPSTONE PERK]" : "";
+                GUI.Label(new Rect(box.x + 10f, box.y + 5f, lw - 130f, 18f), selNode.Name + tag, nameSt);
+                GUI.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), selNode.Desc, descSt);
 
                 var actBtn = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
                 var actRect = new Rect(box.xMax - 112f, box.y + 15f, 100f, 28f);
-                if (SkillTree.Owned.Contains(sel.Id))
+                if (SkillTree.Owned.Contains(selNode.Id))
                 {
-                    bool canRefund = SkillTree.CanRefund(sel);
+                    bool canRefund = SkillTree.CanRefund(selNode);
                     GUI.enabled = canRefund;
-                    if (GUI.Button(actRect, canRefund ? $"Refund {sel.Cost}" : "Locked in", actBtn)) SkillTree.Refund(sel);
+                    if (GUI.Button(actRect, canRefund ? $"Refund {selNode.Cost}" : "Locked in", actBtn)) SkillTree.Refund(selNode);
                     GUI.enabled = true;
                 }
                 else
                 {
-                    bool canBuy = SkillTree.CanBuy(sel);
+                    bool canBuy = SkillTree.CanBuy(selNode);
                     GUI.enabled = canBuy;
-                    bool needReq = !string.IsNullOrEmpty(sel.Requires) && !SkillTree.Owned.Contains(sel.Requires);
-                    if (GUI.Button(actRect, needReq ? "Needs prereq" : $"Buy {sel.Cost}", actBtn)) SkillTree.Buy(sel);
+                    bool needReq = !string.IsNullOrEmpty(selNode.Requires) && !SkillTree.Owned.Contains(selNode.Requires);
+                    if (GUI.Button(actRect, needReq ? "Needs prereq" : $"Buy {selNode.Cost}", actBtn)) SkillTree.Buy(selNode);
                     GUI.enabled = true;
                 }
             }
