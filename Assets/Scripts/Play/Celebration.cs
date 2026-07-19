@@ -12,8 +12,8 @@ namespace Trickshot
     /// </summary>
     public class Celebration : MonoBehaviour
     {
-        // The six wheel emotes. Names are shown on the wheel.
-        public enum Emote { FistPump, KneeSlide, Backflip, Wave, TPose, Griddy }
+        // The wheel emotes. Names are shown on the wheel.
+        public enum Emote { FistPump, KneeSlide, Backflip, Wave, TPose, Griddy, Bow, PushUps, Robot }
         public static readonly (Emote e, string name)[] Menu =
         {
             (Emote.FistPump,  "Fist Pump"),
@@ -22,6 +22,9 @@ namespace Trickshot
             (Emote.Wave,      "Wave"),
             (Emote.TPose,     "T-Pose"),
             (Emote.Griddy,    "Griddy"),
+            (Emote.Bow,       "Bow"),
+            (Emote.PushUps,   "Push-Ups"),
+            (Emote.Robot,     "Robot"),
         };
 
         ActiveRagdoll _ragdoll;
@@ -86,6 +89,9 @@ namespace Trickshot
                 case Emote.Backflip:  return 1.1f;
                 case Emote.KneeSlide: return 1.4f;
                 case Emote.Griddy:    return 2.0f;
+                case Emote.PushUps:   return 2.2f;
+                case Emote.Robot:     return 2.0f;
+                case Emote.Bow:       return 1.5f;
                 default:              return 1.6f;
             }
         }
@@ -105,6 +111,9 @@ namespace Trickshot
                 case Emote.Wave:      PoseWave(p); break;
                 case Emote.TPose:     PoseTPose(p); break;
                 case Emote.Griddy:    PoseGriddy(p); break;
+                case Emote.Bow:       PoseBow(p); break;
+                case Emote.PushUps:   PosePushUps(p); break;
+                case Emote.Robot:     PoseRobot(p); break;
             }
 
             if (_t >= _dur) End();
@@ -162,6 +171,42 @@ namespace Trickshot
             _ragdoll.SetPoseOverride(Bone.CalfR, new Vector3(60f * liftR, 0f, 0f));
             _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(0f, 0f, 70f + s * 30f));
             _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(0f, 0f, -70f + s * 30f));
+        }
+
+        void PoseBow(float p)
+        {
+            // Deep bow from the waist, arms sweeping down, then hold.
+            float k = Mathf.Sin(Mathf.Clamp01(p * 1.5f) * Mathf.PI * 0.5f);   // ease in, hold
+            _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(55f * k, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.Head, new Vector3(20f * k, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(30f * k, 0f, 25f));
+            _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(30f * k, 0f, -25f));
+        }
+
+        void PosePushUps(float p)
+        {
+            // On the ground, torso pitched forward, arms bending as he "pumps".
+            float pump = Mathf.Abs(Mathf.Sin(p * Mathf.PI * 5f));
+            _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(70f, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(40f, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(40f, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(0f, 0f, 80f));
+            _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(0f, 0f, -80f));
+            _ragdoll.SetPoseOverride(Bone.ForearmL, new Vector3(-90f * pump, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ForearmR, new Vector3(-90f * pump, 0f, 0f));
+        }
+
+        void PoseRobot(float p)
+        {
+            // Stiff alternating arm/leg lifts on the beat (the robot dance).
+            float beat = Mathf.Floor(p * 8f) % 2f;   // 0/1 step
+            float a = beat > 0.5f ? 1f : 0f;
+            _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(-90f * a, 0f, -10f));
+            _ragdoll.SetPoseOverride(Bone.ForearmR, new Vector3(-80f * a, 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(-90f * (1f - a), 0f, 10f));
+            _ragdoll.SetPoseOverride(Bone.ForearmL, new Vector3(-80f * (1f - a), 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(-35f * (1f - a), 0f, 0f));
+            _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-35f * a, 0f, 0f));
         }
 
         void End()

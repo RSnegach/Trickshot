@@ -55,8 +55,8 @@ namespace Trickshot
         float _flashTime;
         bool _resolved;                   // goal handled this dead-ball
         float _kickoffTimer;              // brief freeze after kickoff/goal before play + scoring
-        float _matchClock;                // counts up, seconds
-        bool _clockRunning;
+        float _clock;                     // counts DOWN, seconds remaining
+        bool _fullTime;                   // match over: play frozen, banner shown
 
         public void Configure(GameInput input, BallController ball, GameCamera cam,
                               ScrimmageArena.Refs arena, SimConfig.ScrimRole role,
@@ -78,6 +78,7 @@ namespace Trickshot
             if (homeKeeper != null) _all.Add(homeKeeper);
             if (awayKeeper != null) _all.Add(awayKeeper);
 
+            _clock = SimConfig.ScrimmageMatchSeconds;
             Kickoff();
         }
 
@@ -107,12 +108,23 @@ namespace Trickshot
 
         Vector3 SpawnSpot(Footballer f)
         {
-            // Simple formation: spread across the team's own half, a little back from centre.
+            // Formation with DEPTH: alternate players into a back line (deeper, in own half)
+            // and a forward line (nearer halfway), and spread each line across the width so
+            // they don't start in a flat clump. Player index 0 sits closest to centre for
+            // kickoff. Own half is -Z for Home (+Z attack), +Z for Away.
             var list = f.Team == 0 ? _home : _away;
             int idx = list.IndexOf(f);
             int n = Mathf.Max(1, list.Count);
-            float x = Mathf.Lerp(-HalfWidth * 0.6f, HalfWidth * 0.6f, n == 1 ? 0.5f : idx / (float)(n - 1));
-            float z = f.Team == 0 ? -HalfLength * 0.35f : HalfLength * 0.35f;   // own half
+            float ownSign = f.Team == 0 ? -1f : 1f;
+
+            if (idx == 0) return new Vector3(0f, 0f, ownSign * HalfLength * 0.12f);   // central, near ball
+
+            // Remaining players split into two lines by parity.
+            bool backLine = (idx % 2) == 0;
+            int laneIdx = (idx - 1) / 2;
+            int lanes = Mathf.Max(1, (n - 1 + 1) / 2);
+            float x = lanes <= 1 ? 0f : Mathf.Lerp(-HalfWidth * 0.65f, HalfWidth * 0.65f, laneIdx / (float)(lanes - 1));
+            float z = ownSign * (backLine ? HalfLength * 0.55f : HalfLength * 0.25f);
             return new Vector3(x, 0f, z);
         }
 
@@ -129,13 +141,24 @@ namespace Trickshot
         {
             if (_input == null) return;
             if (PauseMenu.Paused) return;
+
+            // Full time: play is frozen. R starts a fresh match (rematch).
+            if (_fullTime)
+            {
+                if (_input.ResetPressed) Rematch();
+                return;
+            }
+
             if (_input.ResetPressed) { Kickoff(); return; }
             if (_input.BallCamPressed) _cam.ToggleBallCam();
             if (_kickoffTimer > 0f) _kickoffTimer -= Time.deltaTime;
 
-            // Match clock runs once the kickoff freeze clears.
-            _clockRunning = _kickoffTimer <= 0f;
-            if (_clockRunning) _matchClock += Time.deltaTime;
+            // Match clock counts DOWN once the kickoff freeze clears; full time at zero.
+            if (_kickoffTimer <= 0f)
+            {
+                _clock -= Time.deltaTime;
+                if (_clock <= 0f) { _clock = 0f; EndMatch(); return; }
+            }
 
             StuckBallWatchdog();
             UpdatePossession();
@@ -176,6 +199,9 @@ namespace Trickshot
                     if (_input.PassGroundPressed) TryPass(lofted: false);
                     else if (_input.PassLoftedPressed) TryPass(lofted: true);
 
+                    // Tackle (C): lunge forward to win the ball off an opponent.
+                    if (_input.TacklePressed) TryHumanTackle();
+
                     // Auto-switch to whoever's now nearest the ball, unless the human's
                     // current player is carrying / very close to the ball.
                     MaybeAutoSwitch();
@@ -197,9 +223,59 @@ namespace Trickshot
                 f.AiTick(isClosest);
             }
 
+            ResolveTackleWindow();
+
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
 
             TrackGoals();
+        }
+
+        // --- Tackling ---
+        float _tackleWindow;   // seconds left in the human tackle attempt
+        float _tackleCooldown;
+
+        void TryHumanTackle()
+        {
+            if (_tackleCooldown > 0f || _controlled == null || _controlled.Ragdoll == null) return;
+            // Lunge forward along facing.
+            Vector3 fwd = _controlled.Ragdoll.FacingRotation * Vector3.forward; fwd.y = 0f;
+            _controlled.Ragdoll.AddVelocityToAll(fwd.normalized * SimConfig.TackleLunge);
+            _tackleWindow = 0.4f;
+            _tackleCooldown = SimConfig.TackleCooldown;
+        }
+
+        void ResolveTackleWindow()
+        {
+            if (_tackleCooldown > 0f) _tackleCooldown -= Time.deltaTime;
+            if (_tackleWindow <= 0f) return;
+            _tackleWindow -= Time.deltaTime;
+            if (_controlled == null) { _tackleWindow = 0f; return; }
+
+            // Only wins the ball if the OTHER team currently has it (no tackling your own).
+            if (PossessionTeam == 0) return;
+            Vector3 me = _controlled.Pos; me.y = 0f;
+            Vector3 b = _ball.transform.position; b.y = 0f;
+            if (Vector3.Distance(me, b) <= SimConfig.TackleReach)
+            {
+                WinBall(_controlled);
+                _tackleWindow = 0f;
+            }
+        }
+
+        // AI tackle entry point (Footballer calls this when it lunges in on an opponent).
+        public void WinBallForAi(Footballer tackler) => WinBall(tackler);
+
+        // Knock the ball loose from whoever's carrying it, away from the ball toward the
+        // tackler's forward, and flag possession flipping. Cancels any dribble hold.
+        void WinBall(Footballer tackler)
+        {
+            var d = tackler != null ? tackler.GetComponent<Dribble>() : null;
+            if (d != null) d.ForceRelease();
+            _ball.DribbleHold = false;
+            Vector3 dir = tackler != null ? (tackler.Ragdoll.FacingRotation * Vector3.forward) : Vector3.forward;
+            dir.y = 0f;
+            _ball.KickTo(dir.normalized * SimConfig.TackleKnock + Vector3.up * 0.5f);
+            Flash("TACKLE!");
         }
 
         // Teammates of a given team (for AI spacing). Read-only view.
@@ -228,8 +304,8 @@ namespace Trickshot
         void DrawEmoteWheel()
         {
             float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
-            float rad = 150f;
             int n = Celebration.Menu.Length;
+            float rad = 210f;   // wide enough that 9 labels don't overlap
 
             // Dim backdrop.
             var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.35f);
@@ -437,11 +513,23 @@ namespace Trickshot
                    && c.y <= SimConfig.GoalHeight - r;
         }
 
+        int _celebRr;   // rotates the auto-celebration so it isn't always the same emote
         void OnGoal(bool awayScored)
         {
             _resolved = true;
             if (awayScored) { _awayScore++; Flash("AWAY SCORES!"); }
-            else { _homeScore++; Flash("GOAL!  HOME SCORES!"); }
+            else
+            {
+                _homeScore++; Flash("GOAL!  HOME SCORES!");
+                // Auto-celebrate on the controlled scorer (outfield role): cycle a fun emote.
+                if (_controlledCeleb != null)
+                {
+                    var pool = new[] { Celebration.Emote.FistPump, Celebration.Emote.KneeSlide,
+                                       Celebration.Emote.Griddy, Celebration.Emote.Backflip, Celebration.Emote.Robot };
+                    _controlledCeleb.Play(pool[_celebRr % pool.Length]);
+                    _celebRr++;
+                }
+            }
             CrowdCheer.Celebrate();
             // Freeze scoring, celebrate, then re-kickoff.
             _kickoffTimer = 3f;
@@ -450,6 +538,25 @@ namespace Trickshot
         }
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
+
+        // Full time: stop the ball + all controllers, cancel any pending kickoff, freeze.
+        void EndMatch()
+        {
+            _fullTime = true;
+            CancelInvoke(nameof(Kickoff));
+            _ball.Rb.linearVelocity = Vector3.zero;
+            _ball.Rb.angularVelocity = Vector3.zero;
+            if (_controlledCeleb != null) _controlledCeleb.Cancel();
+        }
+
+        // R at full time: reset scores + clock and kick off again.
+        void Rematch()
+        {
+            _fullTime = false;
+            _homeScore = 0; _awayScore = 0;
+            _clock = SimConfig.ScrimmageMatchSeconds;
+            Kickoff();
+        }
 
         // ------------------------------------------------------------- HUD
         void OnGUI()
@@ -460,14 +567,27 @@ namespace Trickshot
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
 
             GUI.Label(new Rect(0, 10, Screen.width, 34), $"HOME  {_homeScore} - {_awayScore}  AWAY", score);
-            int mm = Mathf.FloorToInt(_matchClock / 60f), ss = Mathf.FloorToInt(_matchClock % 60f);
+            int mm = Mathf.FloorToInt(_clock / 60f), ss = Mathf.FloorToInt(_clock % 60f);
             var clock = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
             GUI.Label(new Rect(0, 40, Screen.width, 22), $"{mm}:{ss:00}", clock);
 
             string help = _role == SimConfig.ScrimRole.Keeper
                 ? "Keeper:  A/D move   Space/LMB/RMB dive   Reset: R"
-                : "Move WASD   Camera Mouse   Shoot LMB/RMB   Q pass   E lofted pass   F switch   B emote   V ball cam   R reset";
+                : "Move WASD   Shoot LMB/RMB   Q pass   E lofted   C tackle   F switch   B emote   V ball cam   R reset";
             GUI.Label(new Rect(8, Screen.height - 26, Screen.width - 16, 22), help, st);
+
+            // Full-time banner + rematch prompt.
+            if (_fullTime)
+            {
+                var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.55f);
+                GUI.DrawTexture(new Rect(0, Screen.height * 0.5f - 90f, Screen.width, 180f), Texture2D.whiteTexture);
+                GUI.color = prev;
+                string winner = _homeScore > _awayScore ? "HOME WINS" : _awayScore > _homeScore ? "AWAY WINS" : "DRAW";
+                GUI.Label(new Rect(0, Screen.height * 0.5f - 70f, Screen.width, 44f), "FULL TIME", big);
+                GUI.Label(new Rect(0, Screen.height * 0.5f - 20f, Screen.width, 40f), $"{winner}   {_homeScore} - {_awayScore}", score);
+                GUI.Label(new Rect(0, Screen.height * 0.5f + 30f, Screen.width, 30f), "Press R for a rematch   |   Esc for the menu", st2Centered());
+                return;
+            }
 
             if (_flashTime > 0f)
             {
@@ -477,5 +597,8 @@ namespace Trickshot
 
             if (_wheelOpen) DrawEmoteWheel();
         }
+
+        static GUIStyle st2Centered() => new GUIStyle(GUI.skin.label)
+        { fontSize = 15, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
     }
 }

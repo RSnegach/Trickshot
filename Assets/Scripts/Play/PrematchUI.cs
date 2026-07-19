@@ -48,6 +48,7 @@ namespace Trickshot
         // Scrimmage
         static int _scrimPerSide = 3;                                  // 3 / 5 / 11
         static SimConfig.ScrimRole _scrimRole = SimConfig.ScrimRole.Outfield;
+        static float _scrimMatchMin = 3f;                              // match length, minutes
 
         // ---- Layout ----
         const float PanelW = 480f;
@@ -67,8 +68,8 @@ namespace Trickshot
         // How many slider/toggle rows this mode shows, so the panel is sized to fit.
         int RowCount()
         {
-            // Scrimmage: two picker rows only (team size + role), no goal/ball sliders.
-            if (_mode == GameMode.Scrimmage) return 2;
+            // Scrimmage: team size + role + match length picker rows, no goal/ball sliders.
+            if (_mode == GameMode.Scrimmage) return 3;
 
             int n = 3; // goal width, goal height, ball velocity (all modes)
             if (_mode == GameMode.Striker) n += 3;
@@ -210,6 +211,19 @@ namespace Trickshot
                 if (GUI.Button(new Rect(lx + i * (rbw + 8f), row + 22f, rbw, 28f), roleNames[i], b)) _scrimRole = roles[i];
             }
             row += RowH;
+
+            GUI.Label(new Rect(lx, row, lw, 20f), "Match length:", st);
+            float[] mins = { 2f, 3f, 5f, 10f };
+            string[] minNames = { "2 min", "3 min", "5 min", "10 min" };
+            float mbw = (lw - 8f * (mins.Length - 1)) / mins.Length;
+            for (int i = 0; i < mins.Length; i++)
+            {
+                bool sel = Mathf.Approximately(_scrimMatchMin, mins[i]);
+                var b = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(lx + i * (mbw + 8f), row + 22f, mbw, 28f), minNames[i], b)) _scrimMatchMin = mins[i];
+            }
+            row += RowH;
         }
 
         // Map the sliders onto SimConfig values.
@@ -220,6 +234,7 @@ namespace Trickshot
             {
                 SimConfig.ScrimmagePerSide = _scrimPerSide;
                 SimConfig.ScrimmageRole = _scrimRole;
+                SimConfig.ScrimmageMatchSeconds = _scrimMatchMin * 60f;
                 return;
             }
 
