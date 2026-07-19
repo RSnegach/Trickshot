@@ -408,7 +408,6 @@ namespace Trickshot
             }
 
             // Pass 2: node badges.
-            var iconSt = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
             var costSt = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.4f) } };
             foreach (var n in SkillTree.InCategory(_skillCat))
             {
@@ -426,9 +425,18 @@ namespace Trickshot
                 // Capstone gets a gold ring.
                 if (capstone) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
                 if (_selNode == n.Id) { GUI.color = Color.white; DrawRectOutline(new Rect(r.x-2,r.y-2,r.width+4,r.height+4), 2f); }
+
+                // Procedural white line-art icon, tinted full for owned/buyable, dim for locked.
+                var icon = SkillIcons.Get(n.Id);
+                if (icon != null)
+                {
+                    GUI.color = (owned || canBuy) ? Color.white : new Color(1f, 1f, 1f, 0.4f);
+                    float pad = 7f;
+                    GUI.DrawTexture(new Rect(r.x + pad, r.y + pad - 3f, r.width - pad * 2f, r.height - pad * 2f - 4f),
+                                    icon, ScaleMode.ScaleToFit, true);
+                }
                 GUI.color = prev;
 
-                GUI.Label(new Rect(r.x, r.y + 2f, r.width, r.height - 12f), n.Icon, iconSt);
                 GUI.Label(new Rect(r.x, r.yMax - 14f, r.width, 12f), owned ? "✓" : n.Cost.ToString(), costSt);
 
                 // Click: select; left-click also buys if possible, right-click refunds.
