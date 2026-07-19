@@ -319,14 +319,13 @@ namespace Trickshot
             GUI.Label(new Rect(lx, row, lw, 20f), $"Weight:  {_weight:0} kg", st); row += 24f;
             _weight = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _weight, PlayerProfile.MinWeight, PlayerProfile.MaxWeight); row += 44f;
 
-            // Strong foot: two toggle buttons, the selected one highlighted.
+            // Strong foot: two toggle buttons. The selected one is tinted bright green with
+            // a bold label + check; the other is dimmed so the choice is unmistakable.
             GUI.Label(new Rect(lx, row, lw, 20f), "Strong foot:", st); row += 24f;
             float bw = (lw - 10f) * 0.5f;
-            var selBtn = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
-            var offBtn = new GUIStyle(GUI.skin.button) { fontSize = 15 };
-            if (GUI.Button(new Rect(lx, row, bw, 30f), "Left", _leftFooted ? selBtn : offBtn)) _leftFooted = true;
-            if (GUI.Button(new Rect(lx + bw + 10f, row, bw, 30f), "Right", !_leftFooted ? selBtn : offBtn)) _leftFooted = false;
-            row += 42f;
+            if (FootButton(new Rect(lx, row, bw, 34f), "Left", _leftFooted))  _leftFooted = true;
+            if (FootButton(new Rect(lx + bw + 10f, row, bw, 34f), "Right", !_leftFooted)) _leftFooted = false;
+            row += 46f;
 
             // Live trait readout using the working values (commit first so the profile
             // computes off them).
@@ -357,6 +356,34 @@ namespace Trickshot
             GUI.color = prev;
             GUI.Label(new Rect(barX + barW + 6f, row, 44f, 18f), $"{mul:0.00}x", st);
             row += 20f;
+        }
+
+        // A foot-choice toggle. Selected = bright green fill, bold label + check, gold
+        // outline; unselected = dim grey. Returns true if clicked this frame.
+        bool FootButton(Rect r, string label, bool selected)
+        {
+            var prevBg = GUI.backgroundColor;
+            var prevCol = GUI.color;
+
+            // Filled background panel so the selected state is obvious regardless of skin.
+            GUI.color = selected ? new Color(0.20f, 0.65f, 0.28f) : new Color(0.20f, 0.21f, 0.25f);
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            if (selected) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
+            GUI.color = prevCol;
+
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 15,
+                fontStyle = selected ? FontStyle.Bold : FontStyle.Normal,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = selected ? Color.white : new Color(0.7f, 0.7f, 0.74f) }
+            };
+            GUI.Label(r, selected ? label + "  ✓" : label, style);
+
+            // Invisible hit area over the whole panel.
+            bool clicked = GUI.Button(r, GUIContent.none, GUIStyle.none);
+            GUI.backgroundColor = prevBg;
+            return clicked;
         }
 
         // ------------------------------------------------------------- Skill tree stage
