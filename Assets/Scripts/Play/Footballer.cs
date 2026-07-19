@@ -60,8 +60,15 @@ namespace Trickshot
                 // Only the closest man presses the ball; once on it, act.
                 target = ball;
                 float dist = Vector3.Distance(me, ball);
-                if (dist < SimConfig.AiChaseStopDist + SimConfig.BallRadius + 0.3f && _kickCooldown <= 0f)
+                if (!teamHasBall && dist < SimConfig.AiTackleRange && _kickCooldown <= 0f)
+                {
+                    // Opponent has it and we're close: lunge in to win the ball.
+                    TryTackle(me, ball);
+                }
+                else if (dist < SimConfig.AiChaseStopDist + SimConfig.BallRadius + 0.3f && _kickCooldown <= 0f)
+                {
                     TryKick(me, ball);
+                }
             }
             else
             {
@@ -92,7 +99,7 @@ namespace Trickshot
         // spacing radius, so outfielders keep their distance instead of piling on the ball.
         Vector3 Separation(Vector3 me)
         {
-            const float radius = 3.5f;
+            float radius = SimConfig.AiSeparationRadius;
             Vector3 push = Vector3.zero;
             var team = _game.TeamList(Team);
             for (int i = 0; i < team.Count; i++)
@@ -129,7 +136,7 @@ namespace Trickshot
                 target = ball;   // rush + clear
                 if (distToBall < SimConfig.BallRadius + 1.0f && _kickCooldown <= 0f)
                 {
-                    _kickCooldown = 0.5f;
+                    _kickCooldown = SimConfig.AiKickCooldown;
                     Vector3 up = new Vector3(0f, 0f, AttackZ);           // clear up the pitch
                     Vector3 side = new Vector3(Mathf.Sign(ball.x == 0 ? 1f : ball.x), 0f, 0f) * 0.4f;
                     _ball.KickTo((up + side).normalized * (SimConfig.AiKickBoneImpulse + 4f) + Vector3.up * 2f);
@@ -157,11 +164,22 @@ namespace Trickshot
             RunGait(speed / Mathf.Max(0.1f, SimConfig.AiOutfieldSpeed));
         }
 
+        // AI tackle: lunge at the ball and, if it reaches, win it off the opponent.
+        void TryTackle(Vector3 me, Vector3 ball)
+        {
+            _kickCooldown = SimConfig.TackleCooldown;
+            Vector3 to = ball - me; to.y = 0f;
+            if (to.sqrMagnitude > 0.01f)
+                Ragdoll.AddVelocityToAll(to.normalized * SimConfig.TackleLunge);
+            if (to.magnitude <= SimConfig.TackleReach)
+                _game.WinBallForAi(this);
+        }
+
         // Decide what to do with the ball when on it: SHOOT if in range of the target
         // goal; else PASS to an open teammate further forward; else DRIVE it up the pitch.
         void TryKick(Vector3 me, Vector3 ball)
         {
-            _kickCooldown = 0.5f;
+            _kickCooldown = SimConfig.AiKickCooldown;
             Vector3 toGoal = TargetGoal - ball; toGoal.y = 0f;
             float goalDist = toGoal.magnitude;
             Vector3 dir = goalDist > 0.1f ? toGoal / goalDist : new Vector3(0f, 0f, AttackZ);

@@ -28,7 +28,7 @@ namespace Trickshot
         InputActionAsset _asset;
         InputActionMap _map;
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
-        InputAction _passGround, _passLofted, _switchPlayer, _emote;   // scrimmage
+        InputAction _passGround, _passLofted, _switchPlayer, _emote, _tackle;   // scrimmage
         PlayerInput _playerInput;
 
         public void Init()
@@ -64,6 +64,7 @@ namespace Trickshot
             _passLofted  = _map.AddAction("PassLofted",  InputActionType.Button, "<Keyboard>/e");
             _switchPlayer = _map.AddAction("SwitchPlayer", InputActionType.Button, "<Keyboard>/f");
             _emote       = _map.AddAction("Emote",       InputActionType.Button, "<Keyboard>/b");
+            _tackle      = _map.AddAction("Tackle",      InputActionType.Button, "<Keyboard>/c");
 
             _map.Enable();
 
@@ -132,5 +133,7 @@ namespace Trickshot
         // Emote wheel: held open while B is down.
         public bool EmoteHeld => _emote != null && _emote.IsPressed();
         public bool EmotePressed => _emote != null && _emote.WasPressedThisFrame();
+        // Tackle / slide challenge (C).
+        public bool TacklePressed => _tackle != null && _tackle.WasPressedThisFrame();
     }
 }

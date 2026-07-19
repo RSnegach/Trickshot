@@ -388,6 +388,7 @@ namespace Trickshot
         public enum ScrimRole { Outfield, Keeper }
         public static ScrimRole ScrimmageRole = ScrimRole.Outfield;
         public static int ScrimmagePerSide = 3;   // outfielders per side (3 / 5 / 11); keepers extra
+        public static float ScrimmageMatchSeconds = 180f;   // match length (pre-match option); counts down to full time
 
         // The scrimmage pitch is its OWN square-ish field centred on origin, sized to the
         // team count, with a goal at each end (+Z and -Z) and walls all round. Independent
@@ -417,11 +418,21 @@ namespace Trickshot
         public const float SwitchLockout     = 0.6f;  // min seconds on a player before an auto-switch
 
         // Outfield AI.
-        public const float AiOutfieldSpeed    = 4.6f;  // base run speed for AI outfielders
+        public const float AiOutfieldSpeed    = 5.0f;  // base run speed for AI outfielders (keeps pace with play)
         public const float AiChaseStopDist    = 0.6f;  // stop closing when this near the ball
-        public const float AiShootRange       = 16f;   // shoot when this close to the target goal with the ball
-        public const float AiSupportSpread    = 6f;    // how far off-ball teammates spread from the carrier
-        public const float AiKickBoneImpulse  = 8f;    // leg-swing velocity an AI adds to "kick" the ball
+        public const float AiShootRange       = 18f;   // shoot when this close to the target goal with the ball
+        public const float AiSupportSpread    = 7f;    // how far off-ball teammates spread from the carrier
+        public const float AiKickBoneImpulse  = 9f;    // forward-drive velocity an AI adds to push the ball up the pitch
+        public const float AiKickCooldown     = 0.35f; // min seconds between AI touches (flow without ping-ponging)
+        public const float AiSeparationRadius = 3.8f;  // AI teammates keep at least this far apart
+
+        // Tackling / ball-winning. A tackle is a short forward lunge; if it reaches the ball
+        // it dispossesses the carrier (kills their dribble) and knocks the ball loose.
+        public const float TackleLunge     = 6.5f;  // forward lunge velocity of the tackler
+        public const float TackleReach     = 1.6f;  // distance to the ball at which the tackle wins it
+        public const float TackleCooldown  = 0.9f;  // seconds before the same player can tackle again
+        public const float TackleKnock     = 4.5f;  // how hard the won ball is knocked away from the carrier
+        public const float AiTackleRange    = 2.2f;  // an AI defender lunges when this close to an opponent carrier
 
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
