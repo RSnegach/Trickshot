@@ -234,37 +234,21 @@ namespace Trickshot
         void OnGUI()
         {
             if (_input == null) return;
+            Hud.Begin();
 
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
+            var p = Hud.PanelStart("ACCURACY", 2);
+            Hud.Stat(ref p, "Score", _score.ToString());
+            Hud.Stat(ref p, "Targets up", ActiveTargets().ToString());
 
-            GUI.Box(new Rect(8, 8, 250, 84), GUIContent.none);
-            GUI.Label(new Rect(16, 12, 240, 40), "SCORE " + _score, big);
-            GUI.Label(new Rect(16, 54, 240, 20), "Time " + Mathf.CeilToInt(Mathf.Max(0f, _timeLeft)) + "s", st);
-            GUI.Label(new Rect(16, 72, 240, 20), "Targets " + ActiveTargets(), st);
-
-            var help = "Move: WASD   Camera: Mouse   Ball cam: V\n"
-                     + "Jump: Space   Left leg: LMB   Right leg: RMB   Air pitch: Mouse wheel   Reset: R";
-            GUI.Label(new Rect(8, Screen.height - 44, 700, 40), help, st);
-
-            if (_flashTime > 0f && !_finished)
-            {
-                var c = big.normal.textColor; c.a = Mathf.Clamp01(_flashTime / 1.2f); big.normal.textColor = c;
-                GUI.Label(new Rect(0, 70, Screen.width, 44), _flash, Centered(big));
-            }
+            Hud.Clock(_timeLeft, urgent: !_finished && _timeLeft <= 10f);
+            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   R reset");
 
             if (_finished)
             {
-                var banner = new GUIStyle(GUI.skin.label)
-                { fontSize = 46, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 80f, Screen.width, 70f), "FINISHED!", banner);
-                var sub = new GUIStyle(GUI.skin.label)
-                { fontSize = 28, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 6f, Screen.width, 40f), "Score: " + _score, sub);
-                GUI.Label(new Rect(0, Screen.height * 0.5f + 40f, Screen.width, 30f), "Press R to play again", sub);
+                Hud.Banner("FINISHED!", "Score: " + _score, "Press R to play again");
+                return;
             }
+            if (!_finished) Hud.Flash(_flash, _flashTime / 1.2f);
         }
-
-        GUIStyle Centered(GUIStyle s) => new GUIStyle(s) { alignment = TextAnchor.UpperCenter };
     }
 }

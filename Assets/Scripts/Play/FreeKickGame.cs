@@ -255,29 +255,20 @@ namespace Trickshot
         void OnGUI()
         {
             if (_input == null) return;
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 32, fontStyle = FontStyle.Bold,
-                                                     alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
+            Hud.Begin();
 
-            GUI.Box(new Rect(8, 8, 270, 96), GUIContent.none);
-            GUI.Label(new Rect(16, 12, 260, 20), $"Attempts {_attempts}   Goals {_goals}", st);
-            string modeLine = SimConfig.PenaltyMode
-                ? "PENALTY  (no wall)"
-                : $"FREE KICK   Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0} m";
-            GUI.Label(new Rect(16, 32, 260, 20), modeLine, st);
             float dist = SimConfig.PenaltyMode ? PenaltyDistance : SimConfig.FreeKickDistance;
-            GUI.Label(new Rect(16, 52, 260, 20), $"Distance {dist:0.0} m", st);
-            GUI.Label(new Rect(16, 72, 260, 20), $"Ball {_ball.Speed:0.0} m/s", st);
+            int scorePct = _attempts > 0 ? Mathf.RoundToInt(100f * _goals / _attempts) : 0;
+            var p = Hud.PanelStart(SimConfig.PenaltyMode ? "PENALTIES" : "FREE KICK", 4);
+            Hud.Stat(ref p, "Goals", _goals.ToString());
+            Hud.Stat(ref p, "Attempts", _attempts.ToString());
+            Hud.Stat(ref p, "Scored %", scorePct + "%");
+            Hud.Stat(ref p, "Distance", $"{dist:0.0} m");
 
-            var help = "Move: WASD   Camera: Mouse   Sprint: Shift   Ball cam: V\n"
-                     + "Kick: run through the ball   Raise leg: LMB / RMB   Jump: Space   Reset: R";
-            GUI.Label(new Rect(8, Screen.height - 44, 780, 40), help, st);
-
-            if (_flashTime > 0f)
-            {
-                var c = big.normal.textColor; c.a = Mathf.Clamp01(_flashTime / 1.6f); big.normal.textColor = c;
-                GUI.Label(new Rect(0, 70, Screen.width, 44), _flash, big);
-            }
+            Hud.Legend(SimConfig.PenaltyMode
+                ? "WASD approach   LMB/RMB legs   Space jump   Shift sprint   V ball cam   R reset"
+                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    WASD approach   LMB/RMB legs   Space jump   V ball cam   R reset");
+            Hud.Flash(_flash, _flashTime / 1.6f);
         }
     }
 }

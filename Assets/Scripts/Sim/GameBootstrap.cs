@@ -143,10 +143,10 @@ namespace Trickshot
             var cam = _cam;
             var camGo = _camGo;
 
-            // Pause menu (Esc): Resume / Match Setup / Main Menu.
+            // Pause menu (Esc): Resume / Match Setup / Options / Main Menu.
             var pauseGo = new GameObject("PauseMenu");
             pauseGo.transform.SetParent(root, false);
-            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode));
+            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput());
 
             _cam.backgroundColor = StadiumStyle.Active.Sky;
 

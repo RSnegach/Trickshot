@@ -171,48 +171,27 @@ namespace Trickshot
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
-        static string Clock(float seconds)
-        {
-            int total = Mathf.Max(0, Mathf.CeilToInt(seconds));
-            return $"{total / 60:0}:{total % 60:00}";
-        }
-
         // ----------------------------------------------------------------- HUD
         void OnGUI()
         {
             if (_input == null) return;
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
-            var clock = new GUIStyle(GUI.skin.label) { fontSize = 48, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
+            Hud.Begin();
 
-            GUI.Box(new Rect(8, 8, 250, 76), GUIContent.none);
-            GUI.Label(new Rect(16, 12, 240, 20), "TIME TRIAL", st);
-            GUI.Label(new Rect(16, 32, 240, 20), $"Goals {_goals}   Crosses {_crosses}", st);
-            GUI.Label(new Rect(16, 52, 240, 20), $"Ball {_ball.Speed:0.0} m/s", st);
+            int conversion = _crosses > 0 ? Mathf.RoundToInt(100f * _goals / _crosses) : 0;
+            var p = Hud.PanelStart("TIME TRIAL", 3);
+            Hud.Stat(ref p, "Goals", _goals.ToString());
+            Hud.Stat(ref p, "Crosses", _crosses.ToString());
+            Hud.Stat(ref p, "Conversion", conversion + "%");
 
-            // Big centered clock along the top.
-            GUI.Label(new Rect(0, 10, Screen.width, 60), Clock(_timeLeft), clock);
-
-            var help = "Move: WASD   Camera: Mouse   Ball cam: V\n"
-                     + "Jump: Space   Left leg: LMB   Right leg: RMB   Air pitch: Mouse wheel   Reset: R";
-            GUI.Label(new Rect(8, Screen.height - 44, 700, 40), help, st);
+            Hud.Clock(_timeLeft, urgent: !_finished && _timeLeft <= 10f);
+            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   R reset");
 
             if (_finished)
             {
-                // Centered end-of-run summary.
-                var summary = new GUIStyle(big) { alignment = TextAnchor.UpperCenter };
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 60f, Screen.width, 46), $"TIME! Goals: {_goals}", summary);
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 6f, Screen.width, 30), "Press R to restart", CenteredBig(st));
+                Hud.Banner("TIME!", $"Goals: {_goals}   ({conversion}% conversion)", "Press R to play again");
                 return;
             }
-
-            if (_flashTime > 0f)
-            {
-                var c = big.normal.textColor; c.a = Mathf.Clamp01(_flashTime / 1.6f); big.normal.textColor = c;
-                GUI.Label(new Rect(0, 80, Screen.width, 40), _flash, CenteredBig(big));
-            }
+            Hud.Flash(_flash, _flashTime / 1.6f);
         }
-
-        GUIStyle CenteredBig(GUIStyle s) => new GUIStyle(s) { alignment = TextAnchor.UpperCenter };
     }
 }

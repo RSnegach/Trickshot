@@ -171,25 +171,18 @@ namespace Trickshot
         void OnGUI()
         {
             if (_input == null) return;
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
+            Hud.Begin();
 
-            GUI.Box(new Rect(8, 8, 250, 76), GUIContent.none);
-            GUI.Label(new Rect(16, 12, 240, 20), $"Goals {_goals}   Trick {_trickGoals}", st);
-            GUI.Label(new Rect(16, 32, 240, 20), $"Crosses {_attempts}   Saves {_saves}", st);
-            GUI.Label(new Rect(16, 52, 240, 20), $"Ball {_ball.Speed:0.0} m/s", st);
+            int conversion = _attempts > 0 ? Mathf.RoundToInt(100f * _goals / _attempts) : 0;
+            var p = Hud.PanelStart("STRIKER", 5);
+            Hud.Stat(ref p, "Goals", _goals.ToString());
+            Hud.Stat(ref p, "Trick goals", _trickGoals.ToString());
+            Hud.Stat(ref p, "Crosses", _attempts.ToString());
+            Hud.Stat(ref p, "Conversion", conversion + "%");
+            Hud.Stat(ref p, "Keeper saves", _saves.ToString());
 
-            var help = "Move: WASD   Camera: Mouse   Ball cam: V\n"
-                     + "Jump: Space   Left leg: LMB   Right leg: RMB   Air pitch: Mouse wheel   Reset: R";
-            GUI.Label(new Rect(8, Screen.height - 44, 700, 40), help, st);
-
-            if (_flashTime > 0f)
-            {
-                var c = big.normal.textColor; c.a = Mathf.Clamp01(_flashTime / 1.6f); big.normal.textColor = c;
-                GUI.Label(new Rect(0, 70, Screen.width, 40), _flash, CenteredBig(big));
-            }
+            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   R reset");
+            Hud.Flash(_flash, _flashTime / 1.6f);
         }
-
-        GUIStyle CenteredBig(GUIStyle s) => new GUIStyle(s) { alignment = TextAnchor.UpperCenter };
     }
 }
