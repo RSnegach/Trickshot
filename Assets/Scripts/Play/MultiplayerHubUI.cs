@@ -36,7 +36,7 @@ namespace Trickshot
             var note = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.85f) } };
             string status = Multiplayer.SteamLinked
                 ? "Steam connected"
-                : "Steam not linked — running local (loopback) sessions. See MULTIPLAYER.md.";
+                : "Direct connect (LAN / Tailscale) — host shares their IP, friends join by IP. See MULTIPLAYER.md.";
             GUI.Label(new Rect(0, cy + (h + gap) * 3f + 6f, Screen.width, 22f), status, note);
         }
     }

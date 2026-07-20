@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Trickshot.Net
 {
     /// <summary>
@@ -15,9 +17,19 @@ namespace Trickshot.Net
         public static bool IsHost => Session != null && Session.IsHost;
         public static bool IsClient => IsActive && !IsHost;
 
-        // Pick the best available transport: Steam if built with it, else local loopback.
+        // When true (default), a real cross-machine game uses the direct-IP UDP transport.
+        // Set false to force the in-process loopback transport for single-machine testing.
+        public static bool UseDirectIp = true;
+
+        // Pick the transport: Steam if built with it (TRICKSHOT_STEAM); else direct-IP UDP for
+        // real LAN/Tailscale play; else the in-process loopback (single-machine testing). All
+        // three are INetTransport siblings, so nothing else changes.
         static INetTransport NewTransport()
-            => SteamTransport.Available ? (INetTransport)new SteamTransport() : new LocalTransport();
+        {
+            if (SteamTransport.Available) return new SteamTransport();
+            if (UseDirectIp) return new DirectIpTransport();
+            return new LocalTransport();
+        }
 
         public static void Host(int maxPlayers)
         {
@@ -35,6 +47,17 @@ namespace Trickshot.Net
         {
             Session?.Leave();
             Session = null;
+        }
+
+        // Safety net: guarantee the transport (its UDP socket + background receive thread) is
+        // torn down when the app quits or the editor stops Play, even if some path forgot to
+        // call End(). Without this the socket can stay bound and a zombie thread survives the
+        // next Editor Play session (the DirectIpTransport pitfall). Registered once at startup.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void InstallQuitGuard()
+        {
+            Application.quitting -= End;   // idempotent across domain reloads
+            Application.quitting += End;
         }
 
         // Browse joinable lobbies without joining. Uses a transient transport instance to

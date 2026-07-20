@@ -27,6 +27,9 @@ namespace Trickshot.Net
         readonly PeerId[] _slotOwner = new PeerId[MaxSlots];
         // Host-side: latest input frame received per slot (clients') + the host's own.
         readonly InputFrame[] _slotInput = new InputFrame[MaxSlots];
+        // Host-side: highest input tick applied per slot, so a reordered older input frame
+        // (UDP can deliver out of order) doesn't overwrite a newer one.
+        readonly uint[] _slotInputTick = new uint[MaxSlots];
         // The local player's assigned slot + role (client + host).
         public int LocalSlot { get; private set; } = -1;
         public NetRole LocalRole { get; private set; } = NetRole.Spectator;
@@ -34,6 +37,7 @@ namespace Trickshot.Net
         // Client-side: the most recent snapshot from the host (the driver interpolates to it).
         public Snapshot LatestSnapshot { get; private set; }
         public bool HasSnapshot { get; private set; }
+        uint _lastSnapshotTick;   // drop reordered/stale snapshots (UDP can deliver out of order)
 
         // ---- lobby state ----
         readonly string[] _slotName = new string[MaxSlots];
@@ -211,15 +215,33 @@ namespace Trickshot.Net
                     if (IsHost)
                     {
                         int slot = SlotOf(from);
-                        if (slot >= 0) _slotInput[slot] = NetCodec.ReadInput(r);
+                        if (slot >= 0)
+                        {
+                            var f = NetCodec.ReadInput(r);
+                            // Drop a reordered/stale frame so a late-arriving older input can't
+                            // overwrite a newer one already applied for this slot.
+                            if (f.tick >= _slotInputTick[slot])
+                            {
+                                _slotInput[slot] = f;
+                                _slotInputTick[slot] = f.tick;
+                            }
+                        }
                     }
                     break;
                 case MsgType.AssignSlot:  // client: the host told us our slot
                     AssignLocal(r.U8(), (NetRole)r.U8());
                     break;
                 case MsgType.Snapshot:    // client: newest state to interpolate toward
-                    LatestSnapshot = NetCodec.ReadSnap(r); HasSnapshot = true;
+                {
+                    var snap = NetCodec.ReadSnap(r);
+                    // Drop a reordered/stale snapshot (UDP can deliver out of order) so the
+                    // client doesn't rubber-band back to an older world state.
+                    if (!HasSnapshot || snap.tick > _lastSnapshotTick)
+                    {
+                        LatestSnapshot = snap; HasSnapshot = true; _lastSnapshotTick = snap.tick;
+                    }
                     break;
+                }
                 case MsgType.MatchEvent:  // client: a match event
                     MatchEvent?.Invoke(r.Str());
                     break;
