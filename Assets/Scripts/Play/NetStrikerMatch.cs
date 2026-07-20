@@ -55,6 +55,10 @@ namespace Trickshot
         // Client interp target for the ball.
         Vector3 _ballTargetPos;
 
+        // Per-machine post-goal replay (each peer replays its own local view).
+        ReplaySystem _replay;
+        bool _replaying;
+
         public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball, Crosser crosser,
                               AimReticle reticle, Transform launch,
                               Material torso, Material limb, Material glove, Transform root)
@@ -79,6 +83,17 @@ namespace Trickshot
             }
 
             if (_s.IsHost) { _crosser.Arm(SimConfig.ServeFirstDelay); _ball.ResetTo(_launch.position); }
+
+            // Per-machine replay over this peer's local bodies + ball. Each machine plays
+            // back what IT recorded (host = true physics, clients = their interpolated view).
+            var tracked = new List<Transform> { _ball.transform };
+            for (int i = 0; i < _bodies.Length; i++)
+                if (_bodies[i] != null) tracked.AddRange(_bodies[i].ragdoll.BoneTransforms);
+            _replay = gameObject.AddComponent<ReplaySystem>();
+            _replay.Setup(tracked, null, SimConfig.ReplayWindow);
+            _s.ReplayStarted += OnReplayStarted;
+            _s.ReplayEnded += OnReplayEnded;
+
             LockCursor();
         }
 
@@ -148,10 +163,44 @@ namespace Trickshot
         void OnMatchEvent(string tag) { Flash(tag); }
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
+        // Replay start (any peer): freeze local control, cut to broadcast cam, roll playback.
+        void OnReplayStarted()
+        {
+            if (_replay == null || _replaying) return;
+            _replaying = true;
+            _cam.SetMode(GameCamera.Mode.Broadcast);
+            _replay.Play(SimConfig.ReplaySlowMul);
+            Flash("REPLAY  (click to skip)");
+        }
+
+        // Replay end (host tallied all skips, or buffer finished): resume + re-arm serving.
+        void OnReplayEnded()
+        {
+            if (!_replaying) return;
+            _replaying = false;
+            if (_replay != null) _replay.Stop();
+            _cam.SetMode(GameCamera.Mode.Follow);
+            if (_s.IsHost) { _crosser.Arm(0.6f); _ball.ResetTo(_launch.position); }
+        }
+
         // -------------------------------------------------------------- loop
         void Update()
         {
             if (_s == null || PauseMenu.Paused) return;
+
+            // --- Replay: no gameplay control; click to vote-skip; host ends when its own
+            //     playback finishes (a natural end for everyone) or all humans have voted. ---
+            if (_replaying)
+            {
+                if (_input.LeftClickPressed) _s.VoteSkip();
+                if (_s.IsHost && (_replay == null || !_replay.IsPlaying)) _s.EndReplayHost();
+                if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
+                return;
+            }
+
+            // R: multiplayer re-serves the shared ball to the crosser (host-authoritative);
+            // no player reset. (Single-player R still fully resets via GameManager.)
+            if (_input.ResetPressed && _s.IsHost) { _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
 
             // Local player: tick its Striker (host + client both predict the local body).
             var me = _bodies[_localSlot];
@@ -174,10 +223,11 @@ namespace Trickshot
                 if (b.ai != null) b.ai.Tick();
             }
 
-            // Crosser + ball + goal detection (authoritative).
+            // Crosser + ball + goal detection (authoritative). A goal rolls the replay for
+            // everyone (OnReplayEnded re-arms the crosser + ball afterward).
             if (_crosser.Tick()) Flash("CROSS!");
             Vector3 c = _ball.transform.position;
-            if (BallInGoal(c)) { _goals++; Flash("GOAL!"); _s.BroadcastEvent("GOAL!"); _crosser.Arm(0.8f); _ball.ResetTo(_launch.position); }
+            if (BallInGoal(c)) { _goals++; _s.BroadcastEvent("GOAL!"); _s.BeginReplay(); }
 
             // Publish a snapshot every fixed-ish step (throttled).
             _snapAccum += Time.deltaTime;
@@ -259,7 +309,11 @@ namespace Trickshot
 
         static void LockCursor() { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
 
-        void OnDestroy() { if (_s != null) _s.MatchEvent -= OnMatchEvent; if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false; }
+        void OnDestroy()
+        {
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; }
+            if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
+        }
 
         void OnGUI()
         {

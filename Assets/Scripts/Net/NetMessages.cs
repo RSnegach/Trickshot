@@ -25,6 +25,9 @@ namespace Trickshot.Net
         RosterSync = 6,   // host -> clients: full lobby roster + match config
         ReadyToggle = 7,  // client -> host: my ready state changed
         StartMatch = 8,   // host -> clients: build the match now
+        ReplayStart = 9,  // host -> clients: begin the post-goal replay
+        SkipVote = 10,    // client -> host: I clicked to skip the replay
+        ReplayEnd = 11,   // host -> clients: end the replay (all skipped or finished)
     }
 
     // The host's chosen match configuration, synced to all peers so everyone builds the
@@ -191,5 +194,8 @@ namespace Trickshot.Net
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
         public static byte[] Start() => new NetWriter(MsgType.StartMatch).ToArray();
+        public static byte[] ReplayStart() => new NetWriter(MsgType.ReplayStart).ToArray();
+        public static byte[] SkipVote() => new NetWriter(MsgType.SkipVote).ToArray();
+        public static byte[] ReplayEnd() => new NetWriter(MsgType.ReplayEnd).ToArray();
     }
 }
