@@ -28,6 +28,7 @@ namespace Trickshot.Net
         ReplayStart = 9,  // host -> clients: begin the post-goal replay
         SkipVote = 10,    // client -> host: I clicked to skip the replay
         ReplayEnd = 11,   // host -> clients: end the replay (all skipped or finished)
+        RequestSlot = 12, // client -> host: I want to claim this slot (role pick)
     }
 
     // The host's chosen match configuration, synced to all peers so everyone builds the
@@ -47,11 +48,11 @@ namespace Trickshot.Net
         public byte slot;
         public bool human;       // a person holds this slot (else AI)
         public bool ready;
-        public bool isLocalHint;  // set per-recipient by nothing; clients compare to LocalSlot
+        public byte role;        // NetRole for this slot (so clients label rows by role)
         public string name;
     }
 
-    public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2 }
+    public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2, Crosser = 3 }
 
     // One player's per-tick intent, sampled from GameInput and sent to the host.
     public struct InputFrame
@@ -178,7 +179,7 @@ namespace Trickshot.Net
             w.U32(cfg.matchSec); w.B(cfg.publicLobby);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
-                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ready); w.Str(s.name); }
+                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ready); w.U8(s.role); w.Str(s.name); }
             return w.ToArray();
         }
 
@@ -189,10 +190,11 @@ namespace Trickshot.Net
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
-                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ready = r.B(), name = r.Str() };
+                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ready = r.B(), role = r.U8(), name = r.Str() };
         }
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
+        public static byte[] RequestSlot(byte slot) { var w = new NetWriter(MsgType.RequestSlot); w.U8(slot); return w.ToArray(); }
         public static byte[] Start() => new NetWriter(MsgType.StartMatch).ToArray();
         public static byte[] ReplayStart() => new NetWriter(MsgType.ReplayStart).ToArray();
         public static byte[] SkipVote() => new NetWriter(MsgType.SkipVote).ToArray();

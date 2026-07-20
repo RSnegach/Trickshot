@@ -17,7 +17,12 @@ namespace Trickshot.Net
     /// </summary>
     public class NetSession
     {
-        public const int MaxSlots = 8;   // 1 keeper + up to 7 shooters
+        public const int MaxSlots = 8;      // slot 0 keeper, 1..6 shooters, 7 crosser
+        public const int CrosserSlot = MaxSlots - 1;   // slot 7 = the crosser role
+
+        // Role a given slot represents: 0 = keeper, MaxSlots-1 = crosser, else shooter.
+        public static NetRole RoleOfSlot(int slot)
+            => slot == 0 ? NetRole.Keeper : slot == CrosserSlot ? NetRole.Crosser : NetRole.Shooter;
 
         public INetTransport Transport { get; private set; }
         public bool IsHost => Transport != null && Transport.IsHost;
@@ -193,6 +198,9 @@ namespace Trickshot.Net
                 case MsgType.ReadyToggle: // host: a client set its ready state
                     if (IsHost) { int s = SlotOf(from); if (s >= 0) { _slotReady[s] = r.B(); PushRoster(); } }
                     break;
+                case MsgType.RequestSlot: // host: a client wants to claim a slot (role pick)
+                    if (IsHost) ApplySlotRequest(from, r.U8());
+                    break;
                 case MsgType.RosterSync:  // client: full roster + config from host
                     NetCodec.ReadRoster(r, out var cfg, out var slots);
                     Config = cfg; Roster = slots;
@@ -269,13 +277,45 @@ namespace Trickshot.Net
         // the full roster (+ config) so everyone, including the new joiner, is in sync.
         void GrantSlot(PeerId peer, string name)
         {
-            int granted = -1; NetRole role = NetRole.Spectator;
-            for (int s = 1; s < MaxSlots; s++)
-                if (!_slotOwner[s].IsValid) { granted = s; role = NetRole.Shooter; break; }
-            if (granted < 0 && !_slotOwner[0].IsValid) { granted = 0; role = NetRole.Keeper; }
+            int granted = -1;
+            // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
+            // (MaxSlots-1). Players re-pick any free role in the lobby afterward.
+            for (int s = 1; s < CrosserSlot; s++)
+                if (!_slotOwner[s].IsValid) { granted = s; break; }
+            if (granted < 0 && !_slotOwner[0].IsValid) granted = 0;
+            if (granted < 0 && !_slotOwner[CrosserSlot].IsValid) granted = CrosserSlot;
 
+            NetRole role = granted < 0 ? NetRole.Spectator : RoleOfSlot(granted);
             if (granted >= 0) { _slotOwner[granted] = peer; _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name; }
             Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role), NetChannel.Reliable);
+            PushRoster();
+        }
+
+        // Client picks a role in the lobby by requesting its slot. Host validates the target
+        // is free, moves the requester there (freeing their old slot), re-assigns + re-pushes.
+        // Mirrors SetReady's host-vs-client routing.
+        public void RequestSlot(int slot)
+        {
+            if (slot < 0 || slot >= MaxSlots) return;
+            if (IsHost) ApplySlotRequest(Transport.LocalPeer, slot);
+            else Transport.Send(Transport.HostPeer, NetCodec.RequestSlot((byte)slot), NetChannel.Reliable);
+        }
+
+        // Host: move `peer` into `target` if it's free, clearing their previous slot. The
+        // mover's ready flag resets (new role = re-confirm). No-op if the slot is taken.
+        void ApplySlotRequest(PeerId peer, int target)
+        {
+            if (target < 0 || target >= MaxSlots) return;
+            if (_slotOwner[target].IsValid) return;          // taken (incl. by the requester's own slot)
+            int cur = SlotOf(peer);
+            string name = cur >= 0 ? _slotName[cur] : PlayerProfile.PlayerName;
+            if (cur >= 0) { _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false; }
+            _slotOwner[target] = peer;
+            _slotName[target] = string.IsNullOrEmpty(name) ? "PLAYER" : name;
+            _slotReady[target] = false;
+            // Tell the mover their new slot/role (host updates its own LocalSlot directly).
+            if (peer.Equals(Transport.LocalPeer)) AssignLocal(target, RoleOfSlot(target));
+            else Transport.Send(peer, NetCodec.AssignSlot((byte)target, RoleOfSlot(target)), NetChannel.Reliable);
             PushRoster();
         }
 
@@ -293,9 +333,8 @@ namespace Trickshot.Net
             for (int i = 0; i < MaxSlots; i++)
             {
                 bool human = _slotOwner[i].IsValid;
-                // Only include occupied slots + the keeper (slot 0 always shown). Shooter
-                // slots beyond the human count show as AI up to the lobby's max players.
                 list.Add(new LobbySlot { slot = (byte)i, human = human, ready = _slotReady[i],
+                                         role = (byte)RoleOfSlot(i),
                                          name = human ? (_slotName[i] ?? "PLAYER") : "AI" });
             }
             Roster = list.ToArray();

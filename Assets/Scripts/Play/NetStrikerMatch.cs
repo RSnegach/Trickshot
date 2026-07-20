@@ -27,10 +27,13 @@ namespace Trickshot
         class Body
         {
             public ActiveRagdoll ragdoll;
-            public Striker striker;         // null for the keeper puppet
+            public Striker striker;         // null for the keeper/crosser puppet
             public NetInputSource netInput; // host: remote slots' input adapter
             public Goalkeeper ai;           // host: AI keeper when no human holds slot 0
+            public KeeperController keeper; // host: human keeper controller (slot 0 with a human)
+            public CrosserControl crosserCtl; // host: human crosser controller (slot 7 with a human)
             public bool isKeeper;
+            public bool isCrosser;
             // client interp targets
             public Vector3 targetPos;
             public float targetYaw;
@@ -55,6 +58,11 @@ namespace Trickshot
         // Client interp target for the ball.
         Vector3 _ballTargetPos;
 
+        // Cross-targeting map (crosser role only): where the human crosser's deliveries land.
+        bool _crossMapOpen;
+        Vector3 _crossTarget = SimConfig.ServeTarget;
+        bool _localIsCrosser;
+
         // Per-machine post-goal replay (each peer replays its own local view).
         ReplaySystem _replay;
         bool _replaying;
@@ -69,13 +77,15 @@ namespace Trickshot
             _goalLineZ = SimConfig.GoalCenter.z;
             _s.MatchEvent += OnMatchEvent;
 
-            // Spawn a body per active slot from the roster (keeper slot 0 + shooter slots).
+            // Spawn a body per active slot from the roster (keeper slot 0, crosser slot N-1,
+            // shooters between).
             foreach (var slot in _s.Roster)
-                SpawnBody(slot.slot, slot.slot == 0, torso, limb, glove, root);
+                SpawnBody(slot.slot, torso, limb, glove, root);
 
             // Camera follows the LOCAL body; local striker turns to camera yaw.
             var me = _bodies[_localSlot];
-            if (me != null && me.ragdoll.Pelvis != null)
+            _localIsCrosser = me != null && me.isCrosser;
+            if (me != null && me.ragdoll != null && me.ragdoll.Pelvis != null)
             {
                 _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, null, null);
                 _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
@@ -97,8 +107,16 @@ namespace Trickshot
             LockCursor();
         }
 
-        void SpawnBody(int slot, bool keeper, Material torso, Material limb, Material glove, Transform root)
+        void SpawnBody(int slot, Material torso, Material limb, Material glove, Transform root)
         {
+            bool keeper  = slot == 0;
+            bool crosser = slot == NetSession.CrosserSlot;
+            bool isLocal = slot == _localSlot;
+            bool hostSim = _s.IsHost;
+            bool human   = _s.SlotIsHuman(slot);
+
+            if (crosser) { SpawnCrosserBody(slot, isLocal, hostSim, human); return; }
+
             var go = new GameObject("NetSlot" + slot);
             go.transform.SetParent(root, true);
             var ragdoll = go.AddComponent<ActiveRagdoll>();
@@ -107,9 +125,6 @@ namespace Trickshot
             ragdoll.Build(start, facing, torso, limb, withGloves: keeper && glove != null);
 
             var b = new Body { ragdoll = ragdoll, isKeeper = keeper, targetPos = start, targetYaw = facing.eulerAngles.y };
-
-            bool isLocal = slot == _localSlot;
-            bool hostSim = _s.IsHost;
 
             if (!keeper)
             {
@@ -131,11 +146,54 @@ namespace Trickshot
             {
                 ragdoll.BecomeDisplayBody();   // client keeper puppet
             }
+            else if (!human)
+            {
+                // Host keeper, no human: AI goaltender.
+                var gk = go.AddComponent<Goalkeeper>(); gk.Init(ragdoll, _ball); b.ai = gk;
+            }
             else
             {
-                // Host keeper: simple AI goaltender (reuse Goalkeeper if a human doesn't hold it).
-                if (!_s.SlotIsHuman(0)) { var gk = go.AddComponent<Goalkeeper>(); gk.Init(ragdoll, _ball); b.striker = null; b.netInput = null; b.ai = gk; }
-                else { b.netInput = new NetInputSource(); }   // (human keeper: keeper control TBD; treated as AI-less puppet host-side)
+                // Host keeper, a human holds slot 0: drive the real KeeperController from the
+                // local device (host keeper) or this slot's NetInputSource (remote keeper).
+                var kc = go.AddComponent<KeeperController>();
+                if (isLocal) { kc.Init(_input, ragdoll); }
+                else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll); }
+                kc.SetLookYawSource(isLocal ? (System.Func<float>)(() => _cam.Yaw) : (() => b.netInput != null ? b.netInput.LookYaw : 0f));
+                b.keeper = kc;
+            }
+
+            _bodies[slot] = b;
+        }
+
+        // The crosser slot reuses the pre-built _crosser (its ragdoll is already placed on the
+        // wing). Host + human -> CrosserControl drives it (AutoServe off). Host + no human ->
+        // the AI auto-serve loop (unchanged). Client -> display puppet.
+        void SpawnCrosserBody(int slot, bool isLocal, bool hostSim, bool human)
+        {
+            var ragdoll = _crosser.Ragdoll;
+            var b = new Body { ragdoll = ragdoll, isCrosser = true };
+            if (ragdoll != null && ragdoll.Pelvis != null)
+            {
+                b.targetPos = ragdoll.Pelvis.position; b.targetPos.y = 0f;
+                b.targetYaw = ragdoll.FacingRotation.eulerAngles.y;
+            }
+
+            if (!hostSim)
+            {
+                if (isLocal) { /* client-predicted local crosser: keep real ragdoll */ }
+                else if (ragdoll != null) ragdoll.BecomeDisplayBody();   // remote crosser puppet
+            }
+            else if (human)
+            {
+                _crosser.AutoServe = false;                              // human decides deliveries
+                var cc = _crosser.gameObject.AddComponent<CrosserControl>();
+                IStrikerInput src = isLocal ? (IStrikerInput)_input : (b.netInput = new NetInputSource());
+                cc.Init(src, _crosser, () => _crossMapOpen, () => _crossTarget);
+                b.crosserCtl = cc;
+            }
+            else
+            {
+                _crosser.AutoServe = true;                               // AI auto-serve loop
             }
 
             _bodies[slot] = b;
@@ -165,6 +223,15 @@ namespace Trickshot
 
         void OnMatchEvent(string tag) { Flash(tag); }
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
+
+        // Crosser's cross-targeting map: free the cursor while open (to click the map), re-lock
+        // on close. The chosen _crossTarget feeds CrosserControl (via the closure in SpawnBody).
+        void SetCrossMapOpen(bool open)
+        {
+            _crossMapOpen = open;
+            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = open;
+        }
 
         // Replay start (any peer): freeze local control, cut to broadcast cam, roll playback.
         void OnReplayStarted()
@@ -203,9 +270,16 @@ namespace Trickshot
 
             // R: multiplayer re-serves the shared ball to the crosser (host-authoritative);
             // no player reset. (Single-player R still fully resets via GameManager.)
-            if (_input.ResetPressed && _s.IsHost) { _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
+            // A human crosser shouldn't auto-refill the ball on R (they deliver manually).
+            if (_input.ResetPressed && _s.IsHost && _crosser.AutoServe) { _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
 
-            // Local player: tick its Striker (host + client both predict the local body).
+            // Local crosser: M toggles the cross-targeting map (freeze aim, free the cursor).
+            if (_localIsCrosser && _input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
+
+            // Local player: tick its own controller (host + client both predict the local body).
+            // Shooters tick their Striker; a local keeper/crosser control is ticked host-side in
+            // HostUpdate (they own the authoritative body); a client-local keeper/crosser has no
+            // predicted control this pass (their body follows the host snapshot).
             var me = _bodies[_localSlot];
             if (me != null && me.striker != null) me.striker.Tick();
 
@@ -215,16 +289,52 @@ namespace Trickshot
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
         }
 
-        void HostUpdate()
+        // Host: a shooter pressed Q/E without the ball -> AI crosser serves a low/high ball to
+        // that shooter's feet, scattered by that player's passing accuracy. First caller this
+        // frame wins (the crosser serves one ball). Remote slots' pass edges come from their
+        // NetInputSource (fed just above in HostUpdate); the local host reads its own device.
+        void HostCheckCallForPass()
         {
-            // Feed remote slots' latest input, tick their strikers + the AI keeper.
             for (int i = 0; i < _bodies.Length; i++)
             {
                 var b = _bodies[i];
-                if (b == null || i == _localSlot) continue;
-                if (b.netInput != null && b.striker != null) { b.netInput.Feed(_s.InputForSlot(i)); b.striker.Tick(); }
-                if (b.ai != null) b.ai.Tick();
+                if (b == null || b.isKeeper || b.isCrosser || b.ragdoll == null || b.ragdoll.Pelvis == null) continue;
+                IStrikerInput src = (i == _localSlot) ? (IStrikerInput)_input : b.netInput;
+                if (src == null) continue;
+                bool low = src.PassGroundPressed, high = src.PassLoftedPressed;
+                if (!low && !high) continue;
+                Vector3 target = b.ragdoll.Pelvis.position; target.y = SimConfig.BallRadius;
+                float acc = Mathf.Clamp01((PlayerProfile.PassAccuracyMul - 1f) / 0.85f);
+                if (PlayerProfile.PerkMaestro) acc = 1f;
+                float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
+                _crosser.ServeNow(target, high, 0.5f, scatter);
+                Flash(high ? "CALL: HIGH" : "CALL: LOW");
+                return;   // one serve per frame
             }
+        }
+
+        void HostUpdate()
+        {
+            // Feed remote slots' latest input, tick their controllers + the AI keeper.
+            for (int i = 0; i < _bodies.Length; i++)
+            {
+                var b = _bodies[i];
+                if (b == null) continue;
+                bool remote = i != _localSlot;
+                // Remote human slots: refresh their input adapter from the wire first.
+                if (remote && b.netInput != null) b.netInput.Feed(_s.InputForSlot(i));
+                // Tick whichever controller this body has (shooter / human keeper / human
+                // crosser). The local body's Striker is already ticked in Update(); its human
+                // keeper/crosser controls are ticked here (they run host-side only).
+                if (remote && b.striker != null) b.striker.Tick();
+                if (b.ai != null) b.ai.Tick();
+                if (b.keeper != null) b.keeper.Tick();
+                if (b.crosserCtl != null) b.crosserCtl.Tick();
+            }
+
+            // Call-for-pass: when the crosser is AI (no human in the crosser slot), any human
+            // shooter pressing Q/E asks for a low/high ball to their feet. Host-authoritative.
+            if (_crosser.AutoServe && _crosser.ReadyToServe) HostCheckCallForPass();
 
             // Crosser + ball + goal detection (authoritative). A goal rolls the replay for
             // everyone (OnReplayEnded re-arms the crosser + ball afterward).
@@ -322,11 +432,34 @@ namespace Trickshot
         {
             if (_s == null) return;
             Hud.Begin();
+            var meBody = _bodies[_localSlot];
+            string youAre = meBody == null ? "Shooter " + _localSlot
+                          : meBody.isKeeper ? "Keeper"
+                          : meBody.isCrosser ? "Crosser" : "Shooter " + _localSlot;
             var p = Hud.PanelStart(_s.IsHost ? "STRIKER (HOST)" : "STRIKER (CLIENT)", 2);
             Hud.Stat(ref p, "Goals", _goals.ToString());
-            Hud.Stat(ref p, "You are", _bodies[_localSlot] != null && _bodies[_localSlot].isKeeper ? "Keeper" : "Shooter " + _localSlot);
-            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   V ball cam   R reset");
+            Hud.Stat(ref p, "You are", youAre);
+            Hud.Legend(_localIsCrosser
+                ? "WASD move   M aim map   Tap Q/E driven   Hold Q/E chip   V ball cam"
+                : (youAre == "Keeper"
+                    ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
+                    : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q/E call low/high   V ball cam   R reset"));
             Hud.Flash(_flash, _flashTime / 1.6f);
+
+            // Crosser's cross-targeting overlay (aim where deliveries land).
+            if (_localIsCrosser && _crossMapOpen)
+            {
+                var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.45f);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = prev;
+                float w = 380f, h = 300f;
+                var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
+                var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
+                GUI.Label(new Rect(mapRect.x, mapRect.y - 34f, w, 28f), "WHERE SHOULD YOUR CROSSES LAND?", hdr);
+                CrossMap.Draw(mapRect, ref _crossTarget, interactive: true);
+                var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
+                GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to set target.  M to close.  Then tap Q/E = driven, hold = chip.", tip);
+            }
         }
     }
 }
