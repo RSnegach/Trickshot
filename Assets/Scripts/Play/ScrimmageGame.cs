@@ -196,9 +196,10 @@ namespace Trickshot
                     // every other outfielder is AI.
                     if (_humanStriker != null) _humanStriker.Tick();
 
-                    // Passing to a teammate (or calling for one when you don't have the ball).
-                    if (_input.PassGroundPressed) TryPass(lofted: false);
-                    else if (_input.PassLoftedPressed) TryPass(lofted: true);
+                    // Passing: hold Q/E to charge (tap = soft, hold = hard), release to
+                    // pass, WHEN you have the ball. Pressing without the ball is an instant
+                    // call for a pass from an AI teammate (no charge).
+                    HandlePassInput();
 
                     // Tackle (C): lunge forward to win the ball off an opponent.
                     if (_input.TacklePressed) TryHumanTackle();
@@ -456,45 +457,85 @@ namespace Trickshot
         }
 
         // ------------------------------------------------------------- passing
-        // Q / E when you HAVE the ball plays a pass. When you DON'T, it CALLS for a pass:
-        // an AI teammate who has the ball passes it to you (a real player never gives the
-        // ball up on someone else's call). Ground vs lofted picks the pass type.
-        void TryPass(bool lofted)
+        // Charge state: how long each pass key has been held (only meaningful with the ball).
+        float _groundCharge, _loftedCharge;
+
+        void HandlePassInput()
         {
             if (_controlled == null || _humanStriker == null) return;
+            bool haveBall = ControlledHasBall();
 
-            if (ControlledHasBall())
+            // Without the ball, a PRESS is an instant call for a pass (no charge).
+            if (!haveBall)
             {
-                PlayPass(_ball.transform.position, _humanStriker.FacingForward, lofted, _humanDribble);
-                Flash(lofted ? "LOFTED PASS" : "PASS");
+                _groundCharge = _loftedCharge = 0f;
+                if (_input.PassGroundPressed) CallForPass(lofted: false);
+                else if (_input.PassLoftedPressed) CallForPass(lofted: true);
                 return;
             }
 
-            // Call for a pass: find the AI teammate currently on the ball and have it pass
-            // to the controlled player. If no teammate has it (opponent possession or a
-            // loose ball), the call does nothing to the ball.
+            // With the ball: charge while held, fire on release, power scaled by hold time.
+            if (_input.PassGroundHeld) _groundCharge += Time.deltaTime;
+            if (_input.PassGroundReleased) { PlayPass(false, ChargeMul(_groundCharge), _humanDribble); _groundCharge = 0f; }
+
+            if (_input.PassLoftedHeld) _loftedCharge += Time.deltaTime;
+            if (_input.PassLoftedReleased) { PlayPass(true, ChargeMul(_loftedCharge), _humanDribble); _loftedCharge = 0f; }
+        }
+
+        // 0..PassMaxCharge seconds held -> a speed factor between min (tap) and max (hold).
+        float ChargeMul(float held)
+            => Mathf.Lerp(SimConfig.PassChargeMinMul, SimConfig.PassChargeMaxMul,
+                          Mathf.Clamp01(held / SimConfig.PassMaxCharge));
+
+        // Call for a pass: the AI teammate on the ball passes it to the controlled player.
+        void CallForPass(bool lofted)
+        {
             var carrier = TeammateOnBall();
             if (carrier == null || carrier == _controlled) { Flash("CALLING"); return; }
             Vector3 lead = _controlled.Ragdoll.Pelvis.linearVelocity * SimConfig.PassLeadFrac;
             Vector3 dir = (_controlled.Pos + lead) - _ball.transform.position; dir.y = 0f;
             if (dir.sqrMagnitude < 0.01f) dir = carrier.Ragdoll.FacingRotation * Vector3.forward;
-            PlayPass(_ball.transform.position, dir.normalized, lofted, carrier.GetComponent<Dribble>());
+            // The AI carrier plays it; use its own passing accuracy for the scatter.
+            LaunchPass(_ball.transform.position, dir.normalized, lofted, 1f,
+                       carrier.GetComponent<Dribble>(), PlayerProfile.PassAccuracyMul);
             Flash(lofted ? "CALL: LOFTED" : "CALL: PASS");
         }
 
-        // Launch the ball as a pass in `dir` (or toward the best teammate in that cone when
-        // dir is the aim). Releases the given dribble so the carry doesn't fight the kick.
-        void PlayPass(Vector3 from, Vector3 aim, bool lofted, Dribble carry)
+        // The controlled player plays a pass along the aim (auto-aimed to the best teammate
+        // in that cone), charged by `chargeMul`, scattered by the player's passing accuracy.
+        void PlayPass(bool lofted, float chargeMul, Dribble carry)
         {
-            Footballer target = BestPassTarget(from, aim);
-            Vector3 dir = aim;
+            Footballer target = BestPassTarget(_ball.transform.position, _humanStriker.FacingForward);
+            Vector3 dir = _humanStriker.FacingForward;
             if (target != null)
             {
                 Vector3 lead = target.Ragdoll.Pelvis.linearVelocity * SimConfig.PassLeadFrac;
-                Vector3 to = (target.Pos + lead) - from; to.y = 0f;
+                Vector3 to = (target.Pos + lead) - _ball.transform.position; to.y = 0f;
                 if (to.sqrMagnitude > 0.01f) dir = to.normalized;
             }
-            float power = (lofted ? SimConfig.PassLoftedSpeed : SimConfig.PassGroundSpeed) * PlayerProfile.ShotPowerMul;
+            LaunchPass(_ball.transform.position, dir, lofted, chargeMul, carry, PlayerProfile.PassAccuracyMul);
+            Flash(lofted ? "LOFTED PASS" : "PASS");
+        }
+
+        // Common launch: applies pass power (trait + charge), then a random angle + power
+        // SCATTER inversely scaled by passing accuracy so low-passing players misplace it.
+        void LaunchPass(Vector3 from, Vector3 dir, bool lofted, float chargeMul, Dribble carry, float accMul)
+        {
+            // Accuracy 0..1: PassAccuracyMul is 1.0 with no nodes, up to ~1.85 fully invested;
+            // Maestro = pinpoint. Higher accuracy -> less scatter.
+            float acc = Mathf.Clamp01((accMul - 1f) / 0.85f);
+            if (PlayerProfile.PerkMaestro) acc = 1f;
+            float scatterDeg = SimConfig.PassScatterMaxDeg * (1f - acc);
+            float wobble = SimConfig.PassPowerWobble * (1f - acc);
+
+            // Random yaw error about up, plus a small power wobble. Harder charge scatters
+            // a touch more (a firm pass is harder to place).
+            float ang = Random.Range(-scatterDeg, scatterDeg) * (0.7f + 0.3f * chargeMul);
+            dir = Quaternion.AngleAxis(ang, Vector3.up) * dir;
+
+            float power = (lofted ? SimConfig.PassLoftedSpeed : SimConfig.PassGroundSpeed)
+                          * PlayerProfile.PassPowerMul * chargeMul
+                          * (1f + Random.Range(-wobble, wobble));
             Vector3 v = dir * power;
             if (lofted) v += Vector3.up * (power * SimConfig.PassLoftedArc);
             if (carry != null) carry.ForceRelease();

@@ -380,6 +380,24 @@ namespace Trickshot
                 case "a2c": // Cat-Like - down-arrow into ground (soft landing)
                     ArrowSeg(C, 48f, C, 22f, 2.6f, 7f); GroundLine(); break;
 
+                // ---------------- PASSING ----------------
+                case "pa0": // Passer - ball + arrow to a small dot (teammate)
+                    Ball(22f, 30f, 8f); ArrowSeg(30f, 32f, 46f, 38f, 2.2f, 6f); Dot(50f, 40f, 3f); break;
+                case "pa1a": // Zip - fast arrow with speed ticks
+                    ArrowSeg(16f, 30f, 48f, 34f, 2.6f, 7f); Stroke(14f, 38f, 26f, 40f, 1.8f); Stroke(14f, 24f, 24f, 22f, 1.8f); break;
+                case "pa1c": // Playmaking - ball + branching arrows
+                    Ball(22f, 32f, 7f); ArrowSeg(30f, 32f, 48f, 44f, 2f, 5f); ArrowSeg(30f, 32f, 48f, 20f, 2f, 5f); break;
+                case "pa1b": // Precision - target + small arrow in
+                    Ring(38f, 34f, 9f, 2f); Dot(38f, 34f, 2f); ArrowSeg(16f, 20f, 32f, 30f, 2f, 5f); break;
+                case "pa2a": // Driven - double chevron arrow
+                    ChevronR(26f, C, 9f, 3f); ChevronR(36f, C, 9f, 3f); ArrowSeg(40f, C, 50f, C, 2.4f, 6f); break;
+                case "pa2c": // Tempo - metronome-ish: post + swinging arm + ball
+                    Stroke(32f, 16f, 32f, 44f, 2.2f); Stroke(32f, 44f, 44f, 22f, 2f); Ball(22f, 40f, 5f); break;
+                case "pa2b": // Threaded - arrow threading between two dots
+                    Dot(26f, 44f, 3f); Dot(26f, 20f, 3f); ArrowSeg(14f, 32f, 50f, 32f, 2.4f, 6f); break;
+                case "pacap": // Maestro - ball + radiating pinpoint lines
+                    Ball(32f, 32f, 9f); Burst(32f, 32f, 13f, 20f); break;
+
                 default:
                     Ring(32f, 32f, 14f, 2.4f); break;
             }

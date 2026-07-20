@@ -406,12 +406,22 @@ namespace Trickshot
         public const float ScrimStuckSpeed        = 0.5f;   // "nearly still" threshold (m/s)
 
         // Passing (controlled outfielder). A pass picks the teammate nearest the aim ray.
-        public const float PassGroundSpeed   = 12f;   // ground (rolled) pass base speed (m/s), scaled by ShotPowerMul
+        public const float PassGroundSpeed   = 12f;   // ground (rolled) pass base speed (m/s), scaled by PassPowerMul
         public const float PassLoftedSpeed   = 13f;   // lofted (chipped) pass base speed
         public const float PassLoftedArc     = 0.55f; // upward fraction of a lofted pass (higher = floatier)
         public const float PassAimConeDot    = 0.2f;  // teammate must be within this cone of the aim to be picked
         public const float PassMaxRange      = 45f;   // don't target teammates further than this
         public const float PassLeadFrac      = 0.25f; // lead a moving target by this fraction of range/speed
+        // Hold Q/E to charge: a tap is a soft pass, a full hold a hard/fast one. The charge
+        // fraction (0..1 over PassMaxCharge seconds) scales speed between these bounds.
+        public const float PassMaxCharge     = 0.6f;   // seconds of hold to reach full power
+        public const float PassChargeMinMul  = 0.55f;  // speed factor for a bare tap
+        public const float PassChargeMaxMul  = 1.6f;   // speed factor at full charge
+        // Accuracy scatter: at PassAccuracyMul = 1 (no Passing nodes) a pass is knocked off
+        // its intended line by up to this angle + a power wobble; investment shrinks it to
+        // ~0 (Maestro perk = pinpoint). Harder-charged passes also scatter a touch more.
+        public const float PassScatterMaxDeg = 22f;    // max aim error at low passing (deg)
+        public const float PassPowerWobble   = 0.18f;  // +/- fraction of speed randomised at low passing
 
         // Auto-switch: control the teammate nearest the ball (outfield role). A manual
         // switch key cycles too. A brief lockout stops rapid flip-flopping.

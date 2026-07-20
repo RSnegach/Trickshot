@@ -19,7 +19,7 @@ namespace Trickshot
     /// </summary>
     public static class SkillTree
     {
-        public enum Category { Pace, Shooting, Heading, Strength, Control, Agility }
+        public enum Category { Pace, Shooting, Passing, Heading, Strength, Control, Agility }
 
         public struct Effect { public string Key; public float Amount; public Effect(string k, float a){ Key=k; Amount=a; } }
 
@@ -39,8 +39,8 @@ namespace Trickshot
         }
 
         // Fixed pool: enough to fully build one category (three branches to a capstone ~= 30)
-        // plus a real dip elsewhere - never max everything.
-        public const int Budget = 40;
+        // plus a real dip elsewhere - never max everything. Raised for the 7th (Passing) area.
+        public const int Budget = 46;
 
         public static readonly HashSet<string> Owned = new HashSet<string>();
 
@@ -137,16 +137,19 @@ namespace Trickshot
             new Preset { Name = "Brick Shithouse", Desc = "Immovable strength; aerial presence",
                 // Strength full = 31, + Heading h0,h1a = 5 -> 36
                 Ids = new[]{ "st0","st1a","st1c","st1b","st2a","st2c","st2b","stcap", "h0","h1a" } },
-            new Preset { Name = "Maestro",         Desc = "Silky control + a glued dribble; pace to drive",
+            new Preset { Name = "Silky Dribbler",  Desc = "Silky control + a glued dribble; pace to drive",
                 // Control full = 2+3+3+3+4+5+4+7 = 31, + Pace p0,p1a = 5 -> 36
                 Ids = new[]{ "c0","c1a","c1c","c1b","c2a","c2c","c2b","ccap", "p0","p1a" } },
             new Preset { Name = "Showboat",        Desc = "Acrobatic agility; pace for flair on the run",
                 // Agility full = 31, + Pace p0,p1a = 5 -> 36
                 Ids = new[]{ "a0","a1a","a1c","a1b","a2a","a2c","a2b","acap", "p0","p1a" } },
-            // Balanced jack-of-all-trades: every area's root + both tier-1 branch upgrades.
-            // 6 x (2+3+3) = 48 > 40, so root + one tier-1 each + a few extras: 6x(2+3)=30, +6 -> 36.
+            new Preset { Name = "Playmaker",       Desc = "Pinpoint passing; control to keep the ball",
+                // Passing full = 2+3+3+3+4+5+4+7 = 31, + Control c0,c1a = 5 -> 36
+                Ids = new[]{ "pa0","pa1a","pa1c","pa1b","pa2a","pa2c","pa2b","pacap", "c0","c1a" } },
+            // Balanced jack-of-all-trades: every area's root + a first upgrade each.
+            // 7 x (2+3) = 35, + 3 extras -> 44 (<= Budget 46).
             new Preset { Name = "Default Chud",    Desc = "Balanced spend across every area",
-                Ids = new[]{ "p0","p1a", "s0","s1a", "h0","h1a", "st0","st1a", "c0","c1a", "a0","a1a",
+                Ids = new[]{ "p0","p1a", "s0","s1a", "pa0","pa1a", "h0","h1a", "st0","st1a", "c0","c1a", "a0","a1a",
                              "p1c","s1c","h1c" } },
         };
 
@@ -200,6 +203,16 @@ namespace Trickshot
             Node_("s2c","Drilled","+14% power, +14% accuracy",Category.Shooting,5,"s1c","v",0.5f,2,null, E("shotpower",0.14f), E("shotacc",0.14f));
             Node_("s2b","Finesse","+24% shot accuracy",Category.Shooting,4,"s1b","x",0.8f,2,null, E("shotacc",0.24f));
             Node_("scap","Cannon","Big rise to your shot-speed ceiling",Category.Shooting,8,"s2a","C",0.2f,3,"cannon");
+
+            // ========================== PASSING (passpower, passacc) =====================
+            Node_("pa0","Passer","+14% pass accuracy",Category.Passing,2,null,">",0.5f,0,null, E("passacc",0.14f));
+            Node_("pa1a","Zip","+18% pass power (faster passes)",Category.Passing,3,"pa0","!",0.2f,1,null, E("passpower",0.18f));
+            Node_("pa1c","Playmaking","+10% power, +12% accuracy",Category.Passing,3,"pa0","*",0.5f,1,null, E("passpower",0.10f), E("passacc",0.12f));
+            Node_("pa1b","Precision","+22% pass accuracy",Category.Passing,3,"pa0","+",0.8f,1,null, E("passacc",0.22f));
+            Node_("pa2a","Driven","+18% pass power",Category.Passing,4,"pa1a","»",0.2f,2,null, E("passpower",0.18f));
+            Node_("pa2c","Tempo","+14% power, +14% accuracy",Category.Passing,5,"pa1c","~",0.5f,2,null, E("passpower",0.14f), E("passacc",0.14f));
+            Node_("pa2b","Threaded","+24% pass accuracy",Category.Passing,4,"pa1b","x",0.8f,2,null, E("passacc",0.24f));
+            Node_("pacap","Maestro","Pinpoint passing: near-perfect accuracy",Category.Passing,7,"pa2b","M",0.8f,3,"maestro");
 
             // ==================== HEADING (headpower, headacc, jump, reach) ==============
             Node_("h0","Timing","+18% header accuracy",Category.Heading,2,null,"o",0.5f,0,null, E("headacc",0.18f));

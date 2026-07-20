@@ -269,8 +269,16 @@ namespace Trickshot
             if (_stage == Stage.Jersey)
                 GUI.Label(new Rect(previewRect.x, previewRect.yMax - 26f, previewW, 20f), "Drag the model to spin it", hint);
 
-            // Skill stage: one-click build presets down the left column, over the model.
-            if (_stage == Stage.Skill) SkillPresetButtons(previewRect);
+            // Skill stage: one-click build presets down the left column + a live attribute
+            // radar over the lower preview, so the shape updates as nodes are bought.
+            if (_stage == Stage.Skill)
+            {
+                SkillPresetButtons(previewRect);
+                var radarRect = new Rect(previewRect.x + 20f, previewRect.yMax - 210f, previewW - 40f, 190f);
+                var pc = GUI.color; GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.72f);
+                GUI.DrawTexture(radarRect, Texture2D.whiteTexture); GUI.color = pc;
+                StatRadar.Draw(radarRect);
+            }
 
             // Control panel.
             float x = ox + previewW + gap;
