@@ -19,7 +19,7 @@ namespace Trickshot
     {
         enum State { Ready, Saving, Diving }
 
-        GameInput _input;
+        IStrikerInput _input;
         ActiveRagdoll _ragdoll;
         Quaternion _facing;
         System.Func<float> _lookYaw;   // camera cone yaw (deg); the body turns to match
@@ -45,7 +45,7 @@ namespace Trickshot
         float _lastTapDir;
         bool _dirWasDown;     // A or D held last frame (to detect fresh taps)
 
-        public void Init(GameInput input, ActiveRagdoll ragdoll)
+        public void Init(IStrikerInput input, ActiveRagdoll ragdoll)
         {
             _input = input;
             _ragdoll = ragdoll;

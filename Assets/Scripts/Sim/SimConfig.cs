@@ -107,9 +107,15 @@ namespace Trickshot
         public const float BallBounciness = 0.55f;
 
         // ---- Cross tuning ----
-        public const float CrossTimeLoft = 1.55f;  // loftier serve: floaty, slow
-        public const float CrossTimeDrive = 0.95f; // driven serve: faster, flatter
+        public const float CrossTimeLoft = 1.55f;  // loftier serve: floaty, slow (chipped)
+        public const float CrossTimeDrive = 0.95f; // driven serve: faster, flatter (low)
         public const float MaxCurlAccel = 8f;      // lateral accel while airborne
+        // Human crosser charge: hold time (0..CrossMaxCharge s) scales flight time between a
+        // hard/flat serve and the type's nominal float, so a longer hold floats it more.
+        public const float CrossMaxCharge = 0.6f;  // seconds of hold for max floatiness
+        public const float CrossTapMaxHold = 0.18f; // held below this = a tap (driven); above = a chip
+        public const float CrossChargeFlatMul = 0.8f;  // bare tap: 0.8x the type's flight time (flatter/faster)
+        public const float CrossChargeFloatMul = 1.15f; // full hold: 1.15x (floatier/slower)
 
         // ---- Crosser (ragdoll leg-swing before a perfect launch) ----
         // He plants, plays a right-leg swing, and the ball leaves at contact - but the

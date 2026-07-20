@@ -98,6 +98,21 @@ namespace Trickshot
             Flash("TRICK CONNECT!");
         }
 
+        // Striker calls the AI crosser for a pass to his feet: low (driven) or high (chipped).
+        // Scatter scales inversely with the player's passing accuracy (like a scrimmage pass),
+        // so a low-passing striker gets a looser ball. A full hold isn't needed here (a call is
+        // a single press), so power is nominal.
+        void CallForCross(bool lofted)
+        {
+            Vector3 target = _strikerRagdoll.Pelvis.position; target.y = SimConfig.BallRadius;
+            float acc = Mathf.Clamp01((PlayerProfile.PassAccuracyMul - 1f) / 0.85f);
+            if (PlayerProfile.PerkMaestro) acc = 1f;
+            float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
+            _crosser.ServeNow(target, lofted, 0.5f, scatter);
+            _attempts++; _resolved = false;
+            Flash(lofted ? "CALL: HIGH" : "CALL: LOW");
+        }
+
         void Update()
         {
             if (_input == null) return;
@@ -136,6 +151,15 @@ namespace Trickshot
             }
 
             if (_input.BallCamPressed) _cam.ToggleBallCam();
+
+            // Call for a pass from the AI crosser: Q = low (driven), E = high (chipped),
+            // delivered to the striker's feet with passing-accuracy scatter. Only when the
+            // crosser is idle (not mid-serve) so calls don't stack.
+            if (_crosser.ReadyToServe)
+            {
+                if (_input.PassGroundPressed) { CallForCross(lofted: false); }
+                else if (_input.PassLoftedPressed) { CallForCross(lofted: true); }
+            }
 
             _striker.Tick();
             if (_keeper != null) _keeper.Tick();   // AI keeper goaltends

@@ -32,10 +32,23 @@ is easier and safer.
   their input each tick and receive world snapshots to interpolate toward. This is the only
   sane model for a ragdoll-physics game (deterministic lockstep across machines is not
   realistic with PhysX ragdolls).
-- **Slots.** Slot 0 is the **keeper**; slots 1..N are **shooters** (`NetSession.MaxSlots = 8`,
-  so 1 keeper + up to 7 shooters). Joining humans fill the lowest free shooter slot; any slot
-  no human holds is filled by AI. This covers the target: *one keeper and however many people
-  want to shoot around* — and works for **scrimmage** and **striker** mode alike.
+- **Slots / roles.** `NetSession.MaxSlots = 8`: slot 0 = **keeper**, slots 1..6 = **shooters
+  (strikers)**, slot 7 = **crosser**. Joining humans auto-fill the lowest free shooter slot;
+  any slot no human holds is filled by AI. Works for **scrimmage** and **striker** mode alike.
+- **Pick your role (striker mode).** In the lobby each free (AI) slot has a **Claim** button:
+  click one to become the **keeper**, a **shooter**, or the **crosser**. Claiming sends a
+  `RequestSlot` to the host, which moves you if the slot is still free (frees your old one).
+  Your own slot and slots held by other humans aren't claimable.
+- **Human crosser.** The crosser stands on the wing. Press **M** to open the penalty-box map
+  and click where the ball should land, then deliver with **Q/E**: a **tap** is a driven (low,
+  fast) cross, a **hold** is a chipped (high, floaty) one — longer hold floats it more. When no
+  human holds the crosser slot, the AI auto-serves crosses as before.
+- **Call for a pass (striker).** A striker without the ball, when the crosser is AI, presses
+  **Q** for a low ball or **E** for a high ball to their feet. Lower Passing scatters it. Works
+  in single-player striker mode and multiplayer (this is disabled when a human holds the crosser
+  slot — they deliver manually instead).
+- **Human goalie** is fully networked: a player who claims the keeper slot really moves, dives,
+  and saves, replicated to everyone.
 
 ## Files (`Assets/Scripts/Net/`)
 

@@ -17,6 +17,7 @@ namespace Trickshot
         BallController _ball;
         Transform _launchPoint;
         ActiveRagdoll _ragdoll;
+        public ActiveRagdoll Ragdoll => _ragdoll;   // so the net match can slot/puppet the crosser body
 
         float _timer;
         Vector3 _pendingTarget;
@@ -33,6 +34,11 @@ namespace Trickshot
         public Vector3? OriginOverride;
 
         public bool JustServed { get; private set; }
+
+        // When true (default), the crosser auto-serves on the ServeInterval loop. Set false so
+        // it stays idle until ServeNow() is called (a human crosser, or a striker's called
+        // pass). The cosmetic swing + perfect launch are shared by both paths.
+        public bool AutoServe = true;
 
         public void Init(AimReticle reticle, BallController ball, Transform launchPoint, ActiveRagdoll ragdoll)
         {
@@ -51,8 +57,10 @@ namespace Trickshot
 
         public void Arm(float firstDelay)
         {
-            _timer = firstDelay;
+            // Auto mode counts down to the next serve; manual mode stays idle until ServeNow.
+            _timer = AutoServe ? firstDelay : float.PositiveInfinity;
             _telegraphed = false;
+            _manualPending = false;
             _swing = 0f;
             JustServed = false;
             _reticle.Hide();
@@ -67,9 +75,11 @@ namespace Trickshot
             JustServed = false;
 
             // ~windup before launch: pick the target, show the telegraph, start the swing.
+            // AutoServe picks a default serve; a manual serve (ServeNow) has already set the
+            // pending target/time and only needs the swing to play out.
             if (!_telegraphed && _timer <= SimConfig.CrosserWindupTime)
             {
-                PickServe();
+                if (AutoServe && !_manualPending) PickServe();
                 _reticle.Show(_pendingTarget);
                 _telegraphed = true;
             }
@@ -83,12 +93,46 @@ namespace Trickshot
             if (_timer <= 0f && _telegraphed)
             {
                 Launch();
-                _timer = SimConfig.ServeInterval;   // re-arm for the next constant serve
+                // Auto mode re-arms the constant loop; manual mode goes idle until ServeNow.
+                _timer = AutoServe ? SimConfig.ServeInterval : float.PositiveInfinity;
                 _telegraphed = false;
+                _manualPending = false;
                 return true;
             }
             return false;
         }
+
+        // Manual serve to a chosen target: a driven (low, flat) or chipped (high, floaty) ball,
+        // its flight time scaled by powerMul (a hold-charge 0..1 floats it more), with optional
+        // aim scatter (deg) so low-passing/low-crossing players misplace it. Used by the human
+        // crosser and by the striker's call-for-pass. Plays the same windup swing.
+        public void ServeNow(Vector3 target, bool lofted, float powerMul, float scatterDeg = 0f)
+        {
+            float baseTime = lofted ? SimConfig.CrossTimeLoft : SimConfig.CrossTimeDrive;
+            float floatMul = Mathf.Lerp(SimConfig.CrossChargeFlatMul, SimConfig.CrossChargeFloatMul,
+                                        Mathf.Clamp01(powerMul));
+            if (scatterDeg > 0.01f)
+            {
+                float ang = Random.Range(-scatterDeg, scatterDeg);
+                Vector3 from = Origin; from.y = 0f;
+                Vector3 flat = target; flat.y = 0f;
+                Vector3 rel = flat - from;
+                rel = Quaternion.AngleAxis(ang, Vector3.up) * rel;
+                target = new Vector3(from.x + rel.x, target.y, from.z + rel.z);
+            }
+            _pendingTarget = target;
+            _pendingTime = Mathf.Max(0.2f, baseTime * floatMul);
+            _pendingCurl = Vector3.zero;
+            _pendingSpin = 0f;
+            _manualPending = true;
+            _telegraphed = false;
+            _swing = 0f;
+            _timer = SimConfig.CrosserWindupTime;   // start the windup now; launches after it
+        }
+        bool _manualPending;
+
+        // True once idle (manual mode, nothing pending) so a driver knows it can ServeNow.
+        public bool ReadyToServe => !_telegraphed && !_manualPending;
 
         // Cosmetic right-leg kick: thigh swings from drawn-back to through, knee extends,
         // slight torso lean. All pose overrides, cleared each frame by the ragdoll driver.

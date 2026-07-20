@@ -20,5 +20,20 @@ namespace Trickshot
         bool JumpReleased { get; }
         bool LeftLegHeld { get; }
         bool RightLegHeld { get; }
+
+        // Click edges (LMB/RMB): the keeper's save lunges + replay-skip read these. Derived
+        // from the leg-held bits on the network side.
+        bool LeftClickPressed { get; }
+        bool RightClickPressed { get; }
+
+        // Pass buttons (Q ground / E lofted). The striker's call-for-pass and the human
+        // crosser's driven/chipped delivery read these. Networked via the passGround/
+        // passLofted frame bits (edges re-derived on the receiving side).
+        bool PassGroundPressed { get; }
+        bool PassLoftedPressed { get; }
+        bool PassGroundHeld { get; }
+        bool PassLoftedHeld { get; }
+        bool PassGroundReleased { get; }
+        bool PassLoftedReleased { get; }
     }
 }

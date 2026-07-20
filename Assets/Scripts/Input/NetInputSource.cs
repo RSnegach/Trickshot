@@ -28,11 +28,27 @@ namespace Trickshot
         public float Scroll => 0f;     // remote air-pitch not synced in this pass (rare, cosmetic)
         public bool SprintHeld => _cur.sprint;
 
+        // The remote player's desired facing yaw (camera yaw), synced each frame. Used to turn
+        // a remote keeper's body / aim a remote crosser to match their view.
+        public float LookYaw => _cur.lookYaw;
+
         public bool JumpHeld => _cur.jump;
         public bool JumpPressed => _cur.jump && !_prev.jump;
         public bool JumpReleased => !_cur.jump && _prev.jump;
 
         public bool LeftLegHeld => _cur.legL;
         public bool RightLegHeld => _cur.legR;
+
+        // Click edges from the leg-held bits (LMB = left leg, RMB = right leg).
+        public bool LeftClickPressed => _cur.legL && !_prev.legL;
+        public bool RightClickPressed => _cur.legR && !_prev.legR;
+
+        // Pass edges derived from the held pass bits on the wire (same scheme as jump).
+        public bool PassGroundHeld => _cur.passGround;
+        public bool PassLoftedHeld => _cur.passLofted;
+        public bool PassGroundPressed => _cur.passGround && !_prev.passGround;
+        public bool PassLoftedPressed => _cur.passLofted && !_prev.passLofted;
+        public bool PassGroundReleased => !_cur.passGround && _prev.passGround;
+        public bool PassLoftedReleased => !_cur.passLofted && _prev.passLofted;
     }
 }

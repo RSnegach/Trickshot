@@ -85,17 +85,29 @@ namespace Trickshot
             var tag = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleRight };
             float row = rosterTop, lx = x + 28f, lw = w - 56f, rowH = 30f;
             var roster = _s.Roster;
+            var claimBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
             for (int i = 0; i < roster.Length; i++)
             {
                 var slot = roster[i];
                 bool isMe = slot.slot == _s.LocalSlot;
-                string role = slot.slot == 0 ? "Keeper" : "Shooter " + slot.slot;
+                string role = RoleName(slot.role, slot.slot);
                 string who = slot.human ? slot.name : "AI";
                 var rowBg = GUI.color; if (isMe) { GUI.color = new Color(0.16f, 0.3f, 0.5f, 0.6f); GUI.DrawTexture(new Rect(lx - 6f, row, lw + 12f, rowH - 2f), Texture2D.whiteTexture); GUI.color = rowBg; }
 
-                GUI.Label(new Rect(lx, row, lw * 0.6f, rowH), $"{role}:  {who}{(isMe ? "  (you)" : "")}", name);
-                tag.normal.textColor = slot.human ? (slot.ready ? new Color(0.35f, 0.85f, 0.45f) : new Color(0.9f, 0.6f, 0.3f)) : new Color(0.65f, 0.66f, 0.7f);
-                GUI.Label(new Rect(lx, row, lw, rowH), slot.human ? (slot.ready ? "READY" : "not ready") : "(AI fills)", tag);
+                GUI.Label(new Rect(lx, row, lw * 0.55f, rowH), $"{role}:  {who}{(isMe ? "  (you)" : "")}", name);
+
+                // A free (AI-held) slot is claimable: click to pick that role. Your own slot
+                // and slots held by another human are not buttons.
+                if (!slot.human && !isMe)
+                {
+                    if (GUI.Button(new Rect(lx + lw - 92f, row + 2f, 92f, rowH - 6f), "Claim", claimBtn))
+                        _s.RequestSlot(slot.slot);
+                }
+                else
+                {
+                    tag.normal.textColor = slot.human ? (slot.ready ? new Color(0.35f, 0.85f, 0.45f) : new Color(0.9f, 0.6f, 0.3f)) : new Color(0.65f, 0.66f, 0.7f);
+                    GUI.Label(new Rect(lx, row, lw, rowH), slot.human ? (slot.ready ? "READY" : "not ready") : "(AI fills)", tag);
+                }
                 row += rowH;
             }
 
@@ -121,6 +133,17 @@ namespace Trickshot
                 if (GUI.Button(new Rect(x + w * 0.5f - 90f, by - 52f, 180f, 44f), can ? "START MATCH" : "waiting...", startBtn))
                     _s.StartMatch();
                 GUI.enabled = true;
+            }
+        }
+
+        // Label a roster row by its NetRole (falls back to slot index for shooters).
+        static string RoleName(byte role, byte slot)
+        {
+            switch ((Trickshot.Net.NetRole)role)
+            {
+                case Trickshot.Net.NetRole.Keeper:  return "Keeper";
+                case Trickshot.Net.NetRole.Crosser: return "Crosser";
+                default:                            return "Shooter " + slot;
             }
         }
 
