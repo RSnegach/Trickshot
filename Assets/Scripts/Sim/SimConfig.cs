@@ -455,6 +455,10 @@ namespace Trickshot
         public const float SlideTackleMinSpeed = 3.5f; // must be moving at least this fast to count as a slide
         public const float SlideTackleCooldown = 1.2f;
 
+        // ---- Networking (host-authoritative snapshot sync) ----
+        public const float NetSnapshotInterval = 0.05f;  // host broadcasts ~20 snapshots/sec
+        public const float NetInterpRate       = 14f;    // client puppet/ball lerp sharpness (1/s)
+
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
         public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)

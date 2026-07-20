@@ -754,6 +754,40 @@ namespace Trickshot
             SnapBone(Bone.ForearmR,  basePos + Off(0.26f, 1.08f, 0f), facing);
         }
 
+        // Client-side display puppet: pose the whole body at basePos+facing WITHOUT touching
+        // control flags (unlike ResetTo). Call once to make it a kinematic display body
+        // (BecomeDisplayBody), then DisplaySnap each frame toward the interpolated host pose.
+        // Bones are kept kinematic so client physics never fights the networked pose.
+        public void BecomeDisplayBody()
+        {
+            BalanceEnabled = false;
+            LocomotionEnabled = false;
+            UprightLock = false;
+            BodyOrientTarget = null;
+            if (Pelvis != null) Pelvis.constraints = RigidbodyConstraints.None;
+            for (int i = 0; i < (int)Bone.Count; i++)
+                if (_rb[i] != null) _rb[i].isKinematic = true;
+        }
+
+        public void DisplaySnap(Vector3 basePos, Quaternion facing)
+        {
+            FacingRotation = facing;
+            // Reuse the same bone offsets as ResetTo, but only move transforms (kinematic).
+            SnapBone(Bone.Pelvis, basePos + Off(0f, 1.02f, 0f), facing);
+            SnapBone(Bone.Torso,  basePos + Off(0f, 1.34f, 0f), facing);
+            SnapBone(Bone.Head,   basePos + Off(0f, 1.72f, 0f), facing);
+            SnapBone(Bone.ThighL, basePos + Off(-0.11f, 0.73f, 0f), facing);
+            SnapBone(Bone.ThighR, basePos + Off(0.11f, 0.73f, 0f), facing);
+            SnapBone(Bone.CalfL,  basePos + Off(-0.11f, 0.33f, 0f), facing);
+            SnapBone(Bone.CalfR,  basePos + Off(0.11f, 0.33f, 0f), facing);
+            SnapBone(Bone.FootL,  basePos + Off(-0.11f, 0.06f, 0.06f), facing);
+            SnapBone(Bone.FootR,  basePos + Off(0.11f, 0.06f, 0.06f), facing);
+            SnapBone(Bone.UpperArmL, basePos + Off(-0.26f, 1.40f, 0f), facing);
+            SnapBone(Bone.UpperArmR, basePos + Off(0.26f, 1.40f, 0f), facing);
+            SnapBone(Bone.ForearmL,  basePos + Off(-0.26f, 1.08f, 0f), facing);
+            SnapBone(Bone.ForearmR,  basePos + Off(0.26f, 1.08f, 0f), facing);
+        }
+
         void SnapBone(Bone b, Vector3 worldPos, Quaternion facing)
         {
             var rb = _rb[(int)b];

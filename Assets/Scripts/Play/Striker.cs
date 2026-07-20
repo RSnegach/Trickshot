@@ -21,7 +21,7 @@ namespace Trickshot
     {
         enum Trick { None, Dive }
 
-        GameInput _input;
+        IStrikerInput _input;
         ActiveRagdoll _ragdoll;
         System.Func<float> _camYaw;
         Dribble _dribble;   // optional; when carrying, movement slows + facing slews (Control claws both back)
@@ -69,12 +69,16 @@ namespace Trickshot
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
         float _diveAir;        // time since the dive started
 
-        public void Init(GameInput input, ActiveRagdoll ragdoll)
+        public void Init(IStrikerInput input, ActiveRagdoll ragdoll)
         {
             _input = input;
             _ragdoll = ragdoll;
             _facingYaw = ragdoll.FacingRotation.eulerAngles.y;
         }
+
+        // Swap the input source at runtime (e.g. the host binding a remote player's net
+        // input to this body). Callers keep the ragdoll; only the input changes.
+        public void SetInput(IStrikerInput input) => _input = input;
 
         public void SetCameraYaw(System.Func<float> camYaw) => _camYaw = camYaw;
 
