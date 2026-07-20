@@ -29,6 +29,7 @@ namespace Trickshot
         InputActionMap _map;
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
         InputAction _passGround, _passLofted, _switchPlayer, _emote, _tackle;   // scrimmage
+        InputAction _crossMap;   // striker mode: toggle the cross-targeting map (fixed M)
         PlayerInput _playerInput;
 
         public void Init()
@@ -66,6 +67,8 @@ namespace Trickshot
             _switchPlayer = Btn("Switch");
             _emote       = Btn("Emote");
             _tackle      = Btn("Tackle");
+            // Striker-mode cross map: fixed to M (not in the rebind list).
+            _crossMap    = _map.AddAction("CrossMap", InputActionType.Button, "<Keyboard>/m");
 
             _map.Enable();
 
@@ -217,5 +220,7 @@ namespace Trickshot
         public bool EmotePressed => _emote != null && _emote.WasPressedThisFrame();
         // Tackle / slide challenge (C).
         public bool TacklePressed => _tackle != null && _tackle.WasPressedThisFrame();
+        // Striker cross-targeting map toggle (M).
+        public bool CrossMapPressed => _crossMap != null && _crossMap.WasPressedThisFrame();
     }
 }

@@ -39,6 +39,11 @@ namespace Trickshot
 
         float _goalLineZ;
 
+        // Cross-targeting map (M): while open, aiming is frozen and clicks place where the
+        // crosser delivers. The chosen target overrides the crosser's default landing spot.
+        bool _crossMapOpen;
+        Vector3 _crossTarget = SimConfig.ServeTarget;
+
         public void Configure(GameInput input, Crosser crosser, AimReticle reticle, BallController ball,
                               Striker striker, ActiveRagdoll strikerRagdoll, Goalkeeper keeper,
                               GameCamera cam, Transform launchPoint)
@@ -77,6 +82,19 @@ namespace Trickshot
             if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
 
             if (_input.ResetPressed) { ResetRound(); return; }
+
+            // Cross-targeting map (M): toggle. While open, the striker doesn't tick (aiming
+            // is frozen) so you can click the map without steering, and the cursor is freed.
+            if (_input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
+            if (_crossMapOpen)
+            {
+                if (_keeper != null) _keeper.Tick();
+                if (_crosser.Tick()) { _attempts++; _resolved = false; Flash("CROSS!"); }
+                TrackOutcome();
+                if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
+                return;   // skip striker control + ball-cam toggle while the map is up
+            }
+
             if (_input.BallCamPressed) _cam.ToggleBallCam();
 
             _striker.Tick();
@@ -167,6 +185,16 @@ namespace Trickshot
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
+        // Open/close the cross map: free the cursor while open, re-lock on close, and push
+        // the chosen landing spot to the crosser so subsequent crosses go there.
+        void SetCrossMapOpen(bool open)
+        {
+            _crossMapOpen = open;
+            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = open;
+            if (!open) _crosser.TargetOverride = _crossTarget;   // apply the picked target
+        }
+
         // ----------------------------------------------------------------- HUD
         void OnGUI()
         {
@@ -181,8 +209,25 @@ namespace Trickshot
             Hud.Stat(ref p, "Conversion", conversion + "%");
             Hud.Stat(ref p, "Keeper saves", _saves.ToString());
 
-            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   R reset");
+            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   M cross map   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
+
+            // Cross-targeting overlay.
+            if (_crossMapOpen)
+            {
+                var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.45f);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = prev;
+
+                float w = 380f, h = 300f;
+                var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
+                var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
+                GUI.Label(new Rect(mapRect.x, mapRect.y - 34f, w, 28f), "WHERE SHOULD CROSSES LAND?", hdr);
+                if (CrossMap.Draw(mapRect, ref _crossTarget, interactive: true))
+                    _crosser.TargetOverride = _crossTarget;   // live-apply on each click
+                var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f,0.85f,0.9f) } };
+                GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to set the target.  M to close.", tip);
+            }
         }
     }
 }
