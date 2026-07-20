@@ -151,8 +151,11 @@ namespace Trickshot
 
         void AttachKick(ActiveRagdoll ragdoll, Striker striker)
         {
+            // Both legs (bicycle off either foot must classify) - matches GameBootstrap.
             AddDet(ragdoll.Rb(Bone.FootR), striker, ragdoll);
             AddDet(ragdoll.Rb(Bone.CalfR), striker, ragdoll);
+            AddDet(ragdoll.Rb(Bone.FootL), striker, ragdoll);
+            AddDet(ragdoll.Rb(Bone.CalfL), striker, ragdoll);
         }
         void AddDet(Rigidbody rb, Striker striker, ActiveRagdoll ragdoll)
         {

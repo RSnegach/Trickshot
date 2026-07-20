@@ -209,7 +209,6 @@ namespace Trickshot
         public const float AirPitchLimit = 115f;         // target clamp: 90 = parallel; a bit past horizontal (not a full 180 flip)
         public const float AirPitchGain = 8f;            // how hard he spins toward the target (1/s)
         public const float AirPitchMaxSpeed = 500f;      // cap on the spin speed toward the target (deg/s)
-        public const float BicycleUpnessMax = 0.4f;      // pelvis-up dot world-up below this = bicycle window
 
         // ---- Dive header (hold Space while moving forward) ----
         // Carried run momentum is zeroed, then a modest up + forward launch tips him into
@@ -266,8 +265,15 @@ namespace Trickshot
         public const float ArmPumpElbow = 65f;      // deg the elbow stays folded
 
         // ---- Trick validation ----
-        public const float BicycleWindow = 0.85f;   // seconds the kick stays "live"
-        public const float BicycleMinInvert = 0.5f; // pelvis-up dot world-up below this (reclined ~60deg+)
+        // A bicycle is a fast whole-body flip: the pelvis sweeps through the "reclined"
+        // cone in a couple of frames, so reading the angle at the exact contact frame is
+        // unreliable. Instead the Striker LATCHES a bicycle window the moment the player
+        // commits (airborne + leaning back past the arm threshold, or scrolling the
+        // air-pitch target back), and holds it open BicycleWindow seconds so contact,
+        // camera, and assist all read a stable "yes". Arm loose, gate legal shots tight.
+        public const float BicycleWindow = 0.85f;   // seconds the latched attempt stays "live"
+        public const float BicycleArmUpness = 0.72f; // pelvis-up dot world-up below this (tipped ~44deg+) ARMS the window
+        public const float BicycleArmPitch = 55f;    // OR: air-pitch target leaned past this many deg arms it
         public const float ValidHitBonus = 6.5f;     // extra ball speed on a clean trick
 
         // ---- Sniper (hidden 4th role, dormant scaffold) ----

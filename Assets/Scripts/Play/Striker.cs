@@ -41,17 +41,37 @@ namespace Trickshot
         {
             get { Vector3 f = _ragdoll.FacingRotation * Vector3.forward; f.y = 0f; return f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward; }
         }
-        // Bicycle window for KickDetector: airborne and actually tipped away from upright
-        // (read from the real pelvis, since the flip is now a whole-body spin). Below the
-        // threshold his pelvis-up still points mostly skyward. KickDetector re-confirms.
-        public bool TrickActive
+        // Latched bicycle window. A bicycle is a fast whole-body flip: the pelvis sweeps
+        // through the reclined cone in ~2 frames, so reading the angle at the exact contact
+        // frame (the old approach) missed most attempts - the ball-cam, assist, and trick
+        // classification would all silently see "not a bike". Instead we ARM a window the
+        // moment the player commits (airborne + leaning back, or scrolling the air-pitch
+        // target back past a threshold) and hold it open BicycleWindow seconds, so contact,
+        // camera, and assist all read a stable, generous "yes". KickDetector still re-checks
+        // the real inversion for the LEGAL trick bonus, so illegal shots don't get the boost.
+        float _bicycleTimer;   // >0 while a bicycle attempt is latched live
+
+        // True while a bicycle attempt is latched (used by KickDetector's gate, the ball's
+        // assist, and the ball-cam). Never during a diving header, and NEVER while grounded:
+        // a bicycle connects in the air by definition. The grounded check matters because
+        // IsGrounded flips true in the physics phase (FixedUpdate) BEFORE the Update-phase
+        // code that zeros the latch on landing, so without it a touchdown foot contact on
+        // the landing frame would be miscredited as a bicycle. IsGrounded is a stable state
+        // read (not the fast-sweeping pelvis angle the latch exists to smooth over), so
+        // reading it at contact is reliable.
+        public bool TrickActive => _bicycleTimer > 0f && _mode != Trick.Dive
+                                   && _ragdoll != null && !_ragdoll.IsGrounded;
+
+        // Arm/refresh the latched window when the airborne body commits to a flip. Called
+        // each airborne frame from AirPitchControl. Loose thresholds (arm EARLY in the flip
+        // and on scroll intent) so contact anywhere through the flip counts.
+        void ArmBicycleWindow()
         {
-            get
-            {
-                if (_mode != Trick.None || _ragdoll.Pelvis == null || _ragdoll.IsGrounded) return false;
-                float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
-                return upness < SimConfig.BicycleUpnessMax;
-            }
+            if (_ragdoll.Pelvis == null) return;
+            float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
+            bool tipped = upness < SimConfig.BicycleArmUpness;
+            bool leaned = Mathf.Abs(_airPitchTarget) > SimConfig.BicycleArmPitch;
+            if (tipped || leaned) _bicycleTimer = SimConfig.BicycleWindow;   // (re)arm to full
         }
 
         float _facingYaw;
@@ -86,6 +106,10 @@ namespace Trickshot
         {
             if (_airborneLock > 0f)
                 _airborneLock = Mathf.Max(0f, _airborneLock - Time.deltaTime);
+            // The latched bicycle window bleeds down in real time; AirPitchControl re-arms
+            // it to full while the airborne body is still committed to the flip.
+            if (_bicycleTimer > 0f)
+                _bicycleTimer = Mathf.Max(0f, _bicycleTimer - Time.deltaTime);
         }
 
         public void Tick()
@@ -188,7 +212,10 @@ namespace Trickshot
         {
             if (grounded)
             {
-                // Landed: stop the spin and hand orientation back to balance/upright lock.
+                // Landed: a bicycle connects in the air, so drop the latch immediately -
+                // otherwise a stale window would mislabel the next grounded normal kick.
+                _bicycleTimer = 0f;
+                // Stop the spin and hand orientation back to balance/upright lock.
                 if (_airPitchTarget != 0f || !_ragdoll.BalanceEnabled)
                 {
                     _airPitchTarget = 0f;
@@ -202,6 +229,11 @@ namespace Trickshot
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.BodyOrientTarget = null;
+
+            // Airborne: arm/refresh the latched bicycle window the moment he's committed to
+            // the flip (tipped back or scrolling the air-pitch target back). Held open a
+            // generous window so a foot contact anywhere through the flip reads as a bike.
+            ArmBicycleWindow();
 
             // Scroll moves the TARGET lean, clamped to +/-90 (parallel). Past that the
             // scroll is ignored, so he holds flat instead of spinning on.

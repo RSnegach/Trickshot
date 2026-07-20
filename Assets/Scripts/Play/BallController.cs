@@ -30,6 +30,7 @@ namespace Trickshot
         float _assistRemaining;
         float _assistCooldown;
         float _accuracyMul = 1f;   // goal-steer strength for the current assist window (per body part)
+        float _bikeCamCooldown;    // guard so one bicycle flip cuts to ball-cam only once
 
         // Camera to pulse into ball-cam on a genuine shot (optional; null in modes that
         // don't want it). Set by the mode builder.
@@ -43,6 +44,20 @@ namespace Trickshot
         public bool DribbleHold { get; set; }   // true while the Dribble component is carrying
         float _strikeSuppress;                   // >0: skip striker strike logic (post-shot settle)
         public void SuppressStrike(float t) => _strikeSuppress = Mathf.Max(_strikeSuppress, t);
+
+        // Shared, ball-side trick-bonus guard. Each leg bone carries its OWN KickDetector
+        // (foot + calf, both legs), and Unity fires each collider's callback independently,
+        // so a per-detector cooldown can't stop the calf AND the foot of the same flip from
+        // each applying the bonus (a 2x-4x overpowered shot). This lives on the ONE ball so
+        // the first bone to connect claims the bonus and the rest are locked out for the
+        // window. Returns true only for the first caller while live.
+        float _trickBonusCooldown;
+        public bool TryClaimTrickBonus()
+        {
+            if (_trickBonusCooldown > 0f) return false;
+            _trickBonusCooldown = SimConfig.BicycleWindow;
+            return true;
+        }
 
         void Awake()
         {
@@ -96,6 +111,8 @@ namespace Trickshot
 
             if (_assistCooldown > 0f) _assistCooldown -= Time.fixedDeltaTime;
             if (_strikeSuppress > 0f) _strikeSuppress -= Time.fixedDeltaTime;
+            if (_bikeCamCooldown > 0f) _bikeCamCooldown -= Time.fixedDeltaTime;
+            if (_trickBonusCooldown > 0f) _trickBonusCooldown -= Time.fixedDeltaTime;
 
             if (_assistRemaining > 0f)
             {
@@ -150,6 +167,20 @@ namespace Trickshot
             // head/foot touch would get steered toward the goal it attacks (or its own).
             var striker = ragdoll.GetComponent<Striker>();
             if (striker == null || !striker.ControlEnabled) return;
+
+            // BICYCLE BALL-CAM (decided FIRST, before any of the strike-path early-returns).
+            // The old code only pulsed ball-cam at the very bottom of the strike block, which
+            // an assist-cooldown / dead-trap / dribble-suppress return would silently skip -
+            // so a bike whose foot touch landed just after a stray limb brush never cut to
+            // ball-cam. The Striker now LATCHES a bicycle window (see Striker.TrickActive), so
+            // any ball contact from the flipping striker while that window is live cuts to
+            // ball-cam here, up front, regardless of what the strike logic does afterward.
+            // A short cooldown means one flip only triggers once even if several bones brush.
+            if (striker.TrickActive && _bikeCamCooldown <= 0f)
+            {
+                _bikeCamCooldown = SimConfig.BicycleWindow;
+                if (_cam != null) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
+            }
 
             // While the ball is being dribbled (or just after a dribble shot), the Dribble
             // component owns the ball's motion. Skip the strike/trap logic so the run-cycle
