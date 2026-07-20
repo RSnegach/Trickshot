@@ -17,6 +17,7 @@ namespace Trickshot
         System.Action _onCustomize, _onStart, _onLeave;
         NetSession _s;
         bool _started;
+        string _hostAddrLine;   // host + direct-IP only: the IPs to share with friends
 
         public void Init(System.Action onCustomize, System.Action onStart, System.Action onLeave)
         {
@@ -24,6 +25,16 @@ namespace Trickshot
             _s = Multiplayer.Session;
             if (_s != null) _s.MatchStarting += OnMatchStarting;
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+
+            // On the direct-IP path, a host shows its address(es) so friends can type them in.
+            // (Steam has its own invite flow, so skip it there.) Cache once - Dns isn't free.
+            if (_s != null && _s.IsHost && !Multiplayer.SteamLinked)
+            {
+                var ips = NetEndpoint.LocalIPv4s();
+                _hostAddrLine = ips.Count > 0
+                    ? "Friends join at:  " + string.Join("   /   ", ips) + "   (port " + NetEndpoint.DefaultPort + ")"
+                    : "Share your IP with friends to join (port " + NetEndpoint.DefaultPort + ").";
+            }
         }
 
         void OnDestroy() { if (_s != null) _s.MatchStarting -= OnMatchStarting; }
@@ -60,10 +71,19 @@ namespace Trickshot
             var meta = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.86f, 0.32f) } };
             GUI.Label(new Rect(x, y + 46f, w, 22f), ConfigLine(), meta);
 
+            // Host address line (direct-IP host only): what friends type to join.
+            float rosterTop = y + 80f;
+            if (!string.IsNullOrEmpty(_hostAddrLine))
+            {
+                var addr = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.55f, 0.85f, 0.95f) } };
+                GUI.Label(new Rect(x + 10f, y + 66f, w - 20f, 20f), _hostAddrLine, addr);
+                rosterTop = y + 92f;
+            }
+
             // Roster.
             var name = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
             var tag = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleRight };
-            float row = y + 80f, lx = x + 28f, lw = w - 56f, rowH = 30f;
+            float row = rosterTop, lx = x + 28f, lw = w - 56f, rowH = 30f;
             var roster = _s.Roster;
             for (int i = 0; i < roster.Length; i++)
             {
