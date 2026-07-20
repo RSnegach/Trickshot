@@ -36,35 +36,36 @@ namespace Trickshot
             _asset = ScriptableObject.CreateInstance<InputActionAsset>();
             _map = _asset.AddActionMap("Play");
 
+            // Movement is a WASD-style 2D vector whose four directions come from the
+            // rebindable MoveUp/Down/Left/Right binds, plus a fixed arrow-key fallback.
             _move = _map.AddAction("Move", InputActionType.Value);
             _move.AddCompositeBinding("2DVector")
-                .With("Up", "<Keyboard>/w")
-                .With("Down", "<Keyboard>/s")
-                .With("Left", "<Keyboard>/a")
-                .With("Right", "<Keyboard>/d");
+                .With("Up",    Keybinds.Path("MoveUp"))
+                .With("Down",  Keybinds.Path("MoveDown"))
+                .With("Left",  Keybinds.Path("MoveLeft"))
+                .With("Right", Keybinds.Path("MoveRight"));
             _move.AddCompositeBinding("2DVector")
                 .With("Up", "<Keyboard>/upArrow")
                 .With("Down", "<Keyboard>/downArrow")
                 .With("Left", "<Keyboard>/leftArrow")
                 .With("Right", "<Keyboard>/rightArrow");
 
+            // Camera + scroll are the mouse itself, never rebindable.
             _look   = _map.AddAction("Look", InputActionType.Value, "<Mouse>/delta");
-            _jump   = _map.AddAction("Jump",   InputActionType.Button, "<Keyboard>/space");
-            _reset  = _map.AddAction("Reset",  InputActionType.Button, "<Keyboard>/r");
-            _legL   = _map.AddAction("LegL",   InputActionType.Button, "<Mouse>/leftButton");
-            _legR   = _map.AddAction("LegR",   InputActionType.Button, "<Mouse>/rightButton");
-            _ballCam = _map.AddAction("BallCam", InputActionType.Button, "<Keyboard>/v");
-            _sprint = _map.AddAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
-            _sprint.AddBinding("<Keyboard>/rightShift");
             _scroll = _map.AddAction("Scroll", InputActionType.Value, "<Mouse>/scroll/y");
 
-            // Scrimmage: ground pass (Q), lofted pass (E), switch controlled player (F),
-            // hold emote wheel (B).
-            _passGround  = _map.AddAction("PassGround",  InputActionType.Button, "<Keyboard>/q");
-            _passLofted  = _map.AddAction("PassLofted",  InputActionType.Button, "<Keyboard>/e");
-            _switchPlayer = _map.AddAction("SwitchPlayer", InputActionType.Button, "<Keyboard>/f");
-            _emote       = _map.AddAction("Emote",       InputActionType.Button, "<Keyboard>/b");
-            _tackle      = _map.AddAction("Tackle",      InputActionType.Button, "<Keyboard>/c");
+            // The rest are single rebindable button actions built from Keybinds.
+            _jump        = Btn("Jump");
+            _reset       = Btn("Reset");
+            _legL        = Btn("LegL");
+            _legR        = Btn("LegR");
+            _ballCam     = Btn("BallCam");
+            _sprint      = Btn("Sprint");
+            _passGround  = Btn("PassGround");
+            _passLofted  = Btn("PassLofted");
+            _switchPlayer = Btn("Switch");
+            _emote       = Btn("Emote");
+            _tackle      = Btn("Tackle");
 
             _map.Enable();
 
@@ -75,6 +76,82 @@ namespace Trickshot
             _playerInput.defaultActionMap = "Play";
 
             LockCursor();
+        }
+
+        // Build a single rebindable button action from its Keybinds entry.
+        InputAction Btn(string action)
+            => _map.AddAction(action, InputActionType.Button, Keybinds.Path(action));
+
+        // ---- runtime rebinding ----
+        // Apply a new control path to an action's binding (used by the options menu after a
+        // successful rebind). Rebuilds the Move composite when a movement direction changes.
+        public void ApplyBinding(string action, string path)
+        {
+            Keybinds.Set(action, path);
+            var a = _map.FindAction(action);
+            if (a != null)
+            {
+                a.Disable();
+                a.ApplyBindingOverride(0, path);
+                a.Enable();
+                return;
+            }
+            // Movement direction: override the matching part of the Move composite (index
+            // 1..4 are Up/Down/Left/Right of the first 2DVector composite).
+            int part = action == "MoveUp" ? 1 : action == "MoveDown" ? 2
+                     : action == "MoveLeft" ? 3 : action == "MoveRight" ? 4 : -1;
+            if (part >= 0)
+            {
+                _move.Disable();
+                _move.ApplyBindingOverride(part, path);
+                _move.Enable();
+            }
+        }
+
+        // Listen for the next key / mouse-button press and report its control path, so the
+        // options menu can rebind interactively. Cancels on Escape (reports null).
+        public InputActionRebindingExtensions.RebindingOperation StartRebind(string action, System.Action<string> onComplete)
+        {
+            var a = (action == "MoveUp" || action == "MoveDown" || action == "MoveLeft" || action == "MoveRight")
+                    ? _move : _map.FindAction(action);
+            if (a == null) { onComplete?.Invoke(null); return null; }
+
+            int part = action == "MoveUp" ? 1 : action == "MoveDown" ? 2
+                     : action == "MoveLeft" ? 3 : action == "MoveRight" ? 4 : 0;
+
+            a.Disable();
+            var op = a.PerformInteractiveRebinding(part)
+                .WithControlsExcluding("<Mouse>/delta")
+                .WithControlsExcluding("<Mouse>/position")
+                .WithControlsExcluding("<Mouse>/scroll")
+                .WithCancelingThrough("<Keyboard>/escape")
+                .OnComplete(o =>
+                {
+                    string path = o.selectedControl != null ? o.selectedControl.path : null;
+                    // path comes back like "/Keyboard/w"; normalise to "<Keyboard>/w".
+                    string norm = NormalizePath(path);
+                    o.Dispose();
+                    a.Enable();
+                    if (!string.IsNullOrEmpty(norm)) { Keybinds.Set(action, norm); onComplete?.Invoke(norm); }
+                    else onComplete?.Invoke(null);
+                })
+                .OnCancel(o => { o.Dispose(); a.Enable(); onComplete?.Invoke(null); });
+            op.Start();
+            return op;
+        }
+
+        // "/Keyboard/w" -> "<Keyboard>/w".
+        static string NormalizePath(string ctrlPath)
+        {
+            if (string.IsNullOrEmpty(ctrlPath)) return null;
+            int firstSlash = ctrlPath.IndexOf('/', 1);
+            if (ctrlPath.StartsWith("/") && firstSlash > 0)
+            {
+                string device = ctrlPath.Substring(1, firstSlash - 1);
+                string rest = ctrlPath.Substring(firstSlash + 1);
+                return $"<{device}>/{rest}";
+            }
+            return ctrlPath;
         }
 
         static void LockCursor()
