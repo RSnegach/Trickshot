@@ -36,12 +36,17 @@ namespace Trickshot
             var ball = c.collider.GetComponentInParent<BallController>();
             if (ball == null || ball != _ball) return;
 
-            if (!_striker.TrickActive) return; // must be reclining -> else just physics
+            // The Striker latches a bicycle window when the airborne body commits to a flip
+            // (see Striker.TrickActive). Trust that ONE robust signal instead of re-reading
+            // the pelvis angle at this exact contact frame - a fast flip sweeps through the
+            // reclined cone in ~2 frames, so an instantaneous re-check here used to miss most
+            // legitimate bikes (the bonus + trick classification silently didn't fire).
+            if (!_striker.TrickActive) return; // not a latched bicycle attempt -> just physics
 
-            // Body must be tipped back far enough: pelvis up-vector leaning away from
-            // world up (dot below threshold means reclined well past vertical).
-            float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
-            if (upness > SimConfig.BicycleMinInvert) return; // not reclined enough
+            // One flip touches the ball with several bones (calf + foot, either leg), each
+            // carrying its own detector. Claim the bonus on the SHARED ball so only the first
+            // contact applies it - otherwise the impulse stacks 2x-4x into an absurd shot.
+            if (!ball.TryClaimTrickBonus()) { _cooldown = 0.5f; return; }
 
             // Valid bicycle kick. Add a bonus impulse toward goal + upward.
             Vector3 toGoal = SimConfig.GoalCenter - ball.transform.position;

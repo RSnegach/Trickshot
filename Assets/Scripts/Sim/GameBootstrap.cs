@@ -644,9 +644,12 @@ namespace Trickshot
 
         void AttachKickDetectors(ActiveRagdoll ragdoll, Striker striker, BallController ball)
         {
-            // Kicking leg = right foot + right calf.
+            // BOTH legs get detectors so a bicycle scored off either foot classifies (the
+            // right foot is the strong-side default, but a left-foot bike must count too).
             AddDetector(ragdoll.Rb(Bone.FootR), striker, ragdoll, ball);
             AddDetector(ragdoll.Rb(Bone.CalfR), striker, ragdoll, ball);
+            AddDetector(ragdoll.Rb(Bone.FootL), striker, ragdoll, ball);
+            AddDetector(ragdoll.Rb(Bone.CalfL), striker, ragdoll, ball);
         }
 
         void AddDetector(Rigidbody rb, Striker striker, ActiveRagdoll ragdoll, BallController ball)
