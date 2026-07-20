@@ -92,6 +92,8 @@ namespace Trickshot
         public static float WeakFootMul     => SkillTree.Mul("weakfoot");   // scales weak-foot accuracy + power
         public static float TrapMul         => SkillTree.Mul("trap");       // better first touch (deader trap)
         public static float AirFlipMul      => SkillTree.Mul("flip");       // air-pitch spin responsiveness
+        public static float PassPowerMul    => SkillTree.Mul("passpower");  // faster/harder passes
+        public static float PassAccuracyMul => SkillTree.Mul("passacc");    // less scatter on passes (Maestro ~ perfect)
 
         // Dribble close-control, 0 (no Control) .. 1 (fully invested trap nodes), derived
         // from the same trap stat as first touch. Drives a tighter carry, faster + sharper
@@ -115,6 +117,30 @@ namespace Trickshot
         public static bool PerkImmovable    => SkillTree.HasPerk("immovable");
         public static bool PerkSilky        => SkillTree.HasPerk("silky");
         public static bool PerkAcrobat      => SkillTree.HasPerk("acrobat");
+        public static bool PerkMaestro      => SkillTree.HasPerk("maestro");
+
+        // ---- 0-100 attribute card (radar + list). Each maps a trait multiplier onto a
+        //      0..100 rating on a readable curve, combining the height/weight body baseline
+        //      with skill-tree investment. One rating per skill-tree category + a physical. ----
+        // A mul of ~1.0 (default build, no nodes) sits near 50; heavy investment approaches
+        // ~95. Helper: map [loMul..hiMul] onto [10..99].
+        static int Rate(float mul, float loMul, float hiMul)
+            => Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(10f, 99f, Mathf.InverseLerp(loMul, hiMul, mul))), 1, 99);
+
+        public static int PaceStat     => Rate((MoveSpeedMul + SprintSpeedMul) * 0.5f, 0.75f, 1.7f);
+        public static int ShootingStat => Rate(ShotPowerMul * (0.6f + 0.4f * ShotAccuracyMul), 0.8f, 2.1f);
+        public static int PassingStat  => Rate(PassPowerMul * 0.4f + PassAccuracyMul * 0.6f, 0.9f, 1.9f);
+        public static int HeadingStat  => Rate(HeaderPowerMul * 0.5f + HeaderAccuracyMul * 0.5f, 0.9f, 2.0f);
+        public static int PhysicalStat => Rate(PushMul, 0.7f, 2.2f);
+        public static int ControlStat  => Rate(TrapMul * (0.7f + 0.3f * WeakFootMul), 0.95f, 2.0f);
+        public static int AgilityStat  => Rate(JumpMul * (0.6f + 0.4f * AirFlipMul), 0.75f, 1.9f);
+
+        // Radar axes, in draw order (clockwise from top). Label + value.
+        public static (string label, int value)[] StatCard => new[]
+        {
+            ("PAC", PaceStat), ("SHO", ShootingStat), ("PAS", PassingStat),
+            ("PHY", PhysicalStat), ("DRI", ControlStat), ("AGI", AgilityStat), ("HEA", HeadingStat),
+        };
 
         public static void ResetToDefault()
         {

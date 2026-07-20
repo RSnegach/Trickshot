@@ -203,9 +203,14 @@ namespace Trickshot
         // striker about his central axis while airborne.
         public float Scroll => _scroll != null ? _scroll.ReadValue<float>() : 0f;
 
-        // Scrimmage edges: Q ground pass, E lofted pass, F switch player.
+        // Scrimmage: Q ground pass, E lofted pass. Held + released so the pass can charge
+        // (tap = soft, hold = hard). Pressed kept for the call-for-pass (no-ball) case.
         public bool PassGroundPressed => _passGround != null && _passGround.WasPressedThisFrame();
         public bool PassLoftedPressed => _passLofted != null && _passLofted.WasPressedThisFrame();
+        public bool PassGroundHeld => _passGround != null && _passGround.IsPressed();
+        public bool PassLoftedHeld => _passLofted != null && _passLofted.IsPressed();
+        public bool PassGroundReleased => _passGround != null && _passGround.WasReleasedThisFrame();
+        public bool PassLoftedReleased => _passLofted != null && _passLofted.WasReleasedThisFrame();
         public bool SwitchPressed => _switchPlayer != null && _switchPlayer.WasPressedThisFrame();
         // Emote wheel: held open while B is down.
         public bool EmoteHeld => _emote != null && _emote.IsPressed();

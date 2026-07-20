@@ -97,6 +97,10 @@ namespace Trickshot
             float y = Screen.height * 0.5f - panelH * 0.5f;
             GUI.Box(new Rect(x, y, PanelW, panelH), GUIContent.none);
 
+            // Attribute card to the LEFT of the settings panel (custom-player modes only;
+            // keeper mode uses a fixed keeper, so no card).
+            if (_mode != GameMode.Goalkeeper) DrawStatCard(x - 300f, y);
+
             var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
             GUI.Label(new Rect(x + 30f, y + 16f, PanelW - 200f, 40f), _mode.ToString().ToUpper() + " - SETUP", title);
 
@@ -169,6 +173,22 @@ namespace Trickshot
             }
 
             DrawNav(x, y, panelH);
+        }
+
+        // Player attribute card: radar chart + numeric stat list, from the current build.
+        void DrawStatCard(float x, float y)
+        {
+            float w = 280f, h = 430f;
+            var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.9f);
+            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+            GUI.color = new Color(0.16f, 0.55f, 0.95f, 0.9f); GUI.DrawTexture(new Rect(x, y, w, 3f), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.86f, 0.32f) } };
+            GUI.Label(new Rect(x + 14f, y + 8f, w - 28f, 22f), (PlayerProfile.PlayerName ?? "PLAYER").ToUpper(), title);
+
+            StatRadar.Draw(new Rect(x + 10f, y + 30f, w - 20f, 200f));
+            StatRadar.DrawList(x + 24f, y + 240f, w - 48f);
         }
 
         // Back/Start anchored to the far left/right screen edges.
