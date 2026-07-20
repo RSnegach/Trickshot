@@ -243,6 +243,14 @@ namespace Trickshot
 
             var gameCam = camGo.AddComponent<GameCamera>();
 
+            // Networked striker: host-authoritative multi-player striker driver instead of
+            // the single-player GameManager. (Scrimmage networking is a later pass.)
+            if (Trickshot.Net.Multiplayer.IsActive && mode == GameMode.Striker)
+            {
+                BuildNetStrikerMode(root, cam, gameCam, ball, arena);
+                return;
+            }
+
             switch (mode)
             {
                 case GameMode.Goalkeeper: BuildKeeperMode(root, cam, gameCam, ball, arena); break;
@@ -252,6 +260,25 @@ namespace Trickshot
                 case GameMode.FreeKick:   BuildFreeKickMode(root, cam, gameCam, ball, arena); break;
                 default:                  BuildStrikerMode(root, cam, gameCam, ball, arena); break;
             }
+        }
+
+        // Networked striker: shared arena + crosser + ball, plus the NetStrikerMatch driver
+        // which spawns a body per slot and runs the host-authoritative sync.
+        void BuildNetStrikerMode(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
+        {
+            BuildCrosser(root, ball, out var crosser, out var crosserRagdoll, out var launch, out var reticle);
+            ball.SetCamera(gameCam);
+
+            Material torso = JerseyMaterial();
+            Material limb  = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
+            Material glove = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            var go = new GameObject("NetStrikerMatch");
+            go.transform.SetParent(root, true);
+            go.AddComponent<NetStrikerMatch>()
+              .Configure(GetInput(), cam, gameCam, ball, crosser, reticle, launch, torso, limb, glove, root);
+            LockCursor();
+            ball.ResetTo(launch.position);
         }
 
         Crowd _crowd;   // shared crowd, so modes can Celebrate() on goals

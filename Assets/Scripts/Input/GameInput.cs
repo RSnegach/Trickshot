@@ -23,7 +23,7 @@ namespace Trickshot
     ///   Back-ragdoll .... Space (airborne) - flop onto his back (bicycle setup)
     ///   Reset ........... R
     /// </summary>
-    public class GameInput : MonoBehaviour
+    public class GameInput : MonoBehaviour, IStrikerInput
     {
         InputActionAsset _asset;
         InputActionMap _map;
@@ -222,5 +222,17 @@ namespace Trickshot
         public bool TacklePressed => _tackle != null && _tackle.WasPressedThisFrame();
         // Striker cross-targeting map toggle (M).
         public bool CrossMapPressed => _crossMap != null && _crossMap.WasPressedThisFrame();
+
+        // Sample the current device state into a network InputFrame for sending to the host.
+        // Booleans are HELD states (edges are re-derived on the receiving side per tick).
+        public Net.InputFrame SampleFrame(uint tick, float lookYaw)
+        {
+            return new Net.InputFrame
+            {
+                tick = tick, move = Move, lookYaw = lookYaw,
+                jump = JumpHeld, legL = LeftLegHeld, legR = RightLegHeld, sprint = SprintHeld,
+                passGround = PassGroundHeld, passLofted = PassLoftedHeld, tackle = TacklePressed,
+            };
+        }
     }
 }

@@ -19,10 +19,16 @@ namespace Trickshot
         static readonly Dictionary<string, Texture2D> _cache = new Dictionary<string, Texture2D>();
         static Color32[] _buf;               // working buffer during a build
 
+        // Where uploaded icon art lives: Assets/Resources/SkillIcons/<nodeId>.png (import as
+        // Sprite/Texture, transparent PNG). If present it OVERRIDES the procedural drawing,
+        // so artists can drop in real icons named by node id without touching code.
+        const string ResourceDir = "SkillIcons/";
+
         public static Texture2D Get(string id)
         {
             if (_cache.TryGetValue(id, out var t) && t != null) return t;
-            t = Build(id);
+            // Prefer an uploaded image named by the node id; fall back to procedural art.
+            t = Resources.Load<Texture2D>(ResourceDir + id) ?? Build(id);
             _cache[id] = t;
             return t;
         }
