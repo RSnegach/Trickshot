@@ -515,9 +515,6 @@ namespace Trickshot
                     GUI.enabled = true;
                 }
             }
-
-            var help = new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
-            GUI.Label(new Rect(lx, y + ph - 96f, lw, 34f), "Click an empty node to buy, an owned node to refund it (and anything built on top). Lines show prerequisites; the ringed node is a capstone perk.", help);
         }
 
         // One-click build presets, overlaid down the left preview column during the skill
