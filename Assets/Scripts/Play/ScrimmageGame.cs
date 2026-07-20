@@ -189,6 +189,8 @@ namespace Trickshot
 
                 if (!emoting)
                 {
+                    // Manual player switch only (F). No auto-switch - control stays on the
+                    // chosen player so the camera + WASD never get yanked away mid-move.
                     if (_input.SwitchPressed && _switchLock <= 0f)
                         SwitchTo(NearestHomeOutfielderToBall(exclude: _controlled));
                     if (_switchLock > 0f) _switchLock -= Time.deltaTime;
@@ -201,10 +203,6 @@ namespace Trickshot
 
                     // Tackle (C): lunge forward to win the ball off an opponent.
                     if (_input.TacklePressed) TryHumanTackle();
-
-                    // Auto-switch to whoever's now nearest the ball, unless the human's
-                    // current player is carrying / very close to the ball.
-                    MaybeAutoSwitch();
                 }
             }
 
@@ -355,17 +353,6 @@ namespace Trickshot
         }
 
         // ------------------------------------------------------------- switching
-        void MaybeAutoSwitch()
-        {
-            if (_switchLock > 0f) return;
-            var nearest = NearestHomeOutfielderToBall();
-            if (nearest == null || nearest == _controlled) return;
-            // Only auto-switch when the human's player is clearly not involved (ball far),
-            // so it doesn't yank control mid-dribble.
-            float ctrlDist = _controlled != null ? Vector3.Distance(_controlled.Pos, _ball.transform.position) : 999f;
-            if (ctrlDist > 6f) SwitchTo(nearest);
-        }
-
         void SwitchTo(Footballer f)
         {
             if (f == null || f == _controlled) return;
