@@ -22,6 +22,30 @@ namespace Trickshot.Net
         PlayerInput = 3,  // client -> host
         Snapshot = 4,     // host -> clients
         MatchEvent = 5,   // host -> clients
+        RosterSync = 6,   // host -> clients: full lobby roster + match config
+        ReadyToggle = 7,  // client -> host: my ready state changed
+        StartMatch = 8,   // host -> clients: build the match now
+    }
+
+    // The host's chosen match configuration, synced to all peers so everyone builds the
+    // same arena/mode. Mirrors the relevant SimConfig fields.
+    public struct MatchConfig
+    {
+        public byte mode;        // GameMode as byte
+        public byte stadium;     // StadiumStyle index
+        public byte perSide;     // scrimmage team size
+        public ushort matchSec;  // match length (seconds)
+        public bool publicLobby; // visibility (host-only meaning; carried for display)
+    }
+
+    // One lobby row in the roster (host -> clients each change).
+    public struct LobbySlot
+    {
+        public byte slot;
+        public bool human;       // a person holds this slot (else AI)
+        public bool ready;
+        public bool isLocalHint;  // set per-recipient by nothing; clients compare to LocalSlot
+        public string name;
     }
 
     public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2 }
@@ -142,5 +166,30 @@ namespace Trickshot.Net
         }
 
         public static byte[] Event(string tag) { var w = new NetWriter(MsgType.MatchEvent); w.Str(tag); return w.ToArray(); }
+
+        // Roster + config (host -> clients).
+        public static byte[] Roster(MatchConfig cfg, LobbySlot[] slots)
+        {
+            var w = new NetWriter(MsgType.RosterSync);
+            w.U8(cfg.mode); w.U8(cfg.stadium); w.U8(cfg.perSide);
+            w.U32(cfg.matchSec); w.B(cfg.publicLobby);
+            w.U8((byte)(slots?.Length ?? 0));
+            if (slots != null)
+                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ready); w.Str(s.name); }
+            return w.ToArray();
+        }
+
+        public static void ReadRoster(NetReader r, out MatchConfig cfg, out LobbySlot[] slots)
+        {
+            cfg = new MatchConfig { mode = r.U8(), stadium = r.U8(), perSide = r.U8(),
+                                    matchSec = (ushort)r.U32(), publicLobby = r.B() };
+            int n = r.U8();
+            slots = new LobbySlot[n];
+            for (int i = 0; i < n; i++)
+                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ready = r.B(), name = r.Str() };
+        }
+
+        public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
+        public static byte[] Start() => new NetWriter(MsgType.StartMatch).ToArray();
     }
 }

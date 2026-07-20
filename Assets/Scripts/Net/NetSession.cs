@@ -35,10 +35,21 @@ namespace Trickshot.Net
         public Snapshot LatestSnapshot { get; private set; }
         public bool HasSnapshot { get; private set; }
 
+        // ---- lobby state ----
+        readonly string[] _slotName = new string[MaxSlots];
+        readonly bool[] _slotReady = new bool[MaxSlots];
+        public MatchConfig Config;                 // host authors it; clients receive it
+        public LobbySlot[] Roster { get; private set; } = new LobbySlot[0];   // client mirror + host snapshot
+        public bool MatchStarted { get; private set; }
+
         // Raised on clients when the host sends a tagged match event (goal, kickoff, etc).
         public event Action<string> MatchEvent;
         // Raised when this peer's slot assignment arrives (client) or is set (host).
         public event Action<int, NetRole> SlotAssigned;
+        // Raised on any peer when the lobby roster/config changes (redraw the lobby UI).
+        public event Action RosterChanged;
+        // Raised on all peers when the host starts the match.
+        public event Action MatchStarting;
 
         public NetSession(INetTransport transport)
         {
@@ -52,19 +63,52 @@ namespace Trickshot.Net
         // ---- lifecycle ----
         public void Host(int maxPlayers)
         {
-            for (int i = 0; i < MaxSlots; i++) _slotOwner[i] = PeerId.None;
+            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; }
             Transport.StartHost(Mathf.Clamp(maxPlayers, 1, MaxSlots));
             // The host takes a slot immediately. Default: host is a shooter (slot 1) so the
             // keeper (slot 0) can be a joining human or AI; a striker-only host with no
             // joiners still works (AI keeper + host shooter).
             AssignLocal(1, NetRole.Shooter);
             _slotOwner[1] = Transport.LocalPeer;
+            _slotName[1] = PlayerProfile.PlayerName;
+            RebuildRoster();
         }
+
+        // Host: author the match config (mode/stadium/etc) and push it to everyone.
+        public void SetConfig(MatchConfig cfg) { if (IsHost) { Config = cfg; PushRoster(); } }
 
         public void JoinLobby(ulong lobbyOrHost) => Transport.Join(lobbyOrHost);
         public void Leave() => Transport.Shutdown();
 
         public void Poll() => Transport?.Poll();
+
+        // ---- lobby actions ----
+        // Local player toggles ready. Host applies + re-pushes; client tells the host.
+        public void SetReady(bool ready)
+        {
+            if (LocalSlot < 0 || LocalSlot >= MaxSlots) return;
+            if (IsHost) { _slotReady[LocalSlot] = ready; PushRoster(); }
+            else Transport.Send(Transport.HostPeer, NetCodec.Ready(ready), NetChannel.Reliable);
+        }
+
+        public bool LocalReady => LocalSlot >= 0 && LocalSlot < MaxSlots && _slotReady[LocalSlot];
+
+        // Host: are all HUMAN-held slots ready? (AI slots don't gate.)
+        public bool AllReady()
+        {
+            for (int i = 0; i < MaxSlots; i++)
+                if (_slotOwner[i].IsValid && !_slotReady[i]) return false;
+            return true;
+        }
+
+        // Host: launch the match for everyone.
+        public void StartMatch()
+        {
+            if (!IsHost) return;
+            MatchStarted = true;
+            Transport.SendToAll(NetCodec.Start(), NetChannel.Reliable);
+            MatchStarting?.Invoke();
+        }
 
         // ---- slot table queries (used by the mode driver) ----
         public bool SlotIsHuman(int slot) => slot >= 0 && slot < MaxSlots && _slotOwner[slot].IsValid;
@@ -98,7 +142,19 @@ namespace Trickshot.Net
             switch (r.Type)
             {
                 case MsgType.Hello:      // host: a client announced itself -> give it a slot
-                    if (IsHost) GrantSlot(from);
+                    if (IsHost) GrantSlot(from, r.Str());
+                    break;
+                case MsgType.ReadyToggle: // host: a client set its ready state
+                    if (IsHost) { int s = SlotOf(from); if (s >= 0) { _slotReady[s] = r.B(); PushRoster(); } }
+                    break;
+                case MsgType.RosterSync:  // client: full roster + config from host
+                    NetCodec.ReadRoster(r, out var cfg, out var slots);
+                    Config = cfg; Roster = slots;
+                    RosterChanged?.Invoke();
+                    break;
+                case MsgType.StartMatch:  // client: host started the match
+                    MatchStarted = true;
+                    MatchStarting?.Invoke();
                     break;
                 case MsgType.PlayerInput: // host: store the client's input into its slot
                     if (IsHost)
@@ -131,23 +187,53 @@ namespace Trickshot.Net
         void OnPeerLeft(PeerId p)
         {
             int slot = SlotOf(p);
-            if (slot >= 0) _slotOwner[slot] = PeerId.None;   // slot reverts to AI
+            if (slot >= 0) { _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false; }   // reverts to AI
+            if (IsHost) PushRoster();
         }
 
         // Host: give a newly-hello'd client the lowest free SHOOTER slot (1..N); if none,
-        // and slot 0 (keeper) is free, give them the keeper; else spectator.
-        void GrantSlot(PeerId peer)
+        // and slot 0 (keeper) is free, give them the keeper; else spectator. Then re-push
+        // the full roster (+ config) so everyone, including the new joiner, is in sync.
+        void GrantSlot(PeerId peer, string name)
         {
+            int granted = -1; NetRole role = NetRole.Spectator;
             for (int s = 1; s < MaxSlots; s++)
-                if (!_slotOwner[s].IsValid) { _slotOwner[s] = peer; Transport.Send(peer, NetCodec.AssignSlot((byte)s, NetRole.Shooter), NetChannel.Reliable); return; }
-            if (!_slotOwner[0].IsValid) { _slotOwner[0] = peer; Transport.Send(peer, NetCodec.AssignSlot(0, NetRole.Keeper), NetChannel.Reliable); return; }
-            Transport.Send(peer, NetCodec.AssignSlot(255, NetRole.Spectator), NetChannel.Reliable);
+                if (!_slotOwner[s].IsValid) { granted = s; role = NetRole.Shooter; break; }
+            if (granted < 0 && !_slotOwner[0].IsValid) { granted = 0; role = NetRole.Keeper; }
+
+            if (granted >= 0) { _slotOwner[granted] = peer; _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name; }
+            Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role), NetChannel.Reliable);
+            PushRoster();
         }
 
         void AssignLocal(int slot, NetRole role)
         {
             LocalSlot = slot; LocalRole = role;
             SlotAssigned?.Invoke(slot, role);
+        }
+
+        // Host: build the roster array from the slot tables and broadcast it to all clients,
+        // and refresh the host's own mirror + fire RosterChanged locally.
+        void RebuildRoster()
+        {
+            var list = new List<LobbySlot>();
+            for (int i = 0; i < MaxSlots; i++)
+            {
+                bool human = _slotOwner[i].IsValid;
+                // Only include occupied slots + the keeper (slot 0 always shown). Shooter
+                // slots beyond the human count show as AI up to the lobby's max players.
+                list.Add(new LobbySlot { slot = (byte)i, human = human, ready = _slotReady[i],
+                                         name = human ? (_slotName[i] ?? "PLAYER") : "AI" });
+            }
+            Roster = list.ToArray();
+        }
+
+        void PushRoster()
+        {
+            if (!IsHost) return;
+            RebuildRoster();
+            Transport.SendToAll(NetCodec.Roster(Config, Roster), NetChannel.Reliable);
+            RosterChanged?.Invoke();
         }
 
         int SlotOf(PeerId p)

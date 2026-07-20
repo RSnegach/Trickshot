@@ -58,5 +58,19 @@ namespace Trickshot.Net
 
         // Pump the transport (poll incoming, service callbacks). Called once per frame.
         void Poll();
+
+        // Request the list of joinable lobbies. Results arrive via the callback (async on
+        // Steam; near-immediate on loopback). Each entry is (lobby handle, display label).
+        void ListLobbies(Action<System.Collections.Generic.List<LobbyInfo>> onResults);
+    }
+
+    // A discoverable session in the browser.
+    public struct LobbyInfo
+    {
+        public ulong handle;    // pass to Join()
+        public string name;     // host player name / lobby title
+        public string mode;     // e.g. "Scrimmage 5v5"
+        public int players;     // current members
+        public int maxPlayers;
     }
 }

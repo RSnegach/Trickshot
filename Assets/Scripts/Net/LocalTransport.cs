@@ -26,6 +26,9 @@ namespace Trickshot.Net
         public PeerId LocalPeer { get; private set; }
         public PeerId HostPeer { get; private set; }
 
+        // Advertised lobby info for the browser (hosts set this).
+        public LobbyInfo Advert;
+
         public event Action<PeerId> PeerJoined;
         public event Action<PeerId> PeerLeft;
         public event Action Connected;
@@ -43,6 +46,8 @@ namespace Trickshot.Net
             LocalPeer = new PeerId(_nextPeer++);
             HostPeer = LocalPeer;
             Bus[LocalPeer.Value] = this;
+            Advert = new LobbyInfo { handle = LocalPeer.Value, name = PlayerProfile.PlayerName,
+                                     mode = "Match", players = 1, maxPlayers = maxPlayers };
         }
 
         public void Join(ulong lobbyOrHost)
@@ -89,6 +94,14 @@ namespace Trickshot.Net
                 var (from, data) = _inbox.Dequeue();
                 MessageReceived?.Invoke(from, data);
             }
+        }
+
+        public void ListLobbies(Action<List<LobbyInfo>> onResults)
+        {
+            // Loopback: every hosting transport on the bus is a joinable lobby.
+            var list = new List<LobbyInfo>();
+            foreach (var kv in Bus) if (kv.Value.IsHost) list.Add(kv.Value.Advert);
+            onResults?.Invoke(list);
         }
     }
 }

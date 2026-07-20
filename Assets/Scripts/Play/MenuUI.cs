@@ -14,12 +14,14 @@ namespace Trickshot
     public class MenuUI : MonoBehaviour
     {
         System.Action<GameMode> _onChoose;
+        System.Action _onMultiplayer;
         bool _chosen;
         bool _inChallenges;
 
-        public void Init(System.Action<GameMode> onChoose)
+        public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null)
         {
             _onChoose = onChoose;
+            _onMultiplayer = onMultiplayer;
             // Menu needs a visible, free cursor.
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -42,11 +44,15 @@ namespace Trickshot
 
             if (!_inChallenges)
             {
-                float cy = Screen.height * 0.5f - (h * 1.5f + gap);
-                GUI.Label(new Rect(0, cy - 120f, Screen.width, 80f), "TRICKSHOT", title);
+                float cy = Screen.height * 0.5f - (h * 2f + gap * 1.5f);
+                GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "TRICKSHOT", title);
                 if (GUI.Button(new Rect(cx, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
                 if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
                 if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Mode", btn)) _inChallenges = true;
+                if (GUI.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Multiplayer", btn))
+                {
+                    _chosen = true; enabled = false; _onMultiplayer?.Invoke();
+                }
             }
             else
             {
