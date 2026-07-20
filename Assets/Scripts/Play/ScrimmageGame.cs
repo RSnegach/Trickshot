@@ -45,7 +45,6 @@ namespace Trickshot
         int _wheelSel = -1;               // hovered slice index, -1 = none
         KeeperController _humanKeeper;    // keeper role
         ActiveRagdoll _humanKeeperRagdoll;
-        float _switchLock;
 
         // Which team last touched the ball (for AI support/defend logic).
         public int PossessionTeam { get; private set; } = 0;
@@ -79,6 +78,12 @@ namespace Trickshot
             if (awayKeeper != null) _all.Add(awayKeeper);
 
             _clock = SimConfig.ScrimmageMatchSeconds;
+
+            // Outfield role: the human controls ONE fixed Home player for the whole match
+            // (no switching). Pick the first Home outfielder and give it control once.
+            if (_role == SimConfig.ScrimRole.Outfield && _home.Count > 0)
+                AssignControl(_home[0]);
+
             Kickoff();
         }
 
@@ -98,12 +103,8 @@ namespace Trickshot
             _kickoffTimer = SimConfig.ScrimKickoffFreeze;   // brief set-and-ready freeze
             Flash("KICK OFF");
 
-            // Cancel any celebration still running (SwitchTo only cancels when the body
-            // changes; on a reset the same player is often still nearest, so cancel here).
+            // Cancel any celebration still running on the controlled player.
             if (_controlledCeleb != null) _controlledCeleb.Cancel();
-
-            // In outfield role, hand control to the Home player nearest the ball.
-            if (_role == SimConfig.ScrimRole.Outfield) SwitchTo(NearestHomeOutfielderToBall());
         }
 
         Vector3 SpawnSpot(Footballer f)
@@ -189,15 +190,11 @@ namespace Trickshot
 
                 if (!emoting)
                 {
-                    // Manual player switch only (F). No auto-switch - control stays on the
-                    // chosen player so the camera + WASD never get yanked away mid-move.
-                    if (_input.SwitchPressed && _switchLock <= 0f)
-                        SwitchTo(NearestHomeOutfielderToBall(exclude: _controlled));
-                    if (_switchLock > 0f) _switchLock -= Time.deltaTime;
-
+                    // No switching: the human controls ONE fixed player the whole match;
+                    // every other outfielder is AI.
                     if (_humanStriker != null) _humanStriker.Tick();
 
-                    // Passing (only meaningful when controlling an outfielder).
+                    // Passing to a teammate.
                     if (_input.PassGroundPressed) TryPass(lofted: false);
                     else if (_input.PassLoftedPressed) TryPass(lofted: true);
 
@@ -352,47 +349,22 @@ namespace Trickshot
             PossessionTeam = dh <= da ? 0 : 1;
         }
 
-        // ------------------------------------------------------------- switching
-        void SwitchTo(Footballer f)
+        // ------------------------------------------------------------- control
+        // One-time: give the human control of this fixed player for the whole match and
+        // point the camera at it. Called once from Configure (no switching thereafter).
+        void AssignControl(Footballer f)
         {
-            if (f == null || f == _controlled) return;
-
-            // Detach the old body: its Striker/Dribble go dormant (AI takes it over), and
-            // any in-progress emote is cancelled.
-            if (_controlled != null)
-            {
-                var s = _controlled.GetComponent<Striker>();
-                if (s != null) s.ControlEnabled = false;
-                var d = _controlled.GetComponent<Dribble>();
-                if (d != null) d.Enabled = false;
-                if (_controlledCeleb != null) _controlledCeleb.Cancel();
-            }
-
+            if (f == null) return;
             _controlled = f;
-            _switchLock = SimConfig.SwitchLockout;
-
             _humanStriker = f.GetComponent<Striker>();
             _humanDribble = f.GetComponent<Dribble>();
             _controlledCeleb = f.GetComponent<Celebration>();
             if (_humanStriker != null) _humanStriker.ControlEnabled = true;
             if (_humanDribble != null) _humanDribble.Enabled = true;
 
-            // Camera + look follow the new body.
+            // Camera follows the controlled body; the striker turns to the camera yaw.
             _cam.SetFollow(f.Ragdoll.Pelvis.transform, () => _input.Look);
             if (_humanStriker != null) _humanStriker.SetCameraYaw(() => _cam.Yaw);
-        }
-
-        Footballer NearestHomeOutfielderToBall(Footballer exclude = null)
-        {
-            Footballer best = null; float bestD = float.MaxValue;
-            Vector3 b = _ball.transform.position;
-            foreach (var f in _home)
-            {
-                if (f == null || f == exclude || f.IsKeeper) continue;
-                float d = Vector3.Distance(f.Pos, b);
-                if (d < bestD) { bestD = d; best = f; }
-            }
-            return best;
         }
 
         Footballer ClosestToBall(List<Footballer> team)
@@ -560,7 +532,7 @@ namespace Trickshot
 
             string help = _role == SimConfig.ScrimRole.Keeper
                 ? "Keeper:  A/D move   Space/LMB/RMB dive   Reset: R"
-                : "Move WASD   Shoot LMB/RMB   Q pass   E lofted   C tackle   F switch   B emote   V ball cam   R reset";
+                : "Move WASD   Shoot LMB/RMB   Q pass   E lofted   C tackle   B emote   V ball cam   R reset";
             GUI.Label(new Rect(8, Screen.height - 26, Screen.width - 16, 22), help, st);
 
             // Full-time banner + rematch prompt.

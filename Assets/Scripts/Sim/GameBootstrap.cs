@@ -452,8 +452,8 @@ namespace Trickshot
             else
             {
                 homeKeeper = BuildFootballer(root, ball, game, team: 0, keeper: true, homeTorso, homeLimb, gloveMat, index: 0);
-                // Outfield role: the driver's SwitchTo sets the follow target; init with a
-                // valid transform. 5th arg (goal Transform) unused here -> null.
+                // Outfield role: the driver assigns control to a fixed Home player and sets
+                // the camera follow. Init with a valid transform; 5th arg (goal) unused -> null.
                 gameCam.Init(_cam, ball.transform, home[0].Ragdoll.Pelvis.transform, null, null);
             }
 
