@@ -103,5 +103,17 @@ namespace Trickshot.Net
             //   MessageReceived(new PeerId(msg.m_identityPeer...), bytes) per message.
 #endif
         }
+
+        public void ListLobbies(System.Action<System.Collections.Generic.List<LobbyInfo>> onResults)
+        {
+#if TRICKSHOT_STEAM
+            // TODO(steam): SteamMatchmaking.RequestLobbyList(); on LobbyMatchList_t, loop
+            //   GetLobbyByIndex, read GetLobbyData(name/mode) + GetNumLobbyMembers, build a
+            //   List<LobbyInfo> (handle = lobby CSteamID.m_SteamID) and invoke onResults.
+            onResults?.Invoke(new System.Collections.Generic.List<LobbyInfo>());
+#else
+            onResults?.Invoke(new System.Collections.Generic.List<LobbyInfo>());
+#endif
+        }
     }
 }

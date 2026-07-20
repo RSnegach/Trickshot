@@ -37,6 +37,13 @@ namespace Trickshot.Net
             Session = null;
         }
 
+        // Browse joinable lobbies without joining. Uses a transient transport instance to
+        // query (loopback reads the shared bus; Steam issues RequestLobbyList).
+        public static void Browse(System.Action<System.Collections.Generic.List<LobbyInfo>> onResults)
+            => NewTransport().ListLobbies(onResults);
+
+        public static bool SteamLinked => SteamTransport.Available;
+
         // Pump the transport once per frame. Call from the active mode driver's Update (or a
         // dedicated pump object) while a session is live.
         public static void Poll() => Session?.Poll();

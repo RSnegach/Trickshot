@@ -62,11 +62,71 @@ namespace Trickshot
         {
             var menuGo = new GameObject("MenuUI");
             var menu = menuGo.AddComponent<MenuUI>();
-            menu.Init(mode =>
+            menu.Init(
+                onChoose: mode => { Destroy(menuGo); ShowStadiumSelect(mode); },
+                onMultiplayer: () => { Destroy(menuGo); ShowMultiplayerHub(); });
+        }
+
+        // ---- Multiplayer flow: hub -> host setup / browser -> lobby -> networked match ----
+        void ShowMultiplayerHub()
+        {
+            var go = new GameObject("MultiplayerHubUI");
+            go.AddComponent<MultiplayerHubUI>().Init(
+                onHost: () => { Destroy(go); ShowHostSetup(); },
+                onJoin: () => { Destroy(go); ShowSessionBrowser(); },
+                onBack: () => { Destroy(go); ShowMainMenu(); });
+        }
+
+        void ShowHostSetup()
+        {
+            var go = new GameObject("HostSetupUI");
+            go.AddComponent<HostSetupUI>().Init(
+                onCreated: () => { Destroy(go); ShowLobby(); },
+                onBack:    () => { Destroy(go); ShowMultiplayerHub(); });
+        }
+
+        void ShowSessionBrowser()
+        {
+            var go = new GameObject("SessionBrowserUI");
+            go.AddComponent<SessionBrowserUI>().Init(
+                onJoined: () => { Destroy(go); ShowLobby(); },
+                onBack:   () => { Destroy(go); ShowMultiplayerHub(); });
+        }
+
+        void ShowLobby()
+        {
+            var go = new GameObject("LobbyUI");
+            go.AddComponent<LobbyUI>().Init(
+                onCustomize: () => { Destroy(go); ShowLobbyCustomize(); },
+                onStart:     () => { Destroy(go); StartNetworkedMatch(); },
+                onLeave:     () => { Destroy(go); Trickshot.Net.Multiplayer.End(); ShowMultiplayerHub(); });
+        }
+
+        // Customize your own player from the lobby, then return to the lobby.
+        void ShowLobbyCustomize()
+        {
+            var go = new GameObject("CustomizeUI");
+            go.AddComponent<CustomizeUI>().Init(
+                onDone: () => { Destroy(go); ShowLobby(); },
+                onBack: () => { Destroy(go); ShowLobby(); });
+        }
+
+        // Apply the host's synced config, then build the chosen mode with the session live.
+        void StartNetworkedMatch()
+        {
+            var s = Trickshot.Net.Multiplayer.Session;
+            var cfg = s.Config;
+            StadiumStyle.SelectedIndex = cfg.stadium;
+            var mode = (GameMode)cfg.mode;
+            if (mode == GameMode.Scrimmage)
             {
-                Destroy(menuGo);
-                ShowStadiumSelect(mode);
-            });
+                SimConfig.ScrimmagePerSide = cfg.perSide;
+                SimConfig.ScrimmageMatchSeconds = cfg.matchSec;
+                // This peer plays whatever slot the host assigned it (keeper slot 0 -> keeper).
+                SimConfig.ScrimmageRole = s.LocalRole == Trickshot.Net.NetRole.Keeper
+                    ? SimConfig.ScrimRole.Keeper : SimConfig.ScrimRole.Outfield;
+            }
+            BuildMode(mode);
         }
 
         // Mode -> pick stadium -> (customize your player, striker modes) -> pre-match -> play.
@@ -123,6 +183,7 @@ namespace Trickshot
         void ReturnToMainMenu()
         {
             TearDownMatch();
+            Trickshot.Net.Multiplayer.End();   // end any networked session on quit-to-menu
             ShowMainMenu();
         }
 
@@ -147,6 +208,10 @@ namespace Trickshot
             var pauseGo = new GameObject("PauseMenu");
             pauseGo.transform.SetParent(root, false);
             pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput());
+
+            // Networked match: pump the transport every frame for the match's lifetime.
+            if (Trickshot.Net.Multiplayer.IsActive)
+                pauseGo.AddComponent<Trickshot.Net.NetPump>();
 
             _cam.backgroundColor = StadiumStyle.Active.Sky;
 
