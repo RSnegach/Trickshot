@@ -103,8 +103,9 @@ namespace Trickshot
             _kickoffTimer = SimConfig.ScrimKickoffFreeze;   // brief set-and-ready freeze
             Flash("KICK OFF");
 
-            // Cancel any celebration still running on the controlled player.
+            // Cancel any celebration + knockdown still active (nobody starts on the ground).
             if (_controlledCeleb != null) _controlledCeleb.Cancel();
+            foreach (var f in _all) if (f != null && f.Knock != null) f.Knock.Cancel();
         }
 
         Vector3 SpawnSpot(Footballer f)
@@ -188,18 +189,23 @@ namespace Trickshot
                     _controlledCeleb.Play(Celebration.Menu[_wheelSel].e);
                 _wheelWasOpen = _wheelOpen;
 
-                if (!emoting)
+                bool down = _controlled != null && _controlled.IsDown;
+                if (!emoting && !down)
                 {
                     // No switching: the human controls ONE fixed player the whole match;
                     // every other outfielder is AI.
                     if (_humanStriker != null) _humanStriker.Tick();
 
-                    // Passing to a teammate.
+                    // Passing to a teammate (or calling for one when you don't have the ball).
                     if (_input.PassGroundPressed) TryPass(lofted: false);
                     else if (_input.PassLoftedPressed) TryPass(lofted: true);
 
                     // Tackle (C): lunge forward to win the ball off an opponent.
                     if (_input.TacklePressed) TryHumanTackle();
+
+                    // Slide tackle: hold BOTH legs (LMB+RMB) and run into an opponent to
+                    // fell them (and yourself), like a sliding challenge.
+                    if (_input.LeftLegHeld && _input.RightLegHeld) TrySlideTackle();
                 }
             }
 
@@ -228,6 +234,42 @@ namespace Trickshot
         // --- Tackling ---
         float _tackleWindow;   // seconds left in the human tackle attempt
         float _tackleCooldown;
+        float _slideCooldown;
+
+        // Slide tackle: moving fast into an opponent with both legs held fells them (and
+        // yourself). Wins the ball if that opponent had it. On a cooldown.
+        void TrySlideTackle()
+        {
+            if (_slideCooldown > 0f || _controlled == null || _controlled.Ragdoll == null) return;
+            Vector3 vel = _controlled.Ragdoll.Pelvis.linearVelocity; vel.y = 0f;
+            if (vel.magnitude < SimConfig.SlideTackleMinSpeed) return;
+
+            Vector3 me = _controlled.Pos; me.y = 0f;
+            Footballer victim = null; float best = SimConfig.SlideTackleRange;
+            foreach (var f in _away)   // Home human -> opponents are Away
+            {
+                if (f == null) continue;
+                Vector3 fp = f.Pos; fp.y = 0f;
+                float dd = Vector3.Distance(me, fp);
+                if (dd < best) { best = dd; victim = f; }
+            }
+            if (victim == null) return;
+
+            _slideCooldown = SimConfig.SlideTackleCooldown;
+            Vector3 dir = (victim.Pos - _controlled.Pos); dir.y = 0f;
+            if (victim.Knock != null) victim.Knock.Fell(dir);          // they go down
+            if (_controlled.Knock != null) _controlled.Knock.Fell(dir); // and so do you (a slide)
+
+            // If the felled opponent had the ball, knock it loose toward our attack.
+            Vector3 b = _ball.transform.position; b.y = 0f;
+            if (Vector3.Distance(victim.Pos, b) <= SimConfig.BallRadius + 1.3f)
+            {
+                _ball.DribbleHold = false;
+                Vector3 fwd = new Vector3(0f, 0f, _controlled.AttackZ);
+                _ball.KickTo(fwd * SimConfig.TackleKnock + Vector3.up * 0.4f);
+            }
+            Flash("SLIDE TACKLE!");
+        }
 
         void TryHumanTackle()
         {
@@ -242,6 +284,7 @@ namespace Trickshot
         void ResolveTackleWindow()
         {
             if (_tackleCooldown > 0f) _tackleCooldown -= Time.deltaTime;
+            if (_slideCooldown > 0f) _slideCooldown -= Time.deltaTime;
             if (_tackleWindow <= 0f) return;
             _tackleWindow -= Time.deltaTime;
             if (_controlled == null) { _tackleWindow = 0f; return; }
@@ -261,16 +304,37 @@ namespace Trickshot
         public void WinBallForAi(Footballer tackler) => WinBall(tackler);
 
         // Knock the ball loose from whoever's carrying it, away from the ball toward the
-        // tackler's forward, and flag possession flipping. Cancels any dribble hold.
+        // tackler's forward, and fell the player who was on the ball. Cancels dribble hold.
         void WinBall(Footballer tackler)
         {
             var d = tackler != null ? tackler.GetComponent<Dribble>() : null;
             if (d != null) d.ForceRelease();
             _ball.DribbleHold = false;
+
             Vector3 dir = tackler != null ? (tackler.Ragdoll.FacingRotation * Vector3.forward) : Vector3.forward;
             dir.y = 0f;
             _ball.KickTo(dir.normalized * SimConfig.TackleKnock + Vector3.up * 0.5f);
+
+            // Fell the opponent who was on the ball (nearest opponent of the tackler's team).
+            var victim = NearestOpponentToBall(tackler != null ? tackler.Team : 0);
+            if (victim != null && victim.Knock != null)
+                victim.Knock.Fell(victim.Pos - (tackler != null ? tackler.Pos : victim.Pos));
             Flash("TACKLE!");
+        }
+
+        // Nearest player of the team OPPOSITE `team` to the ball (the likely carrier).
+        Footballer NearestOpponentToBall(int team)
+        {
+            var opp = team == 0 ? _away : _home;
+            Footballer best = null; float bestD = float.MaxValue;
+            Vector3 b = _ball.transform.position;
+            foreach (var f in opp)
+            {
+                if (f == null || f.IsKeeper) continue;
+                float dd = Vector3.Distance(f.Pos, b);
+                if (dd < bestD) { bestD = dd; best = f; }
+            }
+            return best;
         }
 
         // Teammates of a given team (for AI spacing). Read-only view.
@@ -380,31 +444,76 @@ namespace Trickshot
             return best;
         }
 
+        // Does the controlled player actually have the ball right now? (Dribbling it, or it
+        // is right at their feet.) Only then does Q/E play a pass.
+        bool ControlledHasBall()
+        {
+            if (_controlled == null) return false;
+            if (_humanDribble != null && _humanDribble.Carrying) return true;
+            Vector3 me = _controlled.Pos; me.y = 0f;
+            Vector3 b = _ball.transform.position; b.y = 0f;
+            return Vector3.Distance(me, b) <= SimConfig.BallRadius + 1.1f && _ball.Speed < 8f;
+        }
+
         // ------------------------------------------------------------- passing
-        // Pass to the Home teammate nearest the controlled player's aim direction. Ground =
-        // rolled, lofted = chipped. Power scales with the controlled player's shot power.
+        // Q / E when you HAVE the ball plays a pass. When you DON'T, it CALLS for a pass:
+        // an AI teammate who has the ball passes it to you (a real player never gives the
+        // ball up on someone else's call). Ground vs lofted picks the pass type.
         void TryPass(bool lofted)
         {
             if (_controlled == null || _humanStriker == null) return;
-            Vector3 from = _ball.transform.position;
-            Vector3 aim = _humanStriker.FacingForward;
 
+            if (ControlledHasBall())
+            {
+                PlayPass(_ball.transform.position, _humanStriker.FacingForward, lofted, _humanDribble);
+                Flash(lofted ? "LOFTED PASS" : "PASS");
+                return;
+            }
+
+            // Call for a pass: find the AI teammate currently on the ball and have it pass
+            // to the controlled player. If no teammate has it (opponent possession or a
+            // loose ball), the call does nothing to the ball.
+            var carrier = TeammateOnBall();
+            if (carrier == null || carrier == _controlled) { Flash("CALLING"); return; }
+            Vector3 lead = _controlled.Ragdoll.Pelvis.linearVelocity * SimConfig.PassLeadFrac;
+            Vector3 dir = (_controlled.Pos + lead) - _ball.transform.position; dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) dir = carrier.Ragdoll.FacingRotation * Vector3.forward;
+            PlayPass(_ball.transform.position, dir.normalized, lofted, carrier.GetComponent<Dribble>());
+            Flash(lofted ? "CALL: LOFTED" : "CALL: PASS");
+        }
+
+        // Launch the ball as a pass in `dir` (or toward the best teammate in that cone when
+        // dir is the aim). Releases the given dribble so the carry doesn't fight the kick.
+        void PlayPass(Vector3 from, Vector3 aim, bool lofted, Dribble carry)
+        {
             Footballer target = BestPassTarget(from, aim);
-            Vector3 dir;
+            Vector3 dir = aim;
             if (target != null)
             {
                 Vector3 lead = target.Ragdoll.Pelvis.linearVelocity * SimConfig.PassLeadFrac;
                 Vector3 to = (target.Pos + lead) - from; to.y = 0f;
-                dir = to.sqrMagnitude > 0.01f ? to.normalized : aim;
+                if (to.sqrMagnitude > 0.01f) dir = to.normalized;
             }
-            else dir = aim;   // no teammate in the cone: just knock it where you aim
-
             float power = (lofted ? SimConfig.PassLoftedSpeed : SimConfig.PassGroundSpeed) * PlayerProfile.ShotPowerMul;
             Vector3 v = dir * power;
             if (lofted) v += Vector3.up * (power * SimConfig.PassLoftedArc);
+            if (carry != null) carry.ForceRelease();
             _ball.KickTo(v);
-            if (_humanDribble != null) _humanDribble.ForceRelease();
-            Flash(lofted ? "LOFTED PASS" : "PASS");
+        }
+
+        // The Home teammate (not the controlled player) currently on the ball, if any.
+        Footballer TeammateOnBall()
+        {
+            if (PossessionTeam != 0) return null;   // Home must have possession
+            Vector3 b = _ball.transform.position;
+            Footballer best = null; float bestD = SimConfig.BallRadius + 1.3f;
+            foreach (var f in _home)
+            {
+                if (f == null || f == _controlled || f.IsKeeper) continue;
+                float dd = Vector3.Distance(f.Pos, b);
+                if (dd < bestD) { bestD = dd; best = f; }
+            }
+            return best;
         }
 
         Footballer BestPassTarget(Vector3 from, Vector3 aim)

@@ -434,6 +434,17 @@ namespace Trickshot
         public const float TackleKnock     = 4.5f;  // how hard the won ball is knocked away from the carrier
         public const float AiTackleRange    = 2.2f;  // an AI defender lunges when this close to an opponent carrier
 
+        // Knockdowns: a tackled player (or one caught by a slide tackle) falls over, goes
+        // limp for a moment, then gets back up.
+        public const float KnockdownTime    = 1.4f;  // seconds down before recovering
+        public const float KnockdownImpulse = 5.5f;  // shove velocity applied to the felled player
+        public const float KnockdownSpin    = 6f;    // tumble spin (deg/s about a horizontal axis)
+        // Slide tackle: holding BOTH legs (LMB+RMB) while moving fast into an opponent
+        // fells them (and the slider). It connects within this range at this min speed.
+        public const float SlideTackleRange  = 1.7f;  // contact distance to the target
+        public const float SlideTackleMinSpeed = 3.5f; // must be moving at least this fast to count as a slide
+        public const float SlideTackleCooldown = 1.2f;
+
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
         public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)
