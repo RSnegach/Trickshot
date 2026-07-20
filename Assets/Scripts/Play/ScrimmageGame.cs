@@ -40,9 +40,8 @@ namespace Trickshot
         Celebration _controlledCeleb;     // emote component on the controlled body
         Footballer _controlled;           // which footballer the human drives (outfield role)
 
-        // Emote wheel state.
-        bool _wheelOpen, _wheelWasOpen;
-        int _wheelSel = -1;               // hovered slice index, -1 = none
+        // Emote wheel state (toggle open/closed with B).
+        bool _wheelOpen;
         KeeperController _humanKeeper;    // keeper role
         ActiveRagdoll _humanKeeperRagdoll;
 
@@ -172,22 +171,13 @@ namespace Trickshot
             }
             else
             {
-                // Emote wheel: held open with B. While open (or an emote is playing) the
-                // player's normal control is suspended so the two don't fight.
-                _wheelOpen = _input.EmoteHeld;
+                // Emote wheel: B TOGGLES it open/closed. While open the real mouse cursor is
+                // freed so you can click an emote directly (the buttons are drawn + handled
+                // in OnGUI). Normal control is suspended so the two don't fight.
+                if (_input.EmotePressed) SetWheelOpen(!_wheelOpen);
                 bool emoting = _wheelOpen || (_controlledCeleb != null && _controlledCeleb.Playing);
-                if (_wheelOpen)
-                {
-                    UpdateWheelSelection();
-                    // Stand still while browsing the wheel (Striker.Tick is suspended, so it
-                    // won't refresh MoveInput; without this the last velocity keeps gliding).
-                    if (_controlled != null && _controlled.Ragdoll != null)
-                        _controlled.Ragdoll.MoveInput = Vector3.zero;
-                }
-                // Releasing B with a slice selected performs that emote.
-                if (!_input.EmoteHeld && _wheelWasOpen && _wheelSel >= 0 && _controlledCeleb != null)
-                    _controlledCeleb.Play(Celebration.Menu[_wheelSel].e);
-                _wheelWasOpen = _wheelOpen;
+                if (_wheelOpen && _controlled != null && _controlled.Ragdoll != null)
+                    _controlled.Ragdoll.MoveInput = Vector3.zero;   // stand still while choosing
 
                 bool down = _controlled != null && _controlled.IsDown;
                 if (!emoting && !down)
@@ -342,65 +332,47 @@ namespace Trickshot
         public List<Footballer> TeamList(int team) => team == 0 ? _home : _away;
 
         // ------------------------------------------------------------- emote wheel
-        // Pick the hovered slice from the mouse position relative to screen centre. Mouse
-        // is a locked FPS pointer, so we accumulate its delta into a virtual cursor while
-        // the wheel is open; a big enough push toward a slice selects it.
-        Vector2 _wheelCursor;
-        void UpdateWheelSelection()
+        // Open/close the emote wheel. While open the real cursor is freed + shown so you can
+        // click an emote directly; closing re-locks it for gameplay.
+        void SetWheelOpen(bool open)
         {
-            if (!_wheelWasOpen) _wheelCursor = Vector2.zero;   // recentre on open
-            _wheelCursor += _input.Look * 0.15f;
-            _wheelCursor = Vector2.ClampMagnitude(_wheelCursor, 120f);
-
-            if (_wheelCursor.magnitude < 30f) { _wheelSel = -1; return; }   // dead zone at centre
-            // Angle: 0 = up, clockwise. Slice 0 at the top.
-            float ang = Mathf.Atan2(_wheelCursor.x, _wheelCursor.y) * Mathf.Rad2Deg;
-            if (ang < 0f) ang += 360f;
-            int n = Celebration.Menu.Length;
-            _wheelSel = Mathf.FloorToInt((ang + 360f / n * 0.5f) % 360f / (360f / n));
-            if (_wheelSel >= n) _wheelSel = 0;
+            _wheelOpen = open;
+            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = open;
         }
 
+        // A real, clickable radial menu. Each emote is a button laid out around a ring;
+        // clicking one plays it and closes the wheel. Uses the actual OS cursor (freed in
+        // SetWheelOpen), so there's a pointer to click with.
         void DrawEmoteWheel()
         {
             float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
             int n = Celebration.Menu.Length;
             float rad = 210f;   // wide enough that 9 labels don't overlap
 
-            // Dim backdrop.
-            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.35f);
+            // Dim backdrop (also swallows stray clicks outside the buttons).
+            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.5f);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = prev;
 
-            var lbl = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var lbl = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
             for (int i = 0; i < n; i++)
             {
-                float ang = (360f / n * i) * Mathf.Deg2Rad;   // 0 = up
+                float ang = (360f / n * i) * Mathf.Deg2Rad;   // 0 = up, clockwise
                 float sx = cx + Mathf.Sin(ang) * rad;
                 float sy = cy - Mathf.Cos(ang) * rad;
-                bool sel = i == _wheelSel;
-                float bw = 128f, bh = 40f;
+                float bw = 132f, bh = 42f;
                 var r = new Rect(sx - bw * 0.5f, sy - bh * 0.5f, bw, bh);
-                GUI.color = sel ? new Color(0.22f, 0.6f, 0.32f) : new Color(0.12f, 0.13f, 0.16f, 0.95f);
-                GUI.DrawTexture(r, Texture2D.whiteTexture);
-                if (sel) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawOutline(r, 2f); }
-                GUI.color = Color.white;
-                lbl.normal.textColor = sel ? Color.white : new Color(0.85f, 0.85f, 0.88f);
-                GUI.Label(r, Celebration.Menu[i].name, lbl);
+                if (GUI.Button(r, Celebration.Menu[i].name, lbl))
+                {
+                    if (_controlledCeleb != null) _controlledCeleb.Play(Celebration.Menu[i].e);
+                    SetWheelOpen(false);
+                    return;   // wheel closed; stop drawing this frame
+                }
             }
-            GUI.color = prev;
 
-            var hint = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(cx - 150f, cy - 10f, 300f, 20f), "Aim + release B", hint);
-        }
-
-        static void DrawOutline(Rect r, float t)
-        {
-            var tex = Texture2D.whiteTexture;
-            GUI.DrawTexture(new Rect(r.x, r.y, r.width, t), tex);
-            GUI.DrawTexture(new Rect(r.x, r.yMax - t, r.width, t), tex);
-            GUI.DrawTexture(new Rect(r.x, r.y, t, r.height), tex);
-            GUI.DrawTexture(new Rect(r.xMax - t, r.y, t, r.height), tex);
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(cx - 160f, cy - 12f, 320f, 24f), "Click an emote  ·  B to close", hint);
         }
 
         void UpdatePossession()
