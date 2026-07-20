@@ -35,6 +35,10 @@ namespace Trickshot
         float _gaitPhase;
         float _kickCooldown;
 
+        Knockdown _knock;
+        public Knockdown Knock => _knock != null ? _knock : (_knock = GetComponent<Knockdown>());
+        public bool IsDown => Knock != null && Knock.Down;
+
         public Vector3 Pos => Ragdoll != null && Ragdoll.Pelvis != null ? Ragdoll.Pelvis.position : transform.position;
 
         public void Init(ScrimmageGame game, BallController ball, ActiveRagdoll ragdoll, int team, bool keeper, float attackZ, Vector3 homeSpot)
@@ -47,6 +51,7 @@ namespace Trickshot
         public void AiTick(bool isClosest)
         {
             if (Ragdoll == null || Ragdoll.Pelvis == null || _ball == null) return;
+            if (IsDown) return;   // knocked over: the Knockdown component owns the body
             Ragdoll.ClearPoseOverrides();
             if (_kickCooldown > 0f) _kickCooldown -= Time.deltaTime;
 

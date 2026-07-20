@@ -495,6 +495,8 @@ namespace Trickshot
 
             // Celebration emotes (played when the human controls this body + opens the wheel).
             go.AddComponent<Celebration>().Init(ragdoll);
+            // Knockdown: fall over when tackled / slide-tackled.
+            go.AddComponent<Knockdown>().Init(ragdoll);
 
             var f = go.AddComponent<Footballer>();
             // Home (team 0) attacks +Z (HomeGoal), Away attacks -Z, in every role.
