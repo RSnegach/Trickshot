@@ -50,6 +50,11 @@ namespace Trickshot.Net
         public event Action RosterChanged;
         // Raised on all peers when the host starts the match.
         public event Action MatchStarting;
+        // Post-goal replay coordination: host tells everyone to start / end; clients vote to
+        // skip and the host ends once every human has voted.
+        public event Action ReplayStarted;
+        public event Action ReplayEnded;
+        readonly HashSet<int> _skipVotes = new HashSet<int>();
 
         public NetSession(INetTransport transport)
         {
@@ -110,6 +115,43 @@ namespace Trickshot.Net
             MatchStarting?.Invoke();
         }
 
+        // ---- post-goal replay ----
+        // Host: tell everyone (incl. self) to roll the replay; clear any prior skip votes.
+        public void BeginReplay()
+        {
+            if (!IsHost) return;
+            _skipVotes.Clear();
+            Transport.SendToAll(NetCodec.ReplayStart(), NetChannel.Reliable);
+            ReplayStarted?.Invoke();
+        }
+
+        // Any human clicks to skip. Host tallies locally; clients send a vote to the host.
+        public void VoteSkip()
+        {
+            if (IsHost) { _skipVotes.Add(LocalSlot); TryEndReplay(); }
+            else Transport.Send(Transport.HostPeer, NetCodec.SkipVote(), NetChannel.Reliable);
+        }
+
+        // Host: end the replay for everyone (all humans voted, or the buffer ran out).
+        public void EndReplayHost()
+        {
+            if (!IsHost) return;
+            _skipVotes.Clear();
+            Transport.SendToAll(NetCodec.ReplayEnd(), NetChannel.Reliable);
+            ReplayEnded?.Invoke();
+        }
+
+        // Count of human-held slots (for the skip tally).
+        int HumanCount()
+        {
+            int n = 0; for (int i = 0; i < MaxSlots; i++) if (_slotOwner[i].IsValid) n++; return n;
+        }
+
+        void TryEndReplay()
+        {
+            if (IsHost && _skipVotes.Count >= HumanCount()) EndReplayHost();
+        }
+
         // ---- slot table queries (used by the mode driver) ----
         public bool SlotIsHuman(int slot) => slot >= 0 && slot < MaxSlots && _slotOwner[slot].IsValid;
         public bool SlotIsLocal(int slot) => slot == LocalSlot;
@@ -155,6 +197,15 @@ namespace Trickshot.Net
                 case MsgType.StartMatch:  // client: host started the match
                     MatchStarted = true;
                     MatchStarting?.Invoke();
+                    break;
+                case MsgType.ReplayStart: // client: host says roll the replay
+                    ReplayStarted?.Invoke();
+                    break;
+                case MsgType.SkipVote:    // host: a client voted to skip the replay
+                    if (IsHost) { int sv = SlotOf(from); if (sv >= 0) _skipVotes.Add(sv); TryEndReplay(); }
+                    break;
+                case MsgType.ReplayEnd:   // client: host ended the replay
+                    ReplayEnded?.Invoke();
                     break;
                 case MsgType.PlayerInput: // host: store the client's input into its slot
                     if (IsHost)

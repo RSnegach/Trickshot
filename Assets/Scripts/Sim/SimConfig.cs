@@ -455,6 +455,11 @@ namespace Trickshot
         public const float SlideTackleMinSpeed = 3.5f; // must be moving at least this fast to count as a slide
         public const float SlideTackleCooldown = 1.2f;
 
+        // ---- Post-goal replay ----
+        public const float ReplayWindow   = 4f;    // seconds of action buffered for the replay
+        public const float ReplaySlowMul  = 0.4f;  // playback speed (0..1) of the buffered window
+        public const float ReplayHold     = 0.5f;  // pause after the goal before the replay rolls
+
         // ---- Networking (host-authoritative snapshot sync) ----
         public const float NetSnapshotInterval = 0.05f;  // host broadcasts ~20 snapshots/sec
         public const float NetInterpRate       = 14f;    // client puppet/ball lerp sharpness (1/s)

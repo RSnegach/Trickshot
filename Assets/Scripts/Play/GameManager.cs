@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Trickshot
@@ -44,6 +45,12 @@ namespace Trickshot
         bool _crossMapOpen;
         Vector3 _crossTarget = SimConfig.ServeTarget;
 
+        // Post-goal broadcast replay. Records a rolling window; on a goal it freezes play
+        // and plays the last few seconds in slow motion (LMB skips). Then serving resumes.
+        ReplaySystem _replay;
+        bool _replaying;
+        float _replayHold;   // brief delay after a goal before the replay starts
+
         public void Configure(GameInput input, Crosser crosser, AimReticle reticle, BallController ball,
                               Striker striker, ActiveRagdoll strikerRagdoll, Goalkeeper keeper,
                               GameCamera cam, Transform launchPoint)
@@ -64,11 +71,26 @@ namespace Trickshot
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
             _striker.SetCameraYaw(() => _cam.Yaw);
 
-            // Constant rapid-fire in striker mode: no post-goal replay (it would freeze
-            // the world and fight the every-2s serve), so no replay recorder here.
             _cam.SetMode(GameCamera.Mode.Follow);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;   // no live ball yet
+
+            SetupReplay();
+        }
+
+        // Build the replay recorder over the ball + striker + keeper bones. GameManager
+        // pauses its own control while a replay plays, so no external drivers are needed.
+        void SetupReplay()
+        {
+            var tracked = new List<Transform> { _ball.transform };
+            if (_strikerRagdoll != null) tracked.AddRange(_strikerRagdoll.BoneTransforms);
+            if (_keeper != null)
+            {
+                var kr = _keeper.GetComponent<ActiveRagdoll>();
+                if (kr != null) tracked.AddRange(kr.BoneTransforms);
+            }
+            _replay = gameObject.AddComponent<ReplaySystem>();
+            _replay.Setup(tracked, null, SimConfig.ReplayWindow);
         }
 
         public void NotifyValidTrick()
@@ -82,6 +104,24 @@ namespace Trickshot
             if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
 
             if (_input.ResetPressed) { ResetRound(); return; }
+
+            // --- Post-goal replay state machine ---
+            // After a goal, hold briefly, then play the broadcast replay. LMB skips it.
+            // While replaying (or waiting to), no striker/crosser control runs.
+            if (_replaying)
+            {
+                if (_input.LeftClickPressed || (_replay != null && !_replay.IsPlaying))
+                    EndReplay();
+                if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
+                return;
+            }
+            if (_replayHold > 0f)
+            {
+                _replayHold -= Time.unscaledDeltaTime;
+                if (_replayHold <= 0f) StartReplay();
+                if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
+                return;
+            }
 
             // Cross-targeting map (M): toggle. While open, the striker doesn't tick (aiming
             // is frozen) so you can click the map without steering, and the cursor is freed.
@@ -158,6 +198,29 @@ namespace Trickshot
             if (trick) _trickGoals++;
             Flash("GOAL!");   // plain callout, no shot-type specification
             CrowdCheer.Celebrate();
+            _replayHold = SimConfig.ReplayHold;   // arm the post-goal replay
+        }
+
+        // Freeze play, cut to the broadcast camera, and roll the buffered slow-mo replay.
+        void StartReplay()
+        {
+            if (_replay == null) return;
+            _replaying = true;
+            _cam.SetMode(GameCamera.Mode.Broadcast);
+            _reticle.Hide();
+            _replay.Play(SimConfig.ReplaySlowMul);
+            Flash("REPLAY  (click to skip)");
+        }
+
+        // End the replay (finished or skipped): restore control + camera + re-arm serving.
+        void EndReplay()
+        {
+            _replaying = false;
+            _replayHold = 0f;
+            if (_replay != null) _replay.Stop();
+            _cam.SetMode(GameCamera.Mode.Follow);
+            _crosser.Arm(SimConfig.ServeFirstDelay);
+            _resolved = true;
         }
 
         void OnMiss()
@@ -175,6 +238,15 @@ namespace Trickshot
 
         void ResetRound()
         {
+            // R during a replay (or the brief pre-replay hold) must first tear the replay
+            // down, else the ReplaySystem keeps the bodies kinematic and overwrites the
+            // reset poses each frame, freezing play.
+            if (_replaying || _replayHold > 0f)
+            {
+                _replaying = false;
+                _replayHold = 0f;
+                if (_replay != null) _replay.Stop();
+            }
             _striker.ForceRecover();
             _strikerRagdoll.ResetTo(SimConfig.StrikerStart, Quaternion.identity);
             if (_keeper != null) _keeper.ResetTo(SimConfig.KeeperStart);
