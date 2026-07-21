@@ -126,6 +126,14 @@ namespace Trickshot
                 SimConfig.ScrimmageRole = s.LocalRole == Trickshot.Net.NetRole.Keeper
                     ? SimConfig.ScrimRole.Keeper : SimConfig.ScrimRole.Outfield;
             }
+            else if (mode == GameMode.SetPieces)
+            {
+                // Host-chosen goal size + AI keeper strength apply to everyone (mutable statics).
+                float scale = cfg.goalScale <= 0.01f ? 1f : cfg.goalScale;
+                SimConfig.GoalWidth  = 7.32f * scale;
+                SimConfig.GoalHeight = 2.44f * scale;
+                SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
+            }
             BuildMode(mode);
         }
 
@@ -256,6 +264,13 @@ namespace Trickshot
                 BuildNetStrikerMode(root, cam, gameCam, ball, arena);
                 return;
             }
+            // Networked set-pieces shootout: host-authoritative driver (keeper + rotating
+            // shooters). Single-player SetPieces falls through to the free-kick build below.
+            if (Trickshot.Net.Multiplayer.IsActive && mode == GameMode.SetPieces)
+            {
+                BuildNetSetPieces(root, cam, gameCam, ball, arena);
+                return;
+            }
 
             switch (mode)
             {
@@ -263,7 +278,8 @@ namespace Trickshot
                 case GameMode.Freeplay:
                 case GameMode.TimeTrial:
                 case GameMode.Accuracy:   BuildChallengeMode(mode, root, cam, gameCam, ball, arena); break;
-                case GameMode.FreeKick:   BuildFreeKickMode(root, cam, gameCam, ball, arena); break;
+                case GameMode.FreeKick:
+                case GameMode.SetPieces:  BuildFreeKickMode(root, cam, gameCam, ball, arena); break;
                 default:                  BuildStrikerMode(root, cam, gameCam, ball, arena); break;
             }
         }
@@ -285,6 +301,23 @@ namespace Trickshot
               .Configure(GetInput(), cam, gameCam, ball, crosser, reticle, launch, torso, limb, glove, root);
             LockCursor();
             ball.ResetTo(launch.position);
+        }
+
+        // Networked set-pieces shootout: keeper (slot 0, human or AI) + rotating shooters that
+        // each take 10 free kicks. The NetSetPieceMatch driver spawns the bodies, wall, and ball
+        // reset per attempt. Reuses the shared training arena/goal/ball built by BuildMode.
+        void BuildNetSetPieces(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
+        {
+            ball.SetCamera(gameCam);
+            Material torso = JerseyMaterial();
+            Material limb  = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
+            Material glove = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            var go = new GameObject("NetSetPieceMatch");
+            go.transform.SetParent(root, true);
+            go.AddComponent<NetSetPieceMatch>()
+              .Configure(GetInput(), cam, gameCam, ball, torso, limb, glove, root);
+            LockCursor();
         }
 
         Crowd _crowd;   // shared crowd, so modes can Celebrate() on goals

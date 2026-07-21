@@ -29,6 +29,7 @@ namespace Trickshot.Net
         SkipVote = 10,    // client -> host: I clicked to skip the replay
         ReplayEnd = 11,   // host -> clients: end the replay (all skipped or finished)
         RequestSlot = 12, // client -> host: I want to claim this slot (role pick)
+        ShootoutState = 13, // host -> clients: set-pieces active shooter + per-slot scores
     }
 
     // The host's chosen match configuration, synced to all peers so everyone builds the
@@ -40,6 +41,18 @@ namespace Trickshot.Net
         public byte perSide;     // scrimmage team size
         public ushort matchSec;  // match length (seconds)
         public bool publicLobby; // visibility (host-only meaning; carried for display)
+        public float goalScale;    // set pieces: goal size multiplier (1 = regulation)
+        public float keeperAbility; // set pieces: AI keeper strength 0..1
+    }
+
+    // Host -> clients: the set-pieces shootout tally. activeShooter = slot currently up;
+    // scored/taken are indexed by slot. Sent reliably on every change (goal, turn, end).
+    public struct ShootoutState
+    {
+        public byte activeShooter;   // slot index of the shooter up now (255 = none / match over)
+        public bool over;            // match finished
+        public byte[] scored;        // per-slot goals (length MaxSlots)
+        public byte[] taken;         // per-slot attempts (length MaxSlots)
     }
 
     // One lobby row in the roster (host -> clients each change).
@@ -178,6 +191,7 @@ namespace Trickshot.Net
             var w = new NetWriter(MsgType.RosterSync);
             w.U8(cfg.mode); w.U8(cfg.stadium); w.U8(cfg.perSide);
             w.U32(cfg.matchSec); w.B(cfg.publicLobby);
+            w.F(cfg.goalScale); w.F(cfg.keeperAbility);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); }
@@ -187,7 +201,8 @@ namespace Trickshot.Net
         public static void ReadRoster(NetReader r, out MatchConfig cfg, out LobbySlot[] slots)
         {
             cfg = new MatchConfig { mode = r.U8(), stadium = r.U8(), perSide = r.U8(),
-                                    matchSec = (ushort)r.U32(), publicLobby = r.B() };
+                                    matchSec = (ushort)r.U32(), publicLobby = r.B(),
+                                    goalScale = r.F(), keeperAbility = r.F() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
@@ -200,5 +215,26 @@ namespace Trickshot.Net
         public static byte[] ReplayStart() => new NetWriter(MsgType.ReplayStart).ToArray();
         public static byte[] SkipVote() => new NetWriter(MsgType.SkipVote).ToArray();
         public static byte[] ReplayEnd() => new NetWriter(MsgType.ReplayEnd).ToArray();
+
+        // Set-pieces shootout tally (host -> clients). Writes activeShooter + over flag + the
+        // per-slot scored/taken arrays (fixed length, sender passes MaxSlots-sized arrays).
+        public static byte[] Shootout(in ShootoutState s)
+        {
+            var w = new NetWriter(MsgType.ShootoutState);
+            w.U8(s.activeShooter); w.B(s.over);
+            byte n = (byte)(s.scored?.Length ?? 0);
+            w.U8(n);
+            for (int i = 0; i < n; i++) { w.U8(s.scored[i]); w.U8(s.taken[i]); }
+            return w.ToArray();
+        }
+
+        public static ShootoutState ReadShootout(NetReader r)
+        {
+            var s = new ShootoutState { activeShooter = r.U8(), over = r.B() };
+            int n = r.U8();
+            s.scored = new byte[n]; s.taken = new byte[n];
+            for (int i = 0; i < n; i++) { s.scored[i] = r.U8(); s.taken[i] = r.U8(); }
+            return s;
+        }
     }
 }

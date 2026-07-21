@@ -32,6 +32,10 @@ is easier and safer.
   their input each tick and receive world snapshots to interpolate toward. This is the only
   sane model for a ragdoll-physics game (deterministic lockstep across machines is not
   realistic with PhysX ragdolls).
+- **Modes.** Host setup offers **Scrimmage**, **Striker**, and **Set Pieces**. Set Pieces is a
+  free-kick shootout: one player keeps goal (human or AI), every other player takes turns hitting
+  10 free kicks each; most goals wins, ties allowed. The host can set **goal size** and **keeper
+  ability** (ball/player speed stay fixed for balance). Everyone sees a live scoreboard + result.
 - **Slots / roles.** `NetSession.MaxSlots = 8`: slot 0 = **keeper**, slots 1..6 = **shooters
   (strikers)**, slot 7 = **crosser**. Joining humans auto-fill the lowest free shooter slot;
   any slot no human holds is filled by AI. Works for **scrimmage** and **striker** mode alike.

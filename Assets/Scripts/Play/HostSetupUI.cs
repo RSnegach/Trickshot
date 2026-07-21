@@ -13,14 +13,18 @@ namespace Trickshot
     {
         System.Action _onCreated, _onBack;
 
-        // Only the two networkable modes.
-        static readonly GameMode[] Modes = { GameMode.Scrimmage, GameMode.Striker };
-        static readonly string[] ModeNames = { "Scrimmage", "Striker" };
+        // Networkable modes.
+        static readonly GameMode[] Modes = { GameMode.Scrimmage, GameMode.Striker, GameMode.SetPieces };
+        static readonly string[] ModeNames = { "Scrimmage", "Striker", "Set Pieces" };
         int _mode;                 // index into Modes
         int _stadium;
         int _perSide = 3;          // scrimmage team size (3/5/11)
         int _matchMin = 3;         // scrimmage length (min)
         bool _publicLobby = true;
+        // Set-pieces host settings (goal size %, keeper ability). Ball/player speed intentionally
+        // NOT exposed - kept fixed so multiplayer stays balanced.
+        int _goalPct = 100;        // 80 / 100 / 125
+        int _keeperPct = 50;       // 0 / 30 / 60 / 90 (AI keeper strength if no human GK)
 
         public void Init(System.Action onCreated, System.Action onBack)
         {
@@ -48,6 +52,12 @@ namespace Trickshot
                 PickerVals(lx, ref row, lw, "Team size", new[] { "3 v 3", "5 v 5", "11 v 11" }, new[] { 3, 5, 11 }, ref _perSide);
                 PickerVals(lx, ref row, lw, "Match length", new[] { "2 min", "3 min", "5 min", "10 min" }, new[] { 2, 3, 5, 10 }, ref _matchMin);
             }
+            else if (Modes[_mode] == GameMode.SetPieces)
+            {
+                // Balance-safe knobs only: goal size + AI keeper strength.
+                PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
+                PickerVals(lx, ref row, lw, "Keeper ability", new[] { "None", "Low", "Med", "High" }, new[] { 0, 30, 60, 90 }, ref _keeperPct);
+            }
             Toggle(lx, ref row, lw, "Public (anyone can join)", ref _publicLobby);
             // (Striker AI is chosen per-slot in the lobby now, not here.)
 
@@ -71,6 +81,9 @@ namespace Trickshot
                 perSide = (byte)_perSide,
                 matchSec = (ushort)(_matchMin * 60),
                 publicLobby = _publicLobby,
+                // Set-pieces knobs; harmless defaults for other modes (goalScale 1 = regulation).
+                goalScale = mode == GameMode.SetPieces ? _goalPct / 100f : 1f,
+                keeperAbility = mode == GameMode.SetPieces ? _keeperPct / 100f : 0.5f,
             });
 
             enabled = false;
