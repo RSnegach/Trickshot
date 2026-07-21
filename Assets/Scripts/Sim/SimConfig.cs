@@ -429,6 +429,10 @@ namespace Trickshot
         public const float PassGroundSpeed   = 12f;   // ground (rolled) pass base speed (m/s), scaled by PassPowerMul
         public const float PassLoftedSpeed   = 13f;   // lofted (chipped) pass base speed
         public const float PassLoftedArc     = 0.55f; // upward fraction of a lofted pass (higher = floatier)
+        // Where a launched pass spawns relative to the passer, so it clears their own body
+        // instead of rising into their torso (which flattened lofted passes to the ground).
+        public const float PassSpawnForward  = 0.6f;   // metres forward along the pass direction
+        public const float PassSpawnLift     = 0.7f;   // extra metres up for a lofted pass
         public const float PassAimConeDot    = 0.2f;  // teammate must be within this cone of the aim to be picked
         public const float PassMaxRange      = 45f;   // don't target teammates further than this
         public const float PassLeadFrac      = 0.25f; // lead a moving target by this fraction of range/speed

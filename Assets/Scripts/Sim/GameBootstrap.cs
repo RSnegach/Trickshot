@@ -510,13 +510,17 @@ namespace Trickshot
             var home = new System.Collections.Generic.List<Footballer>();
             var away = new System.Collections.Generic.List<Footballer>();
 
+            // Team size is TOTAL players per side INCLUDING the keeper, so outfield = perSide-1
+            // (e.g. 11v11 = 10 outfield + 1 GK). At least one outfielder regardless.
+            int outfield = Mathf.Max(1, perSide - 1);
+
             // Spawn outfielders for both teams.
             for (int t = 0; t < 2; t++)
             {
                 var list = t == 0 ? home : away;
                 Material torso = t == 0 ? homeTorso : awayTorso;
                 Material limb  = t == 0 ? homeLimb  : awayLimb;
-                for (int i = 0; i < perSide; i++)
+                for (int i = 0; i < outfield; i++)
                     list.Add(BuildFootballer(root, ball, game, t, keeper: false, torso, limb, gloveMat: null, index: i));
             }
 

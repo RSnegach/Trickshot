@@ -46,14 +46,25 @@ namespace Trickshot
             BuildGoal(root, refs.homeGoalCenter, faceNegZ: true);   // mouth opens toward -Z (play)
             BuildGoal(root, refs.awayGoalCenter, faceNegZ: false);  // mouth opens toward +Z (play)
 
-            // Boundary walls ALL round (unlike the training arena, no open end). Ball stays
-            // in. Walls sit just outside the goal lines / touchlines.
+            // Boundary walls. The two touchlines (along Z) are solid. The two GOAL-END walls
+            // must NOT block the goal mouth, or shots can never score: build each end wall as
+            // two segments with a gap the width of the goal mouth in the middle (the net's own
+            // backstops stop a ball that actually goes in). Walls sit just outside the lines.
             var wallPhys = Make.PhysMat("Wall", 0.3f, 0.4f, 0.4f);
             float wallH = 6f, t = 0.4f;
-            MakeWall(root, wallPhys, new Vector3(0f, wallH * 0.5f, hl + t * 0.5f), new Vector3(hw * 2f + t * 2f, wallH, t));
-            MakeWall(root, wallPhys, new Vector3(0f, wallH * 0.5f, -hl - t * 0.5f), new Vector3(hw * 2f + t * 2f, wallH, t));
+            // Touchlines (+X / -X): full length.
             MakeWall(root, wallPhys, new Vector3(hw + t * 0.5f, wallH * 0.5f, 0f), new Vector3(t, wallH, hl * 2f + t * 2f));
             MakeWall(root, wallPhys, new Vector3(-hw - t * 0.5f, wallH * 0.5f, 0f), new Vector3(t, wallH, hl * 2f + t * 2f));
+            // Goal-end walls (+Z / -Z): split around a gap slightly wider than the goal mouth.
+            float gap = SimConfig.GoalWidth + 1.0f;   // clearance so a shot on target isn't clipped
+            float segLen = (hw * 2f + t * 2f - gap) * 0.5f;
+            if (segLen > 0.1f)
+            {
+                float segCenter = gap * 0.5f + segLen * 0.5f;
+                foreach (float zEnd in new[] { hl + t * 0.5f, -hl - t * 0.5f })
+                foreach (float xSign in new[] { 1f, -1f })
+                    MakeWall(root, wallPhys, new Vector3(xSign * segCenter, wallH * 0.5f, zEnd), new Vector3(segLen, wallH, t));
+            }
 
             return refs;
         }
