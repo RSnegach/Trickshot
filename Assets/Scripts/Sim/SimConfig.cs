@@ -470,9 +470,9 @@ namespace Trickshot
 
         // ---- Post-goal replay ----
         // On-screen replay duration = ReplayWindow / ReplaySlowMul. 2s of real action played
-        // at 0.57x slow-mo = ~3.5s on screen, all slowed.
+        // at 0.36x slow-mo = ~5.5s on screen, all slowed (2s longer than the old ~3.5s).
         public const float ReplayWindow   = 2f;     // seconds of action buffered for the replay
-        public const float ReplaySlowMul  = 0.57f;  // playback speed (0..1); 2/0.57 = ~3.5s watched
+        public const float ReplaySlowMul  = 0.36f;  // playback speed (0..1); 2/0.36 = ~5.5s watched
         public const float ReplayHold     = 0.5f;  // pause after the goal before the replay rolls
 
         // ---- Networking (host-authoritative snapshot sync) ----
