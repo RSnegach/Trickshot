@@ -30,6 +30,11 @@ namespace Trickshot
         public bool AutoRotate = true;
         public void AddYaw(float deg) => _yaw += deg;   // manual drag from the UI
 
+        // Snap the orbit to face the chest (front) or the back of the model, so the preview
+        // shows the side currently being drawn. The model faces -Z, so yaw 0 looks at the
+        // chest; a half-turn shows the back. Callers turn AutoRotate off first.
+        public void FaceSide(bool back) => _yaw = back ? 180f : 0f;
+
         public void Setup()
         {
             // Dedicated camera: renders only the staging area, transparent-ish backdrop.

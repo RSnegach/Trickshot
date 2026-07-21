@@ -110,6 +110,75 @@ namespace Trickshot
             return go;
         }
 
+        /// <summary>
+        /// A torso box whose UVs map the jersey ATLAS correctly onto the body instead of
+        /// the stock cube's identical-0..1-on-every-face layout (which duplicated the design
+        /// on all six faces and flipped the back). The atlas (see JerseyDesigns) stacks two
+        /// 256x256 regions: BACK (bottom) and FRONT (above), plus a small plain band on top.
+        ///   +Z face (chest, character faces +Z)  -> samples the FRONT region, upright.
+        ///   -Z face (back)                        -> samples the BACK region, upright + not mirrored.
+        ///   all other faces (sides/top/bottom)    -> collapse to one texel in the plain band
+        ///                                            so they show solid jersey base colour.
+        /// Uses a fresh mesh instance (mf.mesh), which Unity frees with the GameObject.
+        /// </summary>
+        public static GameObject JerseyBox(string name, Vector3 size, Vector3 pos, Material mat,
+                                           Transform parent = null)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Object.Destroy(go.GetComponent<Collider>());   // visual only; the bone holds the collider
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
+            go.transform.localScale = size;
+            var r = go.GetComponent<Renderer>();
+            if (mat != null) r.sharedMaterial = mat;
+
+            var mf = go.GetComponent<MeshFilter>();
+            var mesh = mf.mesh;                 // instantiates a per-object mesh copy (freed with the GO)
+            Vector3[] verts = mesh.vertices;    // unit cube, coords in [-0.5, 0.5]
+            Vector3[] norms = mesh.normals;
+            var uv = new Vector2[verts.Length];
+
+            // Atlas V ranges (normalized) for each stacked region of the 256x520 atlas.
+            float atlasH = JerseyDesigns.AtlasH;
+            float backV0 = JerseyDesigns.BackY0 / atlasH;                       // 0
+            float frontV0 = JerseyDesigns.FrontY0 / atlasH;                     // 256/520
+            float regV = JerseyDesigns.RegionH / atlasH;                        // 256/520
+            // A single texel dead-centre of the plain band -> solid base colour on side faces.
+            var plainUV = new Vector2(0.5f, (JerseyDesigns.PlainY0 + 4f) / atlasH);
+
+            for (int i = 0; i < verts.Length; i++)
+            {
+                Vector3 n = norms[i];
+                Vector3 v = verts[i];   // local, [-0.5, 0.5]
+                if (n.z > 0.5f)
+                {
+                    // FRONT (+Z, chest). Looking at the chest from outside (down -Z), local +X
+                    // is the character's LEFT and appears on the viewer's right; flip u so the
+                    // texture's left maps to the chest's left. v up = texture up (upright).
+                    float u = 0.5f - v.x;
+                    float t = 0.5f + v.y;
+                    uv[i] = new Vector2(u, frontV0 + t * regV);
+                }
+                else if (n.z < -0.5f)
+                {
+                    // BACK (-Z). Looking at the back from outside (down +Z), local +X is on the
+                    // viewer's right; do NOT flip u so name/number read left-to-right. v up =
+                    // texture up, so the baked (upright) identity reads upright (fixes the flip).
+                    float u = 0.5f + v.x;
+                    float t = 0.5f + v.y;
+                    uv[i] = new Vector2(u, backV0 + t * regV);
+                }
+                else
+                {
+                    uv[i] = plainUV;   // sides, top, bottom: plain base colour, no art
+                }
+            }
+
+            mesh.uv = uv;
+            return go;
+        }
+
         public static GameObject Sphere(string name, float diameter, Vector3 pos, Material mat, Transform parent = null)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);

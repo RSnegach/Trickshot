@@ -329,7 +329,12 @@ namespace Trickshot
                     // collider doesn't poke through the ground and cause jitter.
                     bc.size = new Vector3(dims.x * colliderScale, dims.y, dims.z * colliderScale);
                     col = bc;
-                    visual = Make.Box("v", dims, worldPos, mat, go.transform, collider: false);
+                    // The torso wears the jersey: give it a custom-UV box so the painted atlas
+                    // maps front->chest / back->back (upright, no duplication). Other boxes
+                    // (feet) use the plain primitive cube.
+                    visual = b == Bone.Torso
+                        ? Make.JerseyBox("v", dims, worldPos, mat, go.transform)
+                        : Make.Box("v", dims, worldPos, mat, go.transform, collider: false);
                     break;
                 }
             }
