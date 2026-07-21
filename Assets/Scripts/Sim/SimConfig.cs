@@ -361,6 +361,7 @@ namespace Trickshot
         public const float SetPieceKnuckleVert = -0.10f; // struck at/below this height = the knuckle zone
         public const float SetPieceKnuckleChance = 0.3333f; // ~1/3 of middle/bottom strikes knuckle
         public const float SetPieceKnuckleMul  = 0.5f;   // wobble strength of a knuckle (x base curl)
+        public const float SetPieceKnucklePowExp = 2.5f; // knuckle wobble scales Pow(ShotPowerMul, this) - hard ramp
 
         // ---- Kick vs. run-into: only a SWINGING leg imparts real power ----
         // The struck bone's own speed decides how live the touch is. A kick swings the

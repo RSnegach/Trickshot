@@ -405,12 +405,18 @@ namespace Trickshot
                     else if (vert <= SimConfig.SetPieceKnuckleVert)
                     {
                         // Struck middle/bottom: usually a clean, mostly-straight strike; ~1/3 of
-                        // the time it comes off as a KNUCKLE - no spin, a small random wobble.
+                        // the time it comes off as a KNUCKLE - no spin, a random wobble whose
+                        // magnitude scales HARD with shot power (Pow, not linear): a weak striker
+                        // gets a barely-there flutter, a big hitter gets a wild, keeper-fooling
+                        // knuckle. Uses the raw SetPieceCurl base (not curlMag) so only the
+                        // power-Pow term drives the ramp.
                         if (Random.value < SimConfig.SetPieceKnuckleChance)
                         {
+                            float powScale = Mathf.Pow(PlayerProfile.ShotPowerMul, SimConfig.SetPieceKnucklePowExp);
+                            float knuckleMag = SimConfig.SetPieceCurl * SimConfig.SetPieceKnuckleMul * powScale;
                             Vector3 wob = Vector3.Cross(Vector3.up, shotDir) * Random.Range(-1f, 1f)
                                           + Vector3.up * Random.Range(-0.5f, 0.5f);
-                            _curlAccel = wob.normalized * (curlMag * SimConfig.SetPieceKnuckleMul);
+                            _curlAccel = wob.normalized * knuckleMag;
                             _curlRemaining = SimConfig.AssistDuration + 0.5f;
                             Rb.angularVelocity = Vector3.zero;   // knuckle = no spin
                         }
