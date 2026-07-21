@@ -79,6 +79,9 @@ namespace Trickshot
             _strikerBase = new Vector3(_ballSpot.x, 0f, _ballSpot.z - RunUp);
             _wallActive = !SimConfig.PenaltyMode;
 
+            // Set pieces get the arcadey loft + curl and stat-scaled (near-zero default) assist.
+            _ball.SetPieceShot = true;
+
             // Camera + striker turn axis: same wiring as striker mode (mouse orbits and
             // sets the striker's facing yaw).
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);

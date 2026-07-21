@@ -346,6 +346,15 @@ namespace Trickshot
         public const float BodyAccuracy       = 0.1f;    // body/arms: basically no aim help
         public const float BodyPowerMul       = 0.25f;   // body/arms: super weak - traps the ball, drops it
 
+        // ---- Set pieces (free kick / penalty): arcadey but hard by default ----
+        // A struck set-piece shot always leaves the ground higher and bends more than a normal
+        // shot; the goal-assist starts near zero and scales up hard with Shooting accuracy, so
+        // default free kicks are tough + rewarding and an invested striker can curl one in.
+        public const float SetPieceLoft        = 0.35f;  // extra up-velocity as a fraction of horizontal speed
+        public const float SetPieceCurl        = 7.0f;   // base lateral curl accel toward goal (x ShotPowerMul)
+        public const float SetPieceAssistFloor = 0.08f;  // goal-steer with NO shooting investment (near zero)
+        public const float SetPieceAssistMax   = 0.9f;   // goal-steer fully invested in Shooting accuracy
+
         // ---- Kick vs. run-into: only a SWINGING leg imparts real power ----
         // The struck bone's own speed decides how live the touch is. A kick swings the
         // foot/leg fast; just running into the ball translates the whole body at move
@@ -407,7 +416,7 @@ namespace Trickshot
         // Chosen role + team size come from the pre-match screen.
         public enum ScrimRole { Outfield, Keeper }
         public static ScrimRole ScrimmageRole = ScrimRole.Outfield;
-        public static int ScrimmagePerSide = 3;   // outfielders per side (3 / 5 / 11); keepers extra
+        public static int ScrimmagePerSide = 3;   // TOTAL players per side incl. keeper (3/5/11 => outfield = this-1)
         public static float ScrimmageMatchSeconds = 180f;   // match length (pre-match option); counts down to full time
 
         // The scrimmage pitch is its OWN square-ish field centred on origin, sized to the

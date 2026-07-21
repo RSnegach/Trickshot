@@ -45,6 +45,12 @@ namespace Trickshot
         float _strikeSuppress;                   // >0: skip striker strike logic (post-shot settle)
         public void SuppressStrike(float t) => _strikeSuppress = Mathf.Max(_strikeSuppress, t);
 
+        // Set-piece mode: while true, a struck shot (free kick / penalty) gets extra loft +
+        // curl by default and its goal-assist is near-zero unless the player has invested in
+        // Shooting accuracy/power - so default set pieces are hard + arcadey, and a well-built
+        // striker can bend one in. Set by FreeKickGame for the whole session.
+        public bool SetPieceShot { get; set; }
+
         // Shared, ball-side trick-bonus guard. Each leg bone carries its OWN KickDetector
         // (foot + calf, both legs), and Unity fires each collider's callback independently,
         // so a per-detector cooldown can't stop the calf AND the foot of the same flip from
@@ -344,17 +350,62 @@ namespace Trickshot
                 Vector3 flat = new Vector3(v.x, 0f, v.z);
                 flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost * shotMul,
                                               SimConfig.StrikeHorizMax * shotMul * capMul);
-                Rb.linearVelocity = new Vector3(flat.x, v.y, flat.z);
-                // Minimal swerve by default: clear any curl carried from the serve and
-                // damp the spin so a struck shot flies mostly straight.
-                _curlAccel = Vector3.zero;
-                _curlRemaining = 0f;
-                Rb.angularVelocity *= 0.2f;
+                float vy = v.y;
+
+                if (SetPieceShot)
+                {
+                    // SET PIECE (free kick / penalty): always leave the ground higher and bend
+                    // more than a normal shot - showy + arcadey. The extra loft is added on top
+                    // of whatever vertical the strike had; curl is applied toward goal so it
+                    // swerves. Curl magnitude grows with Shooting POWER (a strong striker bends
+                    // it hard). Accuracy is handled below.
+                    vy += flat.magnitude * SimConfig.SetPieceLoft;
+                    // Bend the shot back toward the goal's centre-x. The ball's lateral offset
+                    // from the goal centre (world X, since the goal sits at x=0) tells us which
+                    // way to curl: a taker to the RIGHT of goal (+x) curls LEFT (-x) and vice
+                    // versa. Magnitude grows with Shooting POWER. (An earlier version projected
+                    // the offset onto a ball->goal-perpendicular axis, which is identically zero
+                    // - no curl. This uses the fixed world-X offset instead.)
+                    float lateralOffset = Rb.position.x - SimConfig.AttackGoalCenter.x;
+                    if (Mathf.Abs(lateralOffset) > 0.05f)
+                    {
+                        float dir2 = -Mathf.Sign(lateralOffset);   // +1 curl toward +x, -1 toward -x
+                        float curlMag = SimConfig.SetPieceCurl * PlayerProfile.ShotPowerMul;
+                        _curlAccel = new Vector3(dir2 * curlMag, 0f, 0f);
+                        _curlRemaining = SimConfig.AssistDuration + 0.5f;
+                        Rb.angularVelocity = new Vector3(0f, dir2 * curlMag, 0f);
+                    }
+                    else
+                    {
+                        // Dead-centre (penalty): no side to curl toward; keep it straight.
+                        _curlAccel = Vector3.zero;
+                        _curlRemaining = 0f;
+                    }
+                }
+                else
+                {
+                    // Minimal swerve by default: clear any curl carried from the serve and
+                    // damp the spin so a struck shot flies mostly straight.
+                    _curlAccel = Vector3.zero;
+                    _curlRemaining = 0f;
+                    Rb.angularVelocity *= 0.2f;
+                }
+                Rb.linearVelocity = new Vector3(flat.x, vy, flat.z);
             }
 
             _assistRemaining = SimConfig.AssistDuration;
             _assistCooldown = 0.4f;   // don't re-trigger every micro-contact
             // _accuracyMul (set above per body part) drives the goal-steer during the window.
+
+            // Set-piece accuracy: near-zero goal-assist by DEFAULT, scaling up hard with the
+            // striker's Shooting accuracy. A raw striker gets almost no help (tough to score);
+            // a fully-invested one gets real steer. Overrides the per-part accuracy above.
+            if (SetPieceShot && !header)
+            {
+                float acc = Mathf.Clamp01((PlayerProfile.ShotAccuracyMul - 1f) / 0.85f); // 0..1 over the tree
+                _accuracyMul = SimConfig.SetPieceAssistFloor
+                               + acc * (SimConfig.SetPieceAssistMax - SimConfig.SetPieceAssistFloor);
+            }
 
             // Auto ball-cam: a dead trap already returned above, so this is a real strike
             // (foot shot or header). Cut to ball-cam ONLY for a shot taken facing AWAY from

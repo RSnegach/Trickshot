@@ -16,16 +16,36 @@ namespace Trickshot
     /// </summary>
     public static class PitchLayout
     {
-        // ---- Full regulation-ish pitch (metres) ----
-        public const float PitchLength = 105f;   // along Z
-        public const float PitchWidth  = 68f;    // along X
+        // ---- Pitch footprint (metres) ----
+        // Defaults are the full regulation-ish training pitch, with the attacking goal at the
+        // existing goal's z and the pitch running back from there. Scrimmage overrides these
+        // via ConfigureScrimmage() so the SAME stadium/crowd builders wrap its centred field.
+        public static float PitchLength = 105f;   // along Z
+        public static float PitchWidth  = 68f;    // along X
+        // Centre of the pitch along Z. Training: offset so the attacking goal is at GoalCenter.z.
+        static bool _customCenter;
+        static float _pitchCenterZ;
 
-        // Attacking goal line = the existing goal's z. The pitch runs from there back.
-        public static float AttackGoalLineZ => SimConfig.GoalCenter.z;         // z = +17 by default
-        public static float FarGoalLineZ    => AttackGoalLineZ - PitchLength;  // opposite end
-        public static float PitchCenterZ    => AttackGoalLineZ - PitchLength * 0.5f;
-        // X is centred on 0.
-        public const float HalfWidth = PitchWidth * 0.5f;   // +/-34
+        public static float AttackGoalLineZ => PitchCenterZ + PitchLength * 0.5f;
+        public static float FarGoalLineZ    => PitchCenterZ - PitchLength * 0.5f;
+        public static float PitchCenterZ    => _customCenter ? _pitchCenterZ
+                                                             : SimConfig.GoalCenter.z - PitchLength * 0.5f;
+        public static float HalfWidth => PitchWidth * 0.5f;
+
+        // Point the shared stadium/crowd builders at a differently-sized, differently-centred
+        // pitch (scrimmage). Call BEFORE StadiumBuilder.Build / Crowd. length/width are the
+        // full playing rectangle; centerZ is its centre along Z (scrimmage is centred at 0).
+        public static void ConfigureScrimmage(float length, float width, float centerZ)
+        {
+            PitchLength = length; PitchWidth = width; _pitchCenterZ = centerZ; _customCenter = true;
+        }
+
+        // Restore the training-pitch defaults (call when leaving scrimmage / building a
+        // single-goal venue) so nothing leaks between matches.
+        public static void ResetToTraining()
+        {
+            PitchLength = 105f; PitchWidth = 68f; _customCenter = false;
+        }
 
         // Grass surround (runoff) beyond the touch/goal lines before the stands rise.
         public const float Runoff = 6f;
