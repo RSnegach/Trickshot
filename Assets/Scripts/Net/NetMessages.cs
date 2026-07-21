@@ -43,6 +43,10 @@ namespace Trickshot.Net
         public bool publicLobby; // visibility (host-only meaning; carried for display)
         public float goalScale;    // set pieces: goal size multiplier (1 = regulation)
         public float keeperAbility; // set pieces: AI keeper strength 0..1
+        // Set pieces: host-placed free-kick spot + wall centre (world x/z), and whether the
+        // host actually placed them (else the driver uses its centred defaults).
+        public bool fkPlaced;
+        public float fkBallX, fkBallZ, fkWallX, fkWallZ;
     }
 
     // Host -> clients: the set-pieces shootout tally. activeShooter = slot currently up;
@@ -192,6 +196,8 @@ namespace Trickshot.Net
             w.U8(cfg.mode); w.U8(cfg.stadium); w.U8(cfg.perSide);
             w.U32(cfg.matchSec); w.B(cfg.publicLobby);
             w.F(cfg.goalScale); w.F(cfg.keeperAbility);
+            w.B(cfg.fkPlaced);
+            w.F(cfg.fkBallX); w.F(cfg.fkBallZ); w.F(cfg.fkWallX); w.F(cfg.fkWallZ);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); }
@@ -202,7 +208,9 @@ namespace Trickshot.Net
         {
             cfg = new MatchConfig { mode = r.U8(), stadium = r.U8(), perSide = r.U8(),
                                     matchSec = (ushort)r.U32(), publicLobby = r.B(),
-                                    goalScale = r.F(), keeperAbility = r.F() };
+                                    goalScale = r.F(), keeperAbility = r.F(),
+                                    fkPlaced = r.B(),
+                                    fkBallX = r.F(), fkBallZ = r.F(), fkWallX = r.F(), fkWallZ = r.F() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
