@@ -965,7 +965,7 @@ namespace Trickshot
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
             // Anchor Back/Next to the far LEFT and RIGHT of the screen (not the panel), so
             // they clear the panel content and sit at the window edges.
-            float by = y + ph - 44f;
+            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
             float bw = 150f, edge = 24f;
 
             if (GUI.Button(new Rect(edge, by, bw, 44f), "Back", btn))

@@ -102,7 +102,7 @@ namespace Trickshot
             }
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
-            float by = y + panelH - 52f;
+            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
             if (GUI.Button(new Rect(x + 24f, by, 130f, 40f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(x + w * 0.5f - 65f, by, 130f, 40f), "Refresh", btn)) Refresh();
 
