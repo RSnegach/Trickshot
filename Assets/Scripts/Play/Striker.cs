@@ -85,7 +85,13 @@ namespace Trickshot
         float _gaitPhase;
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
-        float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90
+        float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90 (or uncapped for Acrobat full flips)
+        // Acrobat full-flip: an UNWRAPPED accumulated lean angle so the body can chase a target
+        // past +/-180 and actually loop all the way around (a plain SignedAngle/DeltaAngle wraps,
+        // so 360==0 and the ease would just take the short way to upright). Seeded on takeoff.
+        float _flipAngle;      // accumulated rotation (deg), unbounded, across the +/-180 seam
+        float _lastAxisRoll;   // previous frame's wrapped axis roll, for the unwrap delta
+        bool _flipSeed = true; // true until _lastAxisRoll is seeded for the current airborne window
         float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
         float _headerBend;              // eased 0..1 torso-forward amount for the airborne header
         float _lmbTimer, _rmbTimer;     // per-button grace windows; header needs both live at once
@@ -213,6 +219,16 @@ namespace Trickshot
         // ground. The whole body is spun toward that target and stops there, so scrolling
         // more once he is flat does nothing (no runaway spin). On the ground the upright
         // lock owns his orientation and the wheel does nothing.
+        // Clear the air-pitch target + the Acrobat unwrapped-flip accumulator. Called on landing
+        // and on every recovery/trick-end path that zeroes air-pitch, so a flip can never carry
+        // stale rotation into the next jump.
+        void ResetFlipState()
+        {
+            _airPitchTarget = 0f;
+            _flipAngle = 0f;
+            _flipSeed = true;
+        }
+
         void AirPitchControl(bool grounded)
         {
             if (grounded)
@@ -223,10 +239,11 @@ namespace Trickshot
                 // Stop the spin and hand orientation back to balance/upright lock.
                 if (_airPitchTarget != 0f || !_ragdoll.BalanceEnabled)
                 {
-                    _airPitchTarget = 0f;
+                    ResetFlipState();
                     _ragdoll.StopBodySpin();
                     _ragdoll.BalanceEnabled = true;
                 }
+                _flipSeed = true;   // re-seed the unwrap for the next airborne window
                 return;
             }
 
@@ -240,20 +257,32 @@ namespace Trickshot
             // generous window so a foot contact anywhere through the flip reads as a bike.
             ArmBicycleWindow();
 
-            // Scroll moves the TARGET lean, clamped to +/-90 (parallel). Past that the
-            // scroll is ignored, so he holds flat instead of spinning on.
+            // Scroll moves the TARGET lean. Default: clamped to +/-AirPitchLimit (~horizontal),
+            // so scrolling past parallel does nothing (no runaway spin). ACROBAT: the clamp opens
+            // to +/-AcrobatFlipLimit so scrolling drives the target past 180 and the body loops all
+            // the way around into full forward/backward flips.
+            bool acrobat = PlayerProfile.PerkAcrobat;
+            float targetLimit = acrobat ? SimConfig.AcrobatFlipLimit : SimConfig.AirPitchLimit;
             float scroll = _input.Scroll;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
                 _airPitchTarget = Mathf.Clamp(_airPitchTarget + Mathf.Sign(scroll) * SimConfig.AirPitchStep,
-                                              -SimConfig.AirPitchLimit, SimConfig.AirPitchLimit);
+                                              -targetLimit, targetLimit);
 
-            // Current lean = signed angle of his right-axis pitch away from upright. Drive
-            // a spin velocity PROPORTIONAL to the remaining error every frame - this eases
-            // to zero as he nears the target instead of hard-switching between full-spin
-            // and StopBodySpin at the edge (which caused the wobble at the range end).
+            // Current lean = signed angle of his right-axis pitch away from upright (wraps +/-180).
             float axisRoll = Vector3.SignedAngle(Vector3.up, _ragdoll.Pelvis.transform.up,
                                                  _ragdoll.FacingRotation * Vector3.right);
-            float err = Mathf.DeltaAngle(axisRoll, _airPitchTarget);
+            // Maintain an UNWRAPPED accumulated angle by summing the per-frame delta across the
+            // +/-180 seam. This is what lets a full 360+ flip be reachable (a wrapped error would
+            // always ease to the nearest upright and never loop).
+            if (_flipSeed) { _lastAxisRoll = axisRoll; _flipSeed = false; }
+            else { _flipAngle += Mathf.DeltaAngle(_lastAxisRoll, axisRoll); _lastAxisRoll = axisRoll; }
+
+            // Drive a spin velocity PROPORTIONAL to the remaining error every frame - eases to
+            // zero as he nears the target (no hard switch to StopBodySpin at the edge). Acrobat
+            // chases the UNWRAPPED angle (so it commits to the full rotation); default chases the
+            // wrapped shortest-path error exactly as before.
+            float err = acrobat ? (_airPitchTarget - _flipAngle)
+                                : Mathf.DeltaAngle(axisRoll, _airPitchTarget);
             Vector3 spinAxis = _ragdoll.FacingRotation * Vector3.right;
             // Agility tree makes air control snappier: scale gain + cap by the flip mul.
             float flip = PlayerProfile.AirFlipMul;
@@ -441,7 +470,7 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
-            _airPitchTarget = 0f;
+            ResetFlipState();
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
             _ragdoll.BodyOrientTarget = null;
@@ -458,7 +487,7 @@ namespace Trickshot
             _airborneLock = 0f;
             _proneTimer = 0f;
             _spaceHeld = 0f;
-            _airPitchTarget = 0f;
+            ResetFlipState();
             _legRaiseL = 0f;
             _legRaiseR = 0f;
             _headerBend = 0f;

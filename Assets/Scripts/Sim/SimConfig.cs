@@ -215,6 +215,10 @@ namespace Trickshot
         public const float AirPitchLimit = 115f;         // target clamp: 90 = parallel; a bit past horizontal (not a full 180 flip)
         public const float AirPitchGain = 8f;            // how hard he spins toward the target (1/s)
         public const float AirPitchMaxSpeed = 500f;      // cap on the spin speed toward the target (deg/s)
+        // Acrobat capstone: the air-pitch target clamp opens to this so scrolling drives the body
+        // past parallel and all the way around into full 360 forward/backward flips (chained up to
+        // this many deg of headroom each way). Only used when PlayerProfile.PerkAcrobat is owned.
+        public const float AcrobatFlipLimit = 720f;
 
         // ---- Dive header (hold Space while moving forward) ----
         // Carried run momentum is zeroed, then a modest up + forward launch tips him into
