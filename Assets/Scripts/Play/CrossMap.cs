@@ -20,10 +20,21 @@ namespace Trickshot
         static readonly Color Line      = new Color(0.95f, 0.97f, 0.95f, 0.9f);
         static readonly Color Gold      = new Color(1f, 0.85f, 0.25f);
         static readonly Color HoverCol  = new Color(0.55f, 0.9f, 1f);
+        static readonly Color CrosserCol = new Color(0.4f, 0.7f, 1f);   // crosser placement icon
 
         // Draw the map filling `rect`. Reads/writes `target` (world). Returns true if the
         // marker was moved this frame. `interactive` gates click handling + the hover reticle.
+        // Target-only overload (callers that don't place a crosser).
         public static bool Draw(Rect rect, ref Vector3 target, bool interactive)
+        {
+            Vector3 dummy = Vector3.zero;
+            return Draw(rect, ref target, ref dummy, interactive, editing: 0, showCrosser: false);
+        }
+
+        // Full overload: place the cross TARGET (editing 0) and/or the CROSSER spot (editing 1).
+        // showCrosser draws + enables the crosser marker (skip it for a human crosser).
+        public static bool Draw(Rect rect, ref Vector3 target, ref Vector3 crosserSpot,
+                                bool interactive, int editing, bool showCrosser = true)
         {
             var prev = GUI.color;
             float t = Time.unscaledTime;
@@ -65,36 +76,68 @@ namespace Trickshot
             DrawArc(new Vector2(rect.center.x, spotY), rect.width * 0.14f, 200f, 340f, 1.5f, Line);
             GUI.color = prev;
 
-            // --- Click to place the target ---
+            // --- Click to place whichever marker `editing` selects (0 = target, 1 = crosser) ---
             bool moved = false;
             Event e = Event.current;
             bool hovering = interactive && rect.Contains(e.mousePosition);
             if (hovering && e.type == EventType.MouseDown && e.button == 0)
             {
-                float fx = Mathf.Clamp01((e.mousePosition.x - rect.x) / rect.width);
-                float fy = Mathf.Clamp01((e.mousePosition.y - rect.y) / rect.height);
-                target = new Vector3(Mathf.Lerp(-HalfShown, HalfShown, fx), 0.25f,
-                                     SimConfig.GoalCenter.z - Mathf.Lerp(0f, DepthShown, fy));
+                Vector3 p = MapToWorld(rect, e.mousePosition);
+                if (showCrosser && editing == 1) crosserSpot = p; else target = p;
                 moved = true;
                 e.Use();
             }
 
-            // --- Placed target marker: gold pulsing ring + crosshair + soft shadow ---
-            float mfx = Mathf.InverseLerp(-HalfShown, HalfShown, target.x);
-            float mfy = Mathf.InverseLerp(0f, DepthShown, SimConfig.GoalCenter.z - target.z);
-            var mc = new Vector2(rect.x + mfx * rect.width, rect.y + mfy * rect.height);
+            // --- Placed target marker: gold pulsing reticle ---
+            var mc = WorldToMap(rect, target);
             float pulse = 0.5f + 0.5f * Mathf.Sin(t * 4f);
-            DrawReticle(mc, 16f + pulse * 6f, Gold, ringAlpha: 0.5f + 0.5f * pulse, filled: true);
+            bool targetActive = !showCrosser || editing == 0;
+            DrawReticle(mc, 16f + (targetActive ? pulse * 6f : 0f), Gold,
+                        ringAlpha: targetActive ? 0.5f + 0.5f * pulse : 0.4f, filled: true);
 
-            // --- Live hover reticle following the mouse (until you click to place) ---
+            // --- Crosser marker: a small player icon (distinct blue), pulses when being edited ---
+            if (showCrosser)
+            {
+                var cc = WorldToMap(rect, crosserSpot);
+                bool crosserActive = editing == 1;
+                DrawPlayerIcon(cc, CrosserCol, crosserActive ? 0.55f + 0.45f * pulse : 0.5f);
+            }
+
+            // --- Live hover reticle following the mouse (colour of the marker being placed) ---
             if (hovering && e.type == EventType.Repaint)
             {
                 float hp = 0.5f + 0.5f * Mathf.Sin(t * 7f);
-                DrawReticle(e.mousePosition, 13f + hp * 4f, HoverCol, ringAlpha: 0.35f + 0.4f * hp, filled: false);
+                Color hc = (showCrosser && editing == 1) ? CrosserCol : HoverCol;
+                DrawReticle(e.mousePosition, 13f + hp * 4f, hc, ringAlpha: 0.35f + 0.4f * hp, filled: false);
             }
 
             GUI.color = prev;
             return moved;
+        }
+
+        // world <-> map helpers (x across width, z from goal line back by DepthShown).
+        static Vector3 MapToWorld(Rect rect, Vector2 m)
+        {
+            float fx = Mathf.Clamp01((m.x - rect.x) / rect.width);
+            float fy = Mathf.Clamp01((m.y - rect.y) / rect.height);
+            return new Vector3(Mathf.Lerp(-HalfShown, HalfShown, fx), 0.25f,
+                               SimConfig.GoalCenter.z - Mathf.Lerp(0f, DepthShown, fy));
+        }
+        static Vector2 WorldToMap(Rect rect, Vector3 w)
+        {
+            float fx = Mathf.InverseLerp(-HalfShown, HalfShown, w.x);
+            float fy = Mathf.InverseLerp(0f, DepthShown, SimConfig.GoalCenter.z - w.z);
+            return new Vector2(rect.x + fx * rect.width, rect.y + fy * rect.height);
+        }
+
+        // A tiny stylised player: head dot + body, in the crosser colour.
+        static void DrawPlayerIcon(Vector2 c, Color col, float alpha)
+        {
+            var prev = GUI.color;
+            GUI.color = new Color(col.r, col.g, col.b, alpha);
+            GUI.DrawTexture(new Rect(c.x - 3f, c.y - 8f, 6f, 6f), Texture2D.whiteTexture);   // head
+            GUI.DrawTexture(new Rect(c.x - 4f, c.y - 1f, 8f, 9f), Texture2D.whiteTexture);   // body
+            GUI.color = prev;
         }
 
         // A crosshair reticle: an outer ring (drawn as 4 arcs), a center dot, and cross ticks.

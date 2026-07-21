@@ -209,14 +209,23 @@ namespace Trickshot
             else if (human)
             {
                 _crosser.AutoServe = false;                              // human decides deliveries
-                var cc = _crosser.gameObject.AddComponent<CrosserControl>();
+                _crosser.Cosmetic = false;                               // a Striker owns pose + movement
+                _crosser.ServeFromFeet = true;                           // launch from where they stand
+                // The crosser was planted at Init (locomotion off); un-plant it so the Striker
+                // can move it like a shooter.
+                ragdoll.LocomotionEnabled = true;
+                // Move freely like a shooter: drive the crosser ragdoll with a Striker.
+                var striker = ragdoll.gameObject.AddComponent<Striker>();
+                b.striker = striker;
                 IStrikerInput src = isLocal ? (IStrikerInput)_input : (b.netInput = new NetInputSource());
+                striker.Init(src, ragdoll);
+                var cc = _crosser.gameObject.AddComponent<CrosserControl>();
                 cc.Init(src, _crosser, () => _crossMapOpen, () => _crossTarget);
                 b.crosserCtl = cc;
             }
             else
             {
-                _crosser.AutoServe = true;                               // AI auto-serve loop
+                _crosser.AutoServe = true;                               // AI auto-serve loop (planted)
             }
 
             _bodies[slot] = b;
