@@ -195,7 +195,7 @@ namespace Trickshot
         void DrawNav(float x, float y, float panelH)
         {
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
-            float by = y + panelH - FootH + 20f;
+            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
             float bw = 170f, edge = 24f;
             if (GUI.Button(new Rect(edge, by, bw, 48f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }

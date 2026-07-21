@@ -58,7 +58,7 @@ namespace Trickshot
 
             // Back/Next anchored to the far left/right screen edges.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
-            float bw = 150f, edge = 24f, by = y + panelH - 56f;
+            float bw = 150f, edge = 24f, by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
             if (GUI.Button(new Rect(edge, by, bw, 42f), "Back", btn))
             {
                 enabled = false;

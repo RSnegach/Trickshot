@@ -66,7 +66,7 @@ namespace Trickshot
             // (Striker AI is chosen per-slot in the lobby now, not here.)
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
-            float by = y + panelH - 56f;
+            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
             if (GUI.Button(new Rect(x + 30f, by, 160f, 44f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(x + w - 190f, by, 160f, 44f), "Create", btn)) Create();
 
