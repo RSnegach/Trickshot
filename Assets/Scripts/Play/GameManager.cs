@@ -41,9 +41,11 @@ namespace Trickshot
         float _goalLineZ;
 
         // Cross-targeting map (M): while open, aiming is frozen and clicks place where the
-        // crosser delivers. The chosen target overrides the crosser's default landing spot.
+        // crosser delivers AND where the (AI) crosser stands. _crossEdit: 0 = target, 1 = crosser.
         bool _crossMapOpen;
         Vector3 _crossTarget = SimConfig.ServeTarget;
+        Vector3 _crosserSpot = SimConfig.CrosserStart;
+        int _crossEdit;
 
         // Post-goal broadcast replay. Records a rolling window; on a goal it freezes play
         // and plays the last few seconds in slow motion (LMB skips). Then serving resumes.
@@ -288,7 +290,11 @@ namespace Trickshot
             _crossMapOpen = open;
             Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = open;
-            if (!open) _crosser.TargetOverride = _crossTarget;   // apply the picked target
+            if (!open)
+            {
+                _crosser.TargetOverride = _crossTarget;   // apply the picked landing spot
+                _crosser.SetOrigin(_crosserSpot);         // relocate the (AI) crosser to the placed spot
+            }
         }
 
         // ----------------------------------------------------------------- HUD
@@ -318,11 +324,21 @@ namespace Trickshot
                 float w = 380f, h = 300f;
                 var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
                 var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
-                GUI.Label(new Rect(mapRect.x, mapRect.y - 34f, w, 28f), "WHERE SHOULD CROSSES LAND?", hdr);
-                if (CrossMap.Draw(mapRect, ref _crossTarget, interactive: true))
-                    _crosser.TargetOverride = _crossTarget;   // live-apply on each click
+                GUI.Label(new Rect(mapRect.x, mapRect.y - 60f, w, 28f), _crossEdit == 1 ? "PLACE THE CROSSER" : "WHERE SHOULD CROSSES LAND?", hdr);
+
+                // Target / Crosser edit toggle.
+                var seg = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
+                var segOn = new GUIStyle(seg); segOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), _crossEdit == 0 ? "● Target" : "Target", _crossEdit == 0 ? segOn : seg)) _crossEdit = 0;
+                if (GUI.Button(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), _crossEdit == 1 ? "● Crosser" : "Crosser", _crossEdit == 1 ? segOn : seg)) _crossEdit = 1;
+
+                if (CrossMap.Draw(mapRect, ref _crossTarget, ref _crosserSpot, interactive: true, editing: _crossEdit))
+                {
+                    _crosser.TargetOverride = _crossTarget;   // live-apply target on each click
+                    _crosser.SetOrigin(_crosserSpot);         // live-apply crosser position
+                }
                 var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f,0.85f,0.9f) } };
-                GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to set the target.  M to close.", tip);
+                GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M to close.", tip);
             }
         }
     }

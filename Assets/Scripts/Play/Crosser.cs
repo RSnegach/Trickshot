@@ -40,19 +40,42 @@ namespace Trickshot
         // pass). The cosmetic swing + perfect launch are shared by both paths.
         public bool AutoServe = true;
 
+        // When true (default = an AI/planted crosser), the crosser plays the cosmetic leg-swing
+        // pose and stays upright-locked. A MOBILE HUMAN crosser sets this false: a Striker owns
+        // its pose + locomotion, so the swing is skipped and the body isn't re-planted.
+        public bool Cosmetic = true;
+
+        // When true, a serve launches the ball from the crosser's OWN FEET (a mobile human
+        // crosser) rather than the fixed launch point. Set with Cosmetic=false.
+        public bool ServeFromFeet;
+
         public void Init(AimReticle reticle, BallController ball, Transform launchPoint, ActiveRagdoll ragdoll)
         {
             _reticle = reticle;
             _ball = ball;
             _launchPoint = launchPoint;
             _ragdoll = ragdoll;
-            // Stand planted on the wing (upright lock so he doesn't topple).
-            if (_ragdoll != null)
+            // A planted (AI/cosmetic) crosser stands upright-locked and doesn't walk. A mobile
+            // human crosser (Cosmetic=false) leaves locomotion to its Striker - don't plant it.
+            if (_ragdoll != null && Cosmetic)
             {
                 _ragdoll.UprightLock = true;
                 _ragdoll.LocomotionEnabled = false;
                 _ragdoll.MoveInput = Vector3.zero;
             }
+        }
+
+        // Reposition a planted (AI) crosser: stand the ragdoll at `spot` facing goal and launch
+        // subsequent balls from there. No effect on a mobile human crosser (it walks + serves
+        // from its feet). Call after the cross map places the crosser icon.
+        public void SetOrigin(Vector3 spot)
+        {
+            spot.y = 0f;
+            Vector3 toGoal = SimConfig.GoalCenter - spot; toGoal.y = 0f;
+            if (toGoal.sqrMagnitude < 0.0001f) toGoal = Vector3.forward;
+            if (_ragdoll != null && Cosmetic)
+                _ragdoll.ResetTo(spot, Quaternion.LookRotation(toGoal.normalized, Vector3.up));
+            OriginOverride = spot + Vector3.up * 0.4f;   // ball launches from ~ball height at the spot
         }
 
         public void Arm(float firstDelay)
@@ -99,9 +122,10 @@ namespace Trickshot
             }
 
             // Drive the leg swing pose: back-lift through the windup, whipping through 0..1.
+            // Skipped for a mobile human crosser (its Striker owns the pose).
             if (_telegraphed && _timer > 0f)
                 _swing = 1f - Mathf.Clamp01(_timer / SimConfig.CrosserWindupTime);   // 0 -> 1 at contact
-            ApplyKickPose();
+            if (Cosmetic) ApplyKickPose();
 
             _timer -= Time.deltaTime;
             if (_timer <= 0f && _telegraphed)
@@ -175,7 +199,19 @@ namespace Trickshot
             _pendingSpin = 0f;
         }
 
-        Vector3 Origin => OriginOverride ?? _launchPoint.position;
+        // A mobile human crosser (ServeFromFeet) launches from its own pelvis position; else the
+        // OriginOverride (placed AI spot) or the fixed wing launch point.
+        Vector3 Origin
+        {
+            get
+            {
+                if (ServeFromFeet && _ragdoll != null && _ragdoll.Pelvis != null)
+                {
+                    var p = _ragdoll.Pelvis.position; p.y = 0.4f; return p;
+                }
+                return OriginOverride ?? _launchPoint.position;
+            }
+        }
 
         void Launch()
         {
