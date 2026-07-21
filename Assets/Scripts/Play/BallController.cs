@@ -193,6 +193,15 @@ namespace Trickshot
             // foot contacts don't fight the soft-magnet or double-hit a released shot.
             if (DribbleHold || _strikeSuppress > 0f) return;
 
+            // Where on the ball was it struck (offset from centre), for set-piece spin. Unit
+            // vector from ball centre toward the contact point. Captured now while `c` is live.
+            Vector3 strikeOffset = Vector3.zero;
+            if (c.contactCount > 0)
+            {
+                strikeOffset = c.GetContact(0).point - Rb.position;
+                if (strikeOffset.sqrMagnitude > 1e-6f) strikeOffset.Normalize();
+            }
+
             // Which body part struck the ball. The collider lives ON the P_<Bone> object
             // (its visual child collider is destroyed at build), so read the collider's
             // OWN transform name, not its parent (parent is the next bone up the chain).
@@ -354,33 +363,59 @@ namespace Trickshot
 
                 if (SetPieceShot)
                 {
-                    // SET PIECE (free kick / penalty): always leave the ground higher and bend
-                    // more than a normal shot - showy + arcadey. The extra loft is added on top
-                    // of whatever vertical the strike had; curl is applied toward goal so it
-                    // swerves. Curl magnitude grows with Shooting POWER (a strong striker bends
-                    // it hard). Accuracy is handled below.
+                    // SET PIECE (free kick / penalty): always leave the ground higher, then the
+                    // SPIN is decided purely by WHERE on the ball it was struck (the contact
+                    // point), like a real strike - not by field position:
+                    //   struck RIGHT side  -> curls LEFT      (side spin)
+                    //   struck LEFT side   -> curls RIGHT
+                    //   struck TOP         -> top spin (dips)
+                    //   struck middle/BOTTOM -> mostly straight; ~1/3 of the time a KNUCKLE
+                    //                          (no spin, a little random wobble).
+                    // Curl magnitude grows with Shooting POWER.
                     vy += flat.magnitude * SimConfig.SetPieceLoft;
-                    // Bend the shot back toward the goal's centre-x. The ball's lateral offset
-                    // from the goal centre (world X, since the goal sits at x=0) tells us which
-                    // way to curl: a taker to the RIGHT of goal (+x) curls LEFT (-x) and vice
-                    // versa. Magnitude grows with Shooting POWER. (An earlier version projected
-                    // the offset onto a ball->goal-perpendicular axis, which is identically zero
-                    // - no curl. This uses the fixed world-X offset instead.)
-                    float lateralOffset = Rb.position.x - SimConfig.AttackGoalCenter.x;
-                    if (Mathf.Abs(lateralOffset) > 0.05f)
+
+                    // Strike frame relative to the shot direction: right = across the shot,
+                    // up = world up. side>0 = struck on the ball's right, vert>0 = struck high.
+                    Vector3 shotDir = flat.sqrMagnitude > 0.01f ? flat.normalized : Vector3.forward;
+                    Vector3 shotRight = Vector3.Cross(Vector3.up, shotDir);
+                    float side = Vector3.Dot(strikeOffset, shotRight);   // -1..1
+                    float vert = strikeOffset.y;                          // -1..1 (up positive)
+                    float curlMag = SimConfig.SetPieceCurl * PlayerProfile.ShotPowerMul;
+
+                    _curlAccel = Vector3.zero; _curlRemaining = 0f;
+                    Rb.angularVelocity = Vector3.zero;
+
+                    if (Mathf.Abs(side) >= SimConfig.SetPieceSideThresh)
                     {
-                        float dir2 = -Mathf.Sign(lateralOffset);   // +1 curl toward +x, -1 toward -x
-                        float curlMag = SimConfig.SetPieceCurl * PlayerProfile.ShotPowerMul;
-                        _curlAccel = new Vector3(dir2 * curlMag, 0f, 0f);
+                        // Side spin: curl to the OPPOSITE side of where it was struck, scaled
+                        // by how far off-centre the contact was. Lateral accel across the shot.
+                        float s = -Mathf.Sign(side) * Mathf.Clamp01(Mathf.Abs(side));
+                        _curlAccel = shotRight * (s * curlMag);
                         _curlRemaining = SimConfig.AssistDuration + 0.5f;
-                        Rb.angularVelocity = new Vector3(0f, dir2 * curlMag, 0f);
+                        Rb.angularVelocity = Vector3.up * (s * curlMag);
                     }
-                    else
+                    else if (vert >= SimConfig.SetPieceTopThresh)
                     {
-                        // Dead-centre (penalty): no side to curl toward; keep it straight.
-                        _curlAccel = Vector3.zero;
-                        _curlRemaining = 0f;
+                        // Top spin: struck high -> dips. Curl DOWNWARD over the flight + forward
+                        // roll spin about the shot-right axis.
+                        _curlAccel = Vector3.down * (curlMag * SimConfig.SetPieceTopSpinMul);
+                        _curlRemaining = SimConfig.AssistDuration + 0.5f;
+                        Rb.angularVelocity = shotRight * (curlMag);
                     }
+                    else if (vert <= SimConfig.SetPieceKnuckleVert)
+                    {
+                        // Struck middle/bottom: usually a clean, mostly-straight strike; ~1/3 of
+                        // the time it comes off as a KNUCKLE - no spin, a small random wobble.
+                        if (Random.value < SimConfig.SetPieceKnuckleChance)
+                        {
+                            Vector3 wob = Vector3.Cross(Vector3.up, shotDir) * Random.Range(-1f, 1f)
+                                          + Vector3.up * Random.Range(-0.5f, 0.5f);
+                            _curlAccel = wob.normalized * (curlMag * SimConfig.SetPieceKnuckleMul);
+                            _curlRemaining = SimConfig.AssistDuration + 0.5f;
+                            Rb.angularVelocity = Vector3.zero;   // knuckle = no spin
+                        }
+                    }
+                    // else: struck dead-centre -> straight (curl already cleared).
                 }
                 else
                 {
