@@ -16,7 +16,10 @@ namespace Trickshot
             public FlexNet net;   // wire the ball into this after the ball is created
         }
 
-        public static Refs Build(Transform root)
+        // boundaryWalls: when false, the side/back invisible walls are skipped (open field of
+        // play). Striker mode passes false so the pitch is open; the net backstops still stop
+        // shots that actually go in the goal mouth.
+        public static Refs Build(Transform root, bool boundaryWalls = true)
         {
             var refs = new Refs();
 
@@ -87,12 +90,16 @@ namespace Trickshot
             // Side + back-of-player boundary walls only. The GOAL END (+Z) is left OPEN
             // so wide / high / long shots sail out of bounds behind the goal and land
             // on the extended ground (counted as a miss). Only the net backstops stop a
-            // ball that actually goes in the mouth.
-            float wallH = 6f, t = 0.4f;
-            float halfW = SimConfig.FieldWidth * 0.5f, halfL = SimConfig.FieldLength * 0.5f;
-            MakeWall(root, wall, new Vector3(0f, wallH * 0.5f, -halfL - t * 0.5f), new Vector3(SimConfig.FieldWidth + t * 2f, wallH, t));
-            MakeWall(root, wall, new Vector3(-halfW - t * 0.5f, wallH * 0.5f, 0f), new Vector3(t, wallH, SimConfig.FieldLength));
-            MakeWall(root, wall, new Vector3(halfW + t * 0.5f, wallH * 0.5f, 0f), new Vector3(t, wallH, SimConfig.FieldLength));
+            // ball that actually goes in the mouth. Skipped entirely when boundaryWalls is
+            // false (striker mode = open field of play).
+            if (boundaryWalls)
+            {
+                float wallH = 6f, t = 0.4f;
+                float halfW = SimConfig.FieldWidth * 0.5f, halfL = SimConfig.FieldLength * 0.5f;
+                MakeWall(root, wall, new Vector3(0f, wallH * 0.5f, -halfL - t * 0.5f), new Vector3(SimConfig.FieldWidth + t * 2f, wallH, t));
+                MakeWall(root, wall, new Vector3(-halfW - t * 0.5f, wallH * 0.5f, 0f), new Vector3(t, wallH, SimConfig.FieldLength));
+                MakeWall(root, wall, new Vector3(halfW + t * 0.5f, wallH * 0.5f, 0f), new Vector3(t, wallH, SimConfig.FieldLength));
+            }
 
             return refs;
         }

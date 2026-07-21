@@ -223,7 +223,9 @@ namespace Trickshot
             if (mode == GameMode.Scrimmage) { BuildScrimmageMode(root, camGo); return; }
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
-            var arena = Arena.Build(root);
+            // Striker mode (single-player + networked) plays on an OPEN field: no boundary
+            // walls around the pitch. Other single-goal modes keep the walls.
+            var arena = Arena.Build(root, boundaryWalls: mode != GameMode.Striker);
             // Full pitch markings + far goal, the stadium bowl, and the animated crowd.
             // All read the shared PitchLayout contract so they line up. Crowd is stored so
             // goal callouts can make it Celebrate().

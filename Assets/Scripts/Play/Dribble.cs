@@ -200,10 +200,12 @@ namespace Trickshot
             Vector3 face = _striker.FacingForward;
             float dot = toGoal.sqrMagnitude > 0.01f ? Vector3.Dot(face, toGoal.normalized) : -1f;
             bool facingGoal = dot >= SimConfig.AssistFacingDot;        // tight cone: aim assist
-            bool camFacingGoal = dot > SimConfig.ShotCamFacingDot;     // wide cone: ball-cam (never facing own goal)
+            // Ball-cam ONLY for a shot facing AWAY from goal (over-shoulder). A dribble shot is
+            // normally forward, so this is almost always false - you can already see the goal.
+            bool camShouldCut = dot < SimConfig.ShotCamFaceAwayDot;
 
             StopCarry();   // drop the leash BEFORE the shot so DribbleHold doesn't block it
-            _ball.DribbleShot(dir, speed, facingGoal, camFacingGoal);
+            _ball.DribbleShot(dir, speed, facingGoal, camShouldCut);
             _cooldown = SimConfig.DribbleRecaptureCooldown;
         }
 

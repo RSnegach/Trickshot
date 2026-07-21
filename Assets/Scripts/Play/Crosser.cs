@@ -67,6 +67,20 @@ namespace Trickshot
             _ball.ResetTo(Origin);
         }
 
+        /// <summary>Park the crosser fully idle: no pending serve, no telegraph, reticle hidden.
+        /// Used when the crosser slot is empty and the host disabled AI fill (it never serves
+        /// and is never ticked, so it just stands on the wing).</summary>
+        public void Idle()
+        {
+            AutoServe = false;
+            _timer = float.PositiveInfinity;
+            _telegraphed = false;
+            _manualPending = false;
+            _swing = 0f;
+            JustServed = false;
+            if (_reticle != null) _reticle.Hide();
+        }
+
         /// <summary>Advance the serve timer and self-loop: winds up + swings the leg, fires
         /// a perfect cross at contact, then re-arms ServeInterval later. Returns true on the
         /// frame the ball launches.</summary>

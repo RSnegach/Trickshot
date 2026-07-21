@@ -115,6 +115,19 @@ namespace Trickshot
             bool hostSim = _s.IsHost;
             bool human   = _s.SlotIsHuman(slot);
 
+            // If the host turned OFF "fill empty slots with AI", an empty (non-human) slot
+            // spawns nothing: no AI keeper, no auto-serving crosser, no inert shooter body.
+            // The local slot is always the human themselves, so it's never skipped.
+            if (!human && !isLocal && !_s.Config.fillAi)
+            {
+                // Crosser slot with no human + no AI fill: silence the auto-serve loop so no AI
+                // ball-feeder runs. Call-for-pass is also gated off (it requires
+                // _crosser.AutoServe), so no crosses come unless a human takes the crosser role
+                // - which is the host's choice. Empty keeper/shooter slots simply aren't spawned.
+                if (crosser && _crosser != null) { _crosser.AutoServe = false; _crosser.Idle(); }
+                return;
+            }
+
             if (crosser) { SpawnCrosserBody(slot, isLocal, hostSim, human); return; }
 
             var go = new GameObject("NetSlot" + slot);
