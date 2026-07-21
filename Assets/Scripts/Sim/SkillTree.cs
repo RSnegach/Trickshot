@@ -255,7 +255,7 @@ namespace Trickshot
             Node_("a2a","Twist","+22% air-flip control, -20% ground recovery time",Category.Agility,4,"a1a","%",0.2f,2,null, E("flip",0.22f), E("recovery",-0.20f));
             Node_("a2c","Cat-Like","-22% ground recovery time",Category.Agility,4,"a1c","c",0.5f,2,null, E("recovery",-0.22f));
             Node_("a2b","Elevation","+12% jump height",Category.Agility,4,"a1b","^!",0.8f,2,null, E("jump",0.12f));
-            Node_("acap","Acrobat","Whip-fast air control + snap off the ground for chained flips",Category.Agility,7,"a2a","X",0.2f,3,"acrobat");
+            Node_("acap","Acrobat","Scroll to flip: full 360° forward/backward air flips, chainable",Category.Agility,7,"a2a","X",0.2f,3,"acrobat");
 
             All = list.ToArray();
             foreach (var n in All) _byId[n.Id] = n;
