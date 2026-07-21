@@ -39,8 +39,9 @@ namespace Trickshot
         }
 
         // Fixed pool: enough to fully build one category (three branches to a capstone ~= 30)
-        // plus a real dip elsewhere - never max everything. Raised for the 7th (Passing) area.
-        public const int Budget = 46;
+        // plus a real dip elsewhere - never max everything. Raised for the 7th (Passing) area,
+        // then +12 more so players can invest across more branches.
+        public const int Budget = 58;
 
         public static readonly HashSet<string> Owned = new HashSet<string>();
 

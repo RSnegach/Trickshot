@@ -511,6 +511,14 @@ namespace Trickshot
             Vector3 v = dir * power;
             if (lofted) v += Vector3.up * (power * SimConfig.PassLoftedArc);
             if (carry != null) carry.ForceRelease();
+
+            // Nudge the ball clear of the PASSER before launching. Without this a lofted pass
+            // rises straight into the passer's own torso/head (the ball sits at their feet) and
+            // gets batted back down - so an "aerial" pass came out along the ground. Move it a
+            // little forward along the pass dir, and for a loft lift it above the body too.
+            Vector3 spawn = from + dir * SimConfig.PassSpawnForward;
+            if (lofted) spawn += Vector3.up * SimConfig.PassSpawnLift;
+            _ball.ResetTo(spawn);
             _ball.KickTo(v);
         }
 
