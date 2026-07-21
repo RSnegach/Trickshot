@@ -48,6 +48,30 @@ namespace Trickshot
         /// </summary>
         public void Build(Transform root, Vector3 ballPos, int count, float distance, float lateralOffset)
         {
+            // Ball-relative placement: 'distance' out along ball->goal, shifted 'lateralOffset'
+            // along the goal-parallel axis. Resolve to an explicit centre + lateral, then build.
+            Vector3 toGoal = SimConfig.GoalCenter - ballPos; toGoal.y = 0f;
+            if (toGoal.sqrMagnitude < 0.0001f) toGoal = Vector3.forward;
+            Vector3 dir = toGoal.normalized;
+            Vector3 lat = Vector3.Cross(Vector3.up, dir).normalized;
+            Vector3 center = ballPos + dir * distance + lat * lateralOffset;
+            BuildAt(root, center, lat, count);
+        }
+
+        /// <summary>Build the wall centred at an explicit world point (host-placed). Blockers
+        /// fan along the axis perpendicular to the ball->goal line so the wall still faces the
+        /// shot. Keeps the same physics/hop as the ball-relative Build.</summary>
+        public void Build(Transform root, Vector3 ballPos, Vector3 wallCenter, int count)
+        {
+            Vector3 toGoal = SimConfig.GoalCenter - ballPos; toGoal.y = 0f;
+            if (toGoal.sqrMagnitude < 0.0001f) toGoal = Vector3.forward;
+            Vector3 lat = Vector3.Cross(Vector3.up, toGoal.normalized).normalized;
+            BuildAt(root, wallCenter, lat, count);
+        }
+
+        // Shared core: fan `count` blockers along `lateral` around `wallCenter`.
+        void BuildAt(Transform root, Vector3 wallCenter, Vector3 lateral, int count)
+        {
             Clear();
             count = Mathf.Max(0, count);
             if (count == 0) return;
@@ -55,15 +79,6 @@ namespace Trickshot
             if (_bounce == null)
                 _bounce = Make.PhysMat("WallBlocker", 0.45f, 0.4f, 0.4f);
 
-            // Horizontal ball -> goal direction; the wall sits 'distance' out along it.
-            // The lateral axis (parallel to the goal line) is perpendicular to that in
-            // the ground plane.
-            Vector3 toGoal = SimConfig.GoalCenter - ballPos; toGoal.y = 0f;
-            if (toGoal.sqrMagnitude < 0.0001f) toGoal = Vector3.forward;
-            Vector3 dir = toGoal.normalized;
-            Vector3 lateral = Vector3.Cross(Vector3.up, dir).normalized;
-
-            Vector3 wallCenter = ballPos + dir * distance + lateral * lateralOffset;
             wallCenter.y = 0f;
 
             var mat = Make.Mat(new Color(0.8f, 0.25f, 0.25f));

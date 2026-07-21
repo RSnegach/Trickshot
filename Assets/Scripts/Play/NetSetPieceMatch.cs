@@ -48,7 +48,8 @@ namespace Trickshot
         uint _tick; float _snapAccum;
         string _flash = ""; float _flashTime;
         float _goalLineZ;
-        Vector3 _ballSpot;          // dead-ball free-kick spot
+        Vector3 _ballSpot;          // dead-ball free-kick spot (host-placed)
+        Vector3 _wallCenter;        // host-placed wall centre
         Vector3 _ballTargetPos;     // client ball interp
 
         // ---- shootout state (host-authoritative) ----
@@ -80,7 +81,19 @@ namespace Trickshot
             _s = Multiplayer.Session;
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
             _goalLineZ = SimConfig.GoalCenter.z;
-            _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance);
+            // Host-placed free-kick spot + wall centre (synced in MatchConfig). fkPlaced tells
+            // us the host set them; otherwise use the centred default (spot outside the box).
+            var cfg = _s.Config;
+            if (cfg.fkPlaced)
+            {
+                _ballSpot = new Vector3(cfg.fkBallX, SimConfig.BallRadius, cfg.fkBallZ);
+                _wallCenter = new Vector3(cfg.fkWallX, 0f, cfg.fkWallZ);
+            }
+            else
+            {
+                _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance);
+                _wallCenter = _ballSpot + (SimConfig.GoalCenter - _ballSpot).normalized * SimConfig.WallDistance;
+            }
             _ball.SetPieceShot = true;   // arcadey loft + curl + stat-scaled assist
             _s.MatchEvent += OnMatchEvent;
             _s.ShootoutUpdated += OnShootoutUpdated;
@@ -100,13 +113,13 @@ namespace Trickshot
                 if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw);
             }
 
-            // Host: defensive wall + first shooter on the spot.
+            // Defensive wall: built on EVERY peer from the synced points so clients see + can
+            // aim around it (the host owns the ball physics + hop; the client wall is a visual/
+            // collision stand-in that just sits there). Host also arms the first turn.
+            _wall = new DefensiveWall();
+            _wall.Build(root, _ballSpot, _wallCenter, SimConfig.WallCount);   // host-placed centre
             if (_s.IsHost)
             {
-                var wallGo = new GameObject("SetPieceWall");
-                wallGo.transform.SetParent(root, true);
-                _wall = new DefensiveWall();
-                _wall.Build(root, _ballSpot, SimConfig.WallCount, SimConfig.WallDistance, SimConfig.WallLateralOffset);
                 _ball.ResetTo(_ballSpot);
                 if (_shooterSlots.Count > 0) BeginTurn(0);
                 else { _activeShooter = 255; _over = true; }

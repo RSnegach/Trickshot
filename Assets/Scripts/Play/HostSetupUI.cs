@@ -25,6 +25,10 @@ namespace Trickshot
         // NOT exposed - kept fixed so multiplayer stays balanced.
         int _goalPct = 100;        // 80 / 100 / 125
         int _keeperPct = 50;       // 0 / 30 / 60 / 90 (AI keeper strength if no human GK)
+        // Host-placed free-kick spot + wall (world x/z). Lazily defaulted the first frame the
+        // Set Pieces map is shown (centre spot at FreeKickDistance, wall at WallDistance toward
+        // goal). _fkEdit selects which marker a map click moves: 0 = ball, 1 = wall.
+        bool _fkInit; Vector3 _fkBall, _fkWall; int _fkEdit;
 
         public void Init(System.Action onCreated, System.Action onBack)
         {
@@ -65,6 +69,41 @@ namespace Trickshot
             float by = y + panelH - 56f;
             if (GUI.Button(new Rect(x + 30f, by, 160f, 44f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(x + w - 190f, by, 160f, 44f), "Create", btn)) Create();
+
+            // Free-kick placement map (Set Pieces only): a side panel to the right of the main
+            // window where the host drops the ball spot + wall, like the in-match cross map.
+            if (Modes[_mode] == GameMode.SetPieces) DrawFreeKickSetup(x + w + 16f, y);
+        }
+
+        void DrawFreeKickSetup(float px, float py)
+        {
+            if (!_fkInit)
+            {
+                // Default just outside the box (free kicks are taken from outside it).
+                _fkBall = SetPieceMap.ClampOutsideBox(new Vector3(0f, 0f, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance));
+                Vector3 toGoal = SimConfig.GoalCenter - _fkBall; toGoal.y = 0f;
+                _fkWall = _fkBall + toGoal.normalized * SimConfig.WallDistance;
+                _fkInit = true;
+            }
+
+            float w = 300f, h = 300f;
+            var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
+            GUI.DrawTexture(new Rect(px, py, w, h + 74f), Texture2D.whiteTexture); GUI.color = prev;
+
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(px, py + 8f, w, 26f), "FREE KICK SETUP", hdr);
+
+            // Ball / Wall edit selector.
+            var sel = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
+            var selOn = new GUIStyle(sel); selOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
+            if (GUI.Button(new Rect(px + 16f, py + 38f, (w - 40f) * 0.5f, 28f), _fkEdit == 0 ? "● Ball" : "Ball", _fkEdit == 0 ? selOn : sel)) _fkEdit = 0;
+            if (GUI.Button(new Rect(px + 24f + (w - 40f) * 0.5f, py + 38f, (w - 40f) * 0.5f, 28f), _fkEdit == 1 ? "● Wall" : "Wall", _fkEdit == 1 ? selOn : sel)) _fkEdit = 1;
+
+            var mapRect = new Rect(px + 16f, py + 74f, w - 32f, h - 74f);
+            SetPieceMap.Draw(mapRect, ref _fkBall, ref _fkWall, _fkEdit);
+
+            var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
+            GUI.Label(new Rect(px, py + h + 44f, w, 20f), "Click the map to place the " + (_fkEdit == 1 ? "wall" : "ball") + ".", tip);
         }
 
         void Create()
@@ -84,6 +123,11 @@ namespace Trickshot
                 // Set-pieces knobs; harmless defaults for other modes (goalScale 1 = regulation).
                 goalScale = mode == GameMode.SetPieces ? _goalPct / 100f : 1f,
                 keeperAbility = mode == GameMode.SetPieces ? _keeperPct / 100f : 0.5f,
+                // Host-placed free-kick spot + wall. fkPlaced tells the driver to honour them;
+                // when false (map never opened / other modes) the driver uses its own default.
+                fkPlaced = mode == GameMode.SetPieces && _fkInit,
+                fkBallX = _fkBall.x, fkBallZ = _fkBall.z,
+                fkWallX = _fkWall.x, fkWallZ = _fkWall.z,
             });
 
             enabled = false;
