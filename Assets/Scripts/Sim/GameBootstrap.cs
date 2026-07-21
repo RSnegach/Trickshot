@@ -218,9 +218,13 @@ namespace Trickshot
             // Default the aim-target to the training goal; scrimmage repoints it.
             SimConfig.AttackGoalCenter = SimConfig.GoalCenter;
 
-            // Scrimmage builds its OWN two-goal, fully-walled pitch (not the single-goal
-            // training arena / regulation pitch / stadium), then spawns teams.
+            // Scrimmage builds its OWN two-goal, fully-walled pitch (centred at origin) then
+            // wraps it with the shared stadium + crowd, sized to that pitch.
             if (mode == GameMode.Scrimmage) { BuildScrimmageMode(root, camGo); return; }
+
+            // Single-goal venues use the regulation training pitch footprint. Reset in case a
+            // prior scrimmage repointed PitchLayout at its own field.
+            PitchLayout.ResetToTraining();
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
             // Striker mode (single-player + networked) plays on an OPEN field: no boundary
@@ -484,6 +488,15 @@ namespace Trickshot
             var arena = ScrimmageArena.Build(root, perSide);
             // The human (Home) attacks the +Z goal; aim assist / dribble / ball-cam target it.
             SimConfig.AttackGoalCenter = arena.homeGoalCenter;
+
+            // Wrap the scrimmage pitch with the SAME stadium bowl + crowd the other venues use,
+            // sized to this (centred) field. Point the shared PitchLayout contract at it first,
+            // then build the shell + crowd (skip PitchBuilder - scrimmage lays its own ground).
+            PitchLayout.ConfigureScrimmage(arena.halfLength * 2f, arena.halfWidth * 2f, 0f);
+            _cam.backgroundColor = StadiumStyle.Active.Sky;
+            StadiumBuilder.Build(root);
+            _crowd = Crowd.Create(root);
+            CrowdCheer.Register(_crowd);
 
             // Ball.
             var ballGo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
