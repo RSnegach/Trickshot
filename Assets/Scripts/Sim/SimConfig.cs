@@ -372,6 +372,13 @@ namespace Trickshot
         public const float KickSpeedFull  = 9f;      // bone speed at/above this = a full strike
         public const float DeadTouchPower = 0.12f;   // velocity kept on a dead (non-kicking) touch
 
+        // ---- Volley: a FLYING ball met by a SWINGING leg launches like a free kick ----
+        // A ball whose centre is above this height (m) is "flying"; a swinging leg (kick > 0)
+        // that hits it fires the set-piece launch (loft + contact-point curl, stat-scaled)
+        // instead of trapping. Above the knee (calf centre ~0.33, knee ~0.5) so a ball rolling
+        // on the ground (centre ~BallRadius 0.22) or a low dribble never counts as a volley.
+        public const float VolleyMinBallHeight = 0.55f;
+
         // ---- Dribble (soft-magnet close control) ----
         // The ball auto-sticks to a carry point just in front of the grounded striker's
         // feet whenever it is close and slow, travelling with him arcade-style. A kick

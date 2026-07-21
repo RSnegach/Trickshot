@@ -244,6 +244,7 @@ namespace Trickshot
             bool isLeg = part.StartsWith("P_Foot") || part.StartsWith("P_Calf") || part.StartsWith("P_Thigh");
             bool leftSide = part.EndsWith("L");
             bool deadTrap = false;
+            bool volley = false;   // flying ball + swinging leg -> free-kick launch (set in the isLeg branch)
             if (header)
             {
                 // Heading tree scales accuracy + power.
@@ -276,6 +277,19 @@ namespace Trickshot
                 float kick = Mathf.InverseLerp(SimConfig.KickSpeedFloor, SimConfig.KickSpeedFull, boneSpeed);
                 if (kick <= 0.001f) deadTrap = true;
                 else shotMul *= kick;   // scale strike power by how hard the leg swung
+
+                // VOLLEY: a FLYING ball (airborne, above the knee) met by a SWINGING leg is
+                // launched with the free-kick rules (loft + contact-point curl, stat-scaled)
+                // instead of being trapped. A "swing" REQUIRES the leg-raise button (LMB left /
+                // RMB right) for the struck side to be held - a fast RUNNING gait swing with no
+                // button never volleys. Grounded balls and planted legs are unaffected.
+                // EXCLUDE a bicycle attempt (bicycleAttempt == striker.TrickActive, latched from
+                // pelvis recline + air-pitch lean): a bike is its own trick shot and must NOT
+                // feel like a set piece/volley - it keeps the plain amplified-strike path + its
+                // own trick bonus (KickDetector) and ball-cam.
+                if (!deadTrap && !bicycleAttempt && Rb.position.y > SimConfig.VolleyMinBallHeight
+                    && striker.LegRaiseHeld(leftSide))
+                    volley = true;
             }
             else
             {
@@ -300,6 +314,12 @@ namespace Trickshot
             // Not facing the opponents' goal -> no goal-ward help. Zero the steer window so
             // ApplyGoalAssist does nothing, and (below) the header won't be bent to goal.
             if (!facingGoal) _accuracyMul = 0f;
+
+            // A volley (flying ball, swinging leg) borrows the free-kick launch rules for THIS
+            // contact only, without touching the session-wide SetPieceShot flag (so modes can't
+            // leak state). setPiece drives the loft/curl + set-piece accuracy branches below.
+            bool setPiece = SetPieceShot || volley;
+            if (volley) LastShotType = ShotType.Volley;
 
             if (header)
             {
@@ -361,9 +381,9 @@ namespace Trickshot
                                               SimConfig.StrikeHorizMax * shotMul * capMul);
                 float vy = v.y;
 
-                if (SetPieceShot)
+                if (setPiece)
                 {
-                    // SET PIECE (free kick / penalty): always leave the ground higher, then the
+                    // SET PIECE (free kick / penalty) OR VOLLEY: always leave the ground higher, then the
                     // SPIN is decided purely by WHERE on the ball it was struck (the contact
                     // point), like a real strike - not by field position:
                     //   struck RIGHT side  -> curls LEFT      (side spin)
@@ -441,7 +461,8 @@ namespace Trickshot
             // Set-piece accuracy: near-zero goal-assist by DEFAULT, scaling up hard with the
             // striker's Shooting accuracy. A raw striker gets almost no help (tough to score);
             // a fully-invested one gets real steer. Overrides the per-part accuracy above.
-            if (SetPieceShot && !header)
+            // A volley uses this same set-piece accuracy curve.
+            if (setPiece && !header)
             {
                 float acc = Mathf.Clamp01((PlayerProfile.ShotAccuracyMul - 1f) / 0.85f); // 0..1 over the tree
                 _accuracyMul = SimConfig.SetPieceAssistFloor
