@@ -3,7 +3,9 @@ using UnityEngine;
 namespace Trickshot
 {
     // Core roles plus the single-player modes and the full scrimmage match.
-    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Scrimmage }
+    // SetPieces = networked free-kick shootout (also playable solo via the FreeKick build).
+    // NOTE: append new values at the END - MatchConfig sends GameMode as a byte over the wire.
+    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Scrimmage, SetPieces }
 
     /// <summary>
     /// IMGUI start menu. Top level: Striker, Goalkeeper, Mode. "Mode" opens a submenu of

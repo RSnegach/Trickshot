@@ -68,6 +68,9 @@ namespace Trickshot.Net
         public event Action ReplayStarted;
         public event Action ReplayEnded;
         readonly HashSet<int> _skipVotes = new HashSet<int>();
+        // Set-pieces: host broadcasts the shootout tally; clients read the latest here + event.
+        public event Action<ShootoutState> ShootoutUpdated;
+        public ShootoutState LatestShootout { get; private set; }
 
         public NetSession(INetTransport transport)
         {
@@ -210,6 +213,16 @@ namespace Trickshot.Net
             if (IsHost) Transport.SendToAll(NetCodec.Event(tag), NetChannel.Reliable);
         }
 
+        // Host: push the set-pieces shootout tally to everyone (reliable), and update the
+        // host's own LatestShootout + fire the event locally so its HUD reads the same value.
+        public void BroadcastShootout(in ShootoutState s)
+        {
+            if (!IsHost) return;
+            LatestShootout = s;
+            Transport.SendToAll(NetCodec.Shootout(s), NetChannel.Reliable);
+            ShootoutUpdated?.Invoke(s);
+        }
+
         // ---- message routing ----
         void OnMessage(PeerId from, byte[] data)
         {
@@ -277,6 +290,13 @@ namespace Trickshot.Net
                 case MsgType.MatchEvent:  // client: a match event
                     MatchEvent?.Invoke(r.Str());
                     break;
+                case MsgType.ShootoutState: // client: latest set-pieces tally
+                {
+                    var so = NetCodec.ReadShootout(r);
+                    LatestShootout = so;
+                    ShootoutUpdated?.Invoke(so);
+                    break;
+                }
             }
         }
 
