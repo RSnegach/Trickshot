@@ -144,7 +144,13 @@ namespace Trickshot
             var ragdoll = go.AddComponent<ActiveRagdoll>();
             Vector3 start = SlotStart(slot, keeper);
             var facing = Quaternion.LookRotation(keeper ? SimConfig.KeeperFaceDir : Vector3.forward, Vector3.up);
-            ragdoll.Build(start, facing, torso, limb, withGloves: keeper && glove != null);
+            // A HUMAN outfield slot wears its synced appearance (skin + head cosmetics). Give it
+            // its OWN limb material (a copy) so the per-slot skin tint doesn't mutate the shared
+            // one used by other bodies. Keepers and AI use the shared limb material, no cosmetics.
+            bool wantsLook = human && !keeper;
+            Material slotLimb = wantsLook ? Make.Mat(rosterSlot.appearance.Skin) : limb;
+            PlayerAppearance? appr = wantsLook ? rosterSlot.appearance : (PlayerAppearance?)null;
+            ragdoll.Build(start, facing, torso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
 
             var b = new Body { ragdoll = ragdoll, isKeeper = keeper, targetPos = start, targetYaw = facing.eulerAngles.y };
 

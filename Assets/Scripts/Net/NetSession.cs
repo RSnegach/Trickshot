@@ -46,6 +46,9 @@ namespace Trickshot.Net
 
         // ---- lobby state ----
         readonly string[] _slotName = new string[MaxSlots];
+        // Host-side per-slot appearance (from each player's Hello). Copied into the roster rows
+        // and broadcast so every client can build remote bodies with the right look.
+        readonly PlayerAppearance[] _slotAppearance = new PlayerAppearance[MaxSlots];
         readonly bool[] _slotReady = new bool[MaxSlots];
         // Host-only: per-slot AI enable. A non-human slot with _slotAi[i] true is an AI
         // ("Clanker"); false = an open, unfilled slot. Defaults all-on (AI fills by default;
@@ -92,6 +95,7 @@ namespace Trickshot.Net
             AssignLocal(1, NetRole.Shooter);
             _slotOwner[1] = Transport.LocalPeer;
             _slotName[1] = PlayerProfile.PlayerName;
+            _slotAppearance[1] = PlayerProfile.Appearance;   // host's own look
             RebuildRoster();
         }
 
@@ -230,7 +234,7 @@ namespace Trickshot.Net
             switch (r.Type)
             {
                 case MsgType.Hello:      // host: a client announced itself -> give it a slot
-                    if (IsHost) GrantSlot(from, r.Str());
+                    if (IsHost) { string hn = r.Str(); var ha = NetCodec.ReadAppearance(r); GrantSlot(from, hn, ha); }
                     break;
                 case MsgType.ReadyToggle: // host: a client set its ready state
                     if (IsHost) { int s = SlotOf(from); if (s >= 0) { _slotReady[s] = r.B(); PushRoster(); } }
@@ -304,7 +308,7 @@ namespace Trickshot.Net
         {
             // Announce ourselves to the HOST (the transport resolves the host peer on
             // connect); the host replies with AssignSlot.
-            Transport.Send(Transport.HostPeer, NetCodec.Hello(PlayerProfile.PlayerName), NetChannel.Reliable);
+            Transport.Send(Transport.HostPeer, NetCodec.Hello(PlayerProfile.PlayerName, PlayerProfile.Appearance), NetChannel.Reliable);
         }
 
         void OnPeerJoined(PeerId p) { /* host waits for the peer's Hello to grant a slot */ }
@@ -319,7 +323,7 @@ namespace Trickshot.Net
         // Host: give a newly-hello'd client the lowest free SHOOTER slot (1..N); if none,
         // and slot 0 (keeper) is free, give them the keeper; else spectator. Then re-push
         // the full roster (+ config) so everyone, including the new joiner, is in sync.
-        void GrantSlot(PeerId peer, string name)
+        void GrantSlot(PeerId peer, string name, PlayerAppearance appearance)
         {
             int granted = -1;
             // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
@@ -330,7 +334,7 @@ namespace Trickshot.Net
             if (granted < 0 && !_slotOwner[CrosserSlot].IsValid) granted = CrosserSlot;
 
             NetRole role = granted < 0 ? NetRole.Spectator : RoleOfSlot(granted);
-            if (granted >= 0) { _slotOwner[granted] = peer; _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name; }
+            if (granted >= 0) { _slotOwner[granted] = peer; _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name; _slotAppearance[granted] = appearance; }
             Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role), NetChannel.Reliable);
             PushRoster();
         }
@@ -353,9 +357,11 @@ namespace Trickshot.Net
             if (_slotOwner[target].IsValid) return;          // taken (incl. by the requester's own slot)
             int cur = SlotOf(peer);
             string name = cur >= 0 ? _slotName[cur] : PlayerProfile.PlayerName;
+            PlayerAppearance appr = cur >= 0 ? _slotAppearance[cur] : PlayerProfile.Appearance;
             if (cur >= 0) { _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false; }
             _slotOwner[target] = peer;
             _slotName[target] = string.IsNullOrEmpty(name) ? "PLAYER" : name;
+            _slotAppearance[target] = appr;   // move the player's look with them
             _slotReady[target] = false;
             // Tell the mover their new slot/role (host updates its own LocalSlot directly).
             if (peer.Equals(Transport.LocalPeer)) AssignLocal(target, RoleOfSlot(target));
@@ -383,8 +389,10 @@ namespace Trickshot.Net
                 if (human) name = _slotName[i] ?? "PLAYER";
                 else if (ai) name = "Clanker " + (++clanker);
                 else name = "Open";              // unfilled, AI toggled off
+                // Humans carry their synced look; AI/open slots get default appearance.
+                var appr = human ? _slotAppearance[i] : PlayerAppearance.Default;
                 list.Add(new LobbySlot { slot = (byte)i, human = human, ai = ai, ready = _slotReady[i],
-                                         role = (byte)RoleOfSlot(i), name = name });
+                                         role = (byte)RoleOfSlot(i), name = name, appearance = appr });
             }
             Roster = list.ToArray();
         }

@@ -29,6 +29,18 @@ namespace Trickshot
         readonly Quaternion[] _targetRestLocal = new Quaternion[(int)Bone.Count];
         readonly List<Collider> _ownColliders = new List<Collider>();
 
+        // Cosmetic (hair/facial/accessory) tint materials created at build time. Tracked so
+        // they can be freed on teardown - destroying a GameObject does NOT free its materials,
+        // and the preview rebuilds this body repeatedly, so untracked materials would leak.
+        readonly List<Material> _cosmeticMats = new List<Material>();
+        public void RegisterCosmeticMaterial(Material m) { if (m != null) _cosmeticMats.Add(m); }
+        void OnDestroy()
+        {
+            for (int i = 0; i < _cosmeticMats.Count; i++)
+                if (_cosmeticMats[i] != null) Destroy(_cosmeticMats[i]);
+            _cosmeticMats.Clear();
+        }
+
         Vector3[] _poseFrom = RagdollPose.Stand;
         Vector3[] _poseTo   = RagdollPose.Stand;
         float _poseT = 1f;
@@ -99,18 +111,27 @@ namespace Trickshot
         // of scales, then delegate to the normal Build. Only the player striker uses this;
         // everyone else builds at 1.0 via Build().
         public void BuildScaled(Vector3 basePos, Quaternion facing, Material torsoMat, Material limbMat,
-                                float heightScale, float girthScale, float massMul, bool withGloves = true)
+                                float heightScale, float girthScale, float massMul, bool withGloves = true,
+                                PlayerAppearance? appearance = null)
         {
             _hScale = Mathf.Max(0.5f, heightScale);
             _gScale = Mathf.Max(0.5f, girthScale);
             _massMul = Mathf.Max(0.3f, massMul);
-            Build(basePos, facing, torsoMat, limbMat, withGloves);
+            Build(basePos, facing, torsoMat, limbMat, withGloves, appearance);
         }
 
         // withGloves: the keeper wears big white gloves (with hitboxes); the striker does not.
+        // appearance (optional): when non-null this body is a real player - the limb material is
+        // tinted to the skin colour and head cosmetics (hair/facial/accessory) are attached. Null
+        // (AI crosser/keeper/footballers) leaves the passed limb colour and adds no cosmetics.
         public void Build(Vector3 basePos, Quaternion facing, Material torsoMat, Material limbMat,
-                          bool withGloves = true)
+                          bool withGloves = true, PlayerAppearance? appearance = null)
         {
+            // Skin tone: tint the shared limb material (head + arms + legs + pelvis + feet). The
+            // torso keeps its jersey (torsoMat) untouched. Done before the parts are built so
+            // every limbMat part picks up the colour.
+            if (appearance.HasValue && limbMat != null)
+                limbMat.color = appearance.Value.Skin;
             FacingRotation = facing;
             // The keeper (withGloves) gets extra-thick limb hitboxes so any bit of arm/leg/foot
             // stops the ball. The striker keeps its normal (already-fattened) hitboxes.
@@ -231,6 +252,12 @@ namespace Trickshot
                 AddGlove(Bone.ForearmL);
                 AddGlove(Bone.ForearmR);
             }
+
+            // Head cosmetics for a real player (hair/facial/accessory). Purely visual: attached
+            // as collider-less children of the head, never registered as hitboxes, so they never
+            // affect the ball. Skipped entirely for AI bodies (appearance == null).
+            if (appearance.HasValue)
+                Cosmetics.AttachAppearance(this, appearance.Value);
         }
 
         void AddGlove(Bone forearm)

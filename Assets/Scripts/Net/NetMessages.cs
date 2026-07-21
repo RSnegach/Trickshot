@@ -68,6 +68,7 @@ namespace Trickshot.Net
         public bool ready;
         public byte role;        // NetRole for this slot (so clients label rows by role)
         public string name;
+        public PlayerAppearance appearance;   // this player's look (skin + head cosmetics)
     }
 
     public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2, Crosser = 3 }
@@ -112,6 +113,13 @@ namespace Trickshot.Net
         public void Str(string s) => _bw.Write(s ?? "");
         public void V3(Vector3 v) { _bw.Write(v.x); _bw.Write(v.y); _bw.Write(v.z); }
         public void V2(Vector2 v) { _bw.Write(v.x); _bw.Write(v.y); }
+        // Colour packed as 3 bytes RGB (alpha is always opaque for appearance/kit colours).
+        public void Col(Color c)
+        {
+            _bw.Write((byte)Mathf.Clamp(Mathf.RoundToInt(c.r * 255f), 0, 255));
+            _bw.Write((byte)Mathf.Clamp(Mathf.RoundToInt(c.g * 255f), 0, 255));
+            _bw.Write((byte)Mathf.Clamp(Mathf.RoundToInt(c.b * 255f), 0, 255));
+        }
         public byte[] ToArray() { _bw.Flush(); return _ms.ToArray(); }
     }
 
@@ -131,14 +139,36 @@ namespace Trickshot.Net
         public string Str() => _br.ReadString();
         public Vector3 V3() => new Vector3(_br.ReadSingle(), _br.ReadSingle(), _br.ReadSingle());
         public Vector2 V2() => new Vector2(_br.ReadSingle(), _br.ReadSingle());
+        public Color Col() { float r = _br.ReadByte() / 255f, g = _br.ReadByte() / 255f, b = _br.ReadByte() / 255f; return new Color(r, g, b, 1f); }
     }
 
     // Encode/decode helpers so the session code stays readable.
     public static class NetCodec
     {
-        public static byte[] Hello(string name)
+        // Shared appearance pack/unpack (same field order both ways). 3 ints as bytes (styles
+        // are small) + 4 colours as 3 bytes each = ~15 bytes.
+        public static void WriteAppearance(NetWriter w, PlayerAppearance a)
         {
-            var w = new NetWriter(MsgType.Hello); w.Str(name); return w.ToArray();
+            w.Col(a.Skin);
+            w.U8((byte)Mathf.Clamp(a.HairStyle, 0, 255));   w.Col(a.HairColor);
+            w.U8((byte)Mathf.Clamp(a.FacialStyle, 0, 255)); w.Col(a.FacialColor);
+            w.U8((byte)Mathf.Clamp(a.Accessory, 0, 255));   w.Col(a.AccessoryColor);
+        }
+        public static PlayerAppearance ReadAppearance(NetReader r)
+        {
+            var a = new PlayerAppearance();
+            a.Skin = r.Col();
+            a.HairStyle = r.U8();   a.HairColor = r.Col();
+            a.FacialStyle = r.U8(); a.FacialColor = r.Col();
+            a.Accessory = r.U8();   a.AccessoryColor = r.Col();
+            return a;
+        }
+
+        // Hello now carries the joining player's name AND appearance so the host can store it
+        // per slot and broadcast it on the roster (remote players show each other's look).
+        public static byte[] Hello(string name, PlayerAppearance appearance)
+        {
+            var w = new NetWriter(MsgType.Hello); w.Str(name); WriteAppearance(w, appearance); return w.ToArray();
         }
 
         public static byte[] AssignSlot(byte slot, NetRole role)
@@ -200,7 +230,7 @@ namespace Trickshot.Net
             w.F(cfg.fkBallX); w.F(cfg.fkBallZ); w.F(cfg.fkWallX); w.F(cfg.fkWallZ);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
-                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); }
+                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); }
             return w.ToArray();
         }
 
@@ -214,7 +244,7 @@ namespace Trickshot.Net
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
-                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ai = r.B(), ready = r.B(), role = r.U8(), name = r.Str() };
+                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ai = r.B(), ready = r.B(), role = r.U8(), name = r.Str(), appearance = ReadAppearance(r) };
         }
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
