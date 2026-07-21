@@ -40,14 +40,14 @@ namespace Trickshot.Net
         public byte perSide;     // scrimmage team size
         public ushort matchSec;  // match length (seconds)
         public bool publicLobby; // visibility (host-only meaning; carried for display)
-        public bool fillAi;      // striker: AI fills empty slots (else they stay empty)
     }
 
     // One lobby row in the roster (host -> clients each change).
     public struct LobbySlot
     {
         public byte slot;
-        public bool human;       // a person holds this slot (else AI)
+        public bool human;       // a person holds this slot
+        public bool ai;          // an AI ("Clanker") holds this slot (host-toggled; false = open)
         public bool ready;
         public byte role;        // NetRole for this slot (so clients label rows by role)
         public string name;
@@ -177,21 +177,21 @@ namespace Trickshot.Net
         {
             var w = new NetWriter(MsgType.RosterSync);
             w.U8(cfg.mode); w.U8(cfg.stadium); w.U8(cfg.perSide);
-            w.U32(cfg.matchSec); w.B(cfg.publicLobby); w.B(cfg.fillAi);
+            w.U32(cfg.matchSec); w.B(cfg.publicLobby);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
-                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ready); w.U8(s.role); w.Str(s.name); }
+                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); }
             return w.ToArray();
         }
 
         public static void ReadRoster(NetReader r, out MatchConfig cfg, out LobbySlot[] slots)
         {
             cfg = new MatchConfig { mode = r.U8(), stadium = r.U8(), perSide = r.U8(),
-                                    matchSec = (ushort)r.U32(), publicLobby = r.B(), fillAi = r.B() };
+                                    matchSec = (ushort)r.U32(), publicLobby = r.B() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
-                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ready = r.B(), role = r.U8(), name = r.Str() };
+                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ai = r.B(), ready = r.B(), role = r.U8(), name = r.Str() };
         }
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }

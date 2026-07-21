@@ -21,7 +21,6 @@ namespace Trickshot
         int _perSide = 3;          // scrimmage team size (3/5/11)
         int _matchMin = 3;         // scrimmage length (min)
         bool _publicLobby = true;
-        bool _fillAi = true;       // striker: fill empty slots with AI
 
         public void Init(System.Action onCreated, System.Action onBack)
         {
@@ -50,9 +49,7 @@ namespace Trickshot
                 PickerVals(lx, ref row, lw, "Match length", new[] { "2 min", "3 min", "5 min", "10 min" }, new[] { 2, 3, 5, 10 }, ref _matchMin);
             }
             Toggle(lx, ref row, lw, "Public (anyone can join)", ref _publicLobby);
-            // Striker: let the host decide whether empty slots are filled by AI or left empty.
-            if (Modes[_mode] == GameMode.Striker)
-                Toggle(lx, ref row, lw, "Fill empty slots with AI", ref _fillAi);
+            // (Striker AI is chosen per-slot in the lobby now, not here.)
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
             float by = y + panelH - 56f;
@@ -74,7 +71,6 @@ namespace Trickshot
                 perSide = (byte)_perSide,
                 matchSec = (ushort)(_matchMin * 60),
                 publicLobby = _publicLobby,
-                fillAi = _fillAi,
             });
 
             enabled = false;

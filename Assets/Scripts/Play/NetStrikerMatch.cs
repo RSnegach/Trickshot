@@ -113,17 +113,22 @@ namespace Trickshot
             bool crosser = slot == NetSession.CrosserSlot;
             bool isLocal = slot == _localSlot;
             bool hostSim = _s.IsHost;
-            bool human   = _s.SlotIsHuman(slot);
 
-            // If the host turned OFF "fill empty slots with AI", an empty (non-human) slot
-            // spawns nothing: no AI keeper, no auto-serving crosser, no inert shooter body.
-            // The local slot is always the human themselves, so it's never skipped.
-            if (!human && !isLocal && !_s.Config.fillAi)
+            // Read this slot's state from the SYNCED roster (authoritative on host AND client),
+            // NOT _slotOwner (which is host-only). A slot is "human", "ai" (a Clanker the host
+            // left on), or empty (open). occupied = anything that should have a body.
+            var rosterSlot = _s.RosterSlot(slot);
+            bool human = rosterSlot.human;
+            bool ai    = rosterSlot.ai;
+            bool occupied = human || ai;
+
+            // An empty (open) slot spawns nothing: no AI keeper, no auto-crosser, no inert
+            // shooter. The local slot is always the human themselves, so it's never skipped.
+            if (!occupied && !isLocal)
             {
-                // Crosser slot with no human + no AI fill: silence the auto-serve loop so no AI
-                // ball-feeder runs. Call-for-pass is also gated off (it requires
-                // _crosser.AutoServe), so no crosses come unless a human takes the crosser role
-                // - which is the host's choice. Empty keeper/shooter slots simply aren't spawned.
+                // Crosser slot left open: silence the auto-serve loop so no AI ball-feeder runs.
+                // Call-for-pass is gated on _crosser.AutoServe, so no crosses come unless a human
+                // takes the crosser role or the host toggles the crosser AI on.
                 if (crosser && _crosser != null) { _crosser.AutoServe = false; _crosser.Idle(); }
                 return;
             }
@@ -161,7 +166,8 @@ namespace Trickshot
             }
             else if (!human)
             {
-                // Host keeper, no human: AI goaltender.
+                // Host keeper, AI (Clanker) in the slot: AI goaltender. (An open slot already
+                // returned above, so reaching here with !human means ai.)
                 var gk = go.AddComponent<Goalkeeper>(); gk.Init(ragdoll, _ball); b.ai = gk;
             }
             else
