@@ -314,12 +314,13 @@ namespace Trickshot
         // A contact only counts as a "shot" (worth cutting to ball-cam) if the ball leaves
         // with at least this much horizontal pace toward the goal.
         public const float ShotCamMinSpeed = 8f;
-        // The ball-cam auto-cut has its OWN, wider forward cone (distinct from the aim-assist
-        // cone). A shot only cuts to ball-cam when the striker faces roughly goal-ward - but
-        // more permissively than assist, so angled shots still get the fly-on view. The one
-        // hard rule: NEVER cut when facing his own goal (dot <= this cutoff = no cam).
-        // 0.0 = must face into the attacking half at all (>90deg from own goal).
-        public const float ShotCamFacingDot = 0.0f;
+        // The auto ball-cam now ONLY cuts for a shot taken FACING AWAY from the opponents'
+        // goal - the bicycle / over-shoulder shots the striker can't watch himself. When he's
+        // facing the goal (dead-ahead in the cone OR merely side-on) he can already see it, so
+        // no cam. A shot counts as "facing away" when (facing . dir-to-goal) is below this
+        // cosine. -0.2 ~= turned more than ~100deg off goal (clearly over the shoulder / behind).
+        // Bicycles always qualify regardless (their latched trick state forces the cut).
+        public const float ShotCamFaceAwayDot = -0.2f;
 
         // ---- Strike power (on striker contact) ----
         // Base power is modest by default; Shooting nodes + body traits multiply it up.
@@ -468,8 +469,10 @@ namespace Trickshot
         public const float SlideTackleCooldown = 1.2f;
 
         // ---- Post-goal replay ----
-        public const float ReplayWindow   = 4f;    // seconds of action buffered for the replay
-        public const float ReplaySlowMul  = 0.4f;  // playback speed (0..1) of the buffered window
+        // On-screen replay duration = ReplayWindow / ReplaySlowMul. 2s of real action played
+        // at 0.57x slow-mo = ~3.5s on screen, all slowed.
+        public const float ReplayWindow   = 2f;     // seconds of action buffered for the replay
+        public const float ReplaySlowMul  = 0.57f;  // playback speed (0..1); 2/0.57 = ~3.5s watched
         public const float ReplayHold     = 0.5f;  // pause after the goal before the replay rolls
 
         // ---- Networking (host-authoritative snapshot sync) ----
