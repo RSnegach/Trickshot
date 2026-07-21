@@ -399,7 +399,7 @@ namespace Trickshot
             Material limbs = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
             ragdoll.BuildScaled(SimConfig.StrikerStart, Quaternion.identity, torso, limbs,
                                 PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.EffectiveMassMul,
-                                withGloves: false);
+                                withGloves: false, appearance: PlayerProfile.Appearance);
             striker = strikerGo.AddComponent<Striker>();
             striker.Init(GetInput(), ragdoll);
             AttachKickDetectors(ragdoll, striker, ball);

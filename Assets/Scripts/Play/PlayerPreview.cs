@@ -106,9 +106,12 @@ namespace Trickshot
             _torsoMat = torso; _limbMat = limbs;
 
             var facing = Quaternion.LookRotation(Vector3.back, Vector3.up); // face the camera (-Z)
+            // Pass the player's appearance so the preview shows skin tone + head cosmetics; Build
+            // tints `limbs` to the skin colour (overriding the placeholder above) and attaches the
+            // hair/facial/accessory visuals.
             _ragdoll.BuildScaled(Stage, facing, torso, limbs,
                                  PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
-                                 withGloves: false);
+                                 withGloves: false, appearance: PlayerProfile.Appearance);
             // Hold it upright and still (a calm mannequin, not a live ragdoll).
             _ragdoll.UprightLock = true;
             _ragdoll.BalanceEnabled = false;

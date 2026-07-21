@@ -41,6 +41,11 @@ namespace Trickshot
         public static Texture2D JerseyTex;      // null -> plain team colour
         public static Color JerseyBase = new Color(0.2f, 0.45f, 0.85f);
 
+        // ---- Appearance (skin + head cosmetics) ----
+        // The LOCAL player's look. The same PlayerAppearance struct rides the wire per slot so
+        // remote players show their own look. Cosmetics are purely visual (no colliders).
+        public static PlayerAppearance Appearance = PlayerAppearance.Default;
+
         // ---- Normalized positions on each axis (0 = min, 1 = max) ----
         public static float HeightT => Mathf.InverseLerp(MinHeight, MaxHeight, Height);
         public static float WeightT => Mathf.InverseLerp(MinWeight, MaxWeight, Weight);
@@ -150,7 +155,37 @@ namespace Trickshot
             Number = 10;
             LeftFooted = false;
             JerseyTex = null;
+            Appearance = PlayerAppearance.Default;
             SkillTree.Clear();
         }
+    }
+
+    /// <summary>
+    /// A player's cosmetic appearance: skin tone plus head cosmetics (hair, facial hair,
+    /// accessory), each a style index into the Cosmetics catalogs and a tint colour. Purely
+    /// visual - nothing here ever gets a collider. Small + value-type so it packs onto the
+    /// network roster row (see NetMessages.LobbySlot) for per-player MP appearance.
+    /// Style index 0 means "none" for hair (bald), facial hair (clean-shaven), and accessory.
+    /// </summary>
+    public struct PlayerAppearance
+    {
+        public Color Skin;
+        public int   HairStyle;
+        public Color HairColor;
+        public int   FacialStyle;
+        public Color FacialColor;
+        public int   Accessory;
+        public Color AccessoryColor;
+
+        public static PlayerAppearance Default => new PlayerAppearance
+        {
+            Skin           = new Color(0.85f, 0.65f, 0.52f),
+            HairStyle      = 0,                                   // bald (no hair mesh)
+            HairColor      = new Color(0.15f, 0.10f, 0.08f),
+            FacialStyle    = 0,                                   // clean-shaven
+            FacialColor    = new Color(0.15f, 0.10f, 0.08f),
+            Accessory      = 0,                                   // none
+            AccessoryColor = Color.white,
+        };
     }
 }

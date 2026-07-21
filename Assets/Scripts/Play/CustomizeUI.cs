@@ -29,6 +29,13 @@ namespace Trickshot
         // Skill tree UI state.
         SkillTree.Category _skillCat = SkillTree.Category.Pace;
 
+        // Body-stage appearance sub-menu (cycled by the arrows beside the BODY title).
+        enum BodySub { Traits, Skin, Hair, Facial, Accessories }
+        BodySub _bodySub = BodySub.Traits;
+        Vector2 _apprScroll;                 // scroll for the option grids
+        PlayerAppearance _lastPreviewAppr;   // detect appearance change to rebuild the preview
+        bool _apprInit;
+
         // Working copies (committed to PlayerProfile on Done).
         float _height, _weight;
         bool _leftFooted;
@@ -294,6 +301,14 @@ namespace Trickshot
                 // don't tear down + recreate the ragdoll every frame of a drag.
                 if (!Mathf.Approximately(_height, _lastPreviewH) || !Mathf.Approximately(_weight, _lastPreviewW))
                     _previewDirty = true;
+                // Appearance changes (skin/hair/facial/accessory) also rebuild the model, same
+                // debounce. Compare against the last-applied snapshot.
+                if (!_apprInit || !ApprEquals(PlayerProfile.Appearance, _lastPreviewAppr))
+                {
+                    _previewDirty = true;
+                    _lastPreviewAppr = PlayerProfile.Appearance;
+                    _apprInit = true;
+                }
                 bool mouseDown = Input.GetMouseButton(0);
                 if (_previewDirty && !mouseDown)
                 {
@@ -327,7 +342,22 @@ namespace Trickshot
             GUI.Box(new Rect(x, y, panelW, panelH), GUIContent.none);
 
             var title = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x + 28f, y + 14f, panelW - 56f, 36f), "CUSTOMIZE - " + _stage.ToString().ToUpper(), title);
+            if (_stage == Stage.Body)
+            {
+                // "CUSTOMIZE -" prefix, then ‹ SUBMENU › arrows that cycle the appearance sub-menus.
+                GUI.Label(new Rect(x + 28f, y + 14f, 220f, 36f), "CUSTOMIZE -", title);
+                float axl = x + 210f;
+                var arrow = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
+                var subName = new GUIStyle(title) { alignment = TextAnchor.MiddleCenter, fontSize = 22 };
+                int subCount = System.Enum.GetValues(typeof(BodySub)).Length;
+                if (GUI.Button(new Rect(axl, y + 16f, 30f, 30f), "‹", arrow))
+                    _bodySub = (BodySub)(((int)_bodySub - 1 + subCount) % subCount);
+                GUI.Label(new Rect(axl + 32f, y + 14f, 150f, 36f), SubName(_bodySub), subName);
+                if (GUI.Button(new Rect(axl + 184f, y + 16f, 30f, 30f), "›", arrow))
+                    _bodySub = (BodySub)(((int)_bodySub + 1) % subCount);
+            }
+            else
+                GUI.Label(new Rect(x + 28f, y + 14f, panelW - 56f, 36f), "CUSTOMIZE - " + _stage.ToString().ToUpper(), title);
 
             switch (_stage)
             {
@@ -379,19 +409,184 @@ namespace Trickshot
             if (FootButton(new Rect(lx + bw + 10f, row, bw, 34f), "Right", !_leftFooted)) _leftFooted = false;
             row += 46f;
 
-            // Live trait readout using the working values (commit first so the profile
-            // computes off them).
+            // Commit body working values so traits compute off them.
             PlayerProfile.Height = _height;
             PlayerProfile.Weight = _weight;
 
-            var hdr = new GUIStyle(st) { fontStyle = FontStyle.Bold };
-            GUI.Label(new Rect(lx, row, lw, 20f), "Resulting traits:", hdr); row += 26f;
-            Trait(lx, ref row, lw, "Move speed",  PlayerProfile.MoveSpeedMul);
-            Trait(lx, ref row, lw, "Sprint speed", PlayerProfile.SprintSpeedMul);
-            Trait(lx, ref row, lw, "Jump height", PlayerProfile.JumpMul);
-            Trait(lx, ref row, lw, "Shot power",  PlayerProfile.ShotPowerMul);
-            Trait(lx, ref row, lw, "Push / strength", PlayerProfile.PushMul);
-            Trait(lx, ref row, lw, "Reach",       PlayerProfile.ReachMul);
+            // Lower region: the trait readout (default) OR the selected appearance sub-menu,
+            // switched by the ‹ › arrows beside the title.
+            switch (_bodySub)
+            {
+                case BodySub.Traits:
+                    var hdr = new GUIStyle(st) { fontStyle = FontStyle.Bold };
+                    GUI.Label(new Rect(lx, row, lw, 20f), "Resulting traits:", hdr); row += 26f;
+                    Trait(lx, ref row, lw, "Move speed",  PlayerProfile.MoveSpeedMul);
+                    Trait(lx, ref row, lw, "Sprint speed", PlayerProfile.SprintSpeedMul);
+                    Trait(lx, ref row, lw, "Jump height", PlayerProfile.JumpMul);
+                    Trait(lx, ref row, lw, "Shot power",  PlayerProfile.ShotPowerMul);
+                    Trait(lx, ref row, lw, "Push / strength", PlayerProfile.PushMul);
+                    Trait(lx, ref row, lw, "Reach",       PlayerProfile.ReachMul);
+                    break;
+                case BodySub.Skin:        SkinSubMenu(lx, row, lw, y + ph - 60f); break;
+                case BodySub.Hair:        HairSubMenu(lx, row, lw, y + ph - 60f); break;
+                case BodySub.Facial:      FacialSubMenu(lx, row, lw, y + ph - 60f); break;
+                case BodySub.Accessories: AccessorySubMenu(lx, row, lw, y + ph - 60f); break;
+            }
+        }
+
+        static string SubName(BodySub s) => s switch
+        {
+            BodySub.Traits => "BODY",
+            BodySub.Skin => "SKIN",
+            BodySub.Hair => "HAIR",
+            BodySub.Facial => "FACIAL",
+            BodySub.Accessories => "EXTRAS",
+            _ => "BODY",
+        };
+
+        static bool ApprEquals(PlayerAppearance a, PlayerAppearance b)
+            => a.HairStyle == b.HairStyle && a.FacialStyle == b.FacialStyle && a.Accessory == b.Accessory
+               && ApproxColor(a.Skin, b.Skin) && ApproxColor(a.HairColor, b.HairColor)
+               && ApproxColor(a.FacialColor, b.FacialColor) && ApproxColor(a.AccessoryColor, b.AccessoryColor);
+
+        // A reusable color-wheel picker: draws the wheel in `wheelRect`, and on click/drag inside
+        // it returns the picked colour (else returns `current`). Consumes the event so it doesn't
+        // fall through. (HandleWheel is hard-wired to _brushColor; this is the generic version.)
+        Color WheelPick(Rect wheelRect, Color current)
+        {
+            GUI.DrawTexture(wheelRect, _wheel);
+            Event e = Event.current;
+            if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && wheelRect.Contains(e.mousePosition))
+            {
+                float fx = (e.mousePosition.x - wheelRect.x) / wheelRect.width;
+                float fy = 1f - (e.mousePosition.y - wheelRect.y) / wheelRect.height;
+                int wx = Mathf.Clamp(Mathf.RoundToInt(fx * (_wheel.width - 1)), 0, _wheel.width - 1);
+                int wy = Mathf.Clamp(Mathf.RoundToInt(fy * (_wheel.height - 1)), 0, _wheel.height - 1);
+                Color c = _wheel.GetPixel(wx, wy);
+                if (c.a > 0.5f) { e.Use(); return new Color(c.r, c.g, c.b, 1f); }
+            }
+            return current;
+        }
+
+        // A row/grid of preset colour swatches; returns the picked colour (else `current`).
+        Color SwatchRow(float x, float y, float w, Color current, Color[] cols, float sw = 30f, float gap = 6f)
+        {
+            Color result = current;
+            int cols_n = Mathf.Max(1, Mathf.FloorToInt((w + gap) / (sw + gap)));
+            for (int i = 0; i < cols.Length; i++)
+            {
+                float cx = x + (i % cols_n) * (sw + gap);
+                float cy = y + (i / cols_n) * (sw + gap);
+                var r = new Rect(cx, cy, sw, sw);
+                var pc = GUI.color; GUI.color = cols[i];
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                GUI.color = ApproxColor(current, cols[i]) ? new Color(1f, 0.9f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                DrawRectOutline(r, ApproxColor(current, cols[i]) ? 3f : 1f);
+                GUI.color = pc;
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) result = cols[i];
+            }
+            return result;
+        }
+
+        // Human-looking skin tones for the "Human" group.
+        static readonly Color[] _humanSkins =
+        {
+            new Color(0.98f, 0.85f, 0.75f), new Color(0.94f, 0.78f, 0.66f), new Color(0.87f, 0.69f, 0.55f),
+            new Color(0.80f, 0.61f, 0.46f), new Color(0.68f, 0.49f, 0.35f), new Color(0.55f, 0.38f, 0.26f),
+            new Color(0.42f, 0.28f, 0.19f), new Color(0.30f, 0.20f, 0.14f),
+        };
+
+        void SkinSubMenu(float lx, float row, float lw, float bottom)
+        {
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
+            var grp = new GUIStyle(st) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.9f, 0.4f) } };
+            GUI.Label(new Rect(lx, row, lw, 20f), "Human", grp); row += 24f;
+            PlayerProfile.Appearance.Skin = SwatchRow(lx, row, lw, PlayerProfile.Appearance.Skin, _humanSkins, 34f, 8f);
+            row += 2 * (34f + 8f) + 12f;   // two rows of swatches
+            GUI.Label(new Rect(lx, row, lw, 20f), "Everyone Else", grp); row += 24f;
+            float wsz = Mathf.Min(lw, bottom - row, 150f);
+            PlayerProfile.Appearance.Skin = WheelPick(new Rect(lx, row, wsz, wsz), PlayerProfile.Appearance.Skin);
+        }
+
+        // Draw an option grid over Cosmetics entries (0..count-1), grouped by an optional label
+        // function. Returns the newly-selected index (or `current`). Headgear cells can be
+        // disabled. Used by Hair/Facial/Accessory sub-menus.
+        int OptionGrid(float x, float y, float w, float h, int count, int current,
+                       System.Func<int, string> label, System.Func<int, bool> enabled)
+        {
+            int result = current;
+            const float cw = 96f, chh = 30f, gap = 6f;
+            int cols = Mathf.Max(1, Mathf.FloorToInt((w + gap) / (cw + gap)));
+            int rows = Mathf.CeilToInt(count / (float)cols);
+            var view = new Rect(0, 0, cols * (cw + gap), rows * (chh + gap));
+            _apprScroll = GUI.BeginScrollView(new Rect(x, y, w, h), _apprScroll, view);
+            var lbl = new GUIStyle(GUI.skin.button) { fontSize = 11, wordWrap = true };
+            for (int i = 0; i < count; i++)
+            {
+                float cx = (i % cols) * (cw + gap), cy = (i / cols) * (chh + gap);
+                var r = new Rect(cx, cy, cw, chh);
+                bool en = enabled == null || enabled(i);
+                bool sel = i == current;
+                var prevBg = GUI.backgroundColor; var prevEnabled = GUI.enabled;
+                GUI.enabled = en;
+                if (sel) GUI.backgroundColor = new Color(0.25f, 0.6f, 0.9f);
+                if (GUI.Button(r, label(i), lbl) && en) result = i;
+                GUI.backgroundColor = prevBg; GUI.enabled = prevEnabled;
+                if (sel) { var pc = GUI.color; GUI.color = new Color(1f, 0.9f, 0.3f); DrawRectOutline(r, 2f); GUI.color = pc; }
+            }
+            GUI.EndScrollView();
+            return result;
+        }
+
+        void HairSubMenu(float lx, float row, float lw, float bottom)
+        {
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            float gridW = lw - 170f;
+            float gridH = bottom - row - 4f;
+            PlayerProfile.Appearance.HairStyle = OptionGrid(lx, row, gridW, gridH,
+                Cosmetics.Hair.Count, PlayerProfile.Appearance.HairStyle,
+                i => Cosmetics.Hair[i].Group.ToString()[0] + ": " + Cosmetics.Hair[i].Name, null);
+            // If hair becomes non-bald while a headgear accessory is on, clear the accessory.
+            if (!Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle)
+                && Cosmetics.AccessoryIsHeadgear(PlayerProfile.Appearance.Accessory))
+                PlayerProfile.Appearance.Accessory = 0;
+            // Hair colour wheel on the right.
+            float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
+            GUI.Label(new Rect(wx, row, wsz, 18f), "Hair colour", st);
+            PlayerProfile.Appearance.HairColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.HairColor);
+        }
+
+        void FacialSubMenu(float lx, float row, float lw, float bottom)
+        {
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            float gridW = lw - 170f;
+            float gridH = bottom - row - 4f;
+            PlayerProfile.Appearance.FacialStyle = OptionGrid(lx, row, gridW, gridH,
+                Cosmetics.Facial.Count, PlayerProfile.Appearance.FacialStyle,
+                i => Cosmetics.Facial[i].Name, null);
+            float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
+            GUI.Label(new Rect(wx, row, wsz, 18f), "Facial colour", st);
+            PlayerProfile.Appearance.FacialColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.FacialColor);
+        }
+
+        void AccessorySubMenu(float lx, float row, float lw, float bottom)
+        {
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            float gridW = lw - 170f;
+            float gridH = bottom - row - 24f;
+            bool bald = Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle);
+            PlayerProfile.Appearance.Accessory = OptionGrid(lx, row, gridW, gridH,
+                Cosmetics.Accessories.Count, PlayerProfile.Appearance.Accessory,
+                i => Cosmetics.Accessories[i].Name,
+                i => !Cosmetics.Accessories[i].Headgear || bald);   // headgear needs bald hair
+            if (!bald)
+            {
+                var hint = new GUIStyle(st) { fontSize = 11, normal = { textColor = new Color(0.85f, 0.8f, 0.5f) } };
+                GUI.Label(new Rect(lx, row + gridH + 2f, gridW, 20f), "Headgear needs Bald hair.", hint);
+            }
+            float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
+            GUI.Label(new Rect(wx, row, wsz, 18f), "Accessory colour", st);
+            PlayerProfile.Appearance.AccessoryColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.AccessoryColor);
         }
 
         void Trait(float lx, ref float row, float lw, string label, float mul)
