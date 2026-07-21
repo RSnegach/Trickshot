@@ -35,6 +35,11 @@ namespace Trickshot
         public bool IsDiving => _mode == Trick.Dive;
         // Busy with a trick (dive, etc.): the Dribble system suspends the leash while true.
         public bool IsBusy => _mode != Trick.None;
+        // Is the leg-raise button for this side held? LMB raises the LEFT leg, RMB the RIGHT.
+        // A volley only fires off a leg the player is deliberately raising, so just RUNNING
+        // into a flying ball (fast gait swing, no button) never counts as a swing/volley.
+        public bool LegRaiseHeld(bool leftSide)
+            => _input != null && (leftSide ? _input.LeftLegHeld : _input.RightLegHeld);
         // Flat forward direction the striker faces (== camera yaw while grounded). The
         // dribble carry point sits along this, and dribble shots launch along it.
         public Vector3 FacingForward
