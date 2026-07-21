@@ -17,7 +17,9 @@ namespace Trickshot
     }
 
     // Library of predrawn jersey designs. Pure runtime C#, no editor deps.
-    public static class JerseyDesigns
+    // partial: the full world-flag set is split across JerseyDesigns.NationsN.cs files that
+    // each add one BuildNationsBatchN(list) method, so they can be generated independently.
+    public static partial class JerseyDesigns
     {
         // Atlas layout. Single source of truth for the paint code.
         public const int W       = 256;   // atlas width (also each region's width)
@@ -85,11 +87,60 @@ namespace Trickshot
         {
             if (_all != null) return;
             var list = new List<Design>();
-            BuildNations(list);
+            BuildNations(list);       // the original core set
+            BuildWorldFlags(list);    // the full world set (partial-file batches)
             BuildClassic(list);
             BuildPatterns(list);
             BuildBold(list);
-            _all = list;
+
+            // Dedupe by name (keep the first definition of any name).
+            var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            var deduped = new List<Design>();
+            foreach (var d in list)
+                if (d != null && d.Name != null && seen.Add(d.Name)) deduped.Add(d);
+
+            // Rebuild tab-by-tab in a fixed tab order. The Nations tab is sorted A-Z; the
+            // other tabs keep their authored order. This avoids relying on an unstable Sort
+            // across tabs (which could scramble tab groupings).
+            var result = new List<Design>(deduped.Count);
+            foreach (DesignTab tab in (DesignTab[])System.Enum.GetValues(typeof(DesignTab)))
+            {
+                var inTab = new List<Design>();
+                foreach (var d in deduped) if (d.Tab == tab) inTab.Add(d);
+                if (tab == DesignTab.Nations)
+                    inTab.Sort((a, b) => string.Compare(a.Name, b.Name, System.StringComparison.OrdinalIgnoreCase));
+                result.AddRange(inTab);
+            }
+            _all = result;
+        }
+
+        // World-flag batches live in their own partial files (JerseyDesigns.NationsN.cs) as
+        // static methods named BuildNationsBatch1, BuildNationsBatch2, ... each taking a
+        // List<Design>. They are discovered by reflection and invoked in name order, so
+        // adding a new batch file needs NO edit to this aggregation point.
+        static void BuildWorldFlags(List<Design> l)
+        {
+            var methods = new List<System.Reflection.MethodInfo>();
+            foreach (var m in typeof(JerseyDesigns).GetMethods(
+                         System.Reflection.BindingFlags.Static |
+                         System.Reflection.BindingFlags.NonPublic |
+                         System.Reflection.BindingFlags.Public))
+            {
+                if (!m.Name.StartsWith("BuildNationsBatch")) continue;
+                var ps = m.GetParameters();
+                if (ps.Length == 1 && ps[0].ParameterType == typeof(List<Design>))
+                    methods.Add(m);
+            }
+            // Deterministic order: batch number ascending (BuildNationsBatch2 before ...10).
+            methods.Sort((a, b) => BatchIndex(a.Name).CompareTo(BatchIndex(b.Name)));
+            var args = new object[] { l };
+            foreach (var m in methods) m.Invoke(null, args);
+        }
+
+        static int BatchIndex(string name)
+        {
+            int i = "BuildNationsBatch".Length;
+            return (i < name.Length && int.TryParse(name.Substring(i), out int n)) ? n : 0;
         }
 
         static void Add(List<Design> list, string name, DesignTab tab,
@@ -415,7 +466,204 @@ namespace Trickshot
             }
         }
 
-        // ---- Nations tab (28) ---------------------------------------------
+        // ---- extended primitives for world flags (local 0..255 region space) ----
+
+        // Filled triangle through 3 points (bbox-limited, half-open even-odd fill).
+        static void Tri(Action<int, int, Color32> px, int ax, int ay, int bx, int by, int cx, int cy, Color32 col)
+        {
+            var vx = new float[] { ax, bx, cx };
+            var vy = new float[] { ay, by, cy };
+            int minX = Mathf.Max(0, Mathf.Min(ax, Mathf.Min(bx, cx)));
+            int maxX = Mathf.Min(W - 1, Mathf.Max(ax, Mathf.Max(bx, cx)));
+            int minY = Mathf.Max(0, Mathf.Min(ay, Mathf.Min(by, cy)));
+            int maxY = Mathf.Min(RegionH - 1, Mathf.Max(ay, Mathf.Max(by, cy)));
+            for (int y = minY; y <= maxY; y++)
+                for (int x = minX; x <= maxX; x++)
+                    if (PointInPoly(x + 0.5f, y + 0.5f, vx, vy)) px(x, y, col);
+        }
+
+        // N equal VERTICAL bands, left -> right = cols[0] -> cols[last].
+        static void VBands(Action<int, int, Color32> px, params Color32[] cols)
+        {
+            if (cols == null || cols.Length == 0) return;
+            int n = cols.Length;
+            for (int x = 0; x < W; x++)
+            {
+                int band = Mathf.Min(n - 1, x * n / W);
+                for (int y = 0; y < RegionH; y++) px(x, y, cols[band]);
+            }
+        }
+
+        // N equal HORIZONTAL bands, cols[0] = TOP (highest rows) -> cols[last] = bottom.
+        static void HBands(Action<int, int, Color32> px, params Color32[] cols)
+        {
+            if (cols == null || cols.Length == 0) return;
+            int n = cols.Length;
+            for (int y = 0; y < RegionH; y++)
+            {
+                // y is up, so the TOP of the flag is the HIGH rows -> invert the index.
+                int fromTop = Mathf.Min(n - 1, (RegionH - 1 - y) * n / RegionH);
+                for (int x = 0; x < W; x++) px(x, y, cols[fromTop]);
+            }
+        }
+
+        // Upright plus-cross (full span) centred at (cx,cy) with the given arm half-thickness.
+        static void PlusCross(Action<int, int, Color32> px, int cx, int cy, int halfThick, Color32 col)
+        {
+            VBand(px, cx - halfThick, cx + halfThick, col);
+            HBand(px, cy - halfThick, cy + halfThick, col);
+        }
+
+        // Crescent: a disc of `col`, then an offset disc of `bg` carved out of it. dxOffset>0
+        // opens the crescent toward +x (right). Draw AFTER the field is filled with bg.
+        static void Crescent(Action<int, int, Color32> px, int cx, int cy, int rOuter, int dxOffset, Color32 bg, Color32 col)
+        {
+            Disc(px, cx, cy, rOuter, col);
+            Disc(px, cx + dxOffset, cy, rOuter - 2, bg);
+        }
+
+        // Generalized star: `points`-pointed, rotated `rotDeg` (0 = one point straight up).
+        static void StarN(Action<int, int, Color32> px, int cx, int cy, int r, int points, float rotDeg, Color32 col)
+        {
+            if (r < 1 || points < 2) return;
+            int n = points * 2;
+            var vx = new float[n];
+            var vy = new float[n];
+            float inner = r * (points >= 6 ? 0.55f : 0.40f);
+            float rot = rotDeg * Mathf.Deg2Rad;
+            for (int i = 0; i < n; i++)
+            {
+                float rad = (i % 2 == 0) ? r : inner;
+                float ang = Mathf.PI / 2f + rot + i * Mathf.PI / points;
+                vx[i] = cx + rad * Mathf.Cos(ang);
+                vy[i] = cy + rad * Mathf.Sin(ang);
+            }
+            int minX = Mathf.Max(0, cx - r), maxX = Mathf.Min(W - 1, cx + r);
+            int minY = Mathf.Max(0, cy - r), maxY = Mathf.Min(RegionH - 1, cy + r);
+            for (int y = minY; y <= maxY; y++)
+                for (int x = minX; x <= maxX; x++)
+                    if (PointInPoly(x + 0.5f, y + 0.5f, vx, vy)) px(x, y, col);
+        }
+
+        // A ring of `count` stars evenly spaced on a circle of radius `ringR`.
+        static void StarRing(Action<int, int, Color32> px, int cx, int cy, int ringR, int starR, int count, Color32 col)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                float a = i * (Mathf.PI * 2f / count) - Mathf.PI / 2f;
+                int sx = cx + Mathf.RoundToInt(ringR * Mathf.Cos(a));
+                int sy = cy + Mathf.RoundToInt(ringR * Mathf.Sin(a));
+                StarN(px, sx, sy, starR, 5, 0f, col);
+            }
+        }
+
+        // Sun: a core disc plus `rays` triangular rays. rotDeg rotates the ray pattern.
+        static void Sun(Action<int, int, Color32> px, int cx, int cy, int coreR, int rayLen, int rays, float rotDeg, Color32 col)
+        {
+            float rot = rotDeg * Mathf.Deg2Rad;
+            float half = (Mathf.PI / rays) * 0.35f;   // ray base half-angle
+            for (int k = 0; k < rays; k++)
+            {
+                float a = rot + k * (Mathf.PI * 2f / rays);
+                int tipX = cx + Mathf.RoundToInt((coreR + rayLen) * Mathf.Cos(a));
+                int tipY = cy + Mathf.RoundToInt((coreR + rayLen) * Mathf.Sin(a));
+                int b1x = cx + Mathf.RoundToInt(coreR * Mathf.Cos(a - half));
+                int b1y = cy + Mathf.RoundToInt(coreR * Mathf.Sin(a - half));
+                int b2x = cx + Mathf.RoundToInt(coreR * Mathf.Cos(a + half));
+                int b2y = cy + Mathf.RoundToInt(coreR * Mathf.Sin(a + half));
+                Tri(px, tipX, tipY, b1x, b1y, b2x, b2y, col);
+            }
+            Disc(px, cx, cy, coreR, col);
+        }
+
+        // Diagonal split of the whole region into two colours. rising=true -> the line runs
+        // bottom-left to top-right; colLow fills below/right of it, colHigh above/left.
+        static void DiagHalf(Action<int, int, Color32> px, Color32 colLow, Color32 colHigh, bool rising)
+        {
+            for (int y = 0; y < RegionH; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    bool high = rising ? (y * (long)W > x * (long)RegionH)
+                                       : (y * (long)W > (W - 1 - x) * (long)RegionH);
+                    px(x, y, high ? colHigh : colLow);
+                }
+        }
+
+        // A Union Jack drawn into the sub-rect [x0,x1] x [y0,y1] (inclusive). Best-effort at
+        // small sizes: blue field, white then red saltire, white then red upright cross.
+        static void UnionJack(Action<int, int, Color32> px, int x0, int y0, int x1, int y1)
+        {
+            Color32 ujBlue = C(1, 33, 105), ujRed = C(200, 16, 46), ujWhite = C(245, 245, 245);
+            if (x1 < x0) { int t = x0; x0 = x1; x1 = t; }
+            if (y1 < y0) { int t = y0; y0 = y1; y1 = t; }
+            float w = Mathf.Max(1, x1 - x0), h = Mathf.Max(1, y1 - y0);
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float fx = (x - x0) / w, fy = (y - y0) / h;
+                    Color32 c = ujBlue;
+                    // white saltire (both diagonals), then thinner red saltire on top
+                    float dSalt = Mathf.Min(Mathf.Abs(fx - fy), Mathf.Abs(fx - (1f - fy)));
+                    if (dSalt < 0.16f) c = ujWhite;
+                    if (dSalt < 0.07f) c = ujRed;
+                    // white upright cross, then thinner red cross on top (drawn last = on top)
+                    if (Mathf.Abs(fx - 0.5f) < 0.15f || Mathf.Abs(fy - 0.5f) < 0.15f) c = ujWhite;
+                    if (Mathf.Abs(fx - 0.5f) < 0.075f || Mathf.Abs(fy - 0.5f) < 0.075f) c = ujRed;
+                    px(x, y, c);
+                }
+        }
+
+        // ---- optional image-asset overlays (Resources) ----------------------
+        // Some emblems (Soviet hammer-and-sickle, Kyrgyz sun) can be supplied as real PNGs in
+        // Assets/Resources/<name>.png (Read/Write Enabled in the import settings). If the asset
+        // is present it is blitted with alpha into the region; if not, callers fall back to a
+        // hand-drawn emblem. Loaded textures are cached (including a null entry, so a missing
+        // asset is not re-queried on every bake). Tries a "flags/" subfolder first, then the
+        // Resources root, so it works whether the PNG is filed under Resources/flags/ or
+        // directly under Resources/.
+        static readonly Dictionary<string, Texture2D> _overlayCache = new Dictionary<string, Texture2D>();
+
+        static Texture2D LoadOverlay(string name)
+        {
+            if (_overlayCache.TryGetValue(name, out var t)) return t;
+            Texture2D tex = null;
+            try { tex = Resources.Load<Texture2D>("flags/" + name) ?? Resources.Load<Texture2D>(name); }
+            catch { tex = null; }
+            _overlayCache[name] = tex;   // may be null; cached to avoid repeat lookups
+            return tex;
+        }
+
+        // Blit a Resources PNG centred at (cx,cy) scaled to fit within (boxW x boxH), alpha
+        // composited over whatever is already in the region. Returns false if the asset is
+        // absent (or not readable) so the caller can draw its fallback instead.
+        static bool OverlayImage(Action<int, int, Color32> px, string name, int cx, int cy, int boxW, int boxH)
+        {
+            var tex = LoadOverlay(name);
+            if (tex == null) return false;
+            Color32[] src;
+            try { src = tex.GetPixels32(); }   // requires Read/Write Enabled
+            catch { return false; }
+            int tw = tex.width, thh = tex.height;
+            if (tw <= 0 || thh <= 0) return false;
+            // Scale to fit the box while preserving aspect. Note: GetPixels32 is row-major with
+            // row 0 at the BOTTOM (y-up), matching our px() convention, so no vertical flip.
+            float scale = Mathf.Min(boxW / (float)tw, boxH / (float)thh);
+            int dw = Mathf.Max(1, Mathf.RoundToInt(tw * scale));
+            int dh = Mathf.Max(1, Mathf.RoundToInt(thh * scale));
+            int x0 = cx - dw / 2, y0 = cy - dh / 2;
+            for (int dy = 0; dy < dh; dy++)
+                for (int dx = 0; dx < dw; dx++)
+                {
+                    int sxp = Mathf.Clamp(dx * tw / dw, 0, tw - 1);
+                    int syp = Mathf.Clamp(dy * thh / dh, 0, thh - 1);
+                    Color32 c = src[syp * tw + sxp];
+                    if (c.a < 8) continue;   // treat near-transparent as clear
+                    px(x0 + dx, y0 + dy, c);
+                }
+            return true;
+        }
+
+        // ---- Nations tab -----------------------------------------------------
 
         static void BuildNations(List<Design> l)
         {
@@ -434,6 +682,32 @@ namespace Trickshot
                 HBand(px, 0, RegionH / 4 - 1, C(198, 11, 30));
                 HBand(px, RegionH / 4, 3 * RegionH / 4 - 1, C(255, 196, 0));
                 HBand(px, 3 * RegionH / 4, RegionH - 1, C(198, 11, 30));
+                // Coat of arms toward the hoist, on the yellow band. Best-effort: the Pillars
+                // of Hercules flanking a crowned quartered shield (Castile/Leon/Aragon/Navarre
+                // + Granada pomegranate at the base).
+                int cx = 88, cy = RegionH / 2;
+                Color32 castR = C(170, 20, 30), castY = C(240, 200, 30), whiteF = White,
+                        crimson = C(170, 20, 30), crown = C(214, 178, 70), pillar = C(210, 60, 40);
+                // Pillars of Hercules (red columns with caps) either side of the shield.
+                Rect(px, cx - 40, cy - 30, cx - 32, cy + 34, pillar);
+                Rect(px, cx - 44, cy + 34, cx - 28, cy + 40, pillar);
+                Rect(px, cx + 32, cy - 30, cx + 40, cy + 34, pillar);
+                Rect(px, cx + 28, cy + 34, cx + 44, cy + 40, pillar);
+                // Shield: rounded rectangle, quartered.
+                Rect(px, cx - 24, cy - 30, cx + 24, cy + 30, whiteF);       // shield ground
+                Rect(px, cx - 22, cy - 28, cx - 1, cy + 2, crimson);        // Q1 Castile (red)
+                Rect(px, cx + 1, cy - 28, cx + 22, cy + 2, whiteF);         // Q2 Leon (white)
+                Rect(px, cx - 22, cy + 4, cx - 1, cy + 28, castY);          // Q3 Aragon (gold)
+                Rect(px, cx + 1, cy + 4, cx + 22, cy + 28, crimson);        // Q4 Navarre (red)
+                Disc(px, cx, cy - 13, 4, castY);                           // Castile castle hint
+                Disc(px, cx + 11, cy - 13, 4, castR);                      // Leon lion hint
+                for (int i = 0; i < 4; i++) Rect(px, cx - 20 + i * 6, cy + 6, cx - 17 + i * 6, cy + 26, castR); // Aragon pales
+                Disc(px, cx, cy - 34, 5, crimson);                         // Granada pomegranate at base
+                // Royal crown above the shield.
+                Rect(px, cx - 16, cy + 30, cx + 16, cy + 36, crown);
+                Tri(px, cx - 16, cy + 36, cx - 8, cy + 46, cx, cy + 36, crown);
+                Tri(px, cx - 4, cy + 36, cx, cy + 48, cx + 4, cy + 36, crown);
+                Tri(px, cx, cy + 36, cx + 8, cy + 46, cx + 16, cy + 36, crown);
             });
 
             Add(l, "Argentina", DesignTab.Nations, px =>
@@ -544,7 +818,7 @@ namespace Trickshot
                 int cantonW = W / 2;
                 int cantonH = (RegionH * 7) / 13;
                 Rect(px, 0, RegionH - cantonH, cantonW, RegionH - 1, C(60, 59, 110));
-                for (int gy = 0; gy < 4; gy++)
+                for (int gy = 0; gy < 6; gy++)
                     for (int gx = 0; gx < 5; gx++)
                         Disc(px, 15 + gx * 24, RegionH - cantonH + 15 + gy * 24, 4, White);
             });
@@ -552,7 +826,18 @@ namespace Trickshot
             Add(l, "Mexico", DesignTab.Nations, px =>
             {
                 VTriband(px, C(0, 104, 71), White, C(206, 17, 38));
-                Disc(px, W / 2, RegionH / 2, 16, C(120, 80, 40));
+                // Best-effort coat of arms: an eagle on a nopal over water. Approximate with a
+                // brown eagle body + spread wings, green cactus pad below, and a small blue arc.
+                int cx = W / 2, cy = RegionH / 2;
+                Color32 brown = C(105, 70, 38), cactus = C(40, 120, 55), water = C(70, 120, 190);
+                Disc(px, cx, cy - 4, 8, brown);                       // eagle body
+                Tri(px, cx, cy + 2, cx - 22, cy + 20, cx - 6, cy + 6, brown);   // left wing
+                Tri(px, cx, cy + 2, cx + 22, cy + 20, cx + 6, cy + 6, brown);   // right wing
+                Tri(px, cx + 6, cy - 4, cx + 16, cy - 2, cx + 6, cy + 2, brown); // beak/head
+                Disc(px, cx, cy - 16, 6, cactus);                     // nopal pad
+                Disc(px, cx - 9, cy - 14, 4, cactus);
+                Disc(px, cx + 9, cy - 14, 4, cactus);
+                Ring(px, cx, cy - 22, 16, 13, water);                 // water/laurel arc hint
             });
         }
 
@@ -632,13 +917,33 @@ namespace Trickshot
 
             Add(l, "Lightning Bolt", DesignTab.Bold, px =>
             {
-                FillRegion(px, C(20, 20, 40));
-                float[] vx = { 150, 108, 140, 104, 128, 168 };
-                float[] vy = { 236, 138, 138, 22, 128, 128 };
-                Color32 bolt = C(255, 224, 60);
-                for (int y = 22; y <= 236; y++)
-                    for (int x = 104; x <= 168; x++)
-                        if (PointInPoly(x + 0.5f, y + 0.5f, vx, vy)) px(x, y, bolt);
+                // Stormy sky gradient (dark indigo at the bottom to near-black at the top).
+                Gradient(px, C(30, 32, 62), C(8, 8, 20));
+                // The bolt is a zig-zag centreline stamped with thick discs, so it is always a
+                // clean continuous shape. Three passes: a wide soft blue glow, a mid amber
+                // body, and a thin bright-white core, for a lit, glowing look. Top = high y.
+                var pts = new (int x, int y)[]
+                {
+                    (150, 244), (108, 156), (140, 150), (96, 60)
+                };
+                void Stroke(int rad, Color32 col)
+                {
+                    for (int s = 0; s < pts.Length - 1; s++)
+                    {
+                        var a = pts[s]; var b = pts[s + 1];
+                        int steps = Mathf.Max(Mathf.Abs(b.x - a.x), Mathf.Abs(b.y - a.y));
+                        for (int t = 0; t <= steps; t++)
+                        {
+                            int x = a.x + (b.x - a.x) * t / steps;
+                            int y = a.y + (b.y - a.y) * t / steps;
+                            Disc(px, x, y, rad, col);
+                        }
+                    }
+                }
+                Stroke(22, C(70, 90, 200));    // outer glow (blue-violet)
+                Stroke(13, C(120, 150, 255));  // inner glow
+                Stroke(11, C(255, 196, 40));   // amber body
+                Stroke(4, C(255, 248, 170));   // hot white-yellow core
             });
 
             Add(l, "Galaxy", DesignTab.Bold, px =>
