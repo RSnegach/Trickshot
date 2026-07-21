@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace Trickshot
@@ -62,6 +63,13 @@ namespace Trickshot
         Design _selectedDesign;
         DesignTab _designTab = DesignTab.Nations;
         Vector2 _designScroll;
+
+        // Eyedropper: when armed, the NEXT left-click anywhere on screen sets the brush colour
+        // to the exact pixel under the cursor (read back from the screen), then disarms.
+        bool _eyedropper;
+        bool _picking;   // true while the end-of-frame screen read is in flight
+        // Colour of the baked name + number on the back (player-chosen). White default.
+        Color _identityColor = Color.white;
 
         // Mouse-wheel-click drag resizes the brush (drag left smaller, right bigger).
         bool _resizingBrush;
@@ -219,8 +227,10 @@ namespace Trickshot
 
         void DrawGlyph(Color32[] buf, int regionY0, byte[] rows, int gx, int gy, int scale, bool outline)
         {
-            Color32 ink = new Color32(255, 255, 255, 255);
-            Color32 edge = new Color32(20, 20, 20, 255);
+            Color32 ink = _identityColor;   // player-chosen name/number colour (white default)
+            // Dark outline normally; if the ink is itself very dark, outline in white so it reads.
+            float lum = _identityColor.r * 0.299f + _identityColor.g * 0.587f + _identityColor.b * 0.114f;
+            Color32 edge = lum < 0.35f ? new Color32(235, 235, 235, 255) : new Color32(20, 20, 20, 255);
             for (int r = 0; r < 7; r++)
             {
                 byte mask = rows[r];
@@ -640,6 +650,22 @@ namespace Trickshot
             var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
             float lx = x + 28f, top = y + 58f;
 
+            // Eyedropper: while armed, the FIRST left-click anywhere grabs the exact screen
+            // pixel under the cursor. Handled before any other control so it wins the click.
+            if (_eyedropper && !_picking)
+            {
+                Event ee = Event.current;
+                if (ee.type == EventType.MouseDown && ee.button == 0)
+                {
+                    StartCoroutine(PickScreenPixel(ee.mousePosition));
+                    ee.Use();
+                }
+                // Crosshair-ish cursor hint follows the mouse.
+                var hintR = new Rect(Event.current.mousePosition.x + 12f, Event.current.mousePosition.y + 12f, 120f, 18f);
+                var hs = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+                GUI.Label(hintR, "pick a colour", hs);
+            }
+
             // --- FRONT / BACK draw-side tabs above the canvas ---
             float canvasSize = 260f;
             float halfTab = (canvasSize - 6f) * 0.5f;
@@ -658,6 +684,14 @@ namespace Trickshot
             HandleBrushResize(canvasRect);
             DrawBrushCursor(canvasRect, canvasSize);
 
+            // Undo / Clear overlaid at the TOP-RIGHT corner of the canvas.
+            var miniBtn = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
+            float ubw = 56f, ubh = 22f, ugap = 4f;
+            var clearR = new Rect(canvasRect.xMax - ubw - 4f, canvasRect.y + 4f, ubw, ubh);
+            var undoR = new Rect(clearR.x - ubw - ugap, canvasRect.y + 4f, ubw, ubh);
+            if (GUI.Button(undoR, "Undo", miniBtn)) Undo();
+            if (GUI.Button(clearR, "Clear", miniBtn)) ClearPaint();
+
             // --- Tools column (right of the canvas) ---
             float tx = lx + canvasSize + 16f, tw = (x + pw - 28f) - tx, tr = top;
             GUI.Label(new Rect(tx, tr, tw, 18f), "Color", st); tr += 20f;
@@ -667,11 +701,22 @@ namespace Trickshot
             HandleWheel(wheelRect);
             tr += wheelSize + 8f;
 
-            // Current color swatch.
+            // Current color swatch + eyedropper icon button beside it.
             var prev = GUI.color; GUI.color = _brushColor;
             GUI.DrawTexture(new Rect(tx, tr, 40f, 20f), Texture2D.whiteTexture);
             GUI.color = prev;
             GUI.Box(new Rect(tx, tr, 40f, 20f), GUIContent.none);
+            EnsureEyedropperIcon();
+            var edRect = new Rect(tx + 48f, tr - 4f, 28f, 28f);   // square button sized to the icon
+            if (GUI.Button(edRect, GUIContent.none)) _eyedropper = !_eyedropper;
+            // Highlight ring when armed.
+            if (_eyedropper)
+            {
+                var hc = GUI.color; GUI.color = new Color(1f, 0.9f, 0.3f);
+                DrawRectOutline(edRect, 2f); GUI.color = hc;
+            }
+            // Draw the icon inset within the button.
+            GUI.DrawTexture(new Rect(edRect.x + 4f, edRect.y + 4f, 20f, 20f), _eyedropperIcon);
             tr += 30f;
 
             GUI.Label(new Rect(tx, tr, tw, 18f), $"Brush size: {_brushSize:0}", st); tr += 20f;
@@ -679,16 +724,44 @@ namespace Trickshot
             GUI.Label(new Rect(tx, tr, tw, 18f), $"Opacity: {_brushOpacity:0.00}", st); tr += 20f;
             _brushOpacity = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushOpacity, 0.1f, 1f); tr += 28f;
 
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            if (GUI.Button(new Rect(tx, tr, tw * 0.48f, 26f), "Undo", btn)) Undo();
-            if (GUI.Button(new Rect(tx + tw * 0.52f, tr, tw * 0.48f, 26f), "Clear", btn)) ClearPaint();
-            tr += 32f;
-            GUI.Label(new Rect(tx, tr, tw, 46f), "Drag to paint the " + (_drawSide == 1 ? "BACK" : "FRONT")
-                      + ". Wheel-button drag resizes the brush.", st);
+            // (Name/number colour is chosen on the NAME stage, to the right of the back preview.)
 
             // --- Predrawn design picker (tabs + swatch grid) below the canvas ---
             float pickTop = top + canvasSize + 10f;
             DesignPicker(lx, pickTop, pw - 56f, (y + ph - 52f) - pickTop);
+        }
+
+        // Set the name/number colour and re-bake identity so it updates live on the model.
+        void SetIdentityColor(Color c)
+        {
+            _identityColor = new Color(c.r, c.g, c.b, 1f);
+            // Rebuild the base layer (design + freshly-coloured identity) and reset paint on top,
+            // matching how ApplyDesign refreshes the live canvas.
+            BuildCanvas();
+        }
+
+        // Read the exact colour of the screen pixel under `guiPos` (GUI coords, y-down) at the
+        // end of the frame, set the brush colour to it, and disarm the eyedropper. ReadPixels
+        // must run after the frame has rendered, hence the WaitForEndOfFrame.
+        IEnumerator PickScreenPixel(Vector2 guiPos)
+        {
+            _picking = true;
+            yield return new WaitForEndOfFrame();
+            int sx = Mathf.Clamp(Mathf.RoundToInt(guiPos.x), 0, Screen.width - 1);
+            int sy = Mathf.Clamp(Mathf.RoundToInt(Screen.height - 1 - guiPos.y), 0, Screen.height - 1); // GUI y-down -> screen y-up
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(sx, sy, 1, 1), 0, 0);
+            tex.Apply();
+            Color picked = tex.GetPixel(0, 0);
+            Destroy(tex);
+            // In a LINEAR colour-space project the framebuffer stores linear values, so a raw
+            // read reinterpreted as sRGB looks too dark. Convert linear -> sRGB (.gamma) to
+            // match what the eye saw on screen. No-op in a Gamma project.
+            if (QualitySettings.activeColorSpace == ColorSpace.Linear)
+                picked = picked.gamma;
+            _brushColor = new Color(picked.r, picked.g, picked.b, 1f);
+            _eyedropper = false;
+            _picking = false;
         }
 
         // A FRONT/BACK tab button. Selected = bright fill + gold outline.
@@ -852,6 +925,50 @@ namespace Trickshot
             GUI.color = prev;
         }
 
+        // Procedural eyedropper icon (transparent PNG-style texture): a diagonal dropper with
+        // a squeeze bulb at the top-right and the pointed tip at the lower-left. Built once.
+        Texture2D _eyedropperIcon;
+        void EnsureEyedropperIcon()
+        {
+            if (_eyedropperIcon != null) return;
+            const int n = 32;
+            var px = new Color32[n * n];
+            Color32 clear = new Color32(0, 0, 0, 0);
+            Color32 metal = new Color32(225, 228, 235, 255);   // barrel
+            Color32 dark = new Color32(120, 128, 140, 255);    // outline/shadow
+            Color32 bulb = new Color32(70, 130, 210, 255);     // squeeze bulb (blue)
+            for (int i = 0; i < px.Length; i++) px[i] = clear;
+            // Barrel: a thick diagonal from lower-left tip (~4,4) to upper-right (~24,24).
+            // Note: texture is y-up. We draw the dropper going up-right.
+            for (int t = 0; t <= 26; t++)
+            {
+                float f = t / 26f;
+                int cx = Mathf.RoundToInt(Mathf.Lerp(4f, 23f, f));
+                int cy = Mathf.RoundToInt(Mathf.Lerp(4f, 23f, f));
+                int rad = (t < 4) ? 1 : 2;   // taper to a point at the tip
+                for (int dy = -rad; dy <= rad; dy++)
+                    for (int dx = -rad; dx <= rad; dx++)
+                    {
+                        int x = cx + dx, y = cy + dy;
+                        if (x < 0 || x >= n || y < 0 || y >= n) continue;
+                        px[y * n + x] = (Mathf.Abs(dx) == rad || Mathf.Abs(dy) == rad) ? dark : metal;
+                    }
+            }
+            // Squeeze bulb: a filled disc at the top-right end.
+            int bx = 25, by = 25, br = 5;
+            for (int y = by - br; y <= by + br; y++)
+                for (int x = bx - br; x <= bx + br; x++)
+                {
+                    if (x < 0 || x >= n || y < 0 || y >= n) continue;
+                    int d2 = (x - bx) * (x - bx) + (y - by) * (y - by);
+                    if (d2 <= br * br) px[y * n + x] = bulb;
+                    else if (d2 <= (br + 1) * (br + 1)) px[y * n + x] = dark;
+                }
+            _eyedropperIcon = new Texture2D(n, n, TextureFormat.RGBA32, false);
+            _eyedropperIcon.SetPixels32(px);
+            _eyedropperIcon.Apply();
+        }
+
         void HandlePaint(Rect canvasRect)
         {
             Event e = Event.current;
@@ -947,17 +1064,54 @@ namespace Trickshot
             _number = Mathf.RoundToInt(n);
             row += 44f;
 
-            // Preview of the back: base jersey color with the number + name.
+            // Preview of the back: base jersey color with the number + name, in the chosen
+            // name/number colour.
             var preview = new Rect(lx, row, 200f, 240f);
             var prev = GUI.color; GUI.color = PlayerProfile.JerseyBase;
             GUI.DrawTexture(preview, Texture2D.whiteTexture);
             GUI.color = prev;
             GUI.Box(preview, GUIContent.none);
-            var numStyle = new GUIStyle(GUI.skin.label) { fontSize = 90, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var numStyle = new GUIStyle(GUI.skin.label) { fontSize = 90, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _identityColor } };
             GUI.Label(new Rect(preview.x, preview.y + 40f, preview.width, 120f), _number.ToString(), numStyle);
-            var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _identityColor } };
             GUI.Label(new Rect(preview.x, preview.y + 12f, preview.width, 30f), (_name ?? "").ToUpper(), nameStyle);
+
+            // Name/number colour picker, to the RIGHT of the back preview.
+            float cxp = preview.xMax + 24f, cyp = preview.y, cw = (x + pw - 30f) - cxp;
+            if (cw > 90f)
+            {
+                GUI.Label(new Rect(cxp, cyp, cw, 22f), "Name / number colour", st);
+                var swatches = new (string n, Color c)[]
+                {
+                    ("White",  Color.white),
+                    ("Black",  new Color(0.10f, 0.10f, 0.11f)),
+                    ("Gold",   new Color(1f, 0.81f, 0.16f)),
+                    ("Red",    new Color(0.82f, 0.12f, 0.16f)),
+                    ("Royal",  new Color(0.11f, 0.29f, 0.78f)),
+                    ("Green",  new Color(0.10f, 0.60f, 0.30f)),
+                    ("Sky",    new Color(0.42f, 0.72f, 0.93f)),
+                    ("Silver", new Color(0.75f, 0.76f, 0.80f)),
+                };
+                float sw = 34f, sgap = 8f, syp = cyp + 28f;
+                int cols = Mathf.Max(1, Mathf.FloorToInt((cw + sgap) / (sw + sgap)));
+                for (int i = 0; i < swatches.Length; i++)
+                {
+                    float bx = cxp + (i % cols) * (sw + sgap);
+                    float by2 = syp + (i / cols) * (sw + sgap);
+                    var sr = new Rect(bx, by2, sw, sw);
+                    var pc = GUI.color; GUI.color = swatches[i].c;
+                    GUI.DrawTexture(sr, Texture2D.whiteTexture);
+                    bool sel = ApproxColor(_identityColor, swatches[i].c);
+                    GUI.color = sel ? new Color(1f, 0.9f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                    DrawRectOutline(sr, sel ? 3f : 1f);
+                    GUI.color = pc;
+                    if (GUI.Button(sr, GUIContent.none, GUIStyle.none)) SetIdentityColor(swatches[i].c);
+                }
+            }
         }
+
+        static bool ApproxColor(Color a, Color b)
+            => Mathf.Abs(a.r - b.r) < 0.04f && Mathf.Abs(a.g - b.g) < 0.04f && Mathf.Abs(a.b - b.b) < 0.04f;
 
         // -------------------------------------------------------------- Nav
         void NavButtons(float x, float y, float pw, float ph)
