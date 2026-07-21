@@ -469,8 +469,9 @@ namespace Trickshot
 
             Add(l, "Japan", DesignTab.Nations, px =>
             {
+                // Hinomaru: red disc diameter = 3/5 of the flag height -> radius ~= 0.3*RegionH.
                 FillRegion(px, White);
-                Disc(px, W / 2, RegionH / 2, 52, C(188, 0, 45));
+                Disc(px, W / 2, RegionH / 2, 77, C(188, 0, 45));
             });
 
             Add(l, "Bangladesh", DesignTab.Nations, px =>
@@ -496,8 +497,21 @@ namespace Trickshot
 
             Add(l, "Jamaica", DesignTab.Nations, px =>
             {
-                FillRegion(px, C(0, 150, 57));
-                Saltire(px, C(255, 209, 0), 14);
+                // Gold saltire splits the flag into 4 triangles: green top+bottom,
+                // black hoist+fly (left+right). The wedge boundaries are the same two
+                // diagonals the Saltire helper draws (y=x and x+y=RegionH-1).
+                Color32 green = C(0, 155, 58), gold = C(255, 209, 0);
+                int n = RegionH - 1;
+                for (int y = 0; y < RegionH; y++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        bool aboveRising = y > x;          // vs the y=x diagonal
+                        bool aboveFalling = (x + y) > n;   // vs the y=n-x diagonal
+                        bool leftWedge = aboveRising && !aboveFalling;   // hoist triangle
+                        bool rightWedge = !aboveRising && aboveFalling;  // fly triangle
+                        px(x, y, (leftWedge || rightWedge) ? Black : green);
+                    }
+                Saltire(px, gold, 14);
             });
 
             Add(l, "Brazil", DesignTab.Nations, px =>
