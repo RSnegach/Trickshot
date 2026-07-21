@@ -38,10 +38,9 @@ namespace Trickshot
             public int   GridY;       // tier row (0 = root at top)
         }
 
-        // Fixed pool: enough to fully build one category (three branches to a capstone ~= 30)
-        // plus a real dip elsewhere - never max everything. Raised for the 7th (Passing) area,
-        // then +12 more so players can invest across more branches.
-        public const int Budget = 58;
+        // Fixed pool. 100 points: buy nearly half of the whole tree (total cost of every node
+        // is 216), so players can fully build a couple of categories and dip into others.
+        public const int Budget = 100;
 
         public static readonly HashSet<string> Owned = new HashSet<string>();
 
