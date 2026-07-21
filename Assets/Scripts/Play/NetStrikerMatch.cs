@@ -66,6 +66,10 @@ namespace Trickshot
         // Per-machine post-goal replay (each peer replays its own local view).
         ReplaySystem _replay;
         bool _replaying;
+        // Host-only: after a goal, keep playing live for ReplayHold seconds (the recorder keeps
+        // buffering the ball settling in the net) before freezing + rolling the replay, so most
+        // of the replay is AFTER the ball crosses the line. >0 = counting down to BeginReplay.
+        float _goalHold;
 
         public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball, Crosser crosser,
                               AimReticle reticle, Transform launch,
@@ -290,7 +294,7 @@ namespace Trickshot
             // R: multiplayer re-serves the shared ball to the crosser (host-authoritative);
             // no player reset. (Single-player R still fully resets via GameManager.)
             // A human crosser shouldn't auto-refill the ball on R (they deliver manually).
-            if (_input.ResetPressed && _s.IsHost && _crosser.AutoServe) { _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
+            if (_input.ResetPressed && _s.IsHost && _crosser.AutoServe) { _goalHold = 0f; _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
 
             // Local crosser: M toggles the cross-targeting map (freeze aim, free the cursor).
             if (_localIsCrosser && _input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
@@ -334,6 +338,20 @@ namespace Trickshot
 
         void HostUpdate()
         {
+            // Post-goal hold: freeze GAMEPLAY (no crosser serve, no controllers, no re-detect)
+            // but keep physics + the recorder running and keep publishing snapshots, so the
+            // ball settles in the net on-screen and the replay window captures AFTER the line.
+            // Mirrors the single-player hold (GameManager returns early during _replayHold). The
+            // crosser must NOT tick here or its auto-serve could yank the shared ball out of the
+            // net mid-hold and corrupt the replay.
+            if (_goalHold > 0f)
+            {
+                _goalHold -= Time.deltaTime;
+                if (_goalHold <= 0f) _s.BeginReplay();
+                PublishSnapshotIfDue();
+                return;
+            }
+
             // Feed remote slots' latest input, tick their controllers + the AI keeper.
             for (int i = 0; i < _bodies.Length; i++)
             {
@@ -355,13 +373,22 @@ namespace Trickshot
             // shooter pressing Q/E asks for a low/high ball to their feet. Host-authoritative.
             if (_crosser.AutoServe && _crosser.ReadyToServe) HostCheckCallForPass();
 
-            // Crosser + ball + goal detection (authoritative). A goal rolls the replay for
-            // everyone (OnReplayEnded re-arms the crosser + ball afterward).
+            // Crosser + ball + goal detection (authoritative). A goal starts the LIVE hold above.
             if (_crosser.Tick()) Flash("CROSS!");
             Vector3 c = _ball.transform.position;
-            if (BallInGoal(c)) { _goals++; _s.BroadcastEvent("GOAL!"); _s.BeginReplay(); }
+            if (!_replaying && BallInGoal(c))
+            {
+                _goals++; _s.BroadcastEvent("GOAL!"); _goalHold = SimConfig.ReplayHold;
+            }
 
-            // Publish a snapshot every fixed-ish step (throttled).
+            PublishSnapshotIfDue();
+        }
+        float _snapAccum;
+
+        // Publish a snapshot every fixed-ish step (throttled). Called from the normal host tick
+        // AND during the post-goal hold, so clients keep seeing the ball settle in the net.
+        void PublishSnapshotIfDue()
+        {
             _snapAccum += Time.deltaTime;
             if (_snapAccum >= SimConfig.NetSnapshotInterval)
             {
@@ -371,7 +398,6 @@ namespace Trickshot
                 _tick++;
             }
         }
-        float _snapAccum;
 
         void ClientUpdate()
         {

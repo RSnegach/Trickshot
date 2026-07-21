@@ -90,6 +90,10 @@ namespace Trickshot
         float _hScale = 1f, _gScale = 1f, _massMul = 1f;
         public float HeightScale => _hScale;
 
+        // Keeper-only extra hitbox thickness: the keeper (withGloves) gets fatter arm/leg/foot
+        // colliders than the striker so saves connect off any limb. 1 = no boost (striker).
+        float _keeperHb = 1f;
+
         // ---------------------------------------------------------------- build
         // Build the player with a custom height/girth/mass from a PlayerProfile-style set
         // of scales, then delegate to the normal Build. Only the player striker uses this;
@@ -108,6 +112,9 @@ namespace Trickshot
                           bool withGloves = true)
         {
             FacingRotation = facing;
+            // The keeper (withGloves) gets extra-thick limb hitboxes so any bit of arm/leg/foot
+            // stops the ball. The striker keeps its normal (already-fattened) hitboxes.
+            _keeperHb = withGloves ? SimConfig.KeeperHitboxBoost : 1f;
 
             _targetRoot = Make.Empty("TargetSkeleton", basePos, transform).transform;
             _targetRoot.rotation = facing;
@@ -157,8 +164,9 @@ namespace Trickshot
                      1f, new Vector3(0f, -0.05f, 0.12f));
 
             // Leg hitboxes are fattened (LegHitboxScale) beyond the visible leg so the ball
-            // connects off the legs reliably instead of clipping through.
-            float legHb = SimConfig.LegHitboxScale;
+            // connects off the legs reliably instead of clipping through. The keeper fattens
+            // them further still (_keeperHb) so a save connects off any part of the leg.
+            float legHb = SimConfig.LegHitboxScale * _keeperHb;
             MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat, legHb);
             MakePart(Bone.ThighR, Phys(Bone.Pelvis), basePos + Off(0.11f, 0.73f, 0f), facing,
@@ -172,10 +180,11 @@ namespace Trickshot
             // Small, low-profile feet visually, but a ~1.6x larger collider (last arg)
             // so the ball connects off the foot more easily.
             // Foot rest offset (0.06, 0.06) matches ResetTo so a round reset doesn't pop.
+            float footHb = 1.6f * _keeperHb;   // keeper feet fatter still
             MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.06f, 0.06f), facing,
-                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
+                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, footHb);
             MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.06f, 0.06f), facing,
-                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, 1.6f);
+                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, footHb);
             // Frictionless feet: grounding is a pelvis SphereCast (not foot contact), so
             // slick feet slide over the turf instead of catching and making the run janky.
             // Minimum friction-combine forces the contact to ~0 regardless of turf value.
@@ -190,7 +199,7 @@ namespace Trickshot
             // pre-stress the shoulder/elbow joints, which girth scaling would amplify).
             // Arm HITBOXES are fattened (colliderScale ArmHitboxScale) beyond the thin
             // visible arm so the ball stops phasing through the keeper's arms.
-            float armHb = SimConfig.ArmHitboxScale;
+            float armHb = SimConfig.ArmHitboxScale * _keeperHb;
             MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat, armHb);
             MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
@@ -237,7 +246,10 @@ namespace Trickshot
             var sc = glove.GetComponent<SphereCollider>();  // keep + use as the hitbox
             if (sc != null)
             {
-                sc.radius = 0.5f;   // local; *0.32 scale -> ~0.16 world radius, a chunky glove
+                // Local radius; *0.32 scale. Boosted by _keeperHb AND an extra glove-reach
+                // factor so the hand hitbox reaches well past the visible glove - a dive
+                // connects on a near-miss for more dramatic saves.
+                sc.radius = 0.5f * _keeperHb * SimConfig.KeeperGloveReach;
                 _ownColliders.Add(sc);
                 // Ignore collisions with every existing own-collider (self-collision).
                 for (int i = 0; i < _ownColliders.Count - 1; i++)

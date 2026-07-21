@@ -333,6 +333,13 @@ namespace Trickshot
         // (torso/pelvis) touch is scrappy and inaccurate. Head is handled by heading rules.
         public const float ArmHitboxScale = 1.9f;    // arm collider radius vs the thin visible arm (stops ball phasing)
         public const float LegHitboxScale = 1.6f;    // keeper/striker leg collider radius vs the visible leg
+        // The keeper multiplies its arm/leg/foot/glove hitboxes by this on top of the base
+        // scales, so every limb is chunkier than the visible body part and saves connect off
+        // any part of an arm, leg, hand, or foot. Striker keeps the base scales (boost = 1).
+        public const float KeeperHitboxBoost = 1.6f;
+        // Extra reach on the keeper's GLOVES (hands) on top of KeeperHitboxBoost, so a dive
+        // connects on a near-miss for more dramatic saves. 1.35 * 1.6 base -> a big catch radius.
+        public const float KeeperGloveReach = 1.35f;
         public const float StrongFootAccuracy = 1.0f;
         public const float WeakFootAccuracy   = 0.3f;    // weak leg/foot: much less accurate
         public const float WeakFootPowerMul   = 0.6f;    // and weaker
@@ -470,10 +477,14 @@ namespace Trickshot
 
         // ---- Post-goal replay ----
         // On-screen replay duration = ReplayWindow / ReplaySlowMul. 2s of real action played
-        // at 0.36x slow-mo = ~5.5s on screen, all slowed (2s longer than the old ~3.5s).
+        // at 0.36x slow-mo = ~5.5s on screen, all slowed.
         public const float ReplayWindow   = 2f;     // seconds of action buffered for the replay
         public const float ReplaySlowMul  = 0.36f;  // playback speed (0..1); 2/0.36 = ~5.5s watched
-        public const float ReplayHold     = 0.5f;  // pause after the goal before the replay rolls
+        // Live delay after the goal before the replay freezes + rolls. Physics keeps running
+        // (and the recorder keeps buffering) during it, so a bigger hold pushes the captured
+        // 2s window LATER - most of the replay ends up AFTER the ball crosses the line. At
+        // 1.3s the window is roughly [goal-0.7s .. goal+1.3s].
+        public const float ReplayHold     = 1.3f;
 
         // ---- Networking (host-authoritative snapshot sync) ----
         public const float NetSnapshotInterval = 0.05f;  // host broadcasts ~20 snapshots/sec
