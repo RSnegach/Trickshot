@@ -351,9 +351,16 @@ namespace Trickshot
         // shot; the goal-assist starts near zero and scales up hard with Shooting accuracy, so
         // default free kicks are tough + rewarding and an invested striker can curl one in.
         public const float SetPieceLoft        = 0.35f;  // extra up-velocity as a fraction of horizontal speed
-        public const float SetPieceCurl        = 7.0f;   // base lateral curl accel toward goal (x ShotPowerMul)
+        public const float SetPieceCurl        = 7.0f;   // base curl accel (x ShotPowerMul)
         public const float SetPieceAssistFloor = 0.08f;  // goal-steer with NO shooting investment (near zero)
         public const float SetPieceAssistMax   = 0.9f;   // goal-steer fully invested in Shooting accuracy
+        // Spin is chosen by WHERE the ball is struck (contact point in the shot frame):
+        public const float SetPieceSideThresh  = 0.30f;  // |side dot| beyond this -> side spin (curls opposite)
+        public const float SetPieceTopThresh   = 0.45f;  // struck-height dot above this -> top spin (dips)
+        public const float SetPieceTopSpinMul  = 0.8f;   // downward-curl strength for top spin (x base curl)
+        public const float SetPieceKnuckleVert = -0.10f; // struck at/below this height = the knuckle zone
+        public const float SetPieceKnuckleChance = 0.3333f; // ~1/3 of middle/bottom strikes knuckle
+        public const float SetPieceKnuckleMul  = 0.5f;   // wobble strength of a knuckle (x base curl)
 
         // ---- Kick vs. run-into: only a SWINGING leg imparts real power ----
         // The struck bone's own speed decides how live the touch is. A kick swings the
