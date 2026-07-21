@@ -91,22 +91,37 @@ namespace Trickshot
                 var slot = roster[i];
                 bool isMe = slot.slot == _s.LocalSlot;
                 string role = RoleName(slot.role, slot.slot);
-                string who = slot.human ? slot.name : "AI";
+                // Row occupant: human name, "Clanker N", or "Open" (all baked into slot.name).
+                string who = slot.name;
                 var rowBg = GUI.color; if (isMe) { GUI.color = new Color(0.16f, 0.3f, 0.5f, 0.6f); GUI.DrawTexture(new Rect(lx - 6f, row, lw + 12f, rowH - 2f), Texture2D.whiteTexture); GUI.color = rowBg; }
 
-                GUI.Label(new Rect(lx, row, lw * 0.55f, rowH), $"{role}:  {who}{(isMe ? "  (you)" : "")}", name);
+                GUI.Label(new Rect(lx, row, lw * 0.5f, rowH), $"{role}:  {who}{(isMe ? "  (you)" : "")}", name);
 
-                // A free (AI-held) slot is claimable: click to pick that role. Your own slot
-                // and slots held by another human are not buttons.
-                if (!slot.human && !isMe)
+                if (slot.human)
                 {
-                    if (GUI.Button(new Rect(lx + lw - 92f, row + 2f, 92f, rowH - 6f), "Claim", claimBtn))
-                        _s.RequestSlot(slot.slot);
+                    // Human-held: show ready state (no buttons on someone else's row).
+                    tag.normal.textColor = slot.ready ? new Color(0.35f, 0.85f, 0.45f) : new Color(0.9f, 0.6f, 0.3f);
+                    GUI.Label(new Rect(lx, row, lw, rowH), slot.ready ? "READY" : "not ready", tag);
                 }
                 else
                 {
-                    tag.normal.textColor = slot.human ? (slot.ready ? new Color(0.35f, 0.85f, 0.45f) : new Color(0.9f, 0.6f, 0.3f)) : new Color(0.65f, 0.66f, 0.7f);
-                    GUI.Label(new Rect(lx, row, lw, rowH), slot.human ? (slot.ready ? "READY" : "not ready") : "(AI fills)", tag);
+                    // Non-human slot. The host gets a per-slot AI On/Off toggle; anyone (not
+                    // already here) can Claim it to take that role themselves.
+                    float bx = lx + lw;
+                    if (!isMe)
+                    {
+                        bx -= 92f;
+                        if (GUI.Button(new Rect(bx, row + 2f, 92f, rowH - 6f), "Claim", claimBtn))
+                            _s.RequestSlot(slot.slot);
+                    }
+                    if (_s.IsHost)
+                    {
+                        bx -= 84f;
+                        var aiBtn = new GUIStyle(claimBtn);
+                        aiBtn.normal.textColor = slot.ai ? new Color(0.4f, 0.85f, 0.5f) : new Color(0.7f, 0.72f, 0.78f);
+                        if (GUI.Button(new Rect(bx, row + 2f, 80f, rowH - 6f), slot.ai ? "AI: On" : "AI: Off", aiBtn))
+                            _s.SetSlotAi(slot.slot, !slot.ai);
+                    }
                 }
                 row += rowH;
             }

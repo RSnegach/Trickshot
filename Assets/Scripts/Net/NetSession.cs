@@ -47,6 +47,10 @@ namespace Trickshot.Net
         // ---- lobby state ----
         readonly string[] _slotName = new string[MaxSlots];
         readonly bool[] _slotReady = new bool[MaxSlots];
+        // Host-only: per-slot AI enable. A non-human slot with _slotAi[i] true is an AI
+        // ("Clanker"); false = an open, unfilled slot. Defaults all-on (AI fills by default;
+        // the host toggles individual slots off in the lobby).
+        readonly bool[] _slotAi = new bool[MaxSlots];
         public MatchConfig Config;                 // host authors it; clients receive it
         public LobbySlot[] Roster { get; private set; } = new LobbySlot[0];   // client mirror + host snapshot
         public bool MatchStarted { get; private set; }
@@ -77,7 +81,7 @@ namespace Trickshot.Net
         // ---- lifecycle ----
         public void Host(int maxPlayers)
         {
-            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; }
+            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = true; }
             Transport.StartHost(Mathf.Clamp(maxPlayers, 1, MaxSlots));
             // The host takes a slot immediately. Default: host is a shooter (slot 1) so the
             // keeper (slot 0) can be a joining human or AI; a striker-only host with no
@@ -106,6 +110,26 @@ namespace Trickshot.Net
         }
 
         public bool LocalReady => LocalSlot >= 0 && LocalSlot < MaxSlots && _slotReady[LocalSlot];
+
+        // Host: toggle AI on/off for a non-human slot (the lobby's per-slot AI button). A slot
+        // a human holds is never affected. Re-pushes the roster so everyone sees the change.
+        // Host-authoritative: clients only render the state, they don't call this.
+        public void SetSlotAi(int slot, bool on)
+        {
+            if (!IsHost || slot < 0 || slot >= MaxSlots) return;
+            if (_slotOwner[slot].IsValid) return;   // human-held: leave it
+            _slotAi[slot] = on;
+            PushRoster();
+        }
+
+        // The current roster row for a slot (authoritative on host + client), or a default
+        // (all-false) LobbySlot if out of range. Drivers read this to decide spawn/AI/empty.
+        public LobbySlot RosterSlot(int slot)
+        {
+            var r = Roster;
+            if (r != null) for (int i = 0; i < r.Length; i++) if (r[i].slot == slot) return r[i];
+            return default;
+        }
 
         // Host: are all HUMAN-held slots ready? (AI slots don't gate.)
         public bool AllReady()
@@ -330,12 +354,17 @@ namespace Trickshot.Net
         void RebuildRoster()
         {
             var list = new List<LobbySlot>();
+            int clanker = 0;                     // AI slots numbered 1..N in ascending slot order
             for (int i = 0; i < MaxSlots; i++)
             {
                 bool human = _slotOwner[i].IsValid;
-                list.Add(new LobbySlot { slot = (byte)i, human = human, ready = _slotReady[i],
-                                         role = (byte)RoleOfSlot(i),
-                                         name = human ? (_slotName[i] ?? "PLAYER") : "AI" });
+                bool ai = !human && _slotAi[i];  // a non-human slot the host left AI-on
+                string name;
+                if (human) name = _slotName[i] ?? "PLAYER";
+                else if (ai) name = "Clanker " + (++clanker);
+                else name = "Open";              // unfilled, AI toggled off
+                list.Add(new LobbySlot { slot = (byte)i, human = human, ai = ai, ready = _slotReady[i],
+                                         role = (byte)RoleOfSlot(i), name = name });
             }
             Roster = list.ToArray();
         }
