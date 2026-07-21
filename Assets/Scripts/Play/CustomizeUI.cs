@@ -34,17 +34,34 @@ namespace Trickshot
         string _name;
         int _number;
 
-        // ---- Jersey canvas ----
-        const int TexSize = 256;         // jersey texture resolution
-        Texture2D _canvas;               // the painted jersey (front + back share it)
+        // ---- Jersey canvas (ATLAS) ----
+        // The jersey texture is a 256x520 atlas with two stacked 256x256 drawable regions:
+        // BACK (bottom) and FRONT (above), plus a small plain band on top the side faces
+        // sample. Region layout constants live in JerseyDesigns (single source of truth,
+        // shared with the torso UV mapping in Make.JerseyBox).
+        const int RegW = JerseyDesigns.W;          // 256, region width = atlas width
+        const int RegH = JerseyDesigns.RegionH;    // 256, region height
+        const int AtlasH = JerseyDesigns.AtlasH;   // 520, full atlas height
+        const int BackY0 = JerseyDesigns.BackY0;   // 0
+        const int FrontY0 = JerseyDesigns.FrontY0; // 256
+        const int PlainY0 = JerseyDesigns.PlainY0; // 512
+
+        Texture2D _canvas;               // the painted jersey atlas (front + back regions)
         Color32[] _pixels;               // CPU buffer we paint into, then Apply
-        Color32[] _baseLayer;            // jersey base + name + number, WITHOUT paint (redrawn under strokes)
+        Color32[] _baseLayer;            // jersey base + design + name + number, WITHOUT paint strokes
         Color32[] _undoPixels;           // snapshot before the current stroke
         Texture2D _wheel;                // color-wheel picker texture
         Color _brushColor = new Color(0.9f, 0.1f, 0.1f);
         float _brushSize = 10f;          // radius in texture pixels
         float _brushOpacity = 1f;
         bool _painting;
+
+        // Which region the player is currently drawing on: 0 = front, 1 = back.
+        int _drawSide;
+        // Selected predrawn design (null = none) + the picker's active tab + scroll.
+        Design _selectedDesign;
+        DesignTab _designTab = DesignTab.Nations;
+        Vector2 _designScroll;
 
         // Mouse-wheel-click drag resizes the brush (drag left smaller, right bigger).
         bool _resizingBrush;
@@ -91,16 +108,17 @@ namespace Trickshot
         {
             if (_canvas == null)
             {
-                _canvas = new Texture2D(TexSize, TexSize, TextureFormat.RGBA32, false);
+                _canvas = new Texture2D(RegW, AtlasH, TextureFormat.RGBA32, false);
                 _canvas.wrapMode = TextureWrapMode.Clamp;
             }
-            // Base layer = jersey colour + baked name + number (chosen in the prior stage).
-            // The paint is applied ON TOP of this, so Clear returns to the base (keeping
-            // the name/number) rather than a blank shirt.
-            _baseLayer = new Color32[TexSize * TexSize];
+            // Base layer = jersey colour, then (optionally) the selected predrawn design on
+            // BOTH regions, then the baked name + number on the BACK only. Paint strokes are
+            // applied ON TOP of this, so Clear returns to the base (design + name/number).
+            _baseLayer = new Color32[RegW * AtlasH];
             Color32 baseCol = PlayerProfile.JerseyBase;
             for (int i = 0; i < _baseLayer.Length; i++) _baseLayer[i] = baseCol;
-            BakeIdentity(_baseLayer);
+            if (_selectedDesign != null) _selectedDesign.Apply(_baseLayer);   // fills front + back regions
+            BakeIdentity(_baseLayer);                                         // back region only
 
             _pixels = (Color32[])_baseLayer.Clone();
             _canvas.SetPixels32(_pixels);
@@ -108,17 +126,26 @@ namespace Trickshot
             _undoPixels = (Color32[])_pixels.Clone();
         }
 
-        // Bake the number (large, centred) and name (small, above it) into the texture as
-        // block glyphs, in white with a dark outline so they read on any jersey colour.
+        // Apply a predrawn design (or null to clear back to plain): rebuild the base layer and
+        // reset the paint on top of it (per "replace, then draw over"). Live via the shared canvas.
+        void ApplyDesign(Design d)
+        {
+            _selectedDesign = d;
+            BuildCanvas();
+        }
+
+        // Bake the number (large, centred) and name (small, above it) into the BACK region
+        // only, as block glyphs, white with a dark outline so they read on any jersey colour.
+        // The back face UVs (Make.JerseyBox) are upright, so glyphs baked upright here read
+        // upright on the body (fixes the old upside-down back).
         void BakeIdentity(Color32[] buf)
         {
-            Color32 ink = new Color32(255, 255, 255, 255);
             string num = Mathf.Clamp(_number, 1, 99).ToString();
-            // Number: big glyphs centred in the lower-middle of the shirt.
-            DrawText(buf, num, TexSize / 2, (int)(TexSize * 0.42f), 9, true);
-            // Name: small glyphs across the upper-middle.
+            // Number: big glyphs centred in the lower-middle of the back.
+            DrawText(buf, BackY0, num, RegW / 2, (int)(RegH * 0.42f), 9, true);
+            // Name: small glyphs across the upper-middle of the back.
             string nm = string.IsNullOrWhiteSpace(_name) ? "" : _name.ToUpper();
-            if (nm.Length > 0) DrawText(buf, nm, TexSize / 2, (int)(TexSize * 0.72f), 3, true);
+            if (nm.Length > 0) DrawText(buf, BackY0, nm, RegW / 2, (int)(RegH * 0.72f), 3, true);
         }
 
         // A hue/saturation color wheel (value fixed at 1); click to set the brush color.
@@ -171,10 +198,10 @@ namespace Trickshot
             return f;
         }
 
-        // Draw a centred string into buf at (cx, cy) with the given per-pixel block scale.
-        // outline adds a 1-block dark border so text reads on any colour. cy is texture-space
-        // (y up). Text is drawn so cy is roughly the glyph centre.
-        void DrawText(Color32[] buf, string text, int cx, int cy, int scale, bool outline)
+        // Draw a centred string into a region of the atlas. regionY0 is the region's bottom
+        // atlas row; cx/cy are region-local (y up, 0..RegH). outline adds a dark border so
+        // text reads on any colour. cy is roughly the glyph centre.
+        void DrawText(Color32[] buf, int regionY0, string text, int cx, int cy, int scale, bool outline)
         {
             int glyphW = 5 * scale, glyphH = 7 * scale, space = scale;
             int total = text.Length * glyphW + (text.Length - 1) * space;
@@ -185,12 +212,12 @@ namespace Trickshot
             {
                 char ch = char.ToUpper(raw);
                 if (!Font.TryGetValue(ch, out var rows)) rows = Font[' '];
-                DrawGlyph(buf, rows, px, gy, scale, outline);
+                DrawGlyph(buf, regionY0, rows, px, gy, scale, outline);
                 px += glyphW + space;
             }
         }
 
-        void DrawGlyph(Color32[] buf, byte[] rows, int gx, int gy, int scale, bool outline)
+        void DrawGlyph(Color32[] buf, int regionY0, byte[] rows, int gx, int gy, int scale, bool outline)
         {
             Color32 ink = new Color32(255, 255, 255, 255);
             Color32 edge = new Color32(20, 20, 20, 255);
@@ -200,10 +227,10 @@ namespace Trickshot
                 for (int c = 0; c < 5; c++)
                 {
                     if ((mask & (1 << (4 - c))) == 0) continue;
-                    // top row (r=0) is highest in the shirt -> larger texture y.
+                    // top row (r=0) is highest in the region -> larger local y.
                     int bx = gx + c * scale;
                     int by = gy + (6 - r) * scale;
-                    if (outline) FillBlock(buf, bx - 1, by - 1, scale + 2, scale + 2, edge);
+                    if (outline) FillBlock(buf, regionY0, bx - 1, by - 1, scale + 2, scale + 2, edge);
                 }
             }
             // Second pass draws the ink so it sits over its own outline.
@@ -215,20 +242,24 @@ namespace Trickshot
                     if ((mask & (1 << (4 - c))) == 0) continue;
                     int bx = gx + c * scale;
                     int by = gy + (6 - r) * scale;
-                    FillBlock(buf, bx, by, scale, scale, ink);
+                    FillBlock(buf, regionY0, bx, by, scale, scale, ink);
                 }
             }
         }
 
-        static void FillBlock(Color32[] buf, int x0, int y0, int w, int h, Color32 col)
+        // Fill a block in region-local coords. Clamps to the region (0..RegW, 0..RegH) so
+        // glyphs never bleed into the other region or the plain band. regionY0 shifts the
+        // local rows to their atlas rows.
+        static void FillBlock(Color32[] buf, int regionY0, int x0, int y0, int w, int h, Color32 col)
         {
             for (int y = y0; y < y0 + h; y++)
             {
-                if (y < 0 || y >= TexSize) continue;
+                if (y < 0 || y >= RegH) continue;         // stay inside this region vertically
+                int ay = regionY0 + y;
                 for (int x = x0; x < x0 + w; x++)
                 {
-                    if (x < 0 || x >= TexSize) continue;
-                    buf[y * TexSize + x] = col;
+                    if (x < 0 || x >= RegW) continue;
+                    buf[ay * RegW + x] = col;
                 }
             }
         }
@@ -606,23 +637,31 @@ namespace Trickshot
         // ----------------------------------------------------------- Jersey stage
         void JerseyStage(float x, float y, float pw, float ph)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            float lx = x + 28f, top = y + 60f;
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            float lx = x + 28f, top = y + 58f;
 
-            // Canvas on the left (square), tools on the right.
-            float canvasSize = 300f;
+            // --- FRONT / BACK draw-side tabs above the canvas ---
+            float canvasSize = 260f;
+            float halfTab = (canvasSize - 6f) * 0.5f;
+            if (SideTab(new Rect(lx, top, halfTab, 24f), "FRONT", _drawSide == 0)) SetDrawSide(0);
+            if (SideTab(new Rect(lx + halfTab + 6f, top, halfTab, 24f), "BACK", _drawSide == 1)) SetDrawSide(1);
+            top += 30f;
+
+            // --- Canvas shows ONLY the active region of the atlas (front or back) ---
             var canvasRect = new Rect(lx, top, canvasSize, canvasSize);
-            GUI.DrawTexture(canvasRect, _canvas);
+            float v0 = CurRegionY0 / (float)AtlasH;
+            var texCoords = new Rect(0f, v0, 1f, RegH / (float)AtlasH);
+            GUI.DrawTextureWithTexCoords(canvasRect, _canvas, texCoords);
             GUI.Box(canvasRect, GUIContent.none);   // border
 
             HandlePaint(canvasRect);
             HandleBrushResize(canvasRect);
             DrawBrushCursor(canvasRect, canvasSize);
 
-            // Tools column.
-            float tx = lx + canvasSize + 24f, tw = pw - (canvasSize + 24f) - 56f, tr = top;
+            // --- Tools column (right of the canvas) ---
+            float tx = lx + canvasSize + 16f, tw = (x + pw - 28f) - tx, tr = top;
             GUI.Label(new Rect(tx, tr, tw, 18f), "Color", st); tr += 20f;
-            float wheelSize = Mathf.Min(tw, 140f);
+            float wheelSize = Mathf.Min(tw, 130f);
             var wheelRect = new Rect(tx, tr, wheelSize, wheelSize);
             GUI.DrawTexture(wheelRect, _wheel);
             HandleWheel(wheelRect);
@@ -636,26 +675,121 @@ namespace Trickshot
             tr += 30f;
 
             GUI.Label(new Rect(tx, tr, tw, 18f), $"Brush size: {_brushSize:0}", st); tr += 20f;
-            _brushSize = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushSize, 2f, 40f); tr += 28f;
+            _brushSize = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushSize, 2f, 40f); tr += 26f;
             GUI.Label(new Rect(tx, tr, tw, 18f), $"Opacity: {_brushOpacity:0.00}", st); tr += 20f;
-            _brushOpacity = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushOpacity, 0.1f, 1f); tr += 30f;
+            _brushOpacity = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushOpacity, 0.1f, 1f); tr += 28f;
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
             if (GUI.Button(new Rect(tx, tr, tw * 0.48f, 26f), "Undo", btn)) Undo();
             if (GUI.Button(new Rect(tx + tw * 0.52f, tr, tw * 0.48f, 26f), "Clear", btn)) ClearPaint();
+            tr += 32f;
+            GUI.Label(new Rect(tx, tr, tw, 46f), "Drag to paint the " + (_drawSide == 1 ? "BACK" : "FRONT")
+                      + ". Wheel-button drag resizes the brush.", st);
 
-            GUI.Label(new Rect(lx, top + canvasSize + 6f, canvasSize, 34f),
-                      "Left-click drag to paint. Hold the MOUSE-WHEEL button and drag\n"
-                      + "left/right to shrink/grow the brush.", st);
+            // --- Predrawn design picker (tabs + swatch grid) below the canvas ---
+            float pickTop = top + canvasSize + 10f;
+            DesignPicker(lx, pickTop, pw - 56f, (y + ph - 52f) - pickTop);
         }
 
-        // Reset the paint back to the base layer (keeps the baked name + number).
+        // A FRONT/BACK tab button. Selected = bright fill + gold outline.
+        bool SideTab(Rect r, string label, bool selected)
+        {
+            var prevCol = GUI.color;
+            GUI.color = selected ? new Color(0.20f, 0.55f, 0.75f) : new Color(0.20f, 0.21f, 0.25f);
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            if (selected) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
+            GUI.color = prevCol;
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = selected ? Color.white : new Color(0.7f, 0.7f, 0.74f) }
+            };
+            GUI.Label(r, label, style);
+            return GUI.Button(r, GUIContent.none, GUIStyle.none);
+        }
+
+        // Switch the region being drawn + snap the 3D preview to that side.
+        void SetDrawSide(int side)
+        {
+            if (_drawSide == side) return;
+            _drawSide = side;
+            _painting = false;
+            if (_preview != null) _preview.FaceSide(side == 1);
+        }
+
+        // Predrawn design picker: a row of category tabs + a scrollable swatch grid. Clicking
+        // a swatch replaces the design on both regions (then the player can draw on top).
+        void DesignPicker(float px, float py, float pwid, float pheight)
+        {
+            if (pheight < 60f) return;
+            var tabs = (DesignTab[])System.Enum.GetValues(typeof(DesignTab));
+            float tw = (pwid - (tabs.Length - 1) * 4f) / tabs.Length;
+            for (int i = 0; i < tabs.Length; i++)
+            {
+                bool sel = _designTab == tabs[i];
+                var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+                if (sel) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(px + i * (tw + 4f), py, tw, 24f), tabs[i].ToString(), tb))
+                { _designTab = tabs[i]; _designScroll = Vector2.zero; }
+            }
+
+            var gridRect = new Rect(px, py + 28f, pwid, pheight - 28f);
+            var designs = JerseyDesigns.InTab(_designTab);
+
+            // Grid metrics: "None" swatch first, then one per design.
+            const float sw = 52f, sh = 66f, sgap = 8f;
+            int cols = Mathf.Max(1, Mathf.FloorToInt((gridRect.width - 16f) / (sw + sgap)));
+            int items = designs.Count + 1;   // +1 for the "None" clear swatch
+            int rows = Mathf.CeilToInt(items / (float)cols);
+            var viewRect = new Rect(0f, 0f, cols * (sw + sgap), rows * (sh + sgap));
+
+            _designScroll = GUI.BeginScrollView(gridRect, _designScroll, viewRect);
+            var capSt = new GUIStyle(GUI.skin.label) { fontSize = 9, alignment = TextAnchor.UpperCenter, wordWrap = true, normal = { textColor = Color.white } };
+            for (int i = 0; i < items; i++)
+            {
+                int cell = i;
+                float cxp = (cell % cols) * (sw + sgap);
+                float cyp = (cell / cols) * (sh + sgap);
+                var cellRect = new Rect(cxp, cyp, sw, sw);
+
+                if (i == 0)
+                {
+                    // "None": clears back to plain shirt (design = null).
+                    bool selNone = _selectedDesign == null;
+                    var pc = GUI.color; GUI.color = PlayerProfile.JerseyBase;
+                    GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
+                    GUI.color = selNone ? new Color(1f, 0.85f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                    DrawRectOutline(cellRect, selNone ? 2f : 1f);
+                    GUI.color = pc;
+                    if (GUI.Button(cellRect, GUIContent.none, GUIStyle.none)) ApplyDesign(null);
+                    GUI.Label(new Rect(cxp, cyp + sw + 1f, sw, 14f), "None", capSt);
+                    continue;
+                }
+
+                var d = designs[i - 1];
+                var thumb = JerseyDesigns.Thumb(d);
+                if (thumb != null) GUI.DrawTexture(cellRect, thumb);
+                bool sel = _selectedDesign == d;
+                var pc2 = GUI.color;
+                GUI.color = sel ? new Color(1f, 0.85f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                DrawRectOutline(cellRect, sel ? 2f : 1f);
+                GUI.color = pc2;
+                if (GUI.Button(cellRect, GUIContent.none, GUIStyle.none)) ApplyDesign(d);
+                GUI.Label(new Rect(cxp, cyp + sw + 1f, sw, 16f), d.Name, capSt);
+            }
+            GUI.EndScrollView();
+        }
+
+        // Reset the ACTIVE region's paint back to the base layer (keeps the baked name +
+        // number and any predrawn design on that region; leaves the other region untouched).
         void ClearPaint()
         {
-            _pixels = (Color32[])_baseLayer.Clone();
+            _undoPixels = (Color32[])_pixels.Clone();   // so Undo restores the pre-clear strokes
+            int y0 = CurRegionY0;
+            int start = y0 * RegW, count = RegH * RegW;
+            System.Array.Copy(_baseLayer, start, _pixels, start, count);
             _canvas.SetPixels32(_pixels);
             _canvas.Apply();
-            _undoPixels = (Color32[])_pixels.Clone();
         }
 
         // Hold the middle (wheel) button and drag: left shrinks, right grows the brush.
@@ -709,7 +843,7 @@ namespace Trickshot
         {
             if (!canvasRect.Contains(_lastMouse)) return;
             EnsureRing();
-            float pxPerTex = canvasSize / TexSize;
+            float pxPerTex = canvasSize / RegW;
             float rPx = _brushSize * pxPerTex;
             var prev = GUI.color;
             GUI.color = _resizingBrush ? Color.white
@@ -743,25 +877,29 @@ namespace Trickshot
             }
         }
 
+        // Atlas bottom row of the region currently being drawn (front or back).
+        int CurRegionY0 => _drawSide == 1 ? BackY0 : FrontY0;
+
         void PaintAt(Rect canvasRect, Vector2 mouse)
         {
-            // Map GUI point (y-down) to texture pixel (y-up).
+            // Map GUI point (y-down) to REGION-LOCAL pixel (y-up), then into the active region.
             float fx = (mouse.x - canvasRect.x) / canvasRect.width;
             float fy = 1f - (mouse.y - canvasRect.y) / canvasRect.height;
-            int cx = Mathf.RoundToInt(fx * (TexSize - 1));
-            int cy = Mathf.RoundToInt(fy * (TexSize - 1));
+            int cx = Mathf.RoundToInt(fx * (RegW - 1));
+            int cy = Mathf.RoundToInt(fy * (RegH - 1));   // local row within the region
             int rad = Mathf.RoundToInt(_brushSize);
             float a = _brushOpacity;
             Color32 bc = _brushColor;
+            int y0 = CurRegionY0;
 
-            int minX = Mathf.Max(0, cx - rad), maxX = Mathf.Min(TexSize - 1, cx + rad);
-            int minY = Mathf.Max(0, cy - rad), maxY = Mathf.Min(TexSize - 1, cy + rad);
+            int minX = Mathf.Max(0, cx - rad), maxX = Mathf.Min(RegW - 1, cx + rad);
+            int minY = Mathf.Max(0, cy - rad), maxY = Mathf.Min(RegH - 1, cy + rad);   // clamp to region
             for (int py = minY; py <= maxY; py++)
             for (int px = minX; px <= maxX; px++)
             {
                 float dx = px - cx, dy = py - cy;
                 if (dx * dx + dy * dy > rad * rad) continue;
-                int idx = py * TexSize + px;
+                int idx = (y0 + py) * RegW + px;   // shift local row into the atlas region
                 Color32 dst = _pixels[idx];
                 // Alpha blend the brush color over the existing pixel.
                 _pixels[idx] = Color32.Lerp(dst, bc, a);
@@ -851,7 +989,12 @@ namespace Trickshot
                     if (from == Stage.Name && _stage == Stage.Jersey)
                     {
                         BuildCanvas();
-                        if (_preview != null) _preview.SetLiveJersey(_canvas);
+                        _drawSide = 0;   // start on the front
+                        if (_preview != null)
+                        {
+                            _preview.SetLiveJersey(_canvas);
+                            _preview.FaceSide(false);   // show the chest to start
+                        }
                     }
                 }
             }
