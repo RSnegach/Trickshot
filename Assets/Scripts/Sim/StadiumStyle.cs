@@ -23,6 +23,10 @@ namespace Trickshot
         public float RowDepth = 1.1f;
         public float StandBaseHeight = 1.2f;
         public bool  HasRoof = true;
+        // When true, the built stadium shell (terraces, walls, roof, corners, pylons) and the
+        // crowd are SKIPPED entirely - an open venue defined only by its Surroundings (e.g. the
+        // beach: water, sand, palms, chairs, tiki huts). The pitch itself is unchanged.
+        public bool  NoStands = false;
 
         // ---- Colors ----
         public Color Grass    = new Color(0.24f, 0.42f, 0.24f);
@@ -99,17 +103,19 @@ namespace Trickshot
                     MaxFans = 5500, Surroundings = Surroundings.None,
                     Jerseys = brightKit, SideHomeJersey = new[] { 0, 0, 2, 2 },
                 },
-                // 4. Sunset Beach - open seaside, small stands, palms + sand.
+                // 4. Sunset Beach - OPEN seaside: no stands or crowd, just sand, sea, palms,
+                // beach chairs, tiki huts. StandRows kept small only for the layout math that
+                // still reads them (surroundings outset); nothing stand-shaped is built.
                 new StadiumStyle
                 {
-                    Name = "Sunset Beach", Blurb = "Open seaside pitch. Small stands, palm trees and sand all around.",
-                    StandRows = 8, RowRise = 0.7f, RowDepth = 1.25f, HasRoof = false,
+                    Name = "Sunset Beach", Blurb = "Open seaside pitch. Sand, sea, palm trees, beach chairs and tiki huts all around.",
+                    StandRows = 8, RowRise = 0.7f, RowDepth = 1.25f, HasRoof = false, NoStands = true,
                     Grass = new Color(0.18f, 0.34f, 0.17f),
                     Seats = new Color(0.22f, 0.20f, 0.20f),
                     Concrete = new Color(0.80f, 0.74f, 0.60f),
                     Accent = new Color(0.95f, 0.55f, 0.25f),
                     Sky = new Color(0.98f, 0.72f, 0.45f),   // warm sunset
-                    MaxFans = 1100, Surroundings = Surroundings.Palms,
+                    MaxFans = 0, Surroundings = Surroundings.Palms,
                     Jerseys = brightKit, SideHomeJersey = new[] { 5, 2, 3, 1 },
                 },
                 // 5. National Stadium - classic big two-tier feel, flags + statues.

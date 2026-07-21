@@ -104,20 +104,119 @@ namespace Trickshot
             }
         }
 
-        // ---- Beach: sand apron + palm trees ----
+        // ---- Beach: open seaside. Sand apron, a big sea plane beyond it, and the shoreline
+        // paraphernalia (palms, beach chairs + umbrellas, tiki huts, surfboards, beach balls,
+        // ring floats). No stands, so this defines the whole venue. ----
         static void BuildPalms(Transform p)
         {
-            // A big sand plane just under the grass edges, extending outward.
-            var sand = Make.Mat(new Color(0.90f, 0.82f, 0.60f), 0.05f);
-            var apron = Make.Box("Sand", new Vector3(BowlHalfX * 2f + 80f, 0.2f, BowlHalfZ * 2f + 80f),
-                                  Center + new Vector3(0f, -0.12f, 0f), sand, p, collider: false);
+            // Sand apron just under the grass edges, extending well outward.
+            var sand = Make.Mat(new Color(0.92f, 0.84f, 0.62f), 0.05f);
+            float sandHalfX = BowlHalfX + 55f, sandHalfZ = BowlHalfZ + 55f;
+            Make.Box("Sand", new Vector3(sandHalfX * 2f, 0.2f, sandHalfZ * 2f),
+                     Center + new Vector3(0f, -0.12f, 0f), sand, p, collider: false);
+
+            // The SEA: a large flat plane ringing the sand, sitting slightly lower, so the
+            // pitch reads as an island of grass on a beach with water all around.
+            var sea = Make.Unlit(new Color(0.15f, 0.55f, 0.68f));
+            float seaHalfX = sandHalfX + 260f, seaHalfZ = sandHalfZ + 260f;
+            Make.Box("Sea", new Vector3(seaHalfX * 2f, 0.16f, seaHalfZ * 2f),
+                     Center + new Vector3(0f, -0.20f, 0f), sea, p, collider: false);
+
             var trunk = Make.Mat(new Color(0.45f, 0.32f, 0.18f), 0.1f);
             var frond = Make.Mat(new Color(0.20f, 0.50f, 0.24f), 0.05f);
-            for (int i = 0; i < 40; i++)
+
+            // Palms dotted around the sand.
+            for (int i = 0; i < 34; i++)
             {
-                Vector3 pos = RingPoint(i / 40f, Range(4f, 22f), 6f);
+                Vector3 pos = RingPoint(i / 34f, Range(4f, 20f), 6f);
                 Palm(p, pos, trunk, frond, Range(5f, 9f));
             }
+
+            // Beach chairs + umbrellas: the "seating", an inner ring facing the pitch.
+            var chairMat = Make.Mat(new Color(0.85f, 0.80f, 0.72f), 0.1f);
+            var umbA = Make.Mat(new Color(0.90f, 0.25f, 0.25f), 0.1f);
+            var umbB = Make.Mat(new Color(0.95f, 0.85f, 0.25f), 0.1f);
+            for (int i = 0; i < 26; i++)
+            {
+                float t = i / 26f;
+                Vector3 pos = RingPoint(t, Range(2f, 7f), 3f);
+                Vector3 toCenter = Center - pos; toCenter.y = 0f;
+                float faceYaw = Mathf.Atan2(toCenter.x, toCenter.z) * Mathf.Rad2Deg;
+                BeachChair(p, pos, faceYaw, chairMat, (i % 2 == 0) ? umbA : umbB);
+            }
+
+            // Tiki huts: thatched bars spaced further out.
+            var hutPost = Make.Mat(new Color(0.42f, 0.30f, 0.17f), 0.1f);
+            var thatch  = Make.Mat(new Color(0.62f, 0.48f, 0.24f), 0.05f);
+            for (int i = 0; i < 7; i++)
+            {
+                Vector3 pos = RingPoint(i / 7f + 0.05f, Range(24f, 40f), 8f);
+                TikiHut(p, pos, hutPost, thatch);
+            }
+
+            // Extras: surfboards stuck upright in the sand, beach balls, ring floats.
+            var board1 = Make.Mat(new Color(0.95f, 0.35f, 0.45f), 0.2f);
+            var board2 = Make.Mat(new Color(0.30f, 0.70f, 0.85f), 0.2f);
+            for (int i = 0; i < 12; i++)
+            {
+                Vector3 pos = RingPoint(i / 12f + 0.02f, Range(8f, 26f), 7f);
+                Surfboard(p, pos, (i % 2 == 0) ? board1 : board2, Range(0f, 360f));
+            }
+            var ballCols = new[]
+            {
+                Make.Mat(new Color(0.95f, 0.95f, 0.95f), 0.1f), Make.Mat(new Color(0.90f, 0.30f, 0.30f), 0.1f),
+                Make.Mat(new Color(0.25f, 0.55f, 0.90f), 0.1f),
+            };
+            for (int i = 0; i < 14; i++)
+            {
+                Vector3 pos = RingPoint(i / 14f + 0.13f, Range(3f, 24f), 8f);
+                var ball = Make.Sphere("BeachBall", Range(0.6f, 1.0f), pos + Vector3.up * 0.4f, ballCols[i % ballCols.Length], p);
+                Object.Destroy(ball.GetComponent<Collider>());
+            }
+            var floatMat = Make.Mat(new Color(0.98f, 0.55f, 0.35f), 0.1f);
+            for (int i = 0; i < 8; i++)
+            {
+                // Ring floats lying flat out on the water.
+                Vector3 pos = RingPoint(i / 8f + 0.07f, Range(60f, 160f), 30f);
+                var ring = Make.Cylinder("Float", Range(1.2f, 2.0f), 0.3f, pos + Vector3.up * 0.02f, 1, floatMat, p, null);
+                if (ring.GetComponent<Collider>() is Collider rc) Object.Destroy(rc);
+            }
+        }
+
+        // A slanted beach lounger + a parasol angled over it, facing the pitch (yaw deg).
+        static void BeachChair(Transform p, Vector3 pos, float yaw, Material chairMat, Material umbMat)
+        {
+            Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
+            // Seat base + reclined back.
+            var seat = Make.Box("ChairSeat", new Vector3(1.0f, 0.12f, 1.4f), pos + Vector3.up * 0.35f, chairMat, p, collider: false);
+            seat.transform.rotation = rot;
+            var back = Make.Box("ChairBack", new Vector3(1.0f, 1.0f, 0.12f), pos + rot * new Vector3(0f, 0.75f, -0.6f), chairMat, p, collider: false);
+            back.transform.rotation = rot * Quaternion.Euler(-35f, 0f, 0f);
+            // Parasol: pole + a flat tilted canopy.
+            Make.Cylinder("UmbPole", 0.06f, 2.6f, pos + rot * new Vector3(0.6f, 1.3f, -0.4f), 1, chairMat, p, null);
+            var canopy = Make.Cylinder("UmbTop", 1.5f, 0.12f, pos + rot * new Vector3(0.6f, 2.5f, -0.2f), 1, umbMat, p, null);
+            canopy.transform.rotation = Quaternion.Euler(12f, 0f, 0f);
+            if (canopy.GetComponent<Collider>() is Collider cc) Object.Destroy(cc);
+        }
+
+        // A tiki hut: four posts + a raised pyramidal thatched roof.
+        static void TikiHut(Transform p, Vector3 pos, Material post, Material thatch)
+        {
+            float w = Range(4f, 6f), h = 3f;
+            foreach (var c in new[] { new Vector2(1,1), new Vector2(1,-1), new Vector2(-1,1), new Vector2(-1,-1) })
+                Make.Cylinder("HutPost", 0.16f, h, pos + new Vector3(c.x * w * 0.4f, h * 0.5f, c.y * w * 0.4f), 1, post, p, null);
+            // Flat platform under the roof.
+            Make.Box("HutDeck", new Vector3(w, 0.16f, w), pos + Vector3.up * 0.08f, post, p, collider: false);
+            // Thatched roof: two stacked shrinking slabs to fake a peaked palm roof.
+            Make.Box("HutRoof0", new Vector3(w + 1.4f, 0.3f, w + 1.4f), pos + Vector3.up * (h + 0.2f), thatch, p, collider: false);
+            Make.Box("HutRoof1", new Vector3(w * 0.6f, 0.3f, w * 0.6f), pos + Vector3.up * (h + 0.55f), thatch, p, collider: false);
+        }
+
+        // A surfboard planted upright in the sand, leaning a little, at a random facing.
+        static void Surfboard(Transform p, Vector3 pos, Material mat, float yaw)
+        {
+            var board = Make.Box("Surfboard", new Vector3(0.7f, 3.2f, 0.12f), pos + Vector3.up * 1.5f, mat, p, collider: false);
+            board.transform.rotation = Quaternion.Euler(8f, yaw, 6f);
         }
 
         static void Palm(Transform p, Vector3 pos, Material trunk, Material frond, float h)

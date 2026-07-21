@@ -81,6 +81,14 @@ namespace Trickshot
             var tunnelMat = Make.Mat(TunnelColor, 0.0f);
             var wallPhys = Make.PhysMat("StadiumWall", 0.3f, 0.4f, 0.4f);
 
+            // Open venue (e.g. the beach): skip the entire built shell + crowd; the venue is
+            // defined by its Surroundings alone. The pitch, goal, and net are built elsewhere.
+            if (s.NoStands)
+            {
+                SurroundBuilder.Build(stadium, s);
+                return;
+            }
+
             foreach (var side in PitchLayout.AllSides)
             {
                 var sideRoot = Make.Empty(side + "Stand", Vector3.zero, stadium).transform;

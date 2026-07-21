@@ -476,14 +476,15 @@ namespace Trickshot
         public const float SlideTackleCooldown = 1.2f;
 
         // ---- Post-goal replay ----
-        // On-screen replay duration = ReplayWindow / ReplaySlowMul. 2s of real action played
-        // at 0.36x slow-mo = ~5.5s on screen, all slowed.
-        public const float ReplayWindow   = 2f;     // seconds of action buffered for the replay
-        public const float ReplaySlowMul  = 0.36f;  // playback speed (0..1); 2/0.36 = ~5.5s watched
+        // On-screen replay duration = ReplayWindow / ReplaySlowMul. 4s of real action played
+        // at 0.36x slow-mo = ~11s on screen, all slowed. The 4s window (up from 2s) starts ~2s
+        // earlier so the replay captures the PASS/CROSS + build-up, not just the shot.
+        public const float ReplayWindow   = 4f;     // seconds of action buffered for the replay
+        public const float ReplaySlowMul  = 0.36f;  // playback speed (0..1); 4/0.36 = ~11s watched
         // Live delay after the goal before the replay freezes + rolls. Physics keeps running
-        // (and the recorder keeps buffering) during it, so a bigger hold pushes the captured
-        // 2s window LATER - most of the replay ends up AFTER the ball crosses the line. At
-        // 1.3s the window is roughly [goal-0.7s .. goal+1.3s].
+        // (and the recorder keeps buffering) during it, so the hold ends the captured 4s window
+        // AFTER the ball crosses the line. At 1.3s the window is roughly [goal-2.7s .. goal+1.3s]
+        // - it opens on the pass/build-up and closes on the ball settling in the net.
         public const float ReplayHold     = 1.3f;
 
         // ---- Networking (host-authoritative snapshot sync) ----

@@ -82,6 +82,8 @@ namespace Trickshot
             // Keep the crowd root unrotated at whatever position the parent gives it.
 
             var style = StadiumStyle.Active;
+            // Open venues (no stands) have no crowd at all - nowhere to seat them.
+            if (style.NoStands) { _built = true; return; }
             _jerseyColors = (style.Jerseys != null && style.Jerseys.Length > 0) ? style.Jerseys : DefaultJerseys;
             _sideHome = (style.SideHomeJersey != null && style.SideHomeJersey.Length >= 4) ? style.SideHomeJersey : DefaultSideHome;
             int maxFans = Mathf.Max(1, style.MaxFans);
