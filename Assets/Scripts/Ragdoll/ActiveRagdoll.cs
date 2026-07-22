@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Trickshot.Net;   // AnimState (networked animation state, played on the display puppet)
 
 namespace Trickshot
 {
@@ -923,5 +924,79 @@ namespace Trickshot
             }
         }
         readonly Vector3[] _emoteScratch = new Vector3[(int)Bone.Count];
+
+        // Display a networked ANIMATION STATE on a kinematic puppet (client side). Like DisplayEmote
+        // but the per-bone pose comes from a canned local animation for the state (run gait, jump
+        // tuck, dive layout, prone, kick swing) rather than a streamed emote. `phase` is a free-
+        // running 0..1 clock the client advances locally (for cyclic anims like Run); `moveAmount`
+        // 0..1 scales the run so a body barely moving doesn't flail. Rest offsets match DisplaySnap.
+        public void DisplayAnim(Vector3 basePos, Quaternion facing, AnimState state, float phase, float moveAmount)
+        {
+            FacingRotation = facing;
+            var over = _emoteScratch;
+            for (int i = 0; i < over.Length; i++) over[i] = Vector3.zero;
+            float rootPitch = 0f, rootRoll = 0f;   // whole-body lean for dive/prone
+
+            switch (state)
+            {
+                case AnimState.Run:
+                {
+                    // Alternating-leg run + contralateral arm pump (same shape as Footballer.RunGait).
+                    float amt = Mathf.Clamp01(moveAmount);
+                    float s = Mathf.Sin(phase * Mathf.PI * 2f) * amt;
+                    float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
+                    over[(int)Bone.ThighL] = new Vector3(-s * SimConfig.GaitThighSwing - liftL * SimConfig.GaitThighLift, 0f, 0f);
+                    over[(int)Bone.CalfL]  = new Vector3(liftL * SimConfig.GaitKneeBend, 0f, 0f);
+                    over[(int)Bone.ThighR] = new Vector3(s * SimConfig.GaitThighSwing - liftR * SimConfig.GaitThighLift, 0f, 0f);
+                    over[(int)Bone.CalfR]  = new Vector3(liftR * SimConfig.GaitKneeBend, 0f, 0f);
+                    over[(int)Bone.UpperArmR] = new Vector3(s * SimConfig.ArmPumpSwing, 0f, 0f);
+                    over[(int)Bone.ForearmR]  = new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f);
+                    over[(int)Bone.UpperArmL] = new Vector3(-s * SimConfig.ArmPumpSwing, 0f, 0f);
+                    over[(int)Bone.ForearmL]  = new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f);
+                    break;
+                }
+                case AnimState.Jump:
+                    // Tuck: knees up a little, arms slightly out.
+                    over[(int)Bone.ThighL] = new Vector3(-30f, 0f, 0f);
+                    over[(int)Bone.ThighR] = new Vector3(-30f, 0f, 0f);
+                    over[(int)Bone.CalfL]  = new Vector3(40f, 0f, 0f);
+                    over[(int)Bone.CalfR]  = new Vector3(40f, 0f, 0f);
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 40f);
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -40f);
+                    break;
+                case AnimState.Kick:
+                    // Right-leg swing through + slight torso lean (a struck shot).
+                    over[(int)Bone.ThighR] = new Vector3(-70f, 0f, 0f);
+                    over[(int)Bone.CalfR]  = new Vector3(20f, 0f, 0f);
+                    over[(int)Bone.Torso]  = new Vector3(12f, 0f, 0f);
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 45f);
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -25f);
+                    break;
+                case AnimState.Dive:
+                    // Laid-out flat (keeper dive): whole body rolled ~horizontal, arms reaching.
+                    rootRoll = 80f;
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 150f);
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -150f);
+                    break;
+                case AnimState.Down:
+                    // Knocked over: face-down flat.
+                    rootPitch = 85f;
+                    break;
+                // Idle: rest stance (all zero).
+            }
+
+            Quaternion root = facing * Quaternion.Euler(rootPitch, 0f, rootRoll);
+            for (int k = 0; k < _displayBones.Length; k++)
+            {
+                var (b, off) = _displayBones[k];
+                Vector3 worldPos = basePos + (root * Off(off.x, off.y, off.z));
+                Quaternion rot = root * Quaternion.Euler(over[(int)b]);
+                var rb = _rb[(int)b];
+                if (rb == null) continue;
+                rb.position = worldPos; rb.rotation = rot;
+                rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
+                rb.transform.position = worldPos; rb.transform.rotation = rot;
+            }
+        }
     }
 }
