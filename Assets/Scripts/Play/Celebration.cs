@@ -225,7 +225,117 @@ namespace Trickshot
     /// </summary>
     public static class EmotePose
     {
+        // Scratch pose buffer (indexed by (int)Bone). Main-thread only (live Update + display
+        // puppet both run on the main thread and never nest), so a shared static is safe and
+        // avoids per-frame GC. Apply fills it, clamps arms out of the torso, then emits.
+        static readonly Vector3[] _buf = new Vector3[(int)Bone.Count];
+
+        // Public entry: builds the raw per-bone pose, runs the arm-clip clamp so no arm segment
+        // ever overlaps the torso (works for BOTH the live joint-driven body and the kinematic
+        // display puppet, since both call through here), then fires `set` for each posed bone.
         public static void Apply(Celebration.Emote e, float p, System.Action<Bone, Vector3> set)
+        {
+            for (int i = 0; i < _buf.Length; i++) _buf[i] = Vector3.zero;
+            Build(e, p, _WriteBuf);
+            // Only clamp when the torso is roughly UPRIGHT and at rest height. Poses that pitch
+            // the torso hard or drop the whole body (push-ups plank, bow, twerk squat, knee slide)
+            // move the torso away from the rest AABB, so the rest-box test would be wrong there -
+            // and in those poses the arms are part of a deliberate physical arrangement, not a
+            // chest clip. The user's issue is standing celebrations where an arm crosses the body.
+            bool uprightRestPose = Mathf.Abs(_buf[(int)Bone.Torso].x) < 25f
+                                   && Mathf.Abs(EmotePose.RootLift(e, p)) < 0.05f;
+            if (uprightRestPose) ClampArms(_buf);
+            for (int i = 0; i < _buf.Length; i++)
+                if (_buf[i] != Vector3.zero) set((Bone)i, _buf[i]);
+        }
+
+        // Cached delegate (no closure over locals -> zero per-call allocation).
+        static readonly System.Action<Bone, Vector3> _WriteBuf = (bone, euler) => _buf[(int)bone] = euler;
+
+        // ---- Arm-clip clamp ----------------------------------------------------------------
+        // Keep every arm segment out of the torso volume. Rather than hand-tune per-pose euler
+        // limits (fragile - depends on Unity's left-handed rotation sign), we run the SAME forward
+        // kinematics the rig uses (Quaternion.Euler, so the engine's own sign is authoritative) to
+        // find where each arm segment lands, and if it pierces the torso box we add just enough
+        // ABDUCTION (swing the arm out to its side, +Z on L / -Z on R) to lift it clear. Abduction
+        // only ever moves the arm laterally away from the body, so it can't create a new clip, and
+        // it preserves the read of the pose (a raised/forward arm stays raised/forward, just not
+        // buried in the chest). Legs/torso/head are untouched. Identical on the live joint-driven
+        // body and the kinematic display puppet, since both pose from this same euler set.
+        //
+        // Torso AABB (visible torso 0.36x0.46x0.22) padded by the ARM RADIUS (0.05) on each axis,
+        // so a test point is "inside" exactly when an arm capsule of that radius would touch the
+        // torso. Shoulders sit at x=+/-0.26, which is 0.03 OUTSIDE the padded x-edge (0.23) - so a
+        // rest/abducted arm never false-flags; only a segment angled in through the chest does.
+        static readonly Vector3 _torsoC = new Vector3(0f, 1.34f, 0f);
+        static readonly Vector3 _torsoH = new Vector3(0.18f + 0.05f, 0.23f + 0.05f, 0.11f + 0.05f);
+        const float ShoulderX = 0.26f, ShoulderY = 1.57f, UpperArmLen = 0.33f, ForearmLen = 0.31f;
+
+        static void ClampArms(Vector3[] buf)
+        {
+            ClampArm(buf, (int)Bone.UpperArmL, (int)Bone.ForearmL, +1f);
+            ClampArm(buf, (int)Bone.UpperArmR, (int)Bone.ForearmR, -1f);
+        }
+
+        // abductSign = +1 LEFT arm (shoulder at x=-0.26, local +Z abducts OUT to the left),
+        //              -1 RIGHT arm (shoulder at x=+0.26, local -Z abducts OUT to the right).
+        // The shoulder X and the abduction axis sign are OPPOSITE - getting this pairing wrong
+        // swings arms across the chest instead of clear of it.
+        //
+        // SAFETY NET, never a regression: only nudges an arm out when a segment genuinely enters
+        // the padded torso box, only ACCEPTS a step that strictly increases clearance, and leaves
+        // already-raised/out arms alone. Verified against every standing pose x all p: clean poses
+        // get 0 steps; it only fires on a real cross-chest segment.
+        static void ClampArm(Vector3[] buf, int ua, int fa, float abductSign)
+        {
+            Vector3 shoulder = new Vector3(-abductSign * ShoulderX, ShoulderY, 0f);
+
+            // Arms raised out to the side / overhead (|abduction| already large) clear the chest
+            // by construction; abducting them further only wraps them past vertical. Skip.
+            if (Mathf.Abs(buf[ua].z) >= 100f) return;
+
+            float clear = ArmClearance(buf[ua], buf[fa], shoulder);
+            for (int iter = 0; iter < 10 && clear < 0f; iter++)
+            {
+                Vector3 trial = buf[ua];
+                trial.z += abductSign * 8f;
+                float tClear = ArmClearance(trial, buf[fa], shoulder);
+                if (tClear <= clear) break;   // not helping (e.g. wrapped past vertical) -> stop
+                buf[ua] = trial;
+                clear = tClear;
+            }
+        }
+
+        // Signed clearance of the WHOLE arm from the padded torso box: >0 fully clear (metres to
+        // the nearest face), <0 penetrating. min over both segments, checking BOTH rig conventions
+        // (kinematic puppet: forearm world-rot ABSOLUTE, matching DisplayEmote; live body: forearm
+        // rides the upper arm), so the clamp is correct for both.
+        static float ArmClearance(Vector3 uaEuler, Vector3 faEuler, Vector3 shoulder)
+        {
+            Vector3 down = Vector3.down;
+            Quaternion uaRot = Quaternion.Euler(uaEuler);
+            Vector3 elbow = shoulder + uaRot * down * UpperArmLen;
+            Vector3 handPuppet = elbow + Quaternion.Euler(faEuler) * down * ForearmLen;
+            Vector3 handLive   = elbow + (uaRot * Quaternion.Euler(faEuler)) * down * ForearmLen;
+            return Mathf.Min(SegClearance(shoulder, elbow),
+                             Mathf.Min(SegClearance(elbow, handPuppet), SegClearance(elbow, handLive)));
+        }
+
+        // Min signed box-clearance sampled along a segment (>0 outside, <0 inside).
+        static float SegClearance(Vector3 a, Vector3 b)
+        {
+            float min = float.MaxValue;
+            for (int i = 0; i <= 8; i++)
+            {
+                Vector3 d = Vector3.Lerp(a, b, i / 8f) - _torsoC;
+                float c = Mathf.Max(Mathf.Abs(d.x) - _torsoH.x,
+                          Mathf.Max(Mathf.Abs(d.y) - _torsoH.y, Mathf.Abs(d.z) - _torsoH.z));
+                if (c < min) min = c;
+            }
+            return min;
+        }
+
+        static void Build(Celebration.Emote e, float p, System.Action<Bone, Vector3> set)
         {
             switch (e)
             {

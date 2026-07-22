@@ -35,6 +35,10 @@ namespace Trickshot
         DefensiveWall _wall;
         GameCamera _cam;
 
+        // The set-piece taker: AI aesthetic runup + swing, player controls only the power meter
+        // (Space) + WASD spin. It launches the ball by code, so the striker never physically kicks.
+        readonly SetPieceTaker _taker = new SetPieceTaker();
+
         enum Phase { Armed, Live, Cooldown }
         Phase _phase;
 
@@ -105,7 +109,9 @@ namespace Trickshot
             if (_input.ResetPressed) { FullReset(); return; }
             if (_input.BallCamPressed) _cam.ToggleBallCam();
 
-            _striker.Tick();
+            // The taker owns the striker body during a set piece (aesthetic runup + swing), so the
+            // player's Striker locomotion is NOT ticked here. Only the taker drives the ragdoll.
+            _taker.Tick();
             if (_keeper != null) _keeper.Tick();
             if (_wall != null) _wall.Tick();
 
@@ -190,7 +196,8 @@ namespace Trickshot
             _cooldown = ResetDelay;
         }
 
-        // Re-arm: dead ball back on the spot, striker behind it, keeper home, wall grounded.
+        // Re-arm: dead ball back on the spot, striker behind it, keeper home, wall grounded, and
+        // the taker armed to read the power meter + WASD spin for this attempt.
         void Arm()
         {
             _ball.ResetTo(_ballSpot);
@@ -198,6 +205,7 @@ namespace Trickshot
             _strikerRagdoll.ResetTo(_strikerBase, Quaternion.identity);   // identity faces +Z (goal)
             if (_keeper != null && _keeperRagdoll != null) _keeper.ResetTo(SimConfig.KeeperStart);
             if (_wall != null) _wall.Ground();
+            _taker.Begin(_input, _strikerRagdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter);
             _phase = Phase.Armed;
         }
 
@@ -269,9 +277,37 @@ namespace Trickshot
             Hud.Stat(ref p, "Distance", $"{dist:0.0} m");
 
             Hud.Legend(SimConfig.PenaltyMode
-                ? "WASD approach   LMB/RMB legs   Space jump   Shift sprint   V ball cam   R reset"
-                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    WASD approach   LMB/RMB legs   Space jump   V ball cam   R reset");
+                ? "HOLD Space power (release to shoot)   A/D curl   W topspin   S knuckle   V ball cam   R reset"
+                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    HOLD Space power   A/D curl   W topspin   S knuckle   V ball cam   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
+
+            DrawPowerMeter();
+        }
+
+        // Centered power meter shown while charging: a green -> yellow -> red bar that reflects the
+        // oscillating taker meter. Release (handled by the taker) commits at the shown level.
+        void DrawPowerMeter()
+        {
+            if (!_taker.IsCharging) return;
+            float w = 320f, h = 22f;
+            float x = (Screen.width - w) * 0.5f, y = Screen.height - 90f;
+
+            var prev = GUI.color;
+            GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.85f);
+            GUI.DrawTexture(new Rect(x - 3f, y - 3f, w + 6f, h + 6f), Texture2D.whiteTexture);
+
+            float f = Mathf.Clamp01(_taker.Meter);
+            // green (low) -> yellow (mid) -> red (high).
+            Color fill = f < 0.5f ? Color.Lerp(new Color(0.2f, 0.85f, 0.3f), new Color(0.95f, 0.85f, 0.2f), f * 2f)
+                                  : Color.Lerp(new Color(0.95f, 0.85f, 0.2f), new Color(0.9f, 0.2f, 0.16f), (f - 0.5f) * 2f);
+            GUI.color = new Color(0.14f, 0.15f, 0.19f, 0.9f);
+            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+            GUI.color = fill;
+            GUI.DrawTexture(new Rect(x, y, w * f, h), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(x, y - 20f, w, 18f), "POWER  (release to shoot)", lbl);
         }
     }
 }
