@@ -561,6 +561,10 @@ namespace Trickshot
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
             _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
 
+            // Mirror the authoritative score so the client HUD shows the real goal count (goal
+            // detection is host-only; a client's local _goals never increments on its own).
+            if (_s.HasSnapshot) _goals = _s.LatestSnapshot.homeScore;
+
             // Reconcile our own PREDICTED body against the host's authoritative state (the local
             // body is simulated immediately from input; here we correct drift/mispredictions).
             ReconcileLocalBody();
