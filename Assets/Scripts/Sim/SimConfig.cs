@@ -70,14 +70,14 @@ namespace Trickshot
 
         // Upward dive (A/D + Space): reach/height scale with prior speed. More hang time
         // so there is a real apex where he is laid out flat.
-        public const float KeeperDiveHorizBase = 2.0f;   // horizontal reach at standstill
-        public const float KeeperDiveHorizPerV = 0.45f;  // extra horizontal per m/s of prior speed
-        public const float KeeperDiveUpBase = 3.6f;      // upward pop at standstill (hang time for the apex)
-        public const float KeeperDiveUpPerV = 0.25f;     // extra height per m/s of prior speed
+        public const float KeeperDiveHorizBase = 3.58f;  // horizontal reach at standstill (~80% of full-speed reach)
+        public const float KeeperDiveHorizPerV = 0.163f; // extra horizontal per m/s of prior speed
+        public const float KeeperDiveUpBase = 3.98f;     // upward pop at standstill (~80% of full-speed height)
+        public const float KeeperDiveUpPerV = 0.181f;    // extra height per m/s of prior speed
 
         // Double-tap A/D: explosive low sideways dive; legs leave the ground as he lays out.
-        public const float KeeperDashDive = 7.0f;        // horizontal speed of the low dash dive
-        public const float KeeperDashUp = 2.6f;          // lift so his legs come off the ground
+        public const float KeeperDashDive = 7.7f;        // horizontal speed of the low dash dive
+        public const float KeeperDashUp = 2.2f;          // lift so his legs come off the ground
         public const float KeeperDoubleTapWindow = 0.3f; // seconds between taps to count as a double-tap
 
         // Dive lay-out: the pelvis is actively driven to a rolled (horizontal) target and
@@ -88,6 +88,7 @@ namespace Trickshot
         public const float KeeperDiveRoll = 90f;         // strong initial roll kick -> lays out near-instantly
         public const float KeeperDiveLeadKnee = 130f;    // leading leg folds up hard
         public const float KeeperDiveBackKnee = 95f;     // back leg also bends a good amount
+        public const float KeeperDiveArmSwing = 55f;     // high dive: top arm swings over toward the dive to close the arm gap
         public const float KeeperDiveMinAir = 0.25f;     // min airborne time before we check for landing
         public const float KeeperDiveSettle = 0.25f;     // time on the ground after landing before getting up
         public const float KeeperDiveMaxTime = 2.5f;     // hard safety cap so a dive can never get stuck
@@ -355,22 +356,54 @@ namespace Trickshot
         public const float BodyAccuracy       = 0.1f;    // body/arms: basically no aim help
         public const float BodyPowerMul       = 0.25f;   // body/arms: super weak - traps the ball, drops it
 
-        // ---- Set pieces (free kick / penalty): arcadey but hard by default ----
-        // A struck set-piece shot always leaves the ground higher and bends more than a normal
-        // shot; the goal-assist starts near zero and scales up hard with Shooting accuracy, so
-        // default free kicks are tough + rewarding and an invested striker can curl one in.
-        public const float SetPieceLoft        = 0.35f;  // extra up-velocity as a fraction of horizontal speed
-        public const float SetPieceCurl        = 7.0f;   // base curl accel (x ShotPowerMul)
+        // ---- Set pieces (free kick / penalty) + volleys: scripted power, stat-scaled ----
+        // A set-piece strike IGNORES the foot's swing speed - the ball is dead and the strike is
+        // scripted, so any clean contact leaves the boot high, fast, and goalward. WHERE on the
+        // ball it is struck picks the spin/bend; Shooting POWER scales the launch speed + bend;
+        // Shooting ACCURACY (+ power) scales the goal-steer. Values are tuned aggressive on
+        // purpose - the old set pieces were far too weak even at max stats.
+        public const float SetPieceBaseSpeed   = 22f;    // goalward launch speed floor at power 1.0 (m/s)
+        public const float SetPieceMaxSpeed    = 42f;    // hard cap on a set-piece launch (x Cannon ceiling)
+        public const float SetPieceLoft        = 0.32f;  // up-velocity as a fraction of launch speed (gentle; the vy cap + ballistic solve own the real height)
+        public const float SetPieceCurl        = 12.0f;  // base curl/bend accel (x ShotPowerMul) - pronounced
         public const float SetPieceAssistFloor = 0.08f;  // goal-steer with NO shooting investment (near zero)
-        public const float SetPieceAssistMax   = 0.9f;   // goal-steer fully invested in Shooting accuracy
+        public const float SetPieceAssistMax   = 1.6f;   // goal-steer fully invested in Shooting power + accuracy (drastic)
+        // ---- Guided placement (accuracy + strike location drive the shot, NOT power) ----
+        // The set-piece launch blends toward a ballistic solve that REACHES a 3D goal corner,
+        // by the skill-only combined stat; a hard vy cap keeps every shot near goal height so a
+        // miss never skyrockets. See BallController set-piece launch block.
+        public const float SetPieceCornerInset  = 0.35f; // how far inside the post/bar the corner aim sits (m)
+        public const float SetPieceLowStrike     = 0.20f; // struck-height dot at/below this -> aim the TOP corner
+        public const float SetPieceFlightTime    = 0.72f; // nominal flight time for the ballistic corner solve (s)
+        public const float SetPieceApexMargin    = 0.55f; // most the launch apex may clear the crossbar by (m) - the hard vertical ceiling
+        public const float AssistVertFrac        = 0.55f; // vertical goal-steer strength (x _accuracyMul), capped by AssistMaxAccel
+
+        // ---- Set-piece TAKER: AI aesthetic runup + Space power meter + WASD spin ----
+        // The striker's runup + swing are purely cosmetic (AI-driven). The player controls ONLY
+        // an oscillating power meter (Space) and WASD spin (held silently). Release commits, runs
+        // the runup, and fires a scripted LaunchSetPiece. Overcharging power or over-holding spin
+        // botches the shot. See Play/SetPieceTaker.cs.
+        public const float SetPieceMeterRate     = 1.6f;  // power-meter ping-pong speed (full sweeps/sec-ish)
+        public const float SetPieceOverchargeTime = 0.45f; // seconds pegged at max power before it OVERCHARGES (botch); Accuracy widens this
+        public const float SetPieceSpinChargeRate = 1.1f;  // WASD spin charge build rate (per second held, 0..1 then over)
+        public const float SetPieceSpinOverTime  = 1.35f; // seconds holding a spin dir past full before it BOTCHES; Accuracy widens this
+        public const float SetPieceBotchScatterX = 3.2f;  // max horizontal target scatter (m) at full botch
+        public const float SetPieceBotchScatterY = 1.1f;  // max vertical target scatter (m) at full botch (still capped by apex)
+        public const float SetPieceCornerPull    = 0.85f; // how far combined pulls the aim from centre toward a corner (0..1 of the half-goal)
+        public const float SetPieceRunupSpeed    = 5.5f;  // run-in speed (m/s); matches a brisk approach (the driver places the taker ~3m back)
+        public const float SetPiecePlantOffset   = 0.55f; // stops the run-in this far short of the ball (plant beside it)
+        public const float SetPieceSwingTime     = 0.22f; // seconds of cosmetic leg swing after the plant before contact
+        public const float SetPieceSettleTime    = 0.8f;  // taker Settle hold after the strike before it goes Idle
         // Spin is chosen by WHERE the ball is struck (contact point in the shot frame):
-        public const float SetPieceSideThresh  = 0.30f;  // |side dot| beyond this -> side spin (curls opposite)
+        public const float SetPieceSideThresh  = 0.30f;  // |side dot| beyond this -> side spin (bends the SAME way struck)
         public const float SetPieceTopThresh   = 0.45f;  // struck-height dot above this -> top spin (dips)
         public const float SetPieceTopSpinMul  = 0.8f;   // downward-curl strength for top spin (x base curl)
-        public const float SetPieceKnuckleVert = -0.10f; // struck at/below this height = the knuckle zone
-        public const float SetPieceKnuckleChance = 0.3333f; // ~1/3 of middle/bottom strikes knuckle
-        public const float SetPieceKnuckleMul  = 0.5f;   // wobble strength of a knuckle (x base curl)
-        public const float SetPieceKnucklePowExp = 2.5f; // knuckle wobble scales Pow(ShotPowerMul, this) - hard ramp
+        public const float SetPieceKnuckleVert = -0.10f; // struck at/below this height = the chip / knuckle zone
+        public const float SetPieceKnuckleChance = 0.20f; // 20% base chance a bottom strike knuckles instead of chipping (rises linearly w/ power)
+        public const float SetPieceKnucklePaceMul = 1.15f; // a knuckle drives flatter + faster than a chip
+        public const float SetPieceKnuckleMul  = 0.9f;   // wobble strength of a knuckle (x base curl, scales LINEARLY with power) - pronounced
+        public const float SetPieceChipLoft    = 0.95f;  // a bottom-strike chip scoops up high (up-vel fraction of launch)
+        public const float SetPieceChipPaceMul = 0.65f;  // ...with softer forward pace than a driven shot
 
         // ---- Kick vs. run-into: only a SWINGING leg imparts real power ----
         // The struck bone's own speed decides how live the touch is. A kick swings the
