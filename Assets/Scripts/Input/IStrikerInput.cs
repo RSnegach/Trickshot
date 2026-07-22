@@ -35,5 +35,10 @@ namespace Trickshot
         bool PassLoftedHeld { get; }
         bool PassGroundReleased { get; }
         bool PassLoftedReleased { get; }
+
+        // Emote chosen THIS tick (from the emote wheel): a Celebration.Emote index, or 255 for
+        // none. One-shot - the source returns a real id only on the frame a pick happens. The
+        // host reads it to start that body's Celebration; networked via InputFrame.emoteId.
+        int EmoteId { get; }
     }
 }

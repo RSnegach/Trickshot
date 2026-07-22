@@ -80,6 +80,7 @@ namespace Trickshot.Net
         public Vector2 move;      // wasd
         public float lookYaw;     // desired facing yaw (camera yaw)
         public bool jump, legL, legR, sprint, passGround, passLofted, tackle;
+        public byte emoteId;      // 255 = none; else Celebration.Emote to start this tick
     }
 
     // One body's state in a snapshot (host -> clients). Compact: pos + yaw + flags.
@@ -89,6 +90,8 @@ namespace Trickshot.Net
         public Vector3 pos;
         public float yaw;
         public bool down;         // knocked over
+        public byte emoteId;      // 255 = none; else the emote this body is currently playing
+        public byte emotePhase;   // 0..255 quantized 0..1 progress of that emote
     }
 
     public struct Snapshot
@@ -184,6 +187,7 @@ namespace Trickshot.Net
             if (f.jump) bits |= 1; if (f.legL) bits |= 2; if (f.legR) bits |= 4; if (f.sprint) bits |= 8;
             if (f.passGround) bits |= 16; if (f.passLofted) bits |= 32; if (f.tackle) bits |= 64;
             w.U8(bits);
+            w.U8(f.emoteId);   // 255 = none
             return w.ToArray();
         }
 
@@ -193,6 +197,7 @@ namespace Trickshot.Net
             byte bits = r.U8();
             f.jump = (bits & 1) != 0; f.legL = (bits & 2) != 0; f.legR = (bits & 4) != 0; f.sprint = (bits & 8) != 0;
             f.passGround = (bits & 16) != 0; f.passLofted = (bits & 32) != 0; f.tackle = (bits & 64) != 0;
+            f.emoteId = r.U8();
             return f;
         }
 
@@ -203,7 +208,7 @@ namespace Trickshot.Net
             w.U8(s.homeScore); w.U8(s.awayScore);
             w.U8((byte)(s.bodies?.Length ?? 0));
             if (s.bodies != null)
-                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); }
+                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); }
             return w.ToArray();
         }
 
@@ -213,7 +218,7 @@ namespace Trickshot.Net
             int n = r.U8();
             s.bodies = new BodyState[n];
             for (int i = 0; i < n; i++)
-                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B() };
+                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8() };
             return s;
         }
 

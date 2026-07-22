@@ -223,16 +223,26 @@ namespace Trickshot
         // Striker cross-targeting map toggle (M).
         public bool CrossMapPressed => _crossMap != null && _crossMap.WasPressedThisFrame();
 
+        // Emote chosen from the wheel this frame (Celebration.Emote index, or 255 = none). The
+        // match UI stashes the pick via SetEmotePick; EmoteId returns it once then it is cleared
+        // (in SampleFrame / when read), so it is a true one-shot that reaches the host once.
+        byte _pendingEmote = 255;
+        public void SetEmotePick(int emote) => _pendingEmote = (byte)emote;
+        public int EmoteId => _pendingEmote;
+
         // Sample the current device state into a network InputFrame for sending to the host.
         // Booleans are HELD states (edges are re-derived on the receiving side per tick).
         public Net.InputFrame SampleFrame(uint tick, float lookYaw)
         {
-            return new Net.InputFrame
+            var f = new Net.InputFrame
             {
                 tick = tick, move = Move, lookYaw = lookYaw,
                 jump = JumpHeld, legL = LeftLegHeld, legR = RightLegHeld, sprint = SprintHeld,
                 passGround = PassGroundHeld, passLofted = PassLoftedHeld, tackle = TacklePressed,
+                emoteId = _pendingEmote,
             };
+            _pendingEmote = 255;   // one-shot: consumed once it is sampled into a frame
+            return f;
         }
     }
 }

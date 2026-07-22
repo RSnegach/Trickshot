@@ -843,5 +843,53 @@ namespace Trickshot
             rb.transform.position = worldPos;
             rb.transform.rotation = facing;
         }
+
+        // Reused bone rest offsets (feet-relative) so DisplayEmote places bones the same way
+        // DisplaySnap does. Kept in one place to stay in sync with the Build layout.
+        static readonly (Bone b, Vector3 off)[] _displayBones =
+        {
+            (Bone.Pelvis,    new Vector3(0f, 1.02f, 0f)),
+            (Bone.Torso,     new Vector3(0f, 1.34f, 0f)),
+            (Bone.Head,      new Vector3(0f, 1.72f, 0f)),
+            (Bone.ThighL,    new Vector3(-0.11f, 0.73f, 0f)),
+            (Bone.ThighR,    new Vector3(0.11f, 0.73f, 0f)),
+            (Bone.CalfL,     new Vector3(-0.11f, 0.33f, 0f)),
+            (Bone.CalfR,     new Vector3(0.11f, 0.33f, 0f)),
+            (Bone.FootL,     new Vector3(-0.11f, 0.06f, 0.06f)),
+            (Bone.FootR,     new Vector3(0.11f, 0.06f, 0.06f)),
+            (Bone.UpperArmL, new Vector3(-0.26f, 1.40f, 0f)),
+            (Bone.UpperArmR, new Vector3(0.26f, 1.40f, 0f)),
+            (Bone.ForearmL,  new Vector3(-0.26f, 1.08f, 0f)),
+            (Bone.ForearmR,  new Vector3(0.26f, 1.08f, 0f)),
+        };
+
+        // Display a networked EMOTE on a kinematic puppet (client side). Poses bone TRANSFORMS
+        // directly (a kinematic body ignores the joint-drive pose system), rotating each bone by
+        // its emote pose euler about the facing so the dance's limb motion is visible remotely.
+        // Bones the emote doesn't pose stay at the rest orientation. emoteId indexes
+        // Celebration.Emote; phase is 0..1. Root/limbs use the same rest offsets as DisplaySnap,
+        // so an in-place dance (e.g. Griddy) reads correctly from the streamed root pos + phase.
+        public void DisplayEmote(Vector3 basePos, Quaternion facing, int emoteId, float phase)
+        {
+            FacingRotation = facing;
+            // Collect the emote's per-bone euler overrides for this phase.
+            var over = _emoteScratch;
+            for (int i = 0; i < over.Length; i++) over[i] = Vector3.zero;
+            var e = (Celebration.Emote)emoteId;
+            EmotePose.Apply(e, Mathf.Clamp01(phase), (bone, euler) => over[(int)bone] = euler);
+            // Place each bone at its rest position, rotated by facing * poseEuler.
+            for (int k = 0; k < _displayBones.Length; k++)
+            {
+                var (b, off) = _displayBones[k];
+                Vector3 worldPos = basePos + Off(off.x, off.y, off.z);
+                Quaternion rot = facing * Quaternion.Euler(over[(int)b]);
+                var rb = _rb[(int)b];
+                if (rb == null) continue;
+                rb.position = worldPos; rb.rotation = rot;
+                rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
+                rb.transform.position = worldPos; rb.transform.rotation = rot;
+            }
+        }
+        readonly Vector3[] _emoteScratch = new Vector3[(int)Bone.Count];
     }
 }
