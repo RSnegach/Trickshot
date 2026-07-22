@@ -520,6 +520,14 @@ namespace Trickshot.Net
         // the full roster (+ config) so everyone, including the new joiner, is in sync.
         void GrantSlot(PeerId peer, string name, PlayerAppearance appearance)
         {
+            // Match already running: lock it. The joiner gets no slot (spectator/255) - the match
+            // drivers build their body set once at Configure, so there is nothing to slot into.
+            // They can join the next lobby. (Full join-in-progress is a separate, larger feature.)
+            if (MatchStarted)
+            {
+                Transport.Send(peer, NetCodec.AssignSlot(255, NetRole.Spectator), NetChannel.Reliable);
+                return;
+            }
             int granted = -1;
             // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
             // (MaxSlots-1). Players re-pick any free role in the lobby afterward.

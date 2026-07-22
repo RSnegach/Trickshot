@@ -31,6 +31,7 @@ namespace Trickshot
             public KeeperController keeper; // host: human keeper controller
             public bool isKeeper;
             public bool isShooter;
+            public bool wasHuman;           // spawned for a human (despawn on leave) vs AI Clanker
             public Vector3 targetPos;       // client interp
             public float targetYaw;
             // client: free-running anim phase (run cadence) + last interpolated pos (move speed).
@@ -163,6 +164,7 @@ namespace Trickshot
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
             _s.JerseyUpdated += OnJerseyUpdated;
+            _s.RosterChanged += OnRosterChanged;
 
             LockCursor();
         }
@@ -198,7 +200,7 @@ namespace Trickshot
             Material slotTorso = jt != null ? Make.MatTex(jt) : torso;
             ragdoll.Build(start, facing, slotTorso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
 
-            var b = new Body { ragdoll = ragdoll, isKeeper = keeper, isShooter = !keeper,
+            var b = new Body { ragdoll = ragdoll, isKeeper = keeper, isShooter = !keeper, wasHuman = human,
                                targetPos = start, targetYaw = facing.eulerAngles.y };
 
             if (!keeper)
@@ -286,6 +288,45 @@ namespace Trickshot
         }
         int _lastLocalTaken;
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
+
+        // A player left mid-shootout: despawn their body so it doesn't freeze as a statue. The
+        // keeper swaps to an AI keeper (goal must stay covered). A departed shooter is marked
+        // finished (taken = ShotsEach) so AdvanceTurn skips them; if they were the active shooter,
+        // advance the turn. The turn-order list itself is left intact (AdvanceTurn gates on taken).
+        void OnRosterChanged()
+        {
+            for (int i = 0; i < _bodies.Length; i++)
+            {
+                var b = _bodies[i];
+                if (b == null || !b.wasHuman) continue;
+                if (_s.RosterSlot(i).human) continue;   // still human
+
+                if (b.isKeeper)
+                {
+                    if (b.keeper != null) b.keeper = null;
+                    b.netInput = null; b.wasHuman = false;
+                    if (_s.IsHost && b.ai == null && b.ragdoll != null)
+                    { var gk = b.ragdoll.gameObject.AddComponent<Goalkeeper>(); gk.Init(b.ragdoll, _ball); b.ai = gk; }
+                    continue;
+                }
+
+                // Shooter left: mark finished so the rotation skips them, then remove the body.
+                if (_s.IsHost)
+                {
+                    _taken[i] = ShotsEach;
+                    bool wasActive = i == _activeShooter;
+                    if (b.ragdoll != null) Destroy(b.ragdoll.gameObject);
+                    _bodies[i] = null;
+                    BroadcastShootout();
+                    if (wasActive && !_over && _phase == Phase.Armed) { _takerArmed = false; _taker.Reset(); AdvanceTurn(); }
+                }
+                else
+                {
+                    if (b.ragdoll != null) Destroy(b.ragdoll.gameObject);
+                    _bodies[i] = null;
+                }
+            }
+        }
 
         // A slot's networked jersey finished arriving after its body was built: swap the torso kit
         // live so the remote player's painted jersey shows without a rebuild.
@@ -712,6 +753,7 @@ namespace Trickshot
                 _s.ReplayStarted -= OnReplayStarted;
                 _s.ReplayEnded -= OnReplayEnded;
                 _s.JerseyUpdated -= OnJerseyUpdated;
+                _s.RosterChanged -= OnRosterChanged;
             }
             if (_ball != null) { _ball.SetPieceShot = false; if (_ball.Rb != null) _ball.Rb.isKinematic = false; }
         }
