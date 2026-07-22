@@ -35,6 +35,7 @@ namespace Trickshot
             public Celebration celeb;       // emote driver (host sim + local owner); null on pure puppets
             public bool isKeeper;
             public bool isCrosser;
+            public bool wasHuman;   // spawned for a human (despawn if they leave) vs an AI Clanker
             // client interp targets
             public Vector3 targetPos;
             public float targetYaw;
@@ -132,6 +133,7 @@ namespace Trickshot
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
             _s.JerseyUpdated += OnJerseyUpdated;
+            _s.RosterChanged += OnRosterChanged;
 
             LockCursor();
         }
@@ -184,7 +186,7 @@ namespace Trickshot
             Material slotTorso = jt != null ? Make.MatTex(jt) : torso;
             ragdoll.Build(start, facing, slotTorso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
 
-            var b = new Body { ragdoll = ragdoll, isKeeper = keeper, targetPos = start, targetYaw = facing.eulerAngles.y };
+            var b = new Body { ragdoll = ragdoll, isKeeper = keeper, wasHuman = human, targetPos = start, targetYaw = facing.eulerAngles.y };
 
             if (!keeper)
             {
@@ -245,7 +247,7 @@ namespace Trickshot
         void SpawnCrosserBody(int slot, bool isLocal, bool hostSim, bool human)
         {
             var ragdoll = _crosser.Ragdoll;
-            var b = new Body { ragdoll = ragdoll, isCrosser = true };
+            var b = new Body { ragdoll = ragdoll, isCrosser = true, wasHuman = human };
             if (ragdoll != null && ragdoll.Pelvis != null)
             {
                 b.targetPos = ragdoll.Pelvis.position; b.targetPos.y = 0f;
@@ -280,6 +282,42 @@ namespace Trickshot
             }
 
             _bodies[slot] = b;
+        }
+
+        // A player left mid-match: the roster row for their slot is no longer human. Despawn that
+        // body so it doesn't freeze as a statue for everyone. A keeper slot swaps to an AI keeper
+        // (play must continue with someone in goal); shooter/crosser bodies just disappear. Runs on
+        // host + client (both hold a body per slot); the host also stops driving/broadcasting it.
+        void OnRosterChanged()
+        {
+            for (int i = 0; i < _bodies.Length; i++)
+            {
+                var b = _bodies[i];
+                if (b == null || !b.wasHuman) continue;      // only human-spawned bodies react to a leave
+                if (_s.RosterSlot(i).human) continue;         // still human: nothing changed
+
+                // This human left mid-match.
+                if (i == 0)
+                {
+                    // Keeper: swap to an AI keeper in place so the goal stays covered.
+                    if (b.striker != null) b.striker.ControlEnabled = false;
+                    b.keeper = null; b.netInput = null; b.wasHuman = false;
+                    if (_s.IsHost && b.ai == null && b.ragdoll != null)
+                    { var gk = b.ragdoll.gameObject.AddComponent<Goalkeeper>(); gk.Init(b.ragdoll, _ball); b.ai = gk; }
+                    continue;
+                }
+                // Crosser: the crosser ragdoll is a shared prebuilt object (not a per-slot spawn),
+                // so don't destroy it - just hand it back to the AI auto-serve loop.
+                if (b.isCrosser)
+                {
+                    b.striker = null; b.netInput = null; b.crosserCtl = null; b.wasHuman = false;
+                    if (_crosser != null) { _crosser.AutoServe = true; }
+                    continue;
+                }
+                // Shooter: remove the body (no shooter AI in striker mode).
+                if (b.ragdoll != null) Destroy(b.ragdoll.gameObject);
+                _bodies[i] = null;
+            }
         }
 
         // A slot's networked jersey finished arriving after its body was built: swap the torso kit
@@ -710,7 +748,7 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; }
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
