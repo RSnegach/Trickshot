@@ -97,6 +97,10 @@ namespace Trickshot.Net
         public byte emoteId;      // 255 = none; else Celebration.Emote to start this tick
     }
 
+    // Animation state a body is in, synced so clients play the matching canned local animation on
+    // the interpolated puppet (instead of a rigid stance). Discrete state, not streamed poses.
+    public enum AnimState : byte { Idle = 0, Run = 1, Jump = 2, Dive = 3, Down = 4, Kick = 5 }
+
     // One body's state in a snapshot (host -> clients). Compact: pos + yaw + flags.
     public struct BodyState
     {
@@ -106,6 +110,7 @@ namespace Trickshot.Net
         public bool down;         // knocked over
         public byte emoteId;      // 255 = none; else the emote this body is currently playing
         public byte emotePhase;   // 0..255 quantized 0..1 progress of that emote
+        public byte anim;         // AnimState the body is in (drives the client-side canned anim)
     }
 
     public struct Snapshot
@@ -230,7 +235,7 @@ namespace Trickshot.Net
             w.U8(s.homeScore); w.U8(s.awayScore);
             w.U8((byte)(s.bodies?.Length ?? 0));
             if (s.bodies != null)
-                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); }
+                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); }
             return w.ToArray();
         }
 
@@ -240,7 +245,7 @@ namespace Trickshot.Net
             int n = r.U8();
             s.bodies = new BodyState[n];
             for (int i = 0; i < n; i++)
-                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8() };
+                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8(), anim = r.U8() };
             return s;
         }
 

@@ -41,6 +41,10 @@ namespace Trickshot
             // client: emote to display on this puppet (255 = none) + its 0..1 phase.
             public int emoteId = 255;
             public float emotePhase;
+            // client: free-running anim phase (run cadence) + last interpolated pos (for move speed).
+            public float animPhase;
+            public Vector3 lastInterpPos;
+            public bool hasLastInterp;
         }
 
         GameInput _input;
@@ -572,14 +576,31 @@ namespace Trickshot
 
                 Vector3 pos = Vector3.Lerp(sa.pos, sb.pos, f);
                 float yaw = Mathf.LerpAngle(sa.yaw, sb.yaw, f);
+                var facing = Quaternion.Euler(0f, yaw, 0f);
                 // Emote id/phase from the newest of the two samples (an emote is a discrete event,
-                // not a value to blend); phase advances with f for a smooth dance.
+                // not a value to blend); phase advances with f for a smooth dance. An active emote
+                // overrides the locomotion anim state.
                 byte emoteId = sb.emoteId != 255 ? sb.emoteId : sa.emoteId;
-                float phase = Mathf.Lerp(sa.emotePhase / 255f, sb.emotePhase / 255f, f);
                 if (emoteId != 255)
-                    body.ragdoll.DisplayEmote(pos, Quaternion.Euler(0f, yaw, 0f), emoteId, phase);
+                {
+                    float ephase = Mathf.Lerp(sa.emotePhase / 255f, sb.emotePhase / 255f, f);
+                    body.ragdoll.DisplayEmote(pos, facing, emoteId, ephase);
+                }
                 else
-                    body.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
+                {
+                    // Measured horizontal speed from the interpolated motion drives the run cadence
+                    // + amount, so a body only "runs" as fast as it is actually moving.
+                    float speed = 0f;
+                    if (body.hasLastInterp)
+                    {
+                        Vector3 d = pos - body.lastInterpPos; d.y = 0f;
+                        speed = d.magnitude / Mathf.Max(1e-4f, Time.deltaTime);
+                    }
+                    body.lastInterpPos = pos; body.hasLastInterp = true;
+                    float moveAmount = Mathf.Clamp01(speed / SimConfig.StrikerMoveSpeed);
+                    body.animPhase += Time.deltaTime * SimConfig.StrideRateMax * moveAmount / (2f * Mathf.PI);
+                    body.ragdoll.DisplayAnim(pos, facing, (AnimState)(sb.anim), body.animPhase, moveAmount);
+                }
             }
 
             // Ball: interpolate between the two snapshots too (host owns physics; client is display).
@@ -595,6 +616,25 @@ namespace Trickshot
                 for (int i = 0; i < s.bodies.Length; i++)
                     if (s.bodies[i].slot == slot) { bs = s.bodies[i]; return true; }
             bs = default; return false;
+        }
+
+        // Host: derive a body's animation state for the snapshot so clients play the matching
+        // canned anim on their puppet. Emotes are handled separately (emoteId), so this covers
+        // locomotion/action states. Priority: keeper dive > airborne > moving > idle.
+        static AnimState AnimStateOf(Body b)
+        {
+            if (b.ragdoll == null) return AnimState.Idle;
+            if (b.keeper != null && b.keeper.IsCommitting) return AnimState.Dive;
+            if (b.ai != null && b.ai.WasDivingSave) return AnimState.Dive;
+            if (b.striker != null)
+            {
+                if (b.striker.IsDiving) return AnimState.Down;   // diving header -> prone layout
+                if (!b.ragdoll.IsGrounded) return AnimState.Jump;
+            }
+            else if (!b.ragdoll.IsGrounded) return AnimState.Jump;
+            // Moving on the deck -> run. MoveInput is the controller's desired velocity.
+            if (b.ragdoll.MoveInput.sqrMagnitude > 0.6f) return AnimState.Run;
+            return AnimState.Idle;
         }
 
         void BroadcastSnapshot()
@@ -614,7 +654,7 @@ namespace Trickshot
                     eph = (byte)Mathf.Clamp(Mathf.RoundToInt(b.celeb.Progress01 * 255f), 0, 255);
                 }
                 list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
-                                         down = false, emoteId = eid, emotePhase = eph });
+                                         down = false, emoteId = eid, emotePhase = eph, anim = (byte)AnimStateOf(b) });
             }
             var snap = new Snapshot
             {

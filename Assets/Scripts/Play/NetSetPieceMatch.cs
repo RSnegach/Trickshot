@@ -33,6 +33,10 @@ namespace Trickshot
             public bool isShooter;
             public Vector3 targetPos;       // client interp
             public float targetYaw;
+            // client: free-running anim phase (run cadence) + last interpolated pos (move speed).
+            public float animPhase;
+            public Vector3 lastInterpPos;
+            public bool hasLastInterp;
         }
 
         GameInput _input;
@@ -606,7 +610,12 @@ namespace Trickshot
                 if (!FindBody(bSnap, i, out var sb)) sb = sa;
                 Vector3 pos = Vector3.Lerp(sa.pos, sb.pos, f);
                 float yaw = Mathf.LerpAngle(sa.yaw, sb.yaw, f);
-                body.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
+                float speed = 0f;
+                if (body.hasLastInterp) { Vector3 d = pos - body.lastInterpPos; d.y = 0f; speed = d.magnitude / Mathf.Max(1e-4f, Time.deltaTime); }
+                body.lastInterpPos = pos; body.hasLastInterp = true;
+                float moveAmount = Mathf.Clamp01(speed / SimConfig.StrikerMoveSpeed);
+                body.animPhase += Time.deltaTime * SimConfig.StrideRateMax * moveAmount / (2f * Mathf.PI);
+                body.ragdoll.DisplayAnim(pos, Quaternion.Euler(0f, yaw, 0f), (AnimState)(sb.anim), body.animPhase, moveAmount);
             }
             _ball.Rb.isKinematic = true;
             _ball.Rb.position = Vector3.Lerp(a.ballPos, bSnap.ballPos, f);
@@ -621,6 +630,17 @@ namespace Trickshot
             bs = default; return false;
         }
 
+        // Host: a body's animation state for the snapshot (keeper dive > airborne > moving > idle).
+        static AnimState AnimStateOf(Body b)
+        {
+            if (b.ragdoll == null) return AnimState.Idle;
+            if (b.keeper != null && b.keeper.IsCommitting) return AnimState.Dive;
+            if (b.ai != null && b.ai.WasDivingSave) return AnimState.Dive;
+            if (b.striker != null && !b.ragdoll.IsGrounded) return AnimState.Jump;
+            if (b.ragdoll.MoveInput.sqrMagnitude > 0.6f) return AnimState.Run;
+            return AnimState.Idle;
+        }
+
         void BroadcastSnapshot()
         {
             var list = new List<BodyState>();
@@ -629,7 +649,8 @@ namespace Trickshot
                 var b = _bodies[i];
                 if (b == null || b.ragdoll.Pelvis == null) continue;
                 Vector3 p = b.ragdoll.Pelvis.position; p.y = 0f;
-                list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y, down = false });
+                list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
+                                         down = false, emoteId = 255, anim = (byte)AnimStateOf(b) });
             }
             _s.BroadcastSnapshot(new Snapshot
             {
