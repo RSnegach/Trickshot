@@ -46,6 +46,7 @@ namespace Trickshot
         Vector3 _crossTarget = SimConfig.ServeTarget;
         Vector3 _crosserSpot = SimConfig.CrosserStart;
         int _crossEdit;
+        bool _crossGround;   // Crosser tab: false = lofted air cross (default), true = ground cross
 
         // Post-goal broadcast replay. Records a rolling window; on a goal it freezes play
         // and plays the last few seconds in slow motion (LMB skips). Then serving resumes.
@@ -293,6 +294,7 @@ namespace Trickshot
             if (!open)
             {
                 _crosser.TargetOverride = _crossTarget;   // apply the picked landing spot
+                _crosser.GroundCross = _crossGround;      // apply the Air/Ground delivery choice
                 _crosser.SetOrigin(_crosserSpot);         // relocate the (AI) crosser to the placed spot
             }
         }
@@ -332,10 +334,21 @@ namespace Trickshot
                 if (GUI.Button(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), _crossEdit == 0 ? "● Target" : "Target", _crossEdit == 0 ? segOn : seg)) _crossEdit = 0;
                 if (GUI.Button(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), _crossEdit == 1 ? "● Crosser" : "Crosser", _crossEdit == 1 ? segOn : seg)) _crossEdit = 1;
 
+                // Crosser tab: an Air/Ground delivery toggle (default Air = lofted). Sits just
+                // below the map so it doesn't overlap the segment row.
+                if (_crossEdit == 1)
+                {
+                    string label = "Delivery:  " + (_crossGround ? "GROUND" : "AIR (lofted)");
+                    if (GUI.Button(new Rect(mapRect.x, mapRect.yMax + 30f, w, 24f), label, _crossGround ? seg : segOn))
+                        _crossGround = !_crossGround;
+                    _crosser.GroundCross = _crossGround;
+                }
+
                 if (CrossMap.Draw(mapRect, ref _crossTarget, ref _crosserSpot, interactive: true, editing: _crossEdit))
                 {
                     _crosser.TargetOverride = _crossTarget;   // live-apply target on each click
-                    _crosser.SetOrigin(_crosserSpot);         // live-apply crosser position
+                    _crosser.GroundCross = _crossGround;      // keep delivery mode in sync
+                    _crosser.SetOrigin(_crosserSpot);         // live-apply crosser position (faces the target)
                 }
                 var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f,0.85f,0.9f) } };
                 GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M to close.", tip);

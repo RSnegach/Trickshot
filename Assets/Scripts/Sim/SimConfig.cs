@@ -115,7 +115,7 @@ namespace Trickshot
         public const float CrossMaxCharge = 0.6f;  // seconds of hold for max floatiness
         public const float CrossTapMaxHold = 0.18f; // held below this = a tap (driven); above = a chip
         public const float CrossChargeFlatMul = 0.8f;  // bare tap: 0.8x the type's flight time (flatter/faster)
-        public const float CrossChargeFloatMul = 1.15f; // full hold: 1.15x (floatier/slower)
+        public const float CrossChargeFloatMul = 1.5f;  // full hold: 1.5x (much floatier/higher at max charge)
 
         // ---- Crosser (ragdoll leg-swing before a perfect launch) ----
         // He plants, plays a right-leg swing, and the ball leaves at contact - but the
@@ -176,7 +176,12 @@ namespace Trickshot
         // Testing: leave the striker wherever it is between serves (no teleport back to
         // start). Set true to restore per-serve repositioning.
         public const bool ResetStrikerOnServe = false;
-        public const float ServeTime = 1.25f;       // fixed time of flight
+        public const float ServeTime = 1.25f;       // fixed time of flight (legacy default)
+        // AI/auto crosser delivery. Crosses LOFT through the air by default (a high arc that
+        // drops onto the target); GROUND is a fast, flat, low ball (only when toggled in the
+        // cross map's Crosser tab). Longer flight time to the same target = higher arc.
+        public const float CrossServeAirTime = 1.9f;      // lofted arc, clearly airborne
+        public const float CrossServeGroundTime = 0.7f;   // driven low + fast
         // Default landing spot (same every serve): centred, a bit off the goal line.
         public static readonly Vector3 ServeTarget =
             new Vector3(0f, 0.25f, GoalCenter.z - 8f);
@@ -379,9 +384,11 @@ namespace Trickshot
         // ---- Volley: a FLYING ball met by a SWINGING leg launches like a free kick ----
         // A ball whose centre is above this height (m) is "flying"; a swinging leg (kick > 0)
         // that hits it fires the set-piece launch (loft + contact-point curl, stat-scaled)
-        // instead of trapping. Above the knee (calf centre ~0.33, knee ~0.5) so a ball rolling
-        // on the ground (centre ~BallRadius 0.22) or a low dribble never counts as a volley.
-        public const float VolleyMinBallHeight = 0.55f;
+        // instead of trapping. The bar is set to just off the turf: a ball resting on the
+        // ground has its centre at BallRadius (0.22), so BallRadius + 0.03 means the ball
+        // counts as airborne the moment its underside clears ~3cm of grass. The small buffer
+        // keeps a still, jittering ball from falsely registering as a volley.
+        public const float VolleyMinBallHeight = BallRadius + 0.03f;   // 0.25
 
         // ---- Dribble (soft-magnet close control) ----
         // The ball auto-sticks to a carry point just in front of the grounded striker's
