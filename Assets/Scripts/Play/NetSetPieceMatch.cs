@@ -51,7 +51,6 @@ namespace Trickshot
         float _goalLineZ;
         Vector3 _ballSpot;          // dead-ball free-kick spot (host-placed)
         Vector3 _wallCenter;        // host-placed wall centre
-        Vector3 _ballTargetPos;     // client ball interp
 
         // ---- shootout state (host-authoritative) ----
         readonly int[] _scored = new int[NetSession.MaxSlots];
@@ -593,34 +592,34 @@ namespace Trickshot
             // A local keeper sends its cone yaw (KeeperLookYaw); everyone else sends camera yaw.
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
             _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
-            if (_s.HasSnapshot)
-            {
-                var snap = _s.LatestSnapshot;
-                if (snap.bodies != null)
-                    foreach (var bs in snap.bodies)
-                    {
-                        if (bs.slot >= _bodies.Length) continue;
-                        var b = _bodies[bs.slot];
-                        if (b == null || bs.slot == _localSlot) continue;
-                        b.targetPos = bs.pos; b.targetYaw = bs.yaw;
-                    }
-                _ballTargetPos = snap.ballPos;
-            }
-            float k = 1f - Mathf.Exp(-SimConfig.NetInterpRate * Time.deltaTime);
+
+            // Render remote bodies + ball at (now - InterpDelay), interpolating between the two
+            // buffered snapshots bracketing that render time (smooth under uneven packet arrival).
+            if (!_s.SampleInterpolated(SimConfig.NetInterpDelay, out var a, out var bSnap, out float f))
+                return;
+
             for (int i = 0; i < _bodies.Length; i++)
             {
-                var b = _bodies[i];
-                if (b == null || i == _localSlot) continue;
-                Vector3 cur = b.ragdoll.Pelvis != null ? FlatFeet(b.ragdoll) : b.targetPos;
-                Vector3 pos = Vector3.Lerp(cur, b.targetPos, k);
-                float yaw = Mathf.LerpAngle(b.ragdoll.FacingRotation.eulerAngles.y, b.targetYaw, k);
-                b.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
+                var body = _bodies[i];
+                if (body == null || i == _localSlot) continue;
+                if (!FindBody(a, i, out var sa)) continue;
+                if (!FindBody(bSnap, i, out var sb)) sb = sa;
+                Vector3 pos = Vector3.Lerp(sa.pos, sb.pos, f);
+                float yaw = Mathf.LerpAngle(sa.yaw, sb.yaw, f);
+                body.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
             }
             _ball.Rb.isKinematic = true;
-            _ball.Rb.position = Vector3.Lerp(_ball.Rb.position, _ballTargetPos, k);
+            _ball.Rb.position = Vector3.Lerp(a.ballPos, bSnap.ballPos, f);
         }
 
-        static Vector3 FlatFeet(ActiveRagdoll r) { var p = r.Pelvis.position; p.y = 0f; return p; }
+        // Find a slot's BodyState in a snapshot (false if absent).
+        static bool FindBody(in Snapshot s, int slot, out BodyState bs)
+        {
+            if (s.bodies != null)
+                for (int i = 0; i < s.bodies.Length; i++)
+                    if (s.bodies[i].slot == slot) { bs = s.bodies[i]; return true; }
+            bs = default; return false;
+        }
 
         void BroadcastSnapshot()
         {

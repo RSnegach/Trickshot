@@ -44,6 +44,14 @@ namespace Trickshot.Net
         public bool HasSnapshot { get; private set; }
         uint _lastSnapshotTick;   // drop reordered/stale snapshots (UDP can deliver out of order)
 
+        // Client-side interpolation buffer: a short ring of recent snapshots stamped with their
+        // local receive time. The driver renders remote bodies at (now - InterpDelay) by
+        // interpolating between the two snapshots bracketing that render time, so uneven packet
+        // arrival never teleports a body. Monotonic in tick + recv time (stale snaps are dropped).
+        struct StampedSnap { public Snapshot snap; public float recv; }
+        readonly StampedSnap[] _snapBuf = new StampedSnap[32];
+        int _snapCount;   // valid entries, oldest at 0 .. newest at _snapCount-1 (shifted when full)
+
         // ---- lobby state ----
         readonly string[] _slotName = new string[MaxSlots];
         // Host-side per-slot appearance (from each player's Hello). Copied into the roster rows
@@ -350,6 +358,52 @@ namespace Trickshot.Net
             JerseyUpdated?.Invoke(slot);
         }
 
+        // ---- client interpolation buffer ----
+        // Append a freshly-received snapshot, stamped with the local receive time. Snapshots arrive
+        // in tick order (stale ones already dropped), so we just append and shift when full.
+        void PushSnap(in Snapshot s)
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_snapCount == _snapBuf.Length)
+            {
+                Array.Copy(_snapBuf, 1, _snapBuf, 0, _snapBuf.Length - 1);
+                _snapCount--;
+            }
+            _snapBuf[_snapCount].snap = s;
+            _snapBuf[_snapCount].recv = now;
+            _snapCount++;
+        }
+
+        // Sample the interpolation buffer at renderTime = now - delaySeconds. Returns false until
+        // there is enough buffered history. `frac` is the 0..1 blend between snapshot `a` and `b`;
+        // when only one snapshot brackets renderTime (edge / underflow), a==b and frac=0. The
+        // driver then interpolates each body's pos/yaw and the ball between a and b by `frac`.
+        public bool SampleInterpolated(float delaySeconds, out Snapshot a, out Snapshot b, out float frac)
+        {
+            a = default; b = default; frac = 0f;
+            if (_snapCount == 0) return false;
+            float renderTime = Time.realtimeSinceStartup - delaySeconds;
+
+            // Find the newest pair (i, i+1) whose recv times bracket renderTime.
+            for (int i = _snapCount - 1; i >= 0; i--)
+            {
+                if (_snapBuf[i].recv <= renderTime)
+                {
+                    if (i == _snapCount - 1) { a = b = _snapBuf[i].snap; frac = 0f; return true; }   // no newer sample yet: hold newest known
+                    float t0 = _snapBuf[i].recv, t1 = _snapBuf[i + 1].recv;
+                    a = _snapBuf[i].snap; b = _snapBuf[i + 1].snap;
+                    frac = t1 > t0 ? Mathf.Clamp01((renderTime - t0) / (t1 - t0)) : 0f;
+                    return true;
+                }
+            }
+            // renderTime is older than everything buffered (just started): show the oldest.
+            a = b = _snapBuf[0].snap; frac = 0f;
+            return true;
+        }
+
+        // Drop buffered history (e.g. on match teardown) so a new match starts clean.
+        public void ClearSnapshotBuffer() { _snapCount = 0; HasSnapshot = false; }
+
         // ---- message routing ----
         void OnMessage(PeerId from, byte[] data)
         {
@@ -419,6 +473,7 @@ namespace Trickshot.Net
                     if (!HasSnapshot || snap.tick > _lastSnapshotTick)
                     {
                         LatestSnapshot = snap; HasSnapshot = true; _lastSnapshotTick = snap.tick;
+                        PushSnap(snap);   // append to the interpolation buffer (stamped with recv time)
                     }
                     break;
                 }
