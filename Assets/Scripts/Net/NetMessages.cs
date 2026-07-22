@@ -30,6 +30,7 @@ namespace Trickshot.Net
         ReplayEnd = 11,   // host -> clients: end the replay (all skipped or finished)
         RequestSlot = 12, // client -> host: I want to claim this slot (role pick)
         ShootoutState = 13, // host -> clients: set-pieces active shooter + per-slot scores
+        UpdateLoadout = 14, // client -> host: my appearance changed (re-customized in the lobby)
     }
 
     // The host's chosen match configuration, synced to all peers so everyone builds the
@@ -253,6 +254,8 @@ namespace Trickshot.Net
         }
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
+        // Client -> host: updated appearance after re-customizing in the lobby.
+        public static byte[] Loadout(PlayerAppearance a) { var w = new NetWriter(MsgType.UpdateLoadout); WriteAppearance(w, a); return w.ToArray(); }
         public static byte[] RequestSlot(byte slot) { var w = new NetWriter(MsgType.RequestSlot); w.U8(slot); return w.ToArray(); }
         public static byte[] Start() => new NetWriter(MsgType.StartMatch).ToArray();
         public static byte[] ReplayStart() => new NetWriter(MsgType.ReplayStart).ToArray();

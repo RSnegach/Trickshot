@@ -102,13 +102,17 @@ namespace Trickshot
                 onLeave:     () => { Destroy(go); Trickshot.Net.Multiplayer.End(); ShowMultiplayerHub(); });
         }
 
-        // Customize your own player from the lobby, then return to the lobby.
+        // Customize your own player from the lobby, then return to the lobby. Re-sync the local
+        // appearance to the session on the way out: the initial Hello / host self-set captured it
+        // BEFORE this screen, so without this push remote players (and the roster) keep the
+        // default look and cosmetics never show in the match.
         void ShowLobbyCustomize()
         {
             var go = new GameObject("CustomizeUI");
+            System.Action resync = () => Trickshot.Net.Multiplayer.Session?.UpdateLocalAppearance();
             go.AddComponent<CustomizeUI>().Init(
-                onDone: () => { Destroy(go); ShowLobby(); },
-                onBack: () => { Destroy(go); ShowLobby(); });
+                onDone: () => { resync(); Destroy(go); ShowLobby(); },
+                onBack: () => { resync(); Destroy(go); ShowLobby(); });
         }
 
         // Apply the host's synced config, then build the chosen mode with the session live.
