@@ -33,6 +33,8 @@ namespace Trickshot
         Vector3 _assistTarget;     // where the goal-steer aims this window; defaults to goal centre, set-piece re-aims a corner
         bool _assistFlatOff;       // set-piece curve shot: skip HORIZONTAL goal-steer so the intentional
                                    // out-then-back curl is not flattened; the vertical steer still applies.
+        bool _assistVertOff;       // OVERPOWERED set-piece: skip the VERTICAL steer so the intended
+                                   // over-the-bar loft is not predicted back down onto goal height.
         float _bikeCamCooldown;    // guard so one bicycle flip cuts to ball-cam only once
 
         // Camera to pulse into ball-cam on a genuine shot (optional; null in modes that
@@ -128,28 +130,40 @@ namespace Trickshot
         public enum SetPieceSpin { None, CurveLeft, CurveRight, TopSpin, Knuckle }
 
         // SCRIPTED set-piece launch (the taker's power meter + WASD spin). Aim defaults CENTRAL and
-        // saveable; the skill stat `combined` (0..1) pulls it toward a goal CORNER and tightens.
-        // `power01` picks the pace between the base and max launch speeds. Curl is TARGET-RELATIVE:
-        // the ball is launched biased to the swing side and curled back so it RETURNS to the aim x
-        // (more curve never means wider). A hard vy cap keeps every shot near goal height, so an
-        // overcharged/over-held botch (`botch01`) sprays wide but never skyrockets. Body-collider-
-        // disabled + SuppressStrike on the caller side keep the aesthetic runup from re-triggering
-        // a physical strike, so this fully OWNS the shot.
+        // saveable; the skill stat `combined` (0..1, accuracy-dominant) pulls it toward a goal CORNER,
+        // tightens scatter, AND drives the swerve. `power01` (the on-screen bar) picks the pace between
+        // the base and max launch speeds; `powerStat01` (the power STAT) only scales that speed CEILING
+        // a little, never the height - so the power stat scales up LESS than accuracy and max power can
+        // never loft the ball over the bar on a clean shot. Curl is TARGET-RELATIVE: the ball is
+        // launched biased to the swing side and curled back so it RETURNS to the aim x (more curve
+        // never means wider). A clean vy cap keeps a well-struck shot near goal height; but
+        // OVERPOWERING the bar (`overcharge01`, distinct from the sideways-spraying `botch01`) adds
+        // UNCAPPED upward velocity ON TOP of the cap, INDEPENDENT of the power stat - so any overpowered
+        // bar sails over the bar (a weak-power striker too, just with less forward pace). Body-collider-
+        // disabled + SuppressStrike on the caller side keep the aesthetic runup from re-triggering a
+        // physical strike, so this fully OWNS the shot.
         public void LaunchSetPiece(float power01, SetPieceSpin spin, float spinCharge01,
-                                   float botch01, float combined, Vector3 goalCenter)
+                                   float botch01, float combined, Vector3 goalCenter,
+                                   float overcharge01 = 0f, float powerStat01 = 0.5f)
         {
             power01 = Mathf.Clamp01(power01);
             spinCharge01 = Mathf.Clamp01(spinCharge01);
             botch01 = Mathf.Clamp01(botch01);
             combined = Mathf.Clamp01(combined);
+            overcharge01 = Mathf.Clamp01(overcharge01);
+            powerStat01 = Mathf.Clamp01(powerStat01);
 
             float gMag = Mathf.Abs(Physics.gravity.y);
             Vector3 p0 = Rb.position;
 
-            // Launch speed from the power meter (stat-scaled ceiling, Cannon lifts the cap).
+            // Launch speed from the power BAR, between the base and a stat-scaled ceiling. The power
+            // STAT only lifts that ceiling modestly (PowerStatFloor..1 of the base->max range), so it
+            // scales up LESS than accuracy and never touches height. Cannon lifts the top of the range.
             float capMul = PlayerProfile.PerkCannon ? SimConfig.CannonCapMul : 1f;
-            float launch = Mathf.Lerp(SimConfig.SetPieceBaseSpeed,
-                                      SimConfig.SetPieceMaxSpeed * capMul, power01);
+            float statCeil = Mathf.Lerp(
+                Mathf.Lerp(SimConfig.SetPieceBaseSpeed, SimConfig.SetPieceMaxSpeed * capMul, SimConfig.SetPiecePowerStatFloor),
+                SimConfig.SetPieceMaxSpeed * capMul, powerStat01);
+            float launch = Mathf.Lerp(SimConfig.SetPieceBaseSpeed, statCeil, power01);
 
             // Goal-ward flat direction (fall back to +Z toward goal).
             Vector3 toGoal = goalCenter - p0; toGoal.y = 0f;
@@ -186,23 +200,37 @@ namespace Trickshot
             float flatSpeed = Mathf.Max(1f, launch);
 
             // Solve vy so the ball is at the aim HEIGHT when it crosses the goal line, then cap the
-            // apex so power can never send it over the bar.
+            // apex so the power STAT / a clean bar can never send it over the bar.
             float tActual = Mathf.Clamp(horizDist / flatSpeed, 0.2f, 2.5f);
             float vy = (aim.y - p0.y) / tActual + 0.5f * gMag * tActual;
             float allowedApex = Mathf.Max(0.3f, SimConfig.GoalHeight - p0.y + SimConfig.SetPieceApexMargin);
             float vyMax = Mathf.Sqrt(2f * gMag * allowedApex);
             if (vy > vyMax) vy = vyMax;
 
+            // OVERPOWERING the bar clears the crossbar: add uncapped upward velocity scaled by the
+            // overcharge amount ONLY (not the power stat / bar level), ON TOP of the clean cap. So a
+            // clean max-power shot stays under the bar, but any overpowered bar sails over - a weak
+            // striker included (the forward pace, set by `launch` above, is what makes theirs slower).
+            vy += overcharge01 * SimConfig.SetPieceOverchargeVy;
+
             // TARGET-RELATIVE curl for a curve shot: bias the launch OUT to the swing side and set a
             // lateral curl that brings it back so it arrives on the aim x (a banana that returns).
             // Lateral offset w, curl accel -2w/t^2 over the flight => net sideways displacement 0.
+            //
+            // Swerve is driven PRIMARILY by the accuracy stat: this factor scales the curl magnitude
+            // from a small floor (raw striker) up to full bend (fully invested), with the WASD hold
+            // only modulating within that. The cosmetic ball-spin (angularVelocity) stays keyed to
+            // the WASD charge so the visual roll still reads.
+            float swerve = (SimConfig.SetPieceCurlAccFloor
+                            + (1f - SimConfig.SetPieceCurlAccFloor) * combined)
+                           * (0.5f + spinCharge01);
             _curlAccel = Vector3.zero;
             Rb.angularVelocity = Vector3.zero;
             _curlRemaining = 0f;
             if (spin == SetPieceSpin.CurveLeft || spin == SetPieceSpin.CurveRight)
             {
                 float side = spin == SetPieceSpin.CurveRight ? 1f : -1f;
-                float w = SimConfig.SetPieceCurl * (0.5f + spinCharge01) * 0.5f;   // out-speed, charge-scaled
+                float w = SimConfig.SetPieceCurl * swerve * 0.5f;                  // out-speed, accuracy-driven
                 flatDir = (flatDir * flatSpeed + shotRight * (side * w)).normalized;   // launch angled out
                 _curlAccel = shotRight * (-side * 2f * w / Mathf.Max(0.1f, tActual)); // curl back to aim
                 _curlRemaining = tActual;
@@ -210,17 +238,17 @@ namespace Trickshot
             }
             else if (spin == SetPieceSpin.TopSpin)
             {
-                // Dips: downward curl + forward roll, stronger with charge.
-                _curlAccel = Vector3.down * (SimConfig.SetPieceCurl * SimConfig.SetPieceTopSpinMul * (0.5f + spinCharge01));
+                // Dips: downward curl + forward roll, accuracy-driven.
+                _curlAccel = Vector3.down * (SimConfig.SetPieceCurl * SimConfig.SetPieceTopSpinMul * swerve);
                 _curlRemaining = tActual;
                 Rb.angularVelocity = shotRight * (SimConfig.SetPieceCurl * spinCharge01);
             }
             else if (spin == SetPieceSpin.Knuckle)
             {
-                // Wobble with no spin, charge-scaled (keeper-fooling). HORIZONTAL only: a vertical
+                // Wobble with no spin, accuracy-driven (keeper-fooling). HORIZONTAL only: a vertical
                 // curl component would add height AFTER the apex cap and could clear the bar, so the
                 // knuckle wobbles side to side and the vy cap alone owns the height.
-                float km = SimConfig.SetPieceCurl * SimConfig.SetPieceKnuckleMul * (0.5f + spinCharge01);
+                float km = SimConfig.SetPieceCurl * SimConfig.SetPieceKnuckleMul * swerve;
                 _curlAccel = shotRight * (Random.Range(-1f, 1f) * km);
                 _curlRemaining = tActual;
                 Rb.angularVelocity = Vector3.zero;
@@ -233,6 +261,8 @@ namespace Trickshot
             // already lands the ball on the aim x (out then back), so skip the HORIZONTAL steer
             // (it would flatten the banana); the vertical steer still pulls the height onto target.
             _assistFlatOff = spin == SetPieceSpin.CurveLeft || spin == SetPieceSpin.CurveRight;
+            // Overpowered bar: turn OFF the vertical steer so the loft added above survives the flight.
+            _assistVertOff = overcharge01 > 0.01f;
             _accuracyMul = SimConfig.SetPieceAssistFloor
                            + combined * (SimConfig.SetPieceAssistMax - SimConfig.SetPieceAssistFloor);
             _assistRemaining = SimConfig.AssistDuration;
@@ -304,7 +334,9 @@ namespace Trickshot
             // target (set-pieces set _assistTarget.y to a corner; open-play/header leave it ~0, so
             // this is a no-op for them). Pulls the shot onto the corner height mid-flight so a
             // guided free kick converges vertically instead of relying on the launch loft alone.
-            if (_assistTarget.y > 0.05f)
+            // Skipped when the bar was OVERPOWERED (_assistVertOff): the launch added an intentional
+            // over-the-bar loft, and steering toward goal height would predict it straight back down.
+            if (_assistTarget.y > 0.05f && !_assistVertOff)
             {
                 // Predictive: where will the ball be vertically when it reaches the goal line,
                 // under gravity, if we do nothing? Steer that predicted height toward the target.
@@ -498,6 +530,7 @@ namespace Trickshot
             // with a corner (see the accuracy branch below), scaled by Shooting stats.
             _assistTarget = Vector3.zero;
             _assistFlatOff = false;   // physical strikes always use the normal horizontal steer
+            _assistVertOff = false;   // and always use the normal vertical steer (only overpowered set-pieces skip it)
 
             if (header)
             {
@@ -805,6 +838,7 @@ namespace Trickshot
             _assistRemaining = 0f;
             _assistCooldown = 0f;
             _assistFlatOff = false;
+            _assistVertOff = false;
             _strikeSuppress = 0f;
             DribbleHold = false;   // never leave the leash flag stuck after a reset (would disable strikes)
             LastShotWasTrick = false;

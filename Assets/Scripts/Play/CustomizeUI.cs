@@ -322,12 +322,11 @@ namespace Trickshot
                     _previewDirty = false;
                 }
                 _preview.ViewportPx = previewRect;
-                _preview.AutoRotate = _stage != Stage.Jersey;   // jersey: drag to spin
-                if (_stage == Stage.Jersey) HandleModelDrag(previewRect);
+                _preview.AutoRotate = false;          // every stage: the player turns the model by dragging it
+                HandleModelDrag(previewRect);
             }
             var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.LowerCenter, normal = { textColor = new Color(1f, 1f, 1f, 0.7f) } };
-            if (_stage == Stage.Jersey)
-                GUI.Label(new Rect(previewRect.x, previewRect.yMax - 26f, previewW, 20f), "Drag the model to spin it", hint);
+            GUI.Label(new Rect(previewRect.x, previewRect.yMax - 26f, previewW, 20f), "Drag the model to spin it", hint);
 
             // Skill stage: one-click build presets down the left column + a live attribute
             // radar over the lower preview, so the shape updates as nodes are bought.
@@ -374,7 +373,8 @@ namespace Trickshot
             NavButtons(x, y, panelW, panelH);
         }
 
-        // Jersey stage: click-drag anywhere on the preview to spin the model.
+        // Every stage: click-drag anywhere on the preview to turn the model. Only grabs when
+        // the press lands inside the preview rect, so control widgets elsewhere are unaffected.
         void HandleModelDrag(Rect previewRect)
         {
             Event e = Event.current;

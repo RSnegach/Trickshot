@@ -45,6 +45,8 @@ namespace Trickshot
         float _spinOverTime;   // seconds a spin dir held past full (over-hold botch)
         BallController.SetPieceSpin _spin;
         float _committedPower, _committedSpinCharge, _committedBotch, _committedCombined;
+        float _committedOvercharge;   // overcharge (power-bar) botch ONLY -> drives the over-the-bar loft
+        float _committedPowerStat;    // 0..1 power STAT -> scales ONLY the launch-speed ceiling (not height)
         BallController.SetPieceSpin _committedSpin;
 
         float _phaseTime;      // time in the current Runup/Struck/Settle phase
@@ -107,15 +109,26 @@ namespace Trickshot
             }
         }
 
-        // Skill-only combined stat, matching BallController: full Shooting+Control -> 1 regardless
-        // of body build. Widens the good windows + pulls the aim to a corner + tightens scatter.
+        // Skill-only combined stat: full Shooting+Control -> 1 regardless of body build. Widens the
+        // good windows + pulls the aim to a corner + tightens scatter + drives the swerve. In THIS
+        // mode accuracy is the primary driver, so it is weighted heavily over power (0.8 vs 0.2);
+        // the power stat's real influence lives in PowerStat() below (launch-speed ceiling only).
         // Honors an explicit override (MP remote shooter, whose skill tree is not synced).
         float Combined()
         {
             if (_combinedOverride >= 0f) return Mathf.Clamp01(_combinedOverride);
             float accStat = Mathf.Clamp01((PlayerProfile.ShotAccuracyMul - 1f) / 0.97f);
             float powStat = Mathf.Clamp01((SkillTree.Mul("shotpower") - 1f) / 0.68f);
-            return Mathf.Clamp01(0.6f * accStat + 0.4f * powStat);
+            return Mathf.Clamp01(0.8f * accStat + 0.2f * powStat);
+        }
+
+        // 0..1 power STAT, skill-only (SkillTree, not the body-coupled ShotPowerMul so build never
+        // gates it). Scales ONLY the launch-SPEED ceiling in LaunchSetPiece, never the height. When
+        // an override is set (MP remote shooter) we can't read the stat, so use a neutral mid value.
+        float PowerStat()
+        {
+            if (_combinedOverride >= 0f) return 0.5f;
+            return Mathf.Clamp01((SkillTree.Mul("shotpower") - 1f) / 0.68f);
         }
 
         void TickCharging()
@@ -173,6 +186,7 @@ namespace Trickshot
             // Released: commit. A quick tap still fires a soft, central shot.
             _committedCombined = combined;
             _committedPower = _meter;
+            _committedPowerStat = PowerStat();
             _committedSpin = _spin;
             _committedSpinCharge = _spinCharge;
 
@@ -181,7 +195,11 @@ namespace Trickshot
             float spinWin = SimConfig.SetPieceSpinOverTime * (1f + combined);
             float overchargeBotch = Mathf.Clamp01(_pegTime / Mathf.Max(0.05f, overWin));
             float spinBotch = Mathf.Clamp01(_spinOverTime / Mathf.Max(0.05f, spinWin));
+            // Scatter botch (sprays the target) is the worse of the two. Overcharge is ALSO kept
+            // separate: only overpowering the power BAR lofts the ball over the bar (spin over-hold
+            // sprays sideways but must NOT skyrocket), and that loft is independent of the power stat.
             _committedBotch = Mathf.Clamp01(Mathf.Max(overchargeBotch, spinBotch));
+            _committedOvercharge = overchargeBotch;
 
             _state = State.Runup;
             _phaseTime = 0f;
@@ -228,7 +246,8 @@ namespace Trickshot
                     {
                         _ball.ResetTo(_ballSpot);
                         _ball.LaunchSetPiece(_committedPower, _committedSpin, _committedSpinCharge,
-                                             _committedBotch, _committedCombined, _goalCenter);
+                                             _committedBotch, _committedCombined, _goalCenter,
+                                             _committedOvercharge, _committedPowerStat);
                     }
                     JustStruck = true;
                     _state = State.Struck;

@@ -393,6 +393,22 @@ namespace Trickshot
         public const float SetPieceBotchScatterX = 3.2f;  // max horizontal target scatter (m) at full botch
         public const float SetPieceBotchScatterY = 1.1f;  // max vertical target scatter (m) at full botch (still capped by apex)
         public const float SetPieceCornerPull    = 0.85f; // how far combined pulls the aim from centre toward a corner (0..1 of the half-goal)
+        // Power STAT scales LESS than accuracy in this mode: it only nudges the launch-SPEED
+        // ceiling the on-screen bar can reach (never height). At the minimum power stat the bar
+        // tops out at this fraction of the base->max speed range; at full stat, the full range.
+        // A small spread by design, so the power stat "scales up less" than the accuracy stat
+        // (which drives placement, swerve, corner pull and the assist window).
+        public const float SetPiecePowerStatFloor = 0.82f;
+        // OVERPOWERING the on-screen power BAR (overcharge, not the power stat) lofts the ball
+        // OVER the crossbar: this much extra UPWARD velocity (m/s) is added at full overcharge,
+        // ON TOP of the clean apex cap and INDEPENDENT of the power stat/bar. So a clean max-power
+        // shot still stays under the bar, but any overpowered bar sails over - a weak-power
+        // striker clears it too, just with less forward pace ("over the bar, just slower").
+        public const float SetPieceOverchargeVy  = 7.0f;
+        // Swerve is driven PRIMARILY by the accuracy stat: curl magnitude scales from this floor
+        // (a raw striker still bends a little) up to full at max accuracy. The WASD spin hold only
+        // modulates within that band, so a low-accuracy striker can't buy a big banana with WASD.
+        public const float SetPieceCurlAccFloor  = 0.25f;
         public const float SetPieceRunupSpeed    = 5.5f;  // run-in speed (m/s); matches a brisk approach (the driver places the taker ~3m back)
         public const float SetPiecePlantOffset   = 0.55f; // stops the run-in this far short of the ball (plant beside it)
         public const float SetPieceSwingTime     = 0.22f; // seconds of cosmetic leg swing after the plant before contact

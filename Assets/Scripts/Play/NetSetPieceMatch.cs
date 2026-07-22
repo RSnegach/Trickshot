@@ -557,8 +557,11 @@ namespace Trickshot
                                 BallController.SetPieceSpin.CurveRight, BallController.SetPieceSpin.TopSpin };
             var spin = spins[Random.Range(0, spins.Length)];
             _ball.ResetTo(_ballSpot);
+            // AI never overpowers the bar (overcharge 0 -> stays under the crossbar); its power stat
+            // tracks its competence so the pace reads right.
             _ball.LaunchSetPiece(Random.Range(0.55f, 0.8f), spin, Random.Range(0.4f, 0.9f),
-                                 0f, Mathf.Clamp01(combined), SimConfig.AttackGoalCenter);
+                                 0f, Mathf.Clamp01(combined), SimConfig.AttackGoalCenter,
+                                 0f, Mathf.Clamp01(combined));
             _takerArmed = false;
         }
 
