@@ -39,6 +39,9 @@ namespace Trickshot
 
         // ---- Jersey art (painted on the 2D canvas; applied to the torso material) ----
         public static Texture2D JerseyTex;      // null -> plain team colour
+        // PNG encoding of JerseyTex, cached when the jersey is finalized. Networked to other peers
+        // (chunked) so remote bodies wear this player's painted kit; null -> nothing to send.
+        public static byte[] JerseyPng;
         public static Color JerseyBase = new Color(0.2f, 0.45f, 0.85f);
 
         // ---- Appearance (skin + head cosmetics) ----
@@ -155,6 +158,7 @@ namespace Trickshot
             Number = 10;
             LeftFooted = false;
             JerseyTex = null;
+            JerseyPng = null;
             Appearance = PlayerAppearance.Default;
             SkillTree.Clear();
         }

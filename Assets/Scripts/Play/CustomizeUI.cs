@@ -1387,6 +1387,7 @@ namespace Trickshot
             _canvas.SetPixels32(_pixels);
             _canvas.Apply();
             PlayerProfile.JerseyTex = _canvas;   // hand the painted texture to the profile
+            PlayerProfile.JerseyPng = _canvas.EncodeToPNG();   // cache the PNG for network replication
         }
     }
 }

@@ -159,6 +159,7 @@ namespace Trickshot
             _replay.Setup(tracked, null, SimConfig.ReplayWindow);
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
+            _s.JerseyUpdated += OnJerseyUpdated;
 
             LockCursor();
         }
@@ -188,7 +189,11 @@ namespace Trickshot
             bool wantsLook = human;
             Material slotLimb = wantsLook ? Make.Mat(rosterSlot.appearance.Skin) : limb;
             PlayerAppearance? appr = wantsLook ? rosterSlot.appearance : (PlayerAppearance?)null;
-            ragdoll.Build(start, facing, torso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
+            // Per-slot painted jersey (human's own networked kit if arrived, else the shared team
+            // torso). A late arrival is swapped in live via OnJerseyUpdated.
+            Texture2D jt = human ? _s.JerseyForSlot(slot) : null;
+            Material slotTorso = jt != null ? Make.MatTex(jt) : torso;
+            ragdoll.Build(start, facing, slotTorso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
 
             var b = new Body { ragdoll = ragdoll, isKeeper = keeper, isShooter = !keeper,
                                targetPos = start, targetYaw = facing.eulerAngles.y };
@@ -278,6 +283,17 @@ namespace Trickshot
         }
         int _lastLocalTaken;
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
+
+        // A slot's networked jersey finished arriving after its body was built: swap the torso kit
+        // live so the remote player's painted jersey shows without a rebuild.
+        void OnJerseyUpdated(int slot)
+        {
+            if (slot < 0 || slot >= _bodies.Length) return;
+            var b = _bodies[slot];
+            if (b == null || b.ragdoll == null) return;
+            var tex = _s.JerseyForSlot(slot);
+            if (tex != null) b.ragdoll.SetTorsoMaterial(Make.MatTex(tex));
+        }
 
         // ------------------------------------------------------------ turn flow (host)
         // Put shooter `_shooterSlots[idx]` on the spot, enable only their control, ground the
@@ -649,6 +665,7 @@ namespace Trickshot
                 _s.ShootoutUpdated -= OnShootoutUpdated;
                 _s.ReplayStarted -= OnReplayStarted;
                 _s.ReplayEnded -= OnReplayEnded;
+                _s.JerseyUpdated -= OnJerseyUpdated;
             }
             if (_ball != null) { _ball.SetPieceShot = false; if (_ball.Rb != null) _ball.Rb.isKinematic = false; }
         }
