@@ -49,6 +49,11 @@ namespace Trickshot
         // crosser) rather than the fixed launch point. Set with Cosmetic=false.
         public bool ServeFromFeet;
 
+        // AI/auto crosser delivery: false (default) = a LOFTED cross through the air; true = a
+        // fast, flat GROUND cross. Toggled from the cross map's Crosser tab. Only affects the
+        // auto/aimed serve (PickServe); the human crosser chooses per-serve via tap/hold.
+        public bool GroundCross;
+
         public void Init(AimReticle reticle, BallController ball, Transform launchPoint, ActiveRagdoll ragdoll)
         {
             _reticle = reticle;
@@ -71,10 +76,16 @@ namespace Trickshot
         public void SetOrigin(Vector3 spot)
         {
             spot.y = 0f;
-            Vector3 toGoal = SimConfig.GoalCenter - spot; toGoal.y = 0f;
-            if (toGoal.sqrMagnitude < 0.0001f) toGoal = Vector3.forward;
+            // Face where he is actually crossing TO (the target), not always the goal. The launch
+            // is solved origin->target, so if the crosser stands downfield of the target this makes
+            // his body + swing turn to the target (a cutback looks deliberate, not a backward boot).
+            // Falls back to facing the goal only if there is no target set.
+            Vector3 aim = TargetOverride ?? SimConfig.ServeTarget;
+            Vector3 toAim = aim - spot; toAim.y = 0f;
+            if (toAim.sqrMagnitude < 0.0001f) { toAim = SimConfig.GoalCenter - spot; toAim.y = 0f; }
+            if (toAim.sqrMagnitude < 0.0001f) toAim = Vector3.forward;
             if (_ragdoll != null && Cosmetic)
-                _ragdoll.ResetTo(spot, Quaternion.LookRotation(toGoal.normalized, Vector3.up));
+                _ragdoll.ResetTo(spot, Quaternion.LookRotation(toAim.normalized, Vector3.up));
             OriginOverride = spot + Vector3.up * 0.4f;   // ball launches from ~ball height at the spot
         }
 
@@ -191,10 +202,24 @@ namespace Trickshot
 
         void PickServe()
         {
-            // Landing spot: the delivery override (aim spot / corner target) or the
-            // default cross target. Flight is fixed, no curl (predictable practice).
-            _pendingTarget = TargetOverride ?? SimConfig.ServeTarget;
-            _pendingTime = SimConfig.ServeTime;
+            // Landing spot: the delivery override (aim spot / corner target) or the default
+            // cross target. No curl (predictable practice).
+            Vector3 target = TargetOverride ?? SimConfig.ServeTarget;
+            if (GroundCross)
+            {
+                // GROUND: a fast, flat, low ball - land at ball height with the short flight time
+                // so LaunchTo solves a shallow, quick trajectory that stays low.
+                target.y = SimConfig.BallRadius;
+                _pendingTarget = target;
+                _pendingTime = SimConfig.CrossServeGroundTime;
+            }
+            else
+            {
+                // AIR (default): a lofted cross. Same landing spot, but the long flight time
+                // makes LaunchTo solve a high arc that sails up and drops onto the target.
+                _pendingTarget = target;
+                _pendingTime = SimConfig.CrossServeAirTime;
+            }
             _pendingCurl = Vector3.zero;
             _pendingSpin = 0f;
         }
