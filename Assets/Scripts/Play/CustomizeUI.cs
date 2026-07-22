@@ -26,6 +26,10 @@ namespace Trickshot
         enum Stage { Body, Skill, Name, Jersey }
         Stage _stage = Stage.Body;
 
+        // When true (keeper customize), the Skill stage is skipped in both directions - it only
+        // drives shot/movement traits a keeper never uses. Set before Init.
+        public bool SkipSkill;
+
         // Skill tree UI state.
         SkillTree.Category _skillCat = SkillTree.Category.Pace;
 
@@ -351,10 +355,10 @@ namespace Trickshot
                 var subName = new GUIStyle(title) { alignment = TextAnchor.MiddleCenter, fontSize = 22 };
                 int subCount = System.Enum.GetValues(typeof(BodySub)).Length;
                 if (GUI.Button(new Rect(axl, y + 16f, 30f, 30f), "‹", arrow))
-                    _bodySub = (BodySub)(((int)_bodySub - 1 + subCount) % subCount);
+                    { _bodySub = (BodySub)(((int)_bodySub - 1 + subCount) % subCount); _apprScroll = Vector2.zero; }
                 GUI.Label(new Rect(axl + 32f, y + 14f, 150f, 36f), SubName(_bodySub), subName);
                 if (GUI.Button(new Rect(axl + 184f, y + 16f, 30f, 30f), "›", arrow))
-                    _bodySub = (BodySub)(((int)_bodySub + 1) % subCount);
+                    { _bodySub = (BodySub)(((int)_bodySub + 1) % subCount); _apprScroll = Vector2.zero; }
             }
             else
                 GUI.Label(new Rect(x + 28f, y + 14f, panelW - 56f, 36f), "CUSTOMIZE - " + _stage.ToString().ToUpper(), title);
@@ -488,6 +492,15 @@ namespace Trickshot
             return result;
         }
 
+        // Dark neutrals the HSV wheel can't reach (its value is fixed at 1, so it tops out at
+        // full-brightness hues and pure white; black and dark greys are unreachable). Offered as
+        // swatches under the hair/facial/accessory wheels. Pure black is first.
+        static readonly Color[] _darkSwatches =
+        {
+            new Color(0.02f, 0.02f, 0.02f), new Color(0.15f, 0.15f, 0.16f),
+            new Color(0.32f, 0.32f, 0.34f), new Color(0.55f, 0.55f, 0.57f),
+        };
+
         // Human-looking skin tones for the "Human" group.
         static readonly Color[] _humanSkins =
         {
@@ -554,6 +567,9 @@ namespace Trickshot
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             GUI.Label(new Rect(wx, row, wsz, 18f), "Hair colour", st);
             PlayerProfile.Appearance.HairColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.HairColor);
+            // The HSV wheel is fixed at full value so it can't reach black; offer it as a swatch.
+            PlayerProfile.Appearance.HairColor = SwatchRow(wx, row + 26f + wsz, wsz,
+                PlayerProfile.Appearance.HairColor, _darkSwatches, 26f, 6f);
         }
 
         void FacialSubMenu(float lx, float row, float lw, float bottom)
@@ -567,6 +583,8 @@ namespace Trickshot
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             GUI.Label(new Rect(wx, row, wsz, 18f), "Facial colour", st);
             PlayerProfile.Appearance.FacialColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.FacialColor);
+            PlayerProfile.Appearance.FacialColor = SwatchRow(wx, row + 26f + wsz, wsz,
+                PlayerProfile.Appearance.FacialColor, _darkSwatches, 26f, 6f);
         }
 
         void AccessorySubMenu(float lx, float row, float lw, float bottom)
@@ -587,6 +605,8 @@ namespace Trickshot
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             GUI.Label(new Rect(wx, row, wsz, 18f), "Accessory colour", st);
             PlayerProfile.Appearance.AccessoryColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.AccessoryColor);
+            PlayerProfile.Appearance.AccessoryColor = SwatchRow(wx, row + 26f + wsz, wsz,
+                PlayerProfile.Appearance.AccessoryColor, _darkSwatches, 26f, 6f);
         }
 
         void Trait(float lx, ref float row, float lw, string label, float mul)
@@ -1320,7 +1340,11 @@ namespace Trickshot
             if (GUI.Button(new Rect(edge, by, bw, 44f), "Back", btn))
             {
                 if (_stage == Stage.Body) { enabled = false; _onBack?.Invoke(); }
-                else _stage -= 1;
+                else
+                {
+                    _stage -= 1;
+                    if (SkipSkill && _stage == Stage.Skill) _stage -= 1;   // hop Skill (Name -> Body)
+                }
             }
 
             // Flow is Body -> Skill -> Name -> Jersey; Jersey is last so it carries Confirm.
@@ -1332,6 +1356,7 @@ namespace Trickshot
                 {
                     Stage from = _stage;
                     _stage += 1;
+                    if (SkipSkill && _stage == Stage.Skill) _stage += 1;   // hop Skill (Body -> Name)
                     // Entering the Jersey stage: bake the just-chosen name + number into
                     // the canvas base so the player paints around them, and point the 3D
                     // preview at the live canvas so strokes show on the model in real time.
