@@ -32,11 +32,15 @@ namespace Trickshot
             public Goalkeeper ai;           // host: AI keeper when no human holds slot 0
             public KeeperController keeper; // host: human keeper controller (slot 0 with a human)
             public CrosserControl crosserCtl; // host: human crosser controller (slot 7 with a human)
+            public Celebration celeb;       // emote driver (host sim + local owner); null on pure puppets
             public bool isKeeper;
             public bool isCrosser;
             // client interp targets
             public Vector3 targetPos;
             public float targetYaw;
+            // client: emote to display on this puppet (255 = none) + its 0..1 phase.
+            public int emoteId = 255;
+            public float emotePhase;
         }
 
         GameInput _input;
@@ -62,6 +66,9 @@ namespace Trickshot
         bool _crossMapOpen;
         Vector3 _crossTarget = SimConfig.ServeTarget;
         bool _localIsCrosser;
+
+        // Emote wheel (B): pick a celebration; it plays on the local body and syncs to everyone.
+        bool _wheelOpen;
 
         // Per-machine post-goal replay (each peer replays its own local view).
         ReplaySystem _replay;
@@ -163,10 +170,18 @@ namespace Trickshot
                     if (isLocal) striker.Init(_input, ragdoll);          // host's own device
                     else { b.netInput = new NetInputSource(); striker.Init(b.netInput, ragdoll); }
                     AttachKick(ragdoll, striker);
+                    // Host sims every outfield body's emote on the real ragdoll (so its pose +
+                    // phase can be streamed to clients).
+                    b.celeb = go.AddComponent<Celebration>(); b.celeb.Init(ragdoll);
                 }
                 else
                 {
-                    if (isLocal) striker.Init(_input, ragdoll);          // client-predicted local player
+                    if (isLocal)
+                    {
+                        striker.Init(_input, ragdoll);                   // client-predicted local player
+                        // The owner plays their own emote locally on the real body for instant feedback.
+                        b.celeb = go.AddComponent<Celebration>(); b.celeb.Init(ragdoll);
+                    }
                     else { striker.ControlEnabled = false; ragdoll.BecomeDisplayBody(); }  // remote puppet
                 }
             }
@@ -189,6 +204,8 @@ namespace Trickshot
                 else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll); }
                 kc.SetLookYawSource(isLocal ? (System.Func<float>)(() => _cam.Yaw) : (() => b.netInput != null ? b.netInput.LookYaw : 0f));
                 b.keeper = kc;
+                // Human keepers can emote too (host sims it on the real body -> streamed out).
+                b.celeb = go.AddComponent<Celebration>(); b.celeb.Init(ragdoll);
             }
 
             _bodies[slot] = b;
@@ -271,6 +288,46 @@ namespace Trickshot
             Cursor.visible = open;
         }
 
+        // Emote wheel open/close: free the cursor so the radial menu is clickable, re-lock on close.
+        void SetWheelOpen(bool open)
+        {
+            _wheelOpen = open;
+            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = open;
+        }
+
+        // A clickable radial emote menu (B). Clicking a slice records the pick on the input
+        // (SetEmotePick -> reaches the host via SampleFrame, which streams it to everyone) and
+        // plays it immediately on the local body for instant owner feedback, then closes.
+        void DrawEmoteWheel()
+        {
+            float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
+            int n = Celebration.Menu.Length;
+            float rad = 210f;
+            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.5f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+            var lbl = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
+            for (int i = 0; i < n; i++)
+            {
+                float ang = (360f / n * i) * Mathf.Deg2Rad;
+                float sx = cx + Mathf.Sin(ang) * rad;
+                float sy = cy - Mathf.Cos(ang) * rad;
+                float bw = 132f, bh = 42f;
+                var r = new Rect(sx - bw * 0.5f, sy - bh * 0.5f, bw, bh);
+                if (GUI.Button(r, Celebration.Menu[i].name, lbl))
+                {
+                    _input.SetEmotePick((int)Celebration.Menu[i].e);   // sync to host -> everyone
+                    var me = _bodies[_localSlot];
+                    if (me != null && me.celeb != null) me.celeb.Play(Celebration.Menu[i].e);   // instant local feedback
+                    SetWheelOpen(false);
+                    return;
+                }
+            }
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(cx - 160f, cy - 12f, 320f, 24f), "Click an emote  ·  B to close", hint);
+        }
+
         // Replay start (any peer): freeze local control, cut to broadcast cam, roll playback.
         void OnReplayStarted()
         {
@@ -314,12 +371,27 @@ namespace Trickshot
             // Local crosser: M toggles the cross-targeting map (freeze aim, free the cursor).
             if (_localIsCrosser && _input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
 
+            // Emote wheel (B): any local body that can emote (has a Celebration). Toggling frees
+            // the cursor so the radial menu is clickable. Not while the cross map is up.
+            if (_input.EmotePressed && !_crossMapOpen && _bodies[_localSlot]?.celeb != null)
+                SetWheelOpen(!_wheelOpen);
+
             // Local player: tick its own controller (host + client both predict the local body).
             // Shooters tick their Striker; a local keeper/crosser control is ticked host-side in
             // HostUpdate (they own the authoritative body); a client-local keeper/crosser has no
             // predicted control this pass (their body follows the host snapshot).
             var me = _bodies[_localSlot];
-            if (me != null && me.striker != null) me.striker.Tick();
+            // Local emote: start my celebration from the device pick (a property read - does NOT
+            // consume the one-shot; SampleFrame later sends it over the wire so the host streams
+            // it to the others). Reading before SampleFrame means it plays this frame. Works for a
+            // local shooter OR a local (host) keeper - both have a celeb; only the null-check gates.
+            if (me != null && me.celeb != null && !me.celeb.Playing)
+            {
+                int eid = _input.EmoteId;
+                if (eid >= 0 && eid != 255) me.celeb.Play((Celebration.Emote)eid);
+            }
+            // Tick my controller unless I'm emoting (so movement doesn't fight the pose).
+            if (me != null && me.striker != null && (me.celeb == null || !me.celeb.Playing)) me.striker.Tick();
 
             if (_s.IsHost) HostUpdate();
             else ClientUpdate();
@@ -375,12 +447,22 @@ namespace Trickshot
                 bool remote = i != _localSlot;
                 // Remote human slots: refresh their input adapter from the wire first.
                 if (remote && b.netInput != null) b.netInput.Feed(_s.InputForSlot(i));
+                // Emote: start a REMOTE body's celebration from its wire input (the local body's
+                // emote is started in Update from the device, before SampleFrame consumes it).
+                // Runs on the real ragdoll so the pose + phase can be streamed to every client.
+                if (remote && b.celeb != null && b.netInput != null && !b.celeb.Playing)
+                {
+                    int eid = b.netInput.EmoteId;
+                    if (eid >= 0 && eid != 255) b.celeb.Play((Celebration.Emote)eid);
+                }
                 // Tick whichever controller this body has (shooter / human keeper / human
                 // crosser). The local body's Striker is already ticked in Update(); its human
                 // keeper/crosser controls are ticked here (they run host-side only).
-                if (remote && b.striker != null) b.striker.Tick();
+                // While emoting, suspend the striker so movement doesn't fight the pose.
+                bool emoting = b.celeb != null && b.celeb.Playing;
+                if (remote && b.striker != null && !emoting) b.striker.Tick();
                 if (b.ai != null) b.ai.Tick();
-                if (b.keeper != null) b.keeper.Tick();
+                if (b.keeper != null && !emoting) b.keeper.Tick();   // suspend keeper control while emoting
                 if (b.crosserCtl != null) b.crosserCtl.Tick();
             }
 
@@ -430,6 +512,7 @@ namespace Trickshot
                         var b = _bodies[bs.slot];
                         if (b == null || bs.slot == _localSlot) continue;   // don't puppet our own predicted body
                         b.targetPos = bs.pos; b.targetYaw = bs.yaw;
+                        b.emoteId = bs.emoteId; b.emotePhase = bs.emotePhase / 255f;   // emote to display
                     }
                 _ballTargetPos = snap.ballPos;
             }
@@ -442,7 +525,12 @@ namespace Trickshot
                 Vector3 cur = b.ragdoll.Pelvis != null ? FlatFeet(b.ragdoll) : b.targetPos;
                 Vector3 pos = Vector3.Lerp(cur, b.targetPos, k);
                 float yaw = Mathf.LerpAngle(b.ragdoll.FacingRotation.eulerAngles.y, b.targetYaw, k);
-                b.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
+                // If this body is emoting, pose the puppet's limbs from the synced emote id/phase
+                // so the dance is visible; otherwise snap to the plain networked stance.
+                if (b.emoteId != 255)
+                    b.ragdoll.DisplayEmote(pos, Quaternion.Euler(0f, yaw, 0f), b.emoteId, b.emotePhase);
+                else
+                    b.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
             }
             // Ball: lerp its position (client ball is display-only; host owns physics).
             _ball.Rb.isKinematic = true;
@@ -463,7 +551,16 @@ namespace Trickshot
                 var b = _bodies[i];
                 if (b == null || b.ragdoll.Pelvis == null) continue;
                 Vector3 p = b.ragdoll.Pelvis.position; p.y = 0f;
-                list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y, down = false });
+                // Stream the emote this body is playing (id + quantized phase) so clients can
+                // replay the dance on their puppet. 255 = not emoting.
+                byte eid = 255, eph = 0;
+                if (b.celeb != null && b.celeb.Playing)
+                {
+                    eid = (byte)b.celeb.CurrentEmote;
+                    eph = (byte)Mathf.Clamp(Mathf.RoundToInt(b.celeb.Progress01 * 255f), 0, 255);
+                }
+                list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
+                                         down = false, emoteId = eid, emotePhase = eph });
             }
             var snap = new Snapshot
             {
@@ -505,6 +602,9 @@ namespace Trickshot
                     ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
                     : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q/E call low/high   V ball cam   R reset"));
             Hud.Flash(_flash, _flashTime / 1.6f);
+
+            // Emote wheel overlay (B).
+            if (_wheelOpen) DrawEmoteWheel();
 
             // Crosser's cross-targeting overlay (aim where deliveries land).
             if (_localIsCrosser && _crossMapOpen)

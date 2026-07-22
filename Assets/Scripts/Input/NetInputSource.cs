@@ -50,5 +50,10 @@ namespace Trickshot
         public bool PassLoftedPressed => _cur.passLofted && !_prev.passLofted;
         public bool PassGroundReleased => !_cur.passGround && _prev.passGround;
         public bool PassLoftedReleased => !_cur.passLofted && _prev.passLofted;
+
+        // Emote pick from the wire: report it only on the tick it first appears (id != 255 and
+        // changed from the previous frame's id) so the host starts the emote exactly once, even
+        // though the same held frame may repeat across snapshot ticks.
+        public int EmoteId => (_cur.emoteId != 255 && _cur.emoteId != _prev.emoteId) ? _cur.emoteId : 255;
     }
 }
