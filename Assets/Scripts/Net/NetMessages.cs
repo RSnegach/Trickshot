@@ -111,6 +111,8 @@ namespace Trickshot.Net
         public byte emoteId;      // 255 = none; else the emote this body is currently playing
         public byte emotePhase;   // 0..255 quantized 0..1 progress of that emote
         public byte anim;         // AnimState the body is in (drives the client-side canned anim)
+        public uint lastInputTick; // host: the highest input tick applied for this slot (client
+                                   // reads its OWN slot's value to reconcile its predicted body)
     }
 
     public struct Snapshot
@@ -235,7 +237,7 @@ namespace Trickshot.Net
             w.U8(s.homeScore); w.U8(s.awayScore);
             w.U8((byte)(s.bodies?.Length ?? 0));
             if (s.bodies != null)
-                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); }
+                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); w.U32(b.lastInputTick); }
             return w.ToArray();
         }
 
@@ -245,7 +247,7 @@ namespace Trickshot.Net
             int n = r.U8();
             s.bodies = new BodyState[n];
             for (int i = 0; i < n; i++)
-                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8(), anim = r.U8() };
+                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8(), anim = r.U8(), lastInputTick = r.U32() };
             return s;
         }
 

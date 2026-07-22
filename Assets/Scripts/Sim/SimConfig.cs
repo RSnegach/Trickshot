@@ -569,6 +569,13 @@ namespace Trickshot
         // snapshots bracketing (now - delay). ~2 snapshot intervals so a late/dropped packet has a
         // neighbor to interpolate to instead of teleporting. The local player is predicted, not delayed.
         public const float NetInterpDelay      = 0.1f;   // 100 ms interpolation delay
+        // Client server-reconciliation of the local predicted body (bounded error correction, not
+        // rollback - the ragdoll isn't re-simulatable). Error below the deadzone is expected
+        // prediction lag and ignored; a moderate error eases back at ReconcileRate/sec; an error
+        // past ReconcileSnap is a real misprediction and is hard-snapped.
+        public const float ReconcileDeadzone   = 0.35f;  // m of allowed predicted-vs-authoritative drift
+        public const float ReconcileRate       = 6f;     // fraction/sec eased back for a moderate error
+        public const float ReconcileSnap       = 2.5f;   // m error above which we hard-snap
 
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling

@@ -756,6 +756,20 @@ namespace Trickshot
                 if (_rb[i] != null) _rb[i].AddForce(deltaV, ForceMode.VelocityChange);
         }
 
+        // Rigidly translate every bone by `delta`, preserving the pose + velocities. Client-side
+        // server reconciliation nudges a mispredicted local body back toward the authoritative
+        // position without disturbing its stance or physics (unlike ResetTo, which re-stands it).
+        public void ShiftAll(Vector3 delta)
+        {
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                var rb = _rb[i];
+                if (rb == null) continue;
+                rb.position += delta;
+                rb.transform.position += delta;
+            }
+        }
+
         /// <summary>Scale the horizontal (x/z) velocity of every bone, leaving vertical
         /// intact. Used to bleed off carried run momentum at jump time.</summary>
         public void ScaleHorizontalVelocity(float factor)

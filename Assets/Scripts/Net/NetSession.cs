@@ -291,6 +291,9 @@ namespace Trickshot.Net
         public bool SlotIsHuman(int slot) => slot >= 0 && slot < MaxSlots && _slotOwner[slot].IsValid;
         public bool SlotIsLocal(int slot) => slot == LocalSlot;
         public InputFrame InputForSlot(int slot) => _slotInput[slot];
+        // Highest input tick the host has applied for a slot (host-side). Streamed per body so a
+        // client can reconcile its predicted local body against the state produced by that input.
+        public uint InputTickForSlot(int slot) => (slot >= 0 && slot < MaxSlots) ? _slotInputTick[slot] : 0u;
 
         // ---- host: gather inputs + broadcast state ----
         // The host sets its own input each tick; clients' arrive over the wire.
