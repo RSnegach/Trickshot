@@ -25,8 +25,9 @@ namespace Trickshot
         // bottom-left normalized rect each frame so it tracks the panel.
         public Rect ViewportPx;
 
-        // When true the model spins on its own; when false the caller drives the yaw (the
-        // jersey stage lets the player click-drag to spin it manually).
+        // When true the model spins on its own; when false the caller drives the yaw. The
+        // customize screen keeps this off in every stage and lets the player click-drag to
+        // turn the model manually.
         public bool AutoRotate = true;
         public void AddYaw(float deg) => _yaw += deg;   // manual drag from the UI
 
@@ -133,8 +134,8 @@ namespace Trickshot
             }
 
             // Frame the model: camera in front (-Z of the stage since the model faces -Z),
-            // orbiting so the player sees front + back (name/number + jersey art). Auto in
-            // the body/name stages; the jersey stage turns it off and drives yaw by drag.
+            // orbiting so the player sees front + back (name/number + jersey art). On the
+            // customize screen AutoRotate is off and the player drives yaw by dragging.
             if (AutoRotate) _yaw += Time.unscaledDeltaTime * 35f;
             Vector3 pivot = Stage + new Vector3(0f, 1.0f * PlayerProfile.HeightScale, 0f);
             Quaternion rot = Quaternion.Euler(6f, _yaw, 0f);

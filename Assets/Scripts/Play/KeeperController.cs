@@ -38,6 +38,7 @@ namespace Trickshot
         float _diveAir;       // time since dive launched
         float _diveGround;    // time spent settled on the ground after landing
         bool _diveIsJump;     // straight jump (stays upright) vs. lay-out dive
+        bool _diveIsHigh;     // high (full lay-out) dive vs. low dash dive
         float _saveReleaseTimer;
 
         // Double-tap detection for A/D dash dives.
@@ -257,23 +258,24 @@ namespace Trickshot
             float up = SimConfig.KeeperDiveUpBase + SimConfig.KeeperDiveUpPerV * priorSpeed;
             // The jump-height setting also scales how high the high dive goes.
             up *= SimConfig.KeeperJumpVel / SimConfig.KeeperJumpVelBase;
-            DoDive(dir, horiz, up, SimConfig.KeeperDiveLayoutHigh);
+            DoDive(dir, horiz, up, SimConfig.KeeperDiveLayoutHigh, isHigh: true);
         }
 
         // Double-tap A/D: explosive LOW sideways dive, just off the ground (fixed).
         void LaunchDashDive(float dir)
         {
-            DoDive(dir, SimConfig.KeeperDashDive, SimConfig.KeeperDashUp, SimConfig.KeeperDiveLayoutLow);
+            DoDive(dir, SimConfig.KeeperDashDive, SimConfig.KeeperDashUp, SimConfig.KeeperDiveLayoutLow, isHigh: false);
         }
 
         // Shared dive launch: sideways+up velocity, plus an ACTIVELY DRIVEN roll to a
         // rolled (near-)horizontal target that the ragdoll HOLDS - so he reliably reaches
         // that lay-out by the apex regardless of airtime (a one-shot impulse alone can't
         // guarantee "parallel at the high point"). Locomotion off so momentum carries.
-        void DoDive(float dir, float horiz, float up, float layoutDeg)
+        void DoDive(float dir, float horiz, float up, float layoutDeg, bool isHigh)
         {
             _state = State.Diving;
             _diveIsJump = false;
+            _diveIsHigh = isHigh;
             _diveDir = dir;
             _diveAir = 0f; _diveGround = 0f;
             _ragdoll.UprightLock = false;
@@ -325,6 +327,19 @@ namespace Trickshot
                 _ragdoll.SetPoseOverride(leadCalf,  new Vector3(SimConfig.KeeperDiveLeadKnee, 0f, 0f));
                 _ragdoll.SetPoseOverride(backThigh, new Vector3(-SimConfig.KeeperDiveBackKnee * 0.5f, 0f, 0f));
                 _ragdoll.SetPoseOverride(backCalf,  new Vector3(SimConfig.KeeperDiveBackKnee, 0f, 0f));
+
+                // High dive only: swing the TOP arm (the one on the up side, opposite the dive
+                // direction) over toward the dive so the two outstretched arms close the gap
+                // between them and cover more space. Local +Z swings a hanging arm toward the
+                // keeper's LEFT, -Z toward his RIGHT: diving left (top = UpperArmR, base -Z) we
+                // add +Z to bring it left/over; diving right (top = UpperArmL, base +Z) we add -Z.
+                // Low dash dives skip this (arms stay wide) so it reads as a distinct move.
+                if (_diveIsHigh)
+                {
+                    Bone topArm = _diveDir < 0f ? Bone.UpperArmR : Bone.UpperArmL;
+                    float swing = _diveDir < 0f ? SimConfig.KeeperDiveArmSwing : -SimConfig.KeeperDiveArmSwing;
+                    _ragdoll.SetPoseOverride(topArm, new Vector3(0f, 0f, swing));
+                }
             }
 
             _diveAir += Time.deltaTime;
