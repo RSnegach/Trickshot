@@ -151,8 +151,13 @@ namespace Trickshot
                 onBack:   () => { Destroy(go); ShowMainMenu(); });
         }
 
-        // Customization applies to the player STRIKER, so keeper mode skips it.
-        static bool UsesCustomPlayer(GameMode mode) => mode != GameMode.Goalkeeper;
+        // Every human-player mode gets the customize screen, keeper included (the keeper wears
+        // the customized skin/cosmetics/jersey + gloves, same as multiplayer). Modes with no
+        // customizable player would return false here.
+        static bool UsesCustomPlayer(GameMode mode) => true;
+        // The keeper's customize flow skips the Skill stage (it only drives shot/movement traits
+        // a KeeperController never reads); every other mode walks the full flow.
+        static bool CustomizeSkipsSkill(GameMode mode) => mode == GameMode.Goalkeeper;
 
         void AfterStadium(GameMode mode)
         {
@@ -164,6 +169,7 @@ namespace Trickshot
         {
             var go = new GameObject("CustomizeUI");
             var cu = go.AddComponent<CustomizeUI>();
+            cu.SkipSkill = CustomizeSkipsSkill(mode);
             cu.Init(
                 onDone: () => { Destroy(go); ShowPrematch(mode); },
                 onBack: () => { Destroy(go); ShowStadiumSelect(mode); });
@@ -175,9 +181,9 @@ namespace Trickshot
             var pm = go.AddComponent<PrematchUI>();
             pm.Init(mode,
                 onStart: m => { Destroy(go); BuildMode(m); },
-                // Back goes to the previous screen: Customize for striker modes, the
-                // stadium picker for keeper mode (which skips Customize). AfterStadium is
-                // a forward-router and would re-show Prematch for keeper, so branch here.
+                // Back goes to the previous screen: Customize for any mode with a customizable
+                // player (all of them now, keeper included), else the stadium picker. Branch here
+                // rather than via AfterStadium, which is a forward-router to Prematch.
                 onBack:  () => { Destroy(go); if (UsesCustomPlayer(mode)) ShowCustomize(mode); else ShowStadiumSelect(mode); });
         }
 
@@ -588,7 +594,13 @@ namespace Trickshot
                 kGo.transform.SetParent(root, true);
                 humanKeeperRag = kGo.AddComponent<ActiveRagdoll>();
                 var facing = Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up);
-                humanKeeperRag.Build(new Vector3(0f, 0f, arena.awayGoalCenter.z + 1.0f), facing, homeTorso, homeLimb);
+                // Human keeper wears the player's customized kit (homeTorso == the painted jersey)
+                // + skin + cosmetics + gloves, same as the striker path. Position/facing stay
+                // mode-specific (defends the away goal).
+                humanKeeperRag.BuildScaled(new Vector3(0f, 0f, arena.awayGoalCenter.z + 1.0f), facing,
+                                           homeTorso, Make.Mat(PlayerProfile.Appearance.Skin),
+                                           PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
+                                           withGloves: true, appearance: PlayerProfile.Appearance);
                 humanKeeperCtrl = kGo.AddComponent<KeeperController>();
                 humanKeeperCtrl.Init(GetInput(), humanKeeperRag);
                 // 5th arg (goal Transform) is only used by the unused Broadcast cam; pass null.
@@ -661,8 +673,14 @@ namespace Trickshot
             keeperGo.transform.SetParent(root, true);
             var ragdoll = keeperGo.AddComponent<ActiveRagdoll>();
             var facing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
-            ragdoll.Build(SimConfig.KeeperStart, facing,
-                          Make.Mat(new Color(0.9f, 0.75f, 0.2f)), Make.Mat(new Color(0.7f, 0.55f, 0.15f)));
+            // The keeper wears the player's customized kit + skin + head cosmetics on a body
+            // scaled to their height/weight, plus goalkeeper gloves - same look as multiplayer.
+            // Mass is BODY-only (MassMul, not EffectiveMassMul): the keeper flow skips the Skill
+            // stage, so a prior striker session's massbonus/Immovable must not inflate the keeper.
+            ragdoll.BuildScaled(SimConfig.KeeperStart, facing,
+                                JerseyMaterial(), Make.Mat(PlayerProfile.Appearance.Skin),
+                                PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
+                                withGloves: true, appearance: PlayerProfile.Appearance);
             var keeper = keeperGo.AddComponent<KeeperController>();
             keeper.Init(GetInput(), ragdoll);
 

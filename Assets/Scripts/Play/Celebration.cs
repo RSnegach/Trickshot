@@ -137,6 +137,14 @@ namespace Trickshot
                     _ragdoll.LocomotionEnabled = false;
                     _ragdoll.AddVelocityToAll(_ragdoll.FacingRotation * Vector3.forward * 5f);
                     break;
+                case Emote.Moonwalk:
+                    // Glide BACKWARD while facing forward (the moonwalk). Locomotion stays ON so
+                    // MoveInput (set each frame in Update) drives a steady backward slide; the leg
+                    // shuffle pose plays on top. Upright-locked so he stays vertical as he glides.
+                    _ragdoll.UprightLock = true;
+                    _ragdoll.BalanceEnabled = true;
+                    _ragdoll.LocomotionEnabled = true;
+                    break;
                 default:
                     // Standing emotes: stay locked upright, pose only.
                     _ragdoll.UprightLock = true;
@@ -183,6 +191,12 @@ namespace Trickshot
                 _ragdoll.SpinWholeBody(_ragdoll.FacingRotation * Vector3.forward, -430f);  // roll onto the belly/side
             }
 
+            // Moonwalk: steer a steady BACKWARD glide (opposite the facing) while the leg-shuffle
+            // pose plays. Driven every frame so ApplyLocomotion keeps the slide going for the whole
+            // emote; the root motion streams to remote puppets via the snapshot position.
+            if (_emote == Emote.Moonwalk)
+                _ragdoll.MoveInput = _ragdoll.FacingRotation * Vector3.back * SimConfig.MoonwalkGlideSpeed;
+
             _ragdoll.ClearPoseOverrides();
             // Drive the pose via the shared static formulas so the client display path (which
             // poses kinematic puppets by transform) produces the identical dance.
@@ -198,6 +212,7 @@ namespace Trickshot
             _playing = false;
             _ragdoll.ClearPoseOverrides();
             _ragdoll.EmoteHeightOffset = 0f;   // stop the vertical bob (push-ups)
+            _ragdoll.MoveInput = Vector3.zero;   // stop the moonwalk glide
             _ragdoll.BodyOrientTarget = null;
             // Kill any residual whole-body spin (Backflip) BEFORE re-locking upright, else
             // the leftover orbital velocity in the limbs flings them when the pelvis snaps

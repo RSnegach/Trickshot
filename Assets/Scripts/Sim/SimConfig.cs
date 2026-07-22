@@ -280,6 +280,9 @@ namespace Trickshot
         public const float ArmPumpSwing = 45f;      // deg upper arm swings fore/aft
         public const float ArmPumpElbow = 65f;      // deg the elbow stays folded
 
+        // Moonwalk celebration: steady backward glide speed (m/s) while the shuffle pose plays.
+        public const float MoonwalkGlideSpeed = 2.2f;
+
         // ---- Trick validation ----
         // A bicycle is a fast whole-body flip: the pelvis sweeps through the "reclined"
         // cone in a couple of frames, so reading the angle at the exact contact frame is
