@@ -506,7 +506,25 @@ namespace Trickshot
             }
 
             ApplyLocomotion();
+
+            // Emote vertical bob (e.g. push-ups): while set, drive the pelvis toward its rest
+            // height plus this offset with a strong PD so the whole body visibly rises/lowers.
+            // Captured rest height is taken on the first frame the offset goes non-zero.
+            if (EmoteHeightOffset != 0f)
+            {
+                if (!_emoteHeightBased) { _emoteHeightRestY = Pelvis.position.y; _emoteHeightBased = true; }
+                float wantY = _emoteHeightRestY + EmoteHeightOffset;
+                var v = Pelvis.linearVelocity;
+                v.y = (wantY - Pelvis.position.y) * 12f;   // PD toward the target height
+                Pelvis.linearVelocity = v;
+            }
+            else _emoteHeightBased = false;
         }
+
+        // Vertical body offset (metres) an emote wants applied to the live dynamic body. 0 = none.
+        public float EmoteHeightOffset;
+        bool _emoteHeightBased;
+        float _emoteHeightRestY;
 
         // Directly steer the pelvis toward a target orientation by setting its angular
         // velocity along the shortest-arc error. Strong and reliable (unlike a weak PD
@@ -876,7 +894,10 @@ namespace Trickshot
             var over = _emoteScratch;
             for (int i = 0; i < over.Length; i++) over[i] = Vector3.zero;
             var e = (Celebration.Emote)emoteId;
-            EmotePose.Apply(e, Mathf.Clamp01(phase), (bone, euler) => over[(int)bone] = euler);
+            float pc = Mathf.Clamp01(phase);
+            EmotePose.Apply(e, pc, (bone, euler) => over[(int)bone] = euler);
+            // Whole-body vertical bob (e.g. push-ups drop into a plank + pump up/down).
+            basePos.y += EmotePose.RootLift(e, pc);
             // Place each bone at its rest position, rotated by facing * poseEuler.
             for (int k = 0; k < _displayBones.Length; k++)
             {

@@ -12,20 +12,71 @@ namespace Trickshot
     /// </summary>
     public class Celebration : MonoBehaviour
     {
-        // The wheel emotes. Names are shown on the wheel.
-        public enum Emote { FistPump, KneeSlide, Backflip, Wave, TPose, Griddy, Bow, PushUps, Robot }
-        public static readonly (Emote e, string name)[] Menu =
+        // The wheel emotes. Names are shown on the wheel. Enum values are the NETWORK id (a
+        // byte on the wire), so only ever APPEND new emotes - never reorder/insert.
+        public enum Emote
         {
-            (Emote.FistPump,  "Fist Pump"),
-            (Emote.KneeSlide, "Knee Slide"),
-            (Emote.Backflip,  "Backflip"),
-            (Emote.Wave,      "Wave"),
-            (Emote.TPose,     "T-Pose"),
-            (Emote.Griddy,    "Griddy"),
-            (Emote.Bow,       "Bow"),
-            (Emote.PushUps,   "Push-Ups"),
-            (Emote.Robot,     "Robot"),
+            FistPump, KneeSlide, Backflip, Wave, TPose, Griddy, Bow, PushUps, Robot,
+            Dab, Floss, Clap, Salute, HeartHands, Shrug, MuscleFlex, Point,
+            Sprinkler, HandsUp, Facepalm, Charleston, Cheer, Twirl, Disco, Thinker,
+            // Newest wheel (shown 2nd in the order, but appended here so wire ids never shift)
+            Twerk, FishFlop, Moonwalk, Wave2, Crip, Vibe, Kick, Slide2,
+        }
+
+        // Emote pages, cycled by the wheel's left/right arrows. The "fun/new" wheel is shown
+        // SECOND in the order (per request), though its emotes were appended to the enum last so
+        // network ids stay stable.
+        public static readonly (Emote e, string name)[][] Pages =
+        {
+            new (Emote, string)[]   // Wheel 1
+            {
+                (Emote.FistPump,  "Fist Pump"),
+                (Emote.KneeSlide, "Knee Slide"),
+                (Emote.Backflip,  "Backflip"),
+                (Emote.Wave,      "Wave"),
+                (Emote.TPose,     "T-Pose"),
+                (Emote.Griddy,    "Griddy"),
+                (Emote.Bow,       "Bow"),
+                (Emote.PushUps,   "Push-Ups"),
+                (Emote.Robot,     "Robot"),
+            },
+            new (Emote, string)[]   // Wheel 2 (the newest set)
+            {
+                (Emote.Twerk,     "Twerk"),
+                (Emote.FishFlop,  "Fish Flop"),
+                (Emote.Moonwalk,  "Moonwalk"),
+                (Emote.Wave2,     "Big Wave"),
+                (Emote.Crip,      "C-Walk"),
+                (Emote.Vibe,      "Vibe"),
+                (Emote.Kick,      "High Kick"),
+                (Emote.Slide2,    "Shuffle"),
+            },
+            new (Emote, string)[]   // Wheel 3
+            {
+                (Emote.Dab,        "Dab"),
+                (Emote.Floss,      "Floss"),
+                (Emote.Clap,       "Clap"),
+                (Emote.Salute,     "Salute"),
+                (Emote.HeartHands, "Heart Hands"),
+                (Emote.Shrug,      "Shrug"),
+                (Emote.MuscleFlex, "Muscle Flex"),
+                (Emote.Point,      "Point"),
+            },
+            new (Emote, string)[]   // Wheel 4
+            {
+                (Emote.Sprinkler,  "Sprinkler"),
+                (Emote.HandsUp,    "Hands Up"),
+                (Emote.Facepalm,   "Facepalm"),
+                (Emote.Charleston, "Charleston"),
+                (Emote.Cheer,      "Cheer"),
+                (Emote.Twirl,      "Twirl"),
+                (Emote.Disco,      "Disco"),
+                (Emote.Thinker,    "Thinker"),
+            },
         };
+
+        // Back-compat: the first wheel (single-player scrimmage uses this directly).
+        public static readonly (Emote e, string name)[] Menu = Pages[0];
 
         ActiveRagdoll _ragdoll;
         Emote _emote;
@@ -50,6 +101,7 @@ namespace Trickshot
             _t = 0f;
             _dur = DurationFor(e);
             _playing = true;
+            _flopped = false;
 
             _savedUpright = _ragdoll.UprightLock;
             _savedBalance = _ragdoll.BalanceEnabled;
@@ -69,12 +121,21 @@ namespace Trickshot
                     _ragdoll.SpinWholeBody(_ragdoll.FacingRotation * Vector3.right, -520f);
                     break;
                 case Emote.KneeSlide:
-                    // Slide forward along facing, upright held.
-                    _ragdoll.UprightLock = false;
+                    // Slide forward on the shins, torso HELD UPRIGHT (knees fold under; see the
+                    // pose). Keep the upright lock on so he stays vertical through the slide.
+                    _ragdoll.UprightLock = true;
                     _ragdoll.BalanceEnabled = true;
                     _ragdoll.LocomotionEnabled = false;
-                    _ragdoll.BodyOrientTarget = _ragdoll.FacingRotation;
                     _ragdoll.AddVelocityToAll(_ragdoll.FacingRotation * Vector3.forward * 5.5f);
+                    break;
+                case Emote.FishFlop:
+                    // Run forward upright, then belly-flop to the SIDE (a sideways topple). The
+                    // run is a forward launch; the flop is a lateral velocity + roll spin part-way
+                    // through (see Update's timed hand-off). Free the body so it can topple.
+                    _ragdoll.UprightLock = true;    // starts upright (running); Update frees it to flop
+                    _ragdoll.BalanceEnabled = true;
+                    _ragdoll.LocomotionEnabled = false;
+                    _ragdoll.AddVelocityToAll(_ragdoll.FacingRotation * Vector3.forward * 5f);
                     break;
                 default:
                     // Standing emotes: stay locked upright, pose only.
@@ -95,9 +156,13 @@ namespace Trickshot
                 case Emote.PushUps:   return 2.2f;
                 case Emote.Robot:     return 2.0f;
                 case Emote.Bow:       return 1.5f;
+                case Emote.FishFlop:  return 1.6f;
+                case Emote.Twerk:     return 2.2f;
                 default:              return 1.6f;
             }
         }
+
+        bool _flopped;   // FishFlop: has the sideways belly-flop been triggered yet
 
         void Update()
         {
@@ -105,10 +170,25 @@ namespace Trickshot
             _t += Time.deltaTime;
             float p = Mathf.Clamp01(_t / _dur);   // 0..1 progress
 
+            // Fish Flop: run upright for the first ~40%, then release the upright lock and
+            // launch sideways + roll so he belly-flops to the side. One-shot at the hand-off.
+            if (_emote == Emote.FishFlop && !_flopped && p >= 0.4f)
+            {
+                _flopped = true;
+                _ragdoll.UprightLock = false;
+                _ragdoll.BalanceEnabled = false;
+                _ragdoll.LocomotionEnabled = false;
+                Vector3 side = _ragdoll.FacingRotation * Vector3.right;   // flop to his right
+                _ragdoll.AddVelocityToAll(side * 3.5f + Vector3.up * 2.2f);
+                _ragdoll.SpinWholeBody(_ragdoll.FacingRotation * Vector3.forward, -430f);  // roll onto the belly/side
+            }
+
             _ragdoll.ClearPoseOverrides();
             // Drive the pose via the shared static formulas so the client display path (which
             // poses kinematic puppets by transform) produces the identical dance.
             EmotePose.Apply(_emote, p, (bone, euler) => _ragdoll.SetPoseOverride(bone, euler));
+            // Whole-body vertical bob (push-ups) on the live dynamic body.
+            _ragdoll.EmoteHeightOffset = EmotePose.RootLift(_emote, p);
 
             if (_t >= _dur) End();
         }
@@ -117,6 +197,7 @@ namespace Trickshot
         {
             _playing = false;
             _ragdoll.ClearPoseOverrides();
+            _ragdoll.EmoteHeightOffset = 0f;   // stop the vertical bob (push-ups)
             _ragdoll.BodyOrientTarget = null;
             // Kill any residual whole-body spin (Backflip) BEFORE re-locking upright, else
             // the leftover orbital velocity in the limbs flings them when the pelvis snaps
@@ -152,20 +233,30 @@ namespace Trickshot
                 {
                     float pump = Mathf.Abs(Mathf.Sin(p * Mathf.PI * 4f));
                     set(Bone.UpperArmR, new Vector3(0f, 0f, -160f * pump - 10f));
-                    set(Bone.ForearmR, new Vector3(-40f * pump, 0f, 0f));
+                    // Arm snaps FULLY STRAIGHT at the top of the punch (forearm -> 0), bends only
+                    // on the way down.
+                    set(Bone.ForearmR, new Vector3(-45f * (1f - pump), 0f, 0f));
                     set(Bone.UpperArmL, new Vector3(0f, 0f, 20f));
+                    set(Bone.ForearmL, Vector3.zero);
                     set(Bone.Torso, new Vector3(-6f * pump, 0f, 0f));
                     break;
                 }
                 case Celebration.Emote.KneeSlide:
                 {
+                    // KNEELING slide on both shins: thighs drop back a little, both knees fold
+                    // hard so the shins are flat under him, torso stays UPRIGHT (slight lean back),
+                    // arms flung out straight. RootLift lowers him so the shins meet the ground.
                     float k = Mathf.Clamp01(p * 3f);
-                    set(Bone.ThighR, new Vector3(-70f * k, 0f, 0f));
-                    set(Bone.CalfR, new Vector3(130f * k, 0f, 0f));
-                    set(Bone.ThighL, new Vector3(30f * k, 0f, 0f));
-                    set(Bone.UpperArmL, new Vector3(0f, 0f, 90f * k));
-                    set(Bone.UpperArmR, new Vector3(0f, 0f, -90f * k));
-                    set(Bone.Torso, new Vector3(-14f * k, 0f, 0f));
+                    set(Bone.ThighL, new Vector3(-20f * k, 0f, 0f));
+                    set(Bone.ThighR, new Vector3(-20f * k, 0f, 0f));
+                    set(Bone.CalfL, new Vector3(135f * k, 0f, 0f));   // shin folds under
+                    set(Bone.CalfR, new Vector3(135f * k, 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 100f * k));  // arms out + slightly up
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -100f * k));
+                    set(Bone.ForearmL, Vector3.zero);
+                    set(Bone.ForearmR, Vector3.zero);
+                    set(Bone.Torso, new Vector3(-10f * k, 0f, 0f));      // slight triumphant lean back
+                    set(Bone.Head, new Vector3(-8f * k, 0f, 0f));
                     break;
                 }
                 case Celebration.Emote.Backflip:
@@ -173,7 +264,8 @@ namespace Trickshot
                 case Celebration.Emote.Wave:
                 {
                     float wave = Mathf.Sin(p * Mathf.PI * 6f) * 25f;
-                    set(Bone.UpperArmR, new Vector3(0f, 0f, -150f));
+                    // Arm raised fully up the side, straight, forearm waving side to side.
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -165f));
                     set(Bone.ForearmR, new Vector3(0f, 0f, wave));
                     break;
                 }
@@ -209,14 +301,19 @@ namespace Trickshot
                 }
                 case Celebration.Emote.PushUps:
                 {
-                    float pump = Mathf.Abs(Mathf.Sin(p * Mathf.PI * 5f));
-                    set(Bone.Torso, new Vector3(70f, 0f, 0f));
-                    set(Bone.ThighL, new Vector3(40f, 0f, 0f));
-                    set(Bone.ThighR, new Vector3(40f, 0f, 0f));
-                    set(Bone.UpperArmL, new Vector3(0f, 0f, 80f));
-                    set(Bone.UpperArmR, new Vector3(0f, 0f, -80f));
-                    set(Bone.ForearmL, new Vector3(-90f * pump, 0f, 0f));
-                    set(Bone.ForearmR, new Vector3(-90f * pump, 0f, 0f));
+                    // Plank: torso pitched flat forward, legs straight back, arms down to the
+                    // ground. `up` = 1 at the top (arms STRAIGHT), 0 at the bottom (elbows bent).
+                    // The whole body also bobs vertically (see RootLift) so it visibly goes up/down.
+                    float up = 0.5f + 0.5f * Mathf.Sin(p * Mathf.PI * 5f);
+                    set(Bone.Torso, new Vector3(78f, 0f, 0f));
+                    set(Bone.Head, new Vector3(-20f, 0f, 0f));
+                    set(Bone.ThighL, new Vector3(12f, 0f, 0f));
+                    set(Bone.ThighR, new Vector3(12f, 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 70f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -70f));
+                    // Elbows: straight (0) at the top, bent (~95) at the bottom.
+                    set(Bone.ForearmL, new Vector3(-95f * (1f - up), 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-95f * (1f - up), 0f, 0f));
                     break;
                 }
                 case Celebration.Emote.Robot:
@@ -229,6 +326,340 @@ namespace Trickshot
                     set(Bone.ForearmL, new Vector3(-80f * (1f - a), 0f, 0f));
                     set(Bone.ThighR, new Vector3(-35f * (1f - a), 0f, 0f));
                     set(Bone.ThighL, new Vector3(-35f * a, 0f, 0f));
+                    break;
+                }
+                default:
+                    ApplyExtra(e, p, set);   // wheels 2 & 3
+                    break;
+            }
+        }
+
+        // Vertical body offset (metres) for emotes that raise/lower the whole body. Push-ups
+        // drop into a plank near the ground and pump up/down; everything else stays at 0.
+        // Applied to the pelvis (live body) and to every display-puppet bone (remote view).
+        public static float RootLift(Celebration.Emote e, float p)
+        {
+            switch (e)
+            {
+                case Celebration.Emote.PushUps:
+                {
+                    // Sink ~0.7m into a plank, then bob down another ~0.18m at the bottom of each
+                    // rep. up = 1 at the top of the push, 0 at the bottom.
+                    float up = 0.5f + 0.5f * Mathf.Sin(p * Mathf.PI * 5f);
+                    float sink = Mathf.Clamp01(p * 4f) * 0.7f;   // ease into the plank
+                    return -sink - (1f - up) * 0.18f;
+                }
+                case Celebration.Emote.KneeSlide:
+                    return -Mathf.Clamp01(p * 3f) * 0.45f;   // drop onto the shins
+                case Celebration.Emote.Twerk:
+                    return -0.35f;                            // squat down into the wide stance
+                default: return 0f;
+            }
+        }
+
+        // Wheels 2 & 3. All standing poses (upright held); arms fully extend where the move
+        // calls for it (straight elbows = forearm 0). Local +Z on an UpperArm raises it out to
+        // that side (L positive up-left, R negative up-right); +X on an UpperArm swings it forward.
+        static void ApplyExtra(Celebration.Emote e, float p, System.Action<Bone, Vector3> set)
+        {
+            switch (e)
+            {
+                case Celebration.Emote.Dab:
+                {
+                    // A proper dab: BACK arm (right) fully extended straight out and up to the
+                    // side; FRONT arm (left) bent across the body; HEAD bows DOWN into the crook
+                    // of the bent front arm.
+                    float k = Mathf.Clamp01(p * 3f);
+                    set(Bone.UpperArmR, new Vector3(-25f, 0f, -155f * k));   // back arm out+up
+                    set(Bone.ForearmR, Vector3.zero);                        // FULLY extended (straight)
+                    set(Bone.UpperArmL, new Vector3(-30f * k, 0f, 95f * k)); // front arm raised across
+                    set(Bone.ForearmL, new Vector3(-95f * k, 0f, 0f));       // BENT elbow
+                    set(Bone.Head, new Vector3(34f * k, 0f, 0f));            // bow the head DOWN into it
+                    set(Bone.Torso, new Vector3(14f * k, 0f, -8f * k));      // lean into the dab
+                    break;
+                }
+                case Celebration.Emote.Floss:
+                {
+                    // Both straight arms swing side to side, hips counter-swing (the floss).
+                    float s = Mathf.Sin(p * Mathf.PI * 8f);
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 25f + s * 30f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -25f + s * 30f));
+                    set(Bone.ForearmL, Vector3.zero);
+                    set(Bone.ForearmR, Vector3.zero);
+                    set(Bone.Torso, new Vector3(0f, s * 12f, s * 8f));
+                    break;
+                }
+                case Celebration.Emote.Clap:
+                {
+                    // Arms forward, hands meeting at centre repeatedly (a clap).
+                    float c = 0.5f + 0.5f * Mathf.Sin(p * Mathf.PI * 6f);   // 1 = hands together
+                    set(Bone.UpperArmL, new Vector3(-75f, 0f, 25f + 25f * c));
+                    set(Bone.UpperArmR, new Vector3(-75f, 0f, -25f - 25f * c));
+                    set(Bone.ForearmL, new Vector3(-20f, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-20f, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Salute:
+                {
+                    // Right hand snaps up to the brow; left arm straight at the side.
+                    float k = Mathf.Clamp01(p * 4f);
+                    set(Bone.UpperArmR, new Vector3(-30f * k, 0f, -95f * k));
+                    set(Bone.ForearmR, new Vector3(-130f * k, 0f, 0f));      // bent up to the temple
+                    set(Bone.Torso, new Vector3(-4f, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.HeartHands:
+                {
+                    // Both hands raised together above the chest making a heart.
+                    float k = Mathf.Clamp01(p * 3f);
+                    set(Bone.UpperArmL, new Vector3(-95f * k, 0f, 35f * k));
+                    set(Bone.UpperArmR, new Vector3(-95f * k, 0f, -35f * k));
+                    set(Bone.ForearmL, new Vector3(-60f * k, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-60f * k, 0f, 0f));
+                    set(Bone.Head, new Vector3(-8f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Shrug:
+                {
+                    // Forearms out, palms up, a slow shrug of the arms.
+                    float k = 0.5f + 0.5f * Mathf.Sin(p * Mathf.PI * 2f);
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 55f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -55f));
+                    set(Bone.ForearmL, new Vector3(-70f, -30f * k, 0f));
+                    set(Bone.ForearmR, new Vector3(-70f, 30f * k, 0f));
+                    set(Bone.Head, new Vector3(0f, 0f, 6f * (k - 0.5f)));
+                    break;
+                }
+                case Celebration.Emote.MuscleFlex:
+                {
+                    // Classic double-biceps: arms up to the sides, forearms curled hard in.
+                    float k = Mathf.Clamp01(p * 3f);
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 95f * k));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -95f * k));
+                    set(Bone.ForearmL, new Vector3(-145f * k, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-145f * k, 0f, 0f));
+                    set(Bone.Torso, new Vector3(0f, Mathf.Sin(p * Mathf.PI * 4f) * 6f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Point:
+                {
+                    // Right arm fully straight, pointing forward at the loser; slight lean in.
+                    float k = Mathf.Clamp01(p * 4f);
+                    set(Bone.UpperArmR, new Vector3(-95f * k, 0f, -10f));
+                    set(Bone.ForearmR, Vector3.zero);                        // straight point
+                    set(Bone.Torso, new Vector3(8f * k, 0f, 0f));
+                    set(Bone.Head, new Vector3(6f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Sprinkler:
+                {
+                    // One arm straight out, ratcheting around while the other pumps behind the head.
+                    float sweep = Mathf.Repeat(p * 2f, 1f);                  // 0..1 ratchet
+                    set(Bone.UpperArmR, new Vector3(0f, -90f + sweep * 120f, -95f));
+                    set(Bone.ForearmR, Vector3.zero);                        // straight sprinkler arm
+                    set(Bone.UpperArmL, new Vector3(-120f, 0f, 30f));
+                    set(Bone.ForearmL, new Vector3(-90f, 0f, 0f));           // hand behind the head
+                    break;
+                }
+                case Celebration.Emote.HandsUp:
+                {
+                    // Both arms thrown fully straight overhead, a little wave.
+                    float s = Mathf.Sin(p * Mathf.PI * 4f) * 12f;
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 170f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -170f));
+                    set(Bone.ForearmL, new Vector3(0f, 0f, s));
+                    set(Bone.ForearmR, new Vector3(0f, 0f, -s));
+                    break;
+                }
+                case Celebration.Emote.Facepalm:
+                {
+                    // Head drops, one hand to the face (disappointment).
+                    float k = Mathf.Clamp01(p * 2f);
+                    set(Bone.UpperArmR, new Vector3(-70f * k, 0f, -55f * k));
+                    set(Bone.ForearmR, new Vector3(-120f * k, 0f, 0f));
+                    set(Bone.Head, new Vector3(22f * k, 0f, 0f));
+                    set(Bone.Torso, new Vector3(10f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Charleston:
+                {
+                    // 20s dance: knees swivel in/out while straight arms swing opposite.
+                    float s = Mathf.Sin(p * Mathf.PI * 6f);
+                    set(Bone.ThighL, new Vector3(-25f - 20f * s, 0f, 0f));
+                    set(Bone.ThighR, new Vector3(-25f + 20f * s, 0f, 0f));
+                    set(Bone.CalfL, new Vector3(30f, 0f, 0f));
+                    set(Bone.CalfR, new Vector3(30f, 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(40f * s, 0f, 20f));
+                    set(Bone.UpperArmR, new Vector3(-40f * s, 0f, -20f));
+                    set(Bone.ForearmL, Vector3.zero);
+                    set(Bone.ForearmR, Vector3.zero);
+                    break;
+                }
+                case Celebration.Emote.Cheer:
+                {
+                    // Both straight arms punch overhead on the beat; small hop feel via torso.
+                    float pump = Mathf.Abs(Mathf.Sin(p * Mathf.PI * 5f));
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 120f + 45f * pump));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -120f - 45f * pump));
+                    set(Bone.ForearmL, Vector3.zero);
+                    set(Bone.ForearmR, Vector3.zero);
+                    set(Bone.Torso, new Vector3(-6f * pump, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Twirl:
+                {
+                    // Arms out straight like a spin; torso yaws around (the puppet root yaw is
+                    // networked, so the whole-body turn reads; here we splay the arms + lean).
+                    float s = Mathf.Sin(p * Mathf.PI * 4f);
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 95f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -95f));
+                    set(Bone.ForearmL, Vector3.zero);
+                    set(Bone.ForearmR, Vector3.zero);
+                    set(Bone.Torso, new Vector3(0f, 0f, s * 14f));
+                    set(Bone.Head, new Vector3(0f, 0f, s * 10f));
+                    break;
+                }
+                case Celebration.Emote.Disco:
+                {
+                    // Saturday-night: one arm points up-out, the other down-across, alternating.
+                    float s = Mathf.Sin(p * Mathf.PI * 5f);
+                    float a = 0.5f + 0.5f * s;
+                    set(Bone.UpperArmR, new Vector3(-30f, 0f, -60f - 90f * a));   // up-out
+                    set(Bone.ForearmR, Vector3.zero);
+                    set(Bone.UpperArmL, new Vector3(20f, 0f, 30f + 30f * a));      // down-across
+                    set(Bone.ForearmL, new Vector3(-20f, 0f, 0f));
+                    set(Bone.Torso, new Vector3(0f, 0f, s * 8f));
+                    break;
+                }
+                case Celebration.Emote.Thinker:
+                {
+                    // Hand to chin, slight forward lean (the pensive taunt).
+                    float k = Mathf.Clamp01(p * 2f);
+                    set(Bone.UpperArmR, new Vector3(-55f * k, 0f, -35f * k));
+                    set(Bone.ForearmR, new Vector3(-115f * k, 0f, 0f));
+                    set(Bone.Torso, new Vector3(14f * k, 0f, 0f));
+                    set(Bone.Head, new Vector3(10f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Twerk:
+                {
+                    // Legs planted WIDE (thighs abducted out to the sides via local +Z/-Z), knees
+                    // bent into a squat (calves fold), hands on the knees, and the pelvis/torso
+                    // SHAKE violently and fast. RootLift drops him into the squat.
+                    float shake = Mathf.Sin(p * Mathf.PI * 24f);        // fast, violent
+                    set(Bone.ThighL, new Vector3(-30f, 0f, 42f));       // wide stance (out to the side)
+                    set(Bone.ThighR, new Vector3(-30f, 0f, -42f));
+                    set(Bone.CalfL, new Vector3(70f, 0f, 0f));          // bent knees
+                    set(Bone.CalfR, new Vector3(70f, 0f, 0f));
+                    // Violent pelvis/hip shake: pitch the torso back and forth hard + fast.
+                    set(Bone.Torso, new Vector3(18f + shake * 22f, 0f, 0f));
+                    set(Bone.Head, new Vector3(-10f, 0f, 0f));          // look up/ahead
+                    // Hands braced on the knees.
+                    set(Bone.UpperArmL, new Vector3(-40f, 0f, 55f));
+                    set(Bone.UpperArmR, new Vector3(-40f, 0f, -55f));
+                    set(Bone.ForearmL, new Vector3(-40f, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-40f, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.FishFlop:
+                {
+                    // Physics-driven (see Celebration.Update): runs upright, then belly-flops to
+                    // the side. Pose: running arms early, then arms/legs splayed flat for the flop.
+                    if (p < 0.4f)
+                    {
+                        float run = Mathf.Sin(p * Mathf.PI * 10f);
+                        set(Bone.ThighL, new Vector3(-40f * run, 0f, 0f));
+                        set(Bone.ThighR, new Vector3(40f * run, 0f, 0f));
+                        set(Bone.UpperArmL, new Vector3(35f * run, 0f, 10f));
+                        set(Bone.UpperArmR, new Vector3(-35f * run, 0f, -10f));
+                    }
+                    else
+                    {
+                        // Superman flop: arms straight overhead, legs straight back.
+                        set(Bone.UpperArmL, new Vector3(0f, 0f, 165f));
+                        set(Bone.UpperArmR, new Vector3(0f, 0f, -165f));
+                        set(Bone.ForearmL, Vector3.zero);
+                        set(Bone.ForearmR, Vector3.zero);
+                        set(Bone.ThighL, new Vector3(15f, 0f, 0f));
+                        set(Bone.ThighR, new Vector3(15f, 0f, 0f));
+                    }
+                    break;
+                }
+                case Celebration.Emote.Moonwalk:
+                {
+                    // Gliding-back leg shuffle, arms loose at the sides swinging.
+                    float s = Mathf.Sin(p * Mathf.PI * 6f);
+                    set(Bone.ThighL, new Vector3(-25f - 25f * s, 0f, 0f));
+                    set(Bone.CalfL, new Vector3(Mathf.Max(0f, 40f * s), 0f, 0f));
+                    set(Bone.ThighR, new Vector3(-25f + 25f * s, 0f, 0f));
+                    set(Bone.CalfR, new Vector3(Mathf.Max(0f, -40f * s), 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(-15f * s, 0f, 12f));
+                    set(Bone.UpperArmR, new Vector3(15f * s, 0f, -12f));
+                    break;
+                }
+                case Celebration.Emote.Wave2:
+                {
+                    // Both arms fully up and waving big overhead.
+                    float w = Mathf.Sin(p * Mathf.PI * 5f) * 20f;
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 165f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -165f));
+                    set(Bone.ForearmL, new Vector3(0f, 0f, w));
+                    set(Bone.ForearmR, new Vector3(0f, 0f, -w));
+                    set(Bone.Torso, new Vector3(0f, 0f, Mathf.Sin(p * Mathf.PI * 2.5f) * 8f));
+                    break;
+                }
+                case Celebration.Emote.Crip:
+                {
+                    // C-Walk-ish: quick heel-toe leg kicks alternating, arms crossed low.
+                    float s = Mathf.Sin(p * Mathf.PI * 7f);
+                    set(Bone.ThighL, new Vector3(-50f * Mathf.Max(0f, s), 0f, 0f));
+                    set(Bone.CalfL, new Vector3(70f * Mathf.Max(0f, s), 0f, 0f));
+                    set(Bone.ThighR, new Vector3(-50f * Mathf.Max(0f, -s), 0f, 0f));
+                    set(Bone.CalfR, new Vector3(70f * Mathf.Max(0f, -s), 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(-25f, 0f, 30f));
+                    set(Bone.UpperArmR, new Vector3(-25f, 0f, -30f));
+                    set(Bone.ForearmL, new Vector3(-60f, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-60f, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Vibe:
+                {
+                    // Chill two-step sway with a nod, hands loosely up.
+                    float s = Mathf.Sin(p * Mathf.PI * 4f);
+                    set(Bone.Torso, new Vector3(0f, 0f, s * 10f));
+                    set(Bone.Head, new Vector3(6f * Mathf.Abs(s), 0f, s * 6f));
+                    set(Bone.UpperArmL, new Vector3(-30f, 0f, 40f + s * 10f));
+                    set(Bone.UpperArmR, new Vector3(-30f, 0f, -40f + s * 10f));
+                    set(Bone.ForearmL, new Vector3(-55f, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-55f, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.Kick:
+                {
+                    // Big alternating high kicks, arms out straight for balance.
+                    float s = Mathf.Sin(p * Mathf.PI * 4f);
+                    set(Bone.ThighR, new Vector3(-110f * Mathf.Max(0f, s), 0f, 0f));
+                    set(Bone.ThighL, new Vector3(-110f * Mathf.Max(0f, -s), 0f, 0f));
+                    set(Bone.CalfR, Vector3.zero);
+                    set(Bone.CalfL, Vector3.zero);
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, 80f));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, -80f));
+                    set(Bone.ForearmL, Vector3.zero);
+                    set(Bone.ForearmR, Vector3.zero);
+                    break;
+                }
+                case Celebration.Emote.Slide2:
+                {
+                    // Melbourne shuffle: fast in-place running-man feel, arms pumping.
+                    float s = Mathf.Sin(p * Mathf.PI * 9f);
+                    set(Bone.ThighL, new Vector3(-55f * Mathf.Max(0f, s), 0f, 0f));
+                    set(Bone.CalfL, new Vector3(50f * Mathf.Max(0f, s), 0f, 0f));
+                    set(Bone.ThighR, new Vector3(-55f * Mathf.Max(0f, -s), 0f, 0f));
+                    set(Bone.CalfR, new Vector3(50f * Mathf.Max(0f, -s), 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(-40f * s, 0f, 12f));
+                    set(Bone.UpperArmR, new Vector3(40f * s, 0f, -12f));
+                    set(Bone.ForearmL, new Vector3(-50f, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-50f, 0f, 0f));
                     break;
                 }
             }
