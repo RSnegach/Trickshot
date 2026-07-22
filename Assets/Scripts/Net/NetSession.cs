@@ -49,6 +49,15 @@ namespace Trickshot.Net
         // Host-side per-slot appearance (from each player's Hello). Copied into the roster rows
         // and broadcast so every client can build remote bodies with the right look.
         readonly PlayerAppearance[] _slotAppearance = new PlayerAppearance[MaxSlots];
+        // Per-slot painted-jersey PNG (too big for the roster row, so it rides a chunked side
+        // channel keyed by slot). Null = that slot has no custom jersey (falls back to team kit).
+        // The decoded Texture2D is cached lazily in _slotJerseyTex on first JerseyForSlot() use.
+        readonly byte[][] _slotJerseyPng = new byte[MaxSlots][];
+        readonly Texture2D[] _slotJerseyTex = new Texture2D[MaxSlots];
+        // In-flight jersey reassembly buffers, keyed by slot (a slot only transfers one at a time).
+        readonly Dictionary<int, JerseyRx> _jerseyRx = new Dictionary<int, JerseyRx>();
+        const int JerseyChunkBytes = 1000;   // payload bytes per chunk (under the ~1.2KB UDP MTU)
+        class JerseyRx { public byte[] buf; public uint total; public int have; public bool[] got; }
         readonly bool[] _slotReady = new bool[MaxSlots];
         // Host-only: per-slot AI enable. A non-human slot with _slotAi[i] true is an AI
         // ("Clanker"); false = an open, unfilled slot. Defaults all-on (AI fills by default;
@@ -74,6 +83,9 @@ namespace Trickshot.Net
         // Set-pieces: host broadcasts the shootout tally; clients read the latest here + event.
         public event Action<ShootoutState> ShootoutUpdated;
         public ShootoutState LatestShootout { get; private set; }
+        // Raised on any peer when a slot's networked jersey finishes reassembling (arg = slot), so
+        // a live match can swap that body's torso material.
+        public event Action<int> JerseyUpdated;
 
         public NetSession(INetTransport transport)
         {
@@ -96,6 +108,7 @@ namespace Trickshot.Net
             _slotOwner[1] = Transport.LocalPeer;
             _slotName[1] = PlayerProfile.PlayerName;
             _slotAppearance[1] = PlayerProfile.Appearance;   // host's own look
+            _slotJerseyPng[1] = PlayerProfile.JerseyPng;     // host's painted kit (local, no transfer)
             RebuildRoster();
         }
 
@@ -129,6 +142,67 @@ namespace Trickshot.Net
                 PushRoster();
             }
             else Transport.Send(Transport.HostPeer, NetCodec.Loadout(PlayerProfile.Appearance), NetChannel.Reliable);
+            PushLocalJersey();
+        }
+
+        // Re-sync the local player's painted jersey. The jersey is far too big for the roster row,
+        // so it rides its own chunked side channel: the host stores it locally + broadcasts the
+        // chunks to all peers; a client sends the chunks to the host (which stores + re-broadcasts).
+        // Mirrors UpdateLocalAppearance's host-vs-client split. Called on join + on re-customize.
+        public void PushLocalJersey()
+        {
+            byte[] png = PlayerProfile.JerseyPng;
+            if (LocalSlot < 0 || LocalSlot >= MaxSlots) return;
+            if (IsHost)
+            {
+                _slotJerseyPng[LocalSlot] = png;
+                _slotJerseyTex[LocalSlot] = null;   // invalidate cached decode
+                if (png != null && png.Length > 0) BroadcastJersey((byte)LocalSlot, png);
+            }
+            else if (png != null && png.Length > 0)
+            {
+                SendJerseyChunks(Transport.HostPeer, (byte)LocalSlot, png);
+            }
+        }
+
+        // Split a jersey PNG into reliable chunks and send them to ONE peer.
+        void SendJerseyChunks(PeerId to, byte slot, byte[] png)
+        {
+            uint total = (uint)((png.Length + JerseyChunkBytes - 1) / JerseyChunkBytes);
+            for (uint i = 0; i < total; i++)
+                Transport.Send(to, JerseyChunkAt(slot, i, total, png), NetChannel.Reliable);
+        }
+
+        // Host: broadcast a slot's jersey chunks to all peers (SendToAll already skips the host).
+        // The origin client re-receiving its own jersey is harmless (idempotent reassembly).
+        void BroadcastJersey(byte slot, byte[] png)
+        {
+            uint total = (uint)((png.Length + JerseyChunkBytes - 1) / JerseyChunkBytes);
+            for (uint i = 0; i < total; i++)
+                Transport.SendToAll(JerseyChunkAt(slot, i, total, png), NetChannel.Reliable);
+        }
+
+        // Build the i-th jersey chunk message for a PNG.
+        static byte[] JerseyChunkAt(byte slot, uint i, uint total, byte[] png)
+        {
+            int off = (int)i * JerseyChunkBytes;
+            int len = Mathf.Min(JerseyChunkBytes, png.Length - off);
+            var chunk = new byte[len];
+            Array.Copy(png, off, chunk, 0, len);
+            return NetCodec.JerseyChunk(slot, i, total, (uint)png.Length, chunk);
+        }
+
+        // The decoded jersey texture for a slot, or null if that slot has no networked jersey.
+        // Decodes lazily from the stored PNG and caches the Texture2D.
+        public Texture2D JerseyForSlot(int slot)
+        {
+            if (slot < 0 || slot >= MaxSlots) return null;
+            if (_slotJerseyTex[slot] != null) return _slotJerseyTex[slot];
+            var png = _slotJerseyPng[slot];
+            if (png == null || png.Length == 0) return null;
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (tex.LoadImage(png)) { _slotJerseyTex[slot] = tex; return tex; }
+            return null;
         }
 
         // Host: toggle AI on/off for a non-human slot (the lobby's per-slot AI button). A slot
@@ -240,6 +314,42 @@ namespace Trickshot.Net
             ShootoutUpdated?.Invoke(s);
         }
 
+        // Reassemble a jersey chunk. On the HOST the authoritative slot is the SENDER's slot (a
+        // client can't spoof another slot's kit); on a CLIENT the slot is the message field (the
+        // host broadcasts on behalf of every slot). When all chunks are in: store the PNG, drop the
+        // cached decode, fire JerseyUpdated, and (host) re-broadcast so every peer gets this kit.
+        void OnJerseyChunk(PeerId from, JerseyChunkMsg m)
+        {
+            int slot = IsHost ? SlotOf(from) : m.slot;
+            if (slot < 0 || slot >= MaxSlots) return;
+            if (m.total == 0 || m.totalBytes == 0) return;
+
+            if (!_jerseyRx.TryGetValue(slot, out var rx) || rx.total != m.total || rx.buf == null
+                || rx.buf.Length != m.totalBytes)
+            {
+                rx = new JerseyRx { buf = new byte[m.totalBytes], total = m.total, have = 0, got = new bool[m.total] };
+                _jerseyRx[slot] = rx;
+            }
+            if (m.index >= m.total || m.chunk == null) return;
+            if (!rx.got[m.index])
+            {
+                rx.got[m.index] = true;
+                rx.have++;
+                int off = (int)m.index * JerseyChunkBytes;
+                int len = Mathf.Min(m.chunk.Length, rx.buf.Length - off);
+                if (len > 0) Array.Copy(m.chunk, 0, rx.buf, off, len);
+            }
+            if (rx.have < rx.total) return;
+
+            // Complete.
+            byte[] png = rx.buf;
+            _jerseyRx.Remove(slot);
+            _slotJerseyPng[slot] = png;
+            _slotJerseyTex[slot] = null;   // invalidate cached decode
+            if (IsHost) BroadcastJersey((byte)slot, png);   // relay this slot's kit to all peers
+            JerseyUpdated?.Invoke(slot);
+        }
+
         // ---- message routing ----
         void OnMessage(PeerId from, byte[] data)
         {
@@ -254,6 +364,9 @@ namespace Trickshot.Net
                     break;
                 case MsgType.UpdateLoadout: // host: a client re-customized -> update its slot appearance
                     if (IsHost) { var la = NetCodec.ReadAppearance(r); int s = SlotOf(from); if (s >= 0) { _slotAppearance[s] = la; PushRoster(); } }
+                    break;
+                case MsgType.JerseyChunk: // a jersey PNG chunk (client->host, or host->clients broadcast)
+                    OnJerseyChunk(from, NetCodec.ReadJerseyChunk(r));
                     break;
                 case MsgType.RequestSlot: // host: a client wants to claim a slot (role pick)
                     if (IsHost) ApplySlotRequest(from, r.U8());
@@ -295,6 +408,8 @@ namespace Trickshot.Net
                     break;
                 case MsgType.AssignSlot:  // client: the host told us our slot
                     AssignLocal(r.U8(), (NetRole)r.U8());
+                    // Now that we know our slot, send our painted jersey up to the host (chunked).
+                    PushLocalJersey();
                     break;
                 case MsgType.Snapshot:    // client: newest state to interpolate toward
                 {
@@ -323,7 +438,9 @@ namespace Trickshot.Net
         void OnConnectedToHost()
         {
             // Announce ourselves to the HOST (the transport resolves the host peer on
-            // connect); the host replies with AssignSlot.
+            // connect); the host replies with AssignSlot. The Hello carries the tiny appearance
+            // struct inline; the bulky painted jersey follows over its own chunked channel once
+            // we know our slot (deferred to the AssignSlot handler so LocalSlot is set first).
             Transport.Send(Transport.HostPeer, NetCodec.Hello(PlayerProfile.PlayerName, PlayerProfile.Appearance), NetChannel.Reliable);
         }
 
@@ -332,7 +449,11 @@ namespace Trickshot.Net
         void OnPeerLeft(PeerId p)
         {
             int slot = SlotOf(p);
-            if (slot >= 0) { _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false; }   // reverts to AI
+            if (slot >= 0)
+            {
+                _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false;   // reverts to AI
+                _slotJerseyPng[slot] = null; _slotJerseyTex[slot] = null; _jerseyRx.Remove(slot);   // drop their kit
+            }
             if (IsHost) PushRoster();
         }
 
@@ -353,6 +474,13 @@ namespace Trickshot.Net
             if (granted >= 0) { _slotOwner[granted] = peer; _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name; _slotAppearance[granted] = appearance; }
             Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role), NetChannel.Reliable);
             PushRoster();
+            // Send the new peer every ALREADY-KNOWN slot jersey. Appearance rides the roster row so
+            // it reaches the joiner automatically, but jerseys are a side channel - without this a
+            // late joiner sees existing players in default kits. (Their OWN jersey arrives when they
+            // push it after AssignSlot.)
+            for (int s = 0; s < MaxSlots; s++)
+                if (s != granted && _slotJerseyPng[s] != null && _slotJerseyPng[s].Length > 0)
+                    SendJerseyChunks(peer, (byte)s, _slotJerseyPng[s]);
         }
 
         // Client picks a role in the lobby by requesting its slot. Host validates the target
@@ -374,15 +502,24 @@ namespace Trickshot.Net
             int cur = SlotOf(peer);
             string name = cur >= 0 ? _slotName[cur] : PlayerProfile.PlayerName;
             PlayerAppearance appr = cur >= 0 ? _slotAppearance[cur] : PlayerProfile.Appearance;
-            if (cur >= 0) { _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false; }
+            byte[] jersey = cur >= 0 ? _slotJerseyPng[cur] : null;   // move the kit with the player
+            if (cur >= 0)
+            {
+                _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false;
+                _slotJerseyPng[cur] = null; _slotJerseyTex[cur] = null;
+            }
             _slotOwner[target] = peer;
             _slotName[target] = string.IsNullOrEmpty(name) ? "PLAYER" : name;
             _slotAppearance[target] = appr;   // move the player's look with them
+            _slotJerseyPng[target] = jersey; _slotJerseyTex[target] = null;
             _slotReady[target] = false;
             // Tell the mover their new slot/role (host updates its own LocalSlot directly).
             if (peer.Equals(Transport.LocalPeer)) AssignLocal(target, RoleOfSlot(target));
             else Transport.Send(peer, NetCodec.AssignSlot((byte)target, RoleOfSlot(target)), NetChannel.Reliable);
             PushRoster();
+            // Re-broadcast the moved kit at its new slot so every peer re-keys it (the roster row
+            // only carries the small appearance struct, not the jersey).
+            if (jersey != null && jersey.Length > 0) BroadcastJersey((byte)target, jersey);
         }
 
         void AssignLocal(int slot, NetRole role)

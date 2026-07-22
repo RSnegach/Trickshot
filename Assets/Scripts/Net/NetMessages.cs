@@ -31,6 +31,19 @@ namespace Trickshot.Net
         RequestSlot = 12, // client -> host: I want to claim this slot (role pick)
         ShootoutState = 13, // host -> clients: set-pieces active shooter + per-slot scores
         UpdateLoadout = 14, // client -> host: my appearance changed (re-customized in the lobby)
+        JerseyChunk = 15,   // client<->host: one chunk of a slot's painted-jersey PNG (too big to inline)
+    }
+
+    // One chunk of a slot's painted-jersey PNG. Jerseys are far too big for the roster row (which
+    // is small + resent often), so they ride this dedicated chunked side-channel keyed by slot:
+    // client -> host on join / re-customize, host -> all peers on completion. Reassembled by slot.
+    public struct JerseyChunkMsg
+    {
+        public byte slot;        // which player slot this jersey belongs to
+        public uint index;       // 0-based chunk index
+        public uint total;       // total chunk count for this transfer
+        public uint totalBytes;  // full PNG length (for the reassembly buffer + completion check)
+        public byte[] chunk;     // this chunk's bytes
     }
 
     // The host's chosen match configuration, synced to all peers so everyone builds the
@@ -117,6 +130,13 @@ namespace Trickshot.Net
         public void Str(string s) => _bw.Write(s ?? "");
         public void V3(Vector3 v) { _bw.Write(v.x); _bw.Write(v.y); _bw.Write(v.z); }
         public void V2(Vector2 v) { _bw.Write(v.x); _bw.Write(v.y); }
+        // Length-prefixed raw byte blob (used for jersey PNG chunks). U32 length then the bytes.
+        public void Bytes(byte[] v)
+        {
+            int n = v?.Length ?? 0;
+            _bw.Write((uint)n);
+            if (n > 0) _bw.Write(v);
+        }
         // Colour packed as 3 bytes RGB (alpha is always opaque for appearance/kit colours).
         public void Col(Color c)
         {
@@ -143,6 +163,7 @@ namespace Trickshot.Net
         public string Str() => _br.ReadString();
         public Vector3 V3() => new Vector3(_br.ReadSingle(), _br.ReadSingle(), _br.ReadSingle());
         public Vector2 V2() => new Vector2(_br.ReadSingle(), _br.ReadSingle());
+        public byte[] Bytes() { int n = (int)_br.ReadUInt32(); return n > 0 ? _br.ReadBytes(n) : System.Array.Empty<byte>(); }
         public Color Col() { float r = _br.ReadByte() / 255f, g = _br.ReadByte() / 255f, b = _br.ReadByte() / 255f; return new Color(r, g, b, 1f); }
     }
 
@@ -256,6 +277,15 @@ namespace Trickshot.Net
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
         // Client -> host: updated appearance after re-customizing in the lobby.
         public static byte[] Loadout(PlayerAppearance a) { var w = new NetWriter(MsgType.UpdateLoadout); WriteAppearance(w, a); return w.ToArray(); }
+        // One jersey PNG chunk (client<->host). Field order must match ReadJerseyChunk.
+        public static byte[] JerseyChunk(byte slot, uint index, uint total, uint totalBytes, byte[] chunk)
+        {
+            var w = new NetWriter(MsgType.JerseyChunk);
+            w.U8(slot); w.U32(index); w.U32(total); w.U32(totalBytes); w.Bytes(chunk);
+            return w.ToArray();
+        }
+        public static JerseyChunkMsg ReadJerseyChunk(NetReader r)
+            => new JerseyChunkMsg { slot = r.U8(), index = r.U32(), total = r.U32(), totalBytes = r.U32(), chunk = r.Bytes() };
         public static byte[] RequestSlot(byte slot) { var w = new NetWriter(MsgType.RequestSlot); w.U8(slot); return w.ToArray(); }
         public static byte[] Start() => new NetWriter(MsgType.StartMatch).ToArray();
         public static byte[] ReplayStart() => new NetWriter(MsgType.ReplayStart).ToArray();

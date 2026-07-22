@@ -82,6 +82,17 @@ namespace Trickshot
         public Transform Phys(Bone b) => _rb[(int)b] != null ? _rb[(int)b].transform : null;
         public IReadOnlyList<Collider> OwnColliders => _ownColliders;
 
+        // Swap the TORSO's jersey material at runtime (only the Torso part wears the jersey; the
+        // visual mesh keeps its jersey UVs, so a material swap re-skins the kit without touching
+        // the mapping). Used when a remote player's networked jersey arrives after the body exists.
+        public void SetTorsoMaterial(Material m)
+        {
+            var t = Phys(Bone.Torso);
+            if (t == null || m == null) return;
+            var r = t.GetComponentInChildren<Renderer>();
+            if (r != null) r.sharedMaterial = m;
+        }
+
         /// <summary>All physics-bone transforms, for the replay recorder.</summary>
         public Transform[] BoneTransforms
         {

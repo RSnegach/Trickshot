@@ -66,6 +66,7 @@ namespace Trickshot
         bool _crossMapOpen;
         Vector3 _crossTarget = SimConfig.ServeTarget;
         bool _localIsCrosser;
+        bool _localIsKeeper;
 
         // Emote wheel (B): pick a celebration; it plays on the local body and syncs to everyone.
         bool _wheelOpen;
@@ -97,11 +98,24 @@ namespace Trickshot
             // Camera follows the LOCAL body; local striker turns to camera yaw.
             var me = _bodies[_localSlot];
             _localIsCrosser = me != null && me.isCrosser;
+            _localIsKeeper = me != null && me.isKeeper;
             if (me != null && me.ragdoll != null && me.ragdoll.Pelvis != null)
             {
                 _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, null, null);
-                _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
-                if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw);
+                if (_localIsKeeper)
+                {
+                    // Human keeper: identical to single-player goalkeeper mode. The camera pans
+                    // in a cone from a FIXED forward base; the keeper reads that same cone yaw
+                    // (KeeperLookYaw) and turns his body to it, so body + camera stay in lock-step.
+                    _cam.SetKeeperFollow(me.ragdoll.Pelvis.transform,
+                                         () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
+                                         () => _input.Look);
+                }
+                else
+                {
+                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
+                    if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw);
+                }
             }
 
             if (_s.IsHost) { _crosser.Arm(SimConfig.ServeFirstDelay); _ball.ResetTo(_launch.position); }
@@ -115,6 +129,7 @@ namespace Trickshot
             _replay.Setup(tracked, null, SimConfig.ReplayWindow);
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
+            _s.JerseyUpdated += OnJerseyUpdated;
 
             LockCursor();
         }
@@ -152,13 +167,20 @@ namespace Trickshot
             var ragdoll = go.AddComponent<ActiveRagdoll>();
             Vector3 start = SlotStart(slot, keeper);
             var facing = Quaternion.LookRotation(keeper ? SimConfig.KeeperFaceDir : Vector3.forward, Vector3.up);
-            // A HUMAN outfield slot wears its synced appearance (skin + head cosmetics). Give it
-            // its OWN limb material (a copy) so the per-slot skin tint doesn't mutate the shared
-            // one used by other bodies. Keepers and AI use the shared limb material, no cosmetics.
-            bool wantsLook = human && !keeper;
+            // A HUMAN slot wears its synced appearance (skin + head cosmetics), keeper or not. Give
+            // it its OWN limb material (a copy) so the per-slot skin tint doesn't mutate the shared
+            // one used by other bodies. A human keeper still gets gloves on top of the cosmetics
+            // (gloves + appearance are independent branches in Build). AI bodies use the shared
+            // limb material, no cosmetics.
+            bool wantsLook = human;
             Material slotLimb = wantsLook ? Make.Mat(rosterSlot.appearance.Skin) : limb;
             PlayerAppearance? appr = wantsLook ? rosterSlot.appearance : (PlayerAppearance?)null;
-            ragdoll.Build(start, facing, torso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
+            // Per-slot painted jersey: a human's own networked kit if it has arrived, else the
+            // shared team torso (also the fallback for AI / not-yet-received jerseys). A late
+            // arrival is swapped in live via OnJerseyUpdated below.
+            Texture2D jt = human ? _s.JerseyForSlot(slot) : null;
+            Material slotTorso = jt != null ? Make.MatTex(jt) : torso;
+            ragdoll.Build(start, facing, slotTorso, slotLimb, withGloves: keeper && glove != null, appearance: appr);
 
             var b = new Body { ragdoll = ragdoll, isKeeper = keeper, targetPos = start, targetYaw = facing.eulerAngles.y };
 
@@ -203,7 +225,10 @@ namespace Trickshot
                 var kc = go.AddComponent<KeeperController>();
                 if (isLocal) { kc.Init(_input, ragdoll); }
                 else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll); }
-                kc.SetLookYawSource(isLocal ? (System.Func<float>)(() => _cam.Yaw) : (() => b.netInput != null ? b.netInput.LookYaw : 0f));
+                // Local keeper reads the cone yaw (KeeperLookYaw) so body + camera lock-step, exactly
+                // like single-player. _cam.Yaw is stale in KeeperFollow mode. Remote keepers read the
+                // yaw streamed over the wire (also the cone yaw; see SampleFrame below).
+                kc.SetLookYawSource(isLocal ? (System.Func<float>)(() => _cam.KeeperLookYaw) : (() => b.netInput != null ? b.netInput.LookYaw : 0f));
                 b.keeper = kc;
                 // Human keepers can emote too (host sims it on the real body -> streamed out).
                 b.celeb = go.AddComponent<Celebration>(); b.celeb.Init(ragdoll);
@@ -253,6 +278,17 @@ namespace Trickshot
             }
 
             _bodies[slot] = b;
+        }
+
+        // A slot's networked jersey finished arriving after its body was built: swap the torso kit
+        // live so the remote player's painted jersey shows without a rebuild.
+        void OnJerseyUpdated(int slot)
+        {
+            if (slot < 0 || slot >= _bodies.Length) return;
+            var b = _bodies[slot];
+            if (b == null || b.ragdoll == null) return;
+            var tex = _s.JerseyForSlot(slot);
+            if (tex != null) b.ragdoll.SetTorsoMaterial(Make.MatTex(tex));
         }
 
         static Vector3 SlotStart(int slot, bool keeper)
@@ -509,7 +545,9 @@ namespace Trickshot
             if (_snapAccum >= SimConfig.NetSnapshotInterval)
             {
                 _snapAccum = 0f;
-                _s.SetLocalInput(_input.SampleFrame(_tick, _cam.Yaw));   // (host records its own input too)
+                // A local keeper sends its cone yaw (KeeperLookYaw); everyone else sends camera yaw.
+                float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
+                _s.SetLocalInput(_input.SampleFrame(_tick, wireYaw));   // (host records its own input too)
                 BroadcastSnapshot();
                 _tick++;
             }
@@ -517,8 +555,9 @@ namespace Trickshot
 
         void ClientUpdate()
         {
-            // Send my input to the host each frame.
-            _s.SetLocalInput(_input.SampleFrame(_tick++, _cam.Yaw));
+            // Send my input to the host each frame. A local keeper sends its cone yaw (KeeperLookYaw).
+            float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
+            _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
 
             // Apply the latest snapshot: lerp puppet bodies + ball toward host state.
             if (_s.HasSnapshot)
@@ -600,7 +639,7 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; }
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; }
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
