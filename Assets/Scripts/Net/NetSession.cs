@@ -118,6 +118,19 @@ namespace Trickshot.Net
 
         public bool LocalReady => LocalSlot >= 0 && LocalSlot < MaxSlots && _slotReady[LocalSlot];
 
+        // Re-sync the local player's appearance after they re-customize in the lobby (the initial
+        // Hello / host self-set captured it BEFORE customization). Host applies to its own slot +
+        // re-pushes the roster; a client tells the host, which applies it and re-pushes.
+        public void UpdateLocalAppearance()
+        {
+            if (IsHost)
+            {
+                if (LocalSlot >= 0 && LocalSlot < MaxSlots) _slotAppearance[LocalSlot] = PlayerProfile.Appearance;
+                PushRoster();
+            }
+            else Transport.Send(Transport.HostPeer, NetCodec.Loadout(PlayerProfile.Appearance), NetChannel.Reliable);
+        }
+
         // Host: toggle AI on/off for a non-human slot (the lobby's per-slot AI button). A slot
         // a human holds is never affected. Re-pushes the roster so everyone sees the change.
         // Host-authoritative: clients only render the state, they don't call this.
@@ -238,6 +251,9 @@ namespace Trickshot.Net
                     break;
                 case MsgType.ReadyToggle: // host: a client set its ready state
                     if (IsHost) { int s = SlotOf(from); if (s >= 0) { _slotReady[s] = r.B(); PushRoster(); } }
+                    break;
+                case MsgType.UpdateLoadout: // host: a client re-customized -> update its slot appearance
+                    if (IsHost) { var la = NetCodec.ReadAppearance(r); int s = SlotOf(from); if (s >= 0) { _slotAppearance[s] = la; PushRoster(); } }
                     break;
                 case MsgType.RequestSlot: // host: a client wants to claim a slot (role pick)
                     if (IsHost) ApplySlotRequest(from, r.U8());
