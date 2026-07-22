@@ -111,7 +111,9 @@ namespace Trickshot
             var mode = Modes[_mode];
             StadiumStyle.SelectedIndex = _stadium;
 
-            int maxPlayers = mode == GameMode.Scrimmage ? _perSide + 1 : 8;   // keeper + shooters
+            // Scrimmage is two teams mapped onto the 8 slots (capped 4-a-side incl keepers), so
+            // both sides can be human: allow up to 2*perSide (bounded to the 8-slot board).
+            int maxPlayers = mode == GameMode.Scrimmage ? Mathf.Clamp(_perSide * 2, 2, 8) : 8;
             Multiplayer.Host(maxPlayers);
             Multiplayer.Session.SetConfig(new MatchConfig
             {

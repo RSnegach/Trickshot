@@ -49,6 +49,22 @@ namespace Trickshot
         // Which team last touched the ball (for AI support/defend logic).
         public int PossessionTeam { get; private set; } = 0;
 
+        // ---- Networked host mode ----
+        // When set, this ScrimmageGame is the HOST sim behind a NetScrimmageMatch driver: it still
+        // runs the ball/possession/AI/goals/clock/kickoff, but it does NOT own local human control,
+        // the camera, or the HUD (the net driver does), and it leaves every body in
+        // _netControlled to be driven by networked input (their Striker/KeeperController is fed by
+        // the driver) instead of AI. Set via ConfigureNetHost before Configure.
+        bool _netHost;
+        readonly HashSet<Footballer> _netControlled = new HashSet<Footballer>();
+        public void MarkNetControlled(Footballer f) { if (f != null) _netControlled.Add(f); }
+        // A networked human left: hand their body back to AI (the AI loop resumes driving it).
+        public void UnmarkNetControlled(Footballer f) { if (f != null) _netControlled.Remove(f); }
+        public void ConfigureNetHost() => _netHost = true;
+        public int HomeScore => _homeScore;
+        public int AwayScore => _awayScore;
+        public float ClockRemaining => _clock;
+
         int _homeScore, _awayScore;
         string _flash = "";
         float _flashTime;
@@ -81,7 +97,8 @@ namespace Trickshot
 
             // Outfield role: the human controls ONE fixed Home player for the whole match
             // (no switching). Pick the first Home outfielder and give it control once.
-            if (_role == SimConfig.ScrimRole.Outfield && _home.Count > 0)
+            // Skipped in net-host mode: the NetScrimmageMatch driver owns human control per slot.
+            if (!_netHost && _role == SimConfig.ScrimRole.Outfield && _home.Count > 0)
                 AssignControl(_home[0]);
 
             Kickoff();
@@ -151,8 +168,12 @@ namespace Trickshot
                 return;
             }
 
-            if (_input.ResetPressed) { Kickoff(); return; }
-            if (_input.BallCamPressed) _cam.ToggleBallCam();
+            // Net host: the driver owns reset/ball-cam/local input; only run the sim below.
+            if (!_netHost)
+            {
+                if (_input.ResetPressed) { Kickoff(); return; }
+                if (_input.BallCamPressed) _cam.ToggleBallCam();
+            }
             if (_kickoffTimer > 0f) _kickoffTimer -= Time.deltaTime;
 
             // Match clock counts DOWN once the kickoff freeze clears; full time at zero.
@@ -165,8 +186,13 @@ namespace Trickshot
             StuckBallWatchdog();
             UpdatePossession();
 
-            // --- Human control ---
-            if (_role == SimConfig.ScrimRole.Keeper)
+            // --- Human control --- (skipped in net-host mode: the driver ticks every human slot's
+            // Striker/KeeperController from networked input, not this single-human path.)
+            if (_netHost)
+            {
+                // no local human control here
+            }
+            else if (_role == SimConfig.ScrimRole.Keeper)
             {
                 if (_humanKeeper != null) _humanKeeper.Tick();
             }
@@ -211,6 +237,7 @@ namespace Trickshot
             {
                 if (f == null || f == humanBody) continue;
                 if (_role == SimConfig.ScrimRole.Keeper && f == _homeKeeper) continue;
+                if (_netHost && _netControlled.Contains(f)) continue;   // networked human drives this body
                 if (f.IsKeeper) { f.AiKeeperTick(); continue; }
                 bool isClosest = f == (f.Team == 0 ? homeClosest : awayClosest);
                 f.AiTick(isClosest);
@@ -667,6 +694,7 @@ namespace Trickshot
         void OnGUI()
         {
             if (_input == null) return;
+            if (_netHost) return;   // the NetScrimmageMatch driver draws the networked HUD
             var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
             var score = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
