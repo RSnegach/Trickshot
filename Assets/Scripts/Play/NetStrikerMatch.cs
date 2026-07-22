@@ -69,6 +69,7 @@ namespace Trickshot
 
         // Emote wheel (B): pick a celebration; it plays on the local body and syncs to everyone.
         bool _wheelOpen;
+        int _wheelPage;   // which of Celebration.Pages is showing (arrows cycle it)
 
         // Per-machine post-goal replay (each peer replays its own local view).
         ReplaySystem _replay;
@@ -302,11 +303,15 @@ namespace Trickshot
         void DrawEmoteWheel()
         {
             float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
-            int n = Celebration.Menu.Length;
-            float rad = 210f;
             var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.5f);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = prev;
+
+            int pages = Celebration.Pages.Length;
+            _wheelPage = ((_wheelPage % pages) + pages) % pages;
+            var page = Celebration.Pages[_wheelPage];
+            int n = page.Length;
+            float rad = 210f;
             var lbl = new GUIStyle(GUI.skin.button) { fontSize = 15, fontStyle = FontStyle.Bold };
             for (int i = 0; i < n; i++)
             {
@@ -315,17 +320,31 @@ namespace Trickshot
                 float sy = cy - Mathf.Cos(ang) * rad;
                 float bw = 132f, bh = 42f;
                 var r = new Rect(sx - bw * 0.5f, sy - bh * 0.5f, bw, bh);
-                if (GUI.Button(r, Celebration.Menu[i].name, lbl))
+                if (GUI.Button(r, page[i].name, lbl))
                 {
-                    _input.SetEmotePick((int)Celebration.Menu[i].e);   // sync to host -> everyone
+                    _input.SetEmotePick((int)page[i].e);   // sync to host -> everyone
                     var me = _bodies[_localSlot];
-                    if (me != null && me.celeb != null) me.celeb.Play(Celebration.Menu[i].e);   // instant local feedback
+                    if (me != null && me.celeb != null) me.celeb.Play(page[i].e);   // instant local feedback
                     SetWheelOpen(false);
                     return;
                 }
             }
+
+            // Left/right arrows flanking the ring cycle the pages.
+            var arrow = new GUIStyle(GUI.skin.button) { fontSize = 30, fontStyle = FontStyle.Bold };
+            if (GUI.Button(new Rect(cx - rad - 96f, cy - 26f, 52f, 52f), "‹", arrow)) _wheelPage--;
+            if (GUI.Button(new Rect(cx + rad + 44f, cy - 26f, 52f, 52f), "›", arrow)) _wheelPage++;
+
+            // Page dots + hint at the centre.
             var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(cx - 160f, cy - 12f, 320f, 24f), "Click an emote  ·  B to close", hint);
+            GUI.Label(new Rect(cx - 160f, cy - 20f, 320f, 22f), "Click an emote  ·  B to close", hint);
+            float dotW = 16f, gap = 8f, totalW = pages * dotW + (pages - 1) * gap;
+            for (int d = 0; d < pages; d++)
+            {
+                var dr = new Rect(cx - totalW * 0.5f + d * (dotW + gap), cy + 8f, dotW, dotW);
+                var pc = GUI.color; GUI.color = d == _wheelPage ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 1f, 1f, 0.35f);
+                GUI.DrawTexture(dr, Texture2D.whiteTexture); GUI.color = pc;
+            }
         }
 
         // Replay start (any peer): freeze local control, cut to broadcast cam, roll playback.
