@@ -564,7 +564,11 @@ namespace Trickshot
 
         // ---- Networking (host-authoritative snapshot sync) ----
         public const float NetSnapshotInterval = 0.05f;  // host broadcasts ~20 snapshots/sec
-        public const float NetInterpRate       = 14f;    // client puppet/ball lerp sharpness (1/s)
+        public const float NetInterpRate       = 14f;    // client puppet/ball lerp sharpness (1/s) - legacy fallback
+        // Remote bodies are rendered this far in the PAST, interpolating between the two buffered
+        // snapshots bracketing (now - delay). ~2 snapshot intervals so a late/dropped packet has a
+        // neighbor to interpolate to instead of teleporting. The local player is predicted, not delayed.
+        public const float NetInterpDelay      = 0.1f;   // 100 ms interpolation delay
 
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling

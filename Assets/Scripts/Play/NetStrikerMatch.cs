@@ -59,8 +59,6 @@ namespace Trickshot
         string _flash = ""; float _flashTime;
         float _goalLineZ;
 
-        // Client interp target for the ball.
-        Vector3 _ballTargetPos;
 
         // Cross-targeting map (crosser role only): where the human crosser's deliveries land.
         bool _crossMapOpen;
@@ -559,46 +557,44 @@ namespace Trickshot
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
             _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
 
-            // Apply the latest snapshot: lerp puppet bodies + ball toward host state.
-            if (_s.HasSnapshot)
-            {
-                var snap = _s.LatestSnapshot;
-                if (snap.bodies != null)
-                    foreach (var bs in snap.bodies)
-                    {
-                        if (bs.slot >= _bodies.Length) continue;
-                        var b = _bodies[bs.slot];
-                        if (b == null || bs.slot == _localSlot) continue;   // don't puppet our own predicted body
-                        b.targetPos = bs.pos; b.targetYaw = bs.yaw;
-                        b.emoteId = bs.emoteId; b.emotePhase = bs.emotePhase / 255f;   // emote to display
-                    }
-                _ballTargetPos = snap.ballPos;
-            }
+            // Render remote bodies + ball at (now - InterpDelay), interpolating between the two
+            // buffered snapshots bracketing that render time. This is smooth regardless of when
+            // packets actually arrive (no teleport on a late/dropped snapshot).
+            if (!_s.SampleInterpolated(SimConfig.NetInterpDelay, out var a, out var b, out float f))
+                return;
 
-            float k = 1f - Mathf.Exp(-SimConfig.NetInterpRate * Time.deltaTime);
             for (int i = 0; i < _bodies.Length; i++)
             {
-                var b = _bodies[i];
-                if (b == null || i == _localSlot) continue;   // our own body is predicted, not puppeted
-                Vector3 cur = b.ragdoll.Pelvis != null ? FlatFeet(b.ragdoll) : b.targetPos;
-                Vector3 pos = Vector3.Lerp(cur, b.targetPos, k);
-                float yaw = Mathf.LerpAngle(b.ragdoll.FacingRotation.eulerAngles.y, b.targetYaw, k);
-                // If this body is emoting, pose the puppet's limbs from the synced emote id/phase
-                // so the dance is visible; otherwise snap to the plain networked stance.
-                if (b.emoteId != 255)
-                    b.ragdoll.DisplayEmote(pos, Quaternion.Euler(0f, yaw, 0f), b.emoteId, b.emotePhase);
+                var body = _bodies[i];
+                if (body == null || i == _localSlot) continue;   // our own body is predicted, not puppeted
+                if (!FindBody(a, i, out var sa)) continue;       // no state for this slot yet
+                if (!FindBody(b, i, out var sb)) sb = sa;         // absent in the newer snap: hold the older
+
+                Vector3 pos = Vector3.Lerp(sa.pos, sb.pos, f);
+                float yaw = Mathf.LerpAngle(sa.yaw, sb.yaw, f);
+                // Emote id/phase from the newest of the two samples (an emote is a discrete event,
+                // not a value to blend); phase advances with f for a smooth dance.
+                byte emoteId = sb.emoteId != 255 ? sb.emoteId : sa.emoteId;
+                float phase = Mathf.Lerp(sa.emotePhase / 255f, sb.emotePhase / 255f, f);
+                if (emoteId != 255)
+                    body.ragdoll.DisplayEmote(pos, Quaternion.Euler(0f, yaw, 0f), emoteId, phase);
                 else
-                    b.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
+                    body.ragdoll.DisplaySnap(pos, Quaternion.Euler(0f, yaw, 0f));
             }
-            // Ball: lerp its position (client ball is display-only; host owns physics).
+
+            // Ball: interpolate between the two snapshots too (host owns physics; client is display).
             _ball.Rb.isKinematic = true;
-            _ball.Rb.position = Vector3.Lerp(_ball.Rb.position, _ballTargetPos, k);
+            _ball.Rb.position = Vector3.Lerp(a.ballPos, b.ballPos, f);
         }
 
-        // Feet-level base position of a ragdoll (pelvis minus stand offset).
-        static Vector3 FlatFeet(ActiveRagdoll r)
+        // Find a slot's BodyState in a snapshot. Returns false if absent. When found in `a` but not
+        // `b` (or vice versa), callers pass the same snapshot twice so the lerp is a no-op hold.
+        static bool FindBody(in Snapshot s, int slot, out BodyState bs)
         {
-            var p = r.Pelvis.position; p.y = 0f; return p;
+            if (s.bodies != null)
+                for (int i = 0; i < s.bodies.Length; i++)
+                    if (s.bodies[i].slot == slot) { bs = s.bodies[i]; return true; }
+            bs = default; return false;
         }
 
         void BroadcastSnapshot()
