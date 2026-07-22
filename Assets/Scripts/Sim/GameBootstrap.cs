@@ -527,7 +527,10 @@ namespace Trickshot
         // -------------------------------------------------------- Scrimmage mode
         void BuildScrimmageMode(Transform root, GameObject camGo)
         {
-            int perSide = SimConfig.ScrimmagePerSide;
+            // Networked scrimmage is capped to fit the 8-slot model: 4-a-side incl keepers max
+            // (slots 0-3 Home, 4-7 Away). Single-player keeps the full 3/5/11 options.
+            bool net = Trickshot.Net.Multiplayer.IsActive;
+            int perSide = net ? Mathf.Clamp(SimConfig.ScrimmagePerSide, 2, 4) : SimConfig.ScrimmagePerSide;
             var arena = ScrimmageArena.Build(root, perSide);
             // The human (Home) attacks the +Z goal; aim assist / dribble / ball-cam target it.
             SimConfig.AttackGoalCenter = arena.homeGoalCenter;
@@ -558,6 +561,19 @@ namespace Trickshot
             Material awayTorso = Make.Mat(new Color(0.75f, 0.2f, 0.2f));
             Material awayLimb  = Make.Mat(new Color(0.5f, 0.13f, 0.13f));
             Material gloveMat  = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            // MULTIPLAYER: the host-authoritative NetScrimmageMatch owns the sim + snapshots; it
+            // builds the slot-mapped bodies (and, on the host, its own ScrimmageGame). Single-player
+            // falls through to the local ScrimmageGame below.
+            if (net)
+            {
+                ball.SetCamera(gameCam);
+                var nsGo = new GameObject("NetScrimmageMatch");
+                nsGo.transform.SetParent(root, true);
+                nsGo.AddComponent<NetScrimmageMatch>()
+                    .Configure(GetInput(), _cam, gameCam, ball, homeTorso, homeLimb, awayTorso, awayLimb, gloveMat, root, arena, perSide);
+                return;
+            }
 
             var gmGo = new GameObject("ScrimmageGame");
             gmGo.transform.SetParent(root, true);

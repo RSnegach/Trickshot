@@ -121,6 +121,7 @@ namespace Trickshot.Net
         public Vector3 ballPos;
         public Vector3 ballVel;
         public byte homeScore, awayScore;
+        public ushort clockSec;   // match seconds remaining (scrimmage); 0 in modes with no clock
         public BodyState[] bodies;
     }
 
@@ -235,6 +236,7 @@ namespace Trickshot.Net
             var w = new NetWriter(MsgType.Snapshot);
             w.U32(s.tick); w.V3(s.ballPos); w.V3(s.ballVel);
             w.U8(s.homeScore); w.U8(s.awayScore);
+            w.U32(s.clockSec);
             w.U8((byte)(s.bodies?.Length ?? 0));
             if (s.bodies != null)
                 foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); w.U32(b.lastInputTick); }
@@ -243,7 +245,7 @@ namespace Trickshot.Net
 
         public static Snapshot ReadSnap(NetReader r)
         {
-            var s = new Snapshot { tick = r.U32(), ballPos = r.V3(), ballVel = r.V3(), homeScore = r.U8(), awayScore = r.U8() };
+            var s = new Snapshot { tick = r.U32(), ballPos = r.V3(), ballVel = r.V3(), homeScore = r.U8(), awayScore = r.U8(), clockSec = (ushort)r.U32() };
             int n = r.U8();
             s.bodies = new BodyState[n];
             for (int i = 0; i < n; i++)
