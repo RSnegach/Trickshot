@@ -597,6 +597,10 @@ namespace Trickshot
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
             _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
 
+            // Reconcile our own predicted body (mainly the local keeper, who moves freely) against
+            // the host's authoritative state.
+            ReconcileLocalBody();
+
             // Render remote bodies + ball at (now - InterpDelay), interpolating between the two
             // buffered snapshots bracketing that render time (smooth under uneven packet arrival).
             if (!_s.SampleInterpolated(SimConfig.NetInterpDelay, out var a, out var bSnap, out float f))
@@ -619,6 +623,27 @@ namespace Trickshot
             }
             _ball.Rb.isKinematic = true;
             _ball.Rb.position = Vector3.Lerp(a.ballPos, bSnap.ballPos, f);
+        }
+
+        // Bounded server reconciliation of the local predicted body (see NetStrikerMatch for the
+        // rationale: the ragdoll isn't re-simulatable, so we ease/snap toward authoritative rather
+        // than rollback+replay). Skipped while a set-piece taker owns the body or it is airborne.
+        void ReconcileLocalBody()
+        {
+            var me = _bodies[_localSlot];
+            if (me == null || me.ragdoll == null || me.ragdoll.Pelvis == null) return;
+            if (!me.isKeeper) return;   // only the free-moving local keeper predicts; shooters are taker-owned
+            if (!me.ragdoll.IsGrounded) return;
+            if (!_s.HasSnapshot) return;
+            if (!FindBody(_s.LatestSnapshot, _localSlot, out var auth)) return;
+
+            Vector3 pred = me.ragdoll.Pelvis.position; pred.y = 0f;
+            Vector3 target = auth.pos; target.y = 0f;
+            Vector3 err = target - pred;
+            float d = err.magnitude;
+            if (d < SimConfig.ReconcileDeadzone) return;
+            if (d > SimConfig.ReconcileSnap) { me.ragdoll.ShiftAll(err); return; }
+            me.ragdoll.ShiftAll(err * Mathf.Clamp01(SimConfig.ReconcileRate * Time.deltaTime));
         }
 
         // Find a slot's BodyState in a snapshot (false if absent).
@@ -650,7 +675,8 @@ namespace Trickshot
                 if (b == null || b.ragdoll.Pelvis == null) continue;
                 Vector3 p = b.ragdoll.Pelvis.position; p.y = 0f;
                 list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
-                                         down = false, emoteId = 255, anim = (byte)AnimStateOf(b) });
+                                         down = false, emoteId = 255, anim = (byte)AnimStateOf(b),
+                                         lastInputTick = _s.InputTickForSlot(i) });
             }
             _s.BroadcastSnapshot(new Snapshot
             {
