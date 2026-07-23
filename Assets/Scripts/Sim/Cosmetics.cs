@@ -21,10 +21,14 @@ namespace Trickshot
         const float HeadR = 0.19f;
 
         // ---- catalog entry types --------------------------------------------
+        // Hair is now a SOFT DYNAMIC style (HairSim), described by data, not a rigid primitive
+        // builder. Bald is the one entry with no def (Bald = true). Everything else is simulated
+        // strands that fall/swing/collide, built the same way the goal net is.
         public class HairEntry
         {
             public string Name; public HairGroup Group;
-            public Action<Transform, Material> Build;   // builds pieces parented to the head
+            public bool Bald;                 // index 0 only: no hair at all
+            public HairSim.HairDef Def;       // the simulated style (ignored when Bald)
         }
         public class FacialEntry
         {
@@ -56,12 +60,20 @@ namespace Trickshot
             var head = rag.Phys(Bone.Head);
             if (head == null) return;
 
-            // Hair (index 0 = bald -> nothing).
-            if (a.HairStyle > 0 && a.HairStyle < _hair.Count)
+            // Hair (index 0 = bald -> nothing). A non-bald style is a SOFT DYNAMIC HairSim: a
+            // child of the head carrying the line-mesh + the Verlet strand sim (built like the
+            // net). Cosmetic only - no collider, never a hitbox. Runs on every body with hair,
+            // so remote MP puppets' hair swings too (style + colour ride PlayerAppearance).
+            if (a.HairStyle > 0 && a.HairStyle < _hair.Count && !_hair[a.HairStyle].Bald)
             {
-                var mat = Make.Mat(a.HairColor, 0.2f);
+                var mat = Make.Unlit(a.HairColor);
                 rag.RegisterCosmeticMaterial(mat);
-                _hair[a.HairStyle].Build(head, mat);
+                var go = new GameObject("HairSim");
+                go.transform.SetParent(head, false);
+                go.transform.localPosition = Vector3.zero;
+                go.transform.localRotation = Quaternion.identity;
+                go.transform.localScale = Vector3.one;
+                go.AddComponent<HairSim>().Build(head, _hair[a.HairStyle].Def, mat);
             }
             // Facial hair (index 0 = clean-shaven -> nothing).
             if (a.FacialStyle > 0 && a.FacialStyle < _facial.Count)
@@ -182,444 +194,71 @@ namespace Trickshot
         }
 
         // ---- hair catalog (index 0 = Bald) ----------------------------------
-        // Each style aims for a DISTINCT silhouette, not just a resized sphere: flat-tops and
-        // fringes use boxes, spikes use rotated boxes, long styles add side/back drapes, curly
-        // uses a lumpy cluster. Head radius ~0.19 in local metres; +Z is the face, +Y up.
+        // Every non-bald style is now a SOFT DYNAMIC HairSim (see HairSim.cs): root-pinned Verlet
+        // strands drawn as a line mesh, exactly the model the goal net uses. A style is pure DATA
+        // (root scatter, strand/node counts, length, stiffness, flow direction, curl) - no rigid
+        // primitives. Stiffness holds a shaped style up (mohawk, spikes) while low stiffness lets it
+        // fall and flow (long, ponytail). It runs on every body that wears it, so hair swings on the
+        // local player, on remote multiplayer puppets, and in the customize preview alike.
+        // Head-local axes: +Y up, +Z faces the front, +X to the side. flow (0,-1,0) hangs, (0,1,0)
+        // stands up, (0,-0.6,-1) sweeps back and down (a tail).
         static readonly List<HairEntry> _hair = new List<HairEntry>
         {
-            new HairEntry { Name = "Bald",       Group = HairGroup.Short,  Build = (h,m) => { } },
+            new HairEntry { Name = "Bald", Group = HairGroup.Short, Bald = true },
 
-            // SHORT -------------------------------------------------------------
-            new HairEntry { Name = "Buzz", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.20f, 0.46f), m);
-                Blk(h, new Vector3(0f, -0.02f, -0.16f), new Vector3(0.30f, 0.06f, 0.05f), m);
-                Blk(h, new Vector3(0.19f, 0.01f, -0.02f), new Vector3(0.04f, 0.14f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, 0.01f, -0.02f), new Vector3(0.04f, 0.14f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.24f, 0.46f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.05f, 0.20f, 0.34f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.05f, 0.20f, 0.34f), m);
-                Blk(h, new Vector3(0f, 0.02f, 0.13f), new Vector3(0.36f, 0.05f, 0.05f), m);
-            } },
-            new HairEntry { Name = "Caesar", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.22f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.01f, 0.14f), new Vector3(0.42f, 0.05f, 0.06f), m);
-                Blk(h, new Vector3(0.19f, 0f, -0.02f), new Vector3(0.04f, 0.16f, 0.32f), m);
-                Blk(h, new Vector3(-0.19f, 0f, -0.02f), new Vector3(0.04f, 0.16f, 0.32f), m);
-            } },
-            new HairEntry { Name = "High Fade", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.44f, 0.10f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.34f, 0.16f, 0.40f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.02f, 0.10f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.02f, 0.10f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Low Fade", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.44f, 0.10f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.11f, -0.02f), new Vector3(0.36f, 0.10f, 0.42f), m);
-                Blk(h, new Vector3(0.19f, -0.03f, -0.02f), new Vector3(0.03f, 0.14f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.03f, -0.02f), new Vector3(0.03f, 0.14f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Burr", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.44f, 0.08f, 0.46f), m);
-                Blk(h, new Vector3(0f, -0.04f, -0.15f), new Vector3(0.20f, 0.03f, 0.04f), m);
-            } },
-            new HairEntry { Name = "Comb Over", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.20f, 0.46f), m);
-                Blk(h, new Vector3(0.05f, 0.14f, 0.02f), new Vector3(0.30f, 0.06f, 0.30f), new Vector3(0f, 0f, 20f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-                Blk(h, new Vector3(0.19f, -0.02f, -0.02f), new Vector3(0.03f, 0.12f, 0.28f), m);
-            } },
-            new HairEntry { Name = "Ivy League", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.22f, 0.46f), m);
-                Blk(h, new Vector3(0.04f, 0.13f, 0.02f), new Vector3(0.26f, 0.08f, 0.28f), new Vector3(0f, 0f, 10f), m);
-                Blk(h, new Vector3(-0.06f, 0.13f, 0.04f), new Vector3(0.02f, 0.05f, 0.20f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Butch", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.08f, -0.02f), new Vector3(0.44f, 0.24f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.15f, -0.02f), new Vector3(0.38f, 0.08f, 0.40f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.05f, 0.18f, 0.32f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.05f, 0.18f, 0.32f), m);
-            } },
-            new HairEntry { Name = "Textured Crop", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.20f, 0.46f), m);
-                Ball(h, new Vector3(0.08f, 0.17f, 0.02f), new Vector3(0.10f, 0.08f, 0.10f), m);
-                Ball(h, new Vector3(-0.06f, 0.18f, -0.03f), new Vector3(0.09f, 0.09f, 0.09f), m);
-                Ball(h, new Vector3(0f, 0.19f, -0.08f), new Vector3(0.11f, 0.08f, 0.10f), m);
-                Ball(h, new Vector3(0.10f, 0.16f, -0.09f), new Vector3(0.09f, 0.07f, 0.09f), m);
-                Ball(h, new Vector3(-0.10f, 0.16f, 0f), new Vector3(0.10f, 0.08f, 0.09f), m);
-            } },
-            new HairEntry { Name = "French Crop", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.22f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.03f, 0.13f), new Vector3(0.22f, 0.05f, 0.06f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Flat Top", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.44f, 0.12f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.16f, -0.02f), new Vector3(0.38f, 0.10f, 0.40f), m);
-                Blk(h, new Vector3(0.19f, 0f, -0.02f), new Vector3(0.04f, 0.20f, 0.34f), m);
-                Blk(h, new Vector3(-0.19f, 0f, -0.02f), new Vector3(0.04f, 0.20f, 0.34f), m);
-            } },
-            new HairEntry { Name = "Side Part", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.24f, 0.46f), m);
-                Blk(h, new Vector3(0.05f, 0.15f, 0.01f), new Vector3(0.30f, 0.10f, 0.32f), new Vector3(0f, 0f, 15f), m);
-                Blk(h, new Vector3(-0.05f, 0.15f, 0.03f), new Vector3(0.02f, 0.06f, 0.22f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.05f, 0.18f, 0.32f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.05f, 0.18f, 0.32f), m);
-            } },
-            new HairEntry { Name = "Hard Part", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.22f, 0.46f), m);
-                Blk(h, new Vector3(0.05f, 0.15f, 0.01f), new Vector3(0.28f, 0.08f, 0.30f), new Vector3(0f, 0f, 8f), m);
-                Blk(h, new Vector3(-0.07f, 0.16f, 0.05f), new Vector3(0.015f, 0.04f, 0.16f), m);
-                Blk(h, new Vector3(0.19f, -0.02f, -0.02f), new Vector3(0.03f, 0.16f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.02f, -0.02f), new Vector3(0.03f, 0.16f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Undercut", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.44f, 0.10f, 0.46f), m);
-                Ball(h, new Vector3(0f, 0.16f, -0.01f), new Vector3(0.36f, 0.22f, 0.38f), m);
-                Blk(h, new Vector3(0.19f, -0.02f, -0.02f), new Vector3(0.02f, 0.12f, 0.28f), m);
-                Blk(h, new Vector3(-0.19f, -0.02f, -0.02f), new Vector3(0.02f, 0.12f, 0.28f), m);
-            } },
-            new HairEntry { Name = "Slick Back", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.22f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.12f, -0.06f), new Vector3(0.34f, 0.08f, 0.36f), new Vector3(-10f, 0f, 0f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-            } },
-            new HairEntry { Name = "Spiky", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.42f, 0.14f, 0.44f), m);
-                Blk(h, new Vector3(0.10f, 0.16f, 0.02f), new Vector3(0.05f, 0.14f, 0.05f), new Vector3(15f, 0f, 20f), m);
-                Blk(h, new Vector3(0.05f, 0.18f, -0.03f), new Vector3(0.05f, 0.15f, 0.05f), new Vector3(10f, 0f, 8f), m);
-                Blk(h, new Vector3(0f, 0.19f, -0.08f), new Vector3(0.05f, 0.16f, 0.05f), new Vector3(5f, 0f, 0f), m);
-                Blk(h, new Vector3(-0.05f, 0.18f, -0.03f), new Vector3(0.05f, 0.15f, 0.05f), new Vector3(10f, 0f, -8f), m);
-                Blk(h, new Vector3(-0.10f, 0.16f, 0.02f), new Vector3(0.05f, 0.14f, 0.05f), new Vector3(15f, 0f, -20f), m);
-            } },
-            new HairEntry { Name = "Faux Buzz Fade", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.06f, -0.02f), new Vector3(0.44f, 0.08f, 0.46f), m);
-                Blk(h, new Vector3(0.19f, 0.02f, -0.02f), new Vector3(0.03f, 0.10f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, 0.02f, -0.02f), new Vector3(0.03f, 0.10f, 0.30f), m);
-                Blk(h, new Vector3(0.20f, -0.05f, -0.02f), new Vector3(0.015f, 0.08f, 0.24f), m);
-                Blk(h, new Vector3(-0.20f, -0.05f, -0.02f), new Vector3(0.015f, 0.08f, 0.24f), m);
-            } },
-            new HairEntry { Name = "Brush Cut", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.18f, 0.46f), m);
-                Blk(h, new Vector3(0.08f, 0.15f, -0.02f), new Vector3(0.06f, 0.10f, 0.30f), new Vector3(5f, 0f, 0f), m);
-                Blk(h, new Vector3(0f, 0.16f, -0.02f), new Vector3(0.06f, 0.11f, 0.30f), m);
-                Blk(h, new Vector3(-0.08f, 0.15f, -0.02f), new Vector3(0.06f, 0.10f, 0.30f), new Vector3(-5f, 0f, 0f), m);
-            } },
-            new HairEntry { Name = "Widow's Peak", Group = HairGroup.Short, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.07f, -0.02f), new Vector3(0.44f, 0.22f, 0.46f), m);
-                Blk(h, new Vector3(0f, 0.02f, 0.14f), new Vector3(0.08f, 0.04f, 0.06f), new Vector3(20f, 0f, 0f), m);
-                Blk(h, new Vector3(0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-                Blk(h, new Vector3(-0.19f, -0.01f, -0.02f), new Vector3(0.04f, 0.16f, 0.30f), m);
-            } },
+            // SHORT (short, stiff strands that barely move) -----------------------
+            new HairEntry { Name = "Buzz", Group = HairGroup.Short, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 90, nodes = 2, length = 0.04f,
+                stiffness = 0.95f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.25f, thickness = 0.005f } },
+            new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 80, nodes = 3, length = 0.07f,
+                stiffness = 0.9f, flow = new Vector3(0f, 1f, 0.1f), curl = 0f, jitter = 0.2f, thickness = 0.01f } },
+            new HairEntry { Name = "Spiky", Group = HairGroup.Short, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 46, nodes = 3, length = 0.14f,
+                stiffness = 0.85f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.35f, thickness = 0.01f } },
+            new HairEntry { Name = "Fringe", Group = HairGroup.Short, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 70, nodes = 4, length = 0.13f,
+                stiffness = 0.45f, flow = new Vector3(0f, -0.5f, 0.7f), curl = 0.01f, jitter = 0.15f, thickness = 0.012f } },
 
-            // MEDIUM ------------------------------------------------------------
-            new HairEntry { Name = "Bowl", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.01f), new Vector3(0.44f, 0.32f, 0.44f), m);
-                Blk(h, new Vector3(0f, 0.05f, 0.13f), new Vector3(0.36f, 0.10f, 0.09f), new Vector3(12f,0f,0f), m);
-                Blk(h, new Vector3(-0.19f, 0.06f, 0.04f), new Vector3(0.10f, 0.14f, 0.20f), m);
-                Blk(h, new Vector3(0.19f, 0.06f, 0.04f), new Vector3(0.10f, 0.14f, 0.20f), m);
-                Blk(h, new Vector3(0f, 0.05f, -0.15f), new Vector3(0.34f, 0.10f, 0.10f), m);
-            } },
-            new HairEntry { Name = "Quiff", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.12f, -0.02f), new Vector3(0.42f, 0.28f, 0.42f), m);
-                Blk(h, new Vector3(0f, 0.22f, 0.08f), new Vector3(0.28f, 0.18f, 0.14f), new Vector3(-30f,0f,0f), m);
-                Ball(h, new Vector3(-0.15f, 0.10f, 0.00f), new Vector3(0.16f, 0.14f, 0.16f), m);
-                Ball(h, new Vector3(0.15f, 0.10f, 0.00f), new Vector3(0.16f, 0.14f, 0.16f), m);
-                Blk(h, new Vector3(0f, 0.10f, -0.14f), new Vector3(0.30f, 0.16f, 0.12f), m);
-            } },
-            new HairEntry { Name = "Curly", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.01f), new Vector3(0.42f, 0.26f, 0.42f), m);
-                Ball(h, new Vector3(-0.16f, 0.18f, 0.05f), new Vector3(0.16f, 0.16f, 0.16f), m);
-                Ball(h, new Vector3(0.16f, 0.18f, 0.05f), new Vector3(0.16f, 0.16f, 0.16f), m);
-                Ball(h, new Vector3(-0.12f, 0.22f, -0.06f), new Vector3(0.15f, 0.15f, 0.15f), m);
-                Ball(h, new Vector3(0.12f, 0.22f, -0.06f), new Vector3(0.15f, 0.15f, 0.15f), m);
-                Ball(h, new Vector3(0f, 0.24f, 0.02f), new Vector3(0.17f, 0.17f, 0.17f), m);
-                Ball(h, new Vector3(0f, 0.14f, -0.15f), new Vector3(0.20f, 0.18f, 0.18f), m);
-            } },
-            new HairEntry { Name = "Spiky Top", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.12f, -0.02f), new Vector3(0.42f, 0.24f, 0.42f), m);
-                Blk(h, new Vector3(0f, 0.22f, 0.06f), new Vector3(0.09f, 0.20f, 0.09f), new Vector3(-20f,0f,0f), m);
-                Blk(h, new Vector3(-0.10f, 0.22f, 0.02f), new Vector3(0.09f, 0.20f, 0.09f), new Vector3(-10f,25f,0f), m);
-                Blk(h, new Vector3(0.10f, 0.22f, 0.02f), new Vector3(0.09f, 0.20f, 0.09f), new Vector3(-10f,-25f,0f), m);
-                Blk(h, new Vector3(-0.09f, 0.22f, -0.08f), new Vector3(0.09f, 0.20f, 0.09f), new Vector3(10f,20f,0f), m);
-                Blk(h, new Vector3(0.09f, 0.22f, -0.08f), new Vector3(0.09f, 0.20f, 0.09f), new Vector3(10f,-20f,0f), m);
-            } },
-            new HairEntry { Name = "Mohawk", Group = HairGroup.Medium, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.08f, 0.10f, 0.28f), m);
-                Blk(h, new Vector3(0f, 0.24f, 0.05f), new Vector3(0.07f, 0.16f, 0.08f), m);
-                Blk(h, new Vector3(0f, 0.27f, -0.02f), new Vector3(0.07f, 0.20f, 0.10f), m);
-                Blk(h, new Vector3(0f, 0.24f, -0.10f), new Vector3(0.07f, 0.16f, 0.08f), m);
-                Blk(h, new Vector3(0f, 0.30f, 0.07f), new Vector3(0.06f, 0.10f, 0.08f), new Vector3(-15f,0f,0f), m);
-            } },
-            new HairEntry { Name = "Pompadour", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.11f, -0.03f), new Vector3(0.44f, 0.30f, 0.44f), m);
-                Blk(h, new Vector3(0f, 0.21f, 0.10f), new Vector3(0.32f, 0.18f, 0.12f), new Vector3(-38f,0f,0f), m);
-                Ball(h, new Vector3(0f, 0.26f, 0.04f), new Vector3(0.20f, 0.14f, 0.18f), m);
-                Ball(h, new Vector3(-0.16f, 0.10f, 0.02f), new Vector3(0.14f, 0.12f, 0.16f), m);
-                Ball(h, new Vector3(0.16f, 0.10f, 0.02f), new Vector3(0.14f, 0.12f, 0.16f), m);
-                Blk(h, new Vector3(0f, 0.09f, -0.14f), new Vector3(0.30f, 0.14f, 0.12f), m);
-            } },
-            new HairEntry { Name = "Faux Hawk", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.10f, -0.02f), new Vector3(0.42f, 0.20f, 0.42f), m);
-                Blk(h, new Vector3(0f, 0.20f, 0.06f), new Vector3(0.10f, 0.14f, 0.12f), m);
-                Blk(h, new Vector3(0f, 0.22f, -0.03f), new Vector3(0.10f, 0.16f, 0.12f), m);
-                Blk(h, new Vector3(0f, 0.19f, -0.11f), new Vector3(0.10f, 0.13f, 0.12f), m);
-                Ball(h, new Vector3(-0.15f, 0.08f, 0.00f), new Vector3(0.14f, 0.10f, 0.16f), m);
-                Ball(h, new Vector3(0.15f, 0.08f, 0.00f), new Vector3(0.14f, 0.10f, 0.16f), m);
-            } },
-            new HairEntry { Name = "Wavy", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);
-                Ball(h, new Vector3(-0.17f, 0.14f, 0.06f), new Vector3(0.14f, 0.10f, 0.14f), m);
-                Ball(h, new Vector3(0.16f, 0.11f, 0.04f), new Vector3(0.14f, 0.10f, 0.14f), m);
-                Ball(h, new Vector3(-0.14f, 0.06f, -0.05f), new Vector3(0.13f, 0.09f, 0.13f), m);
-                Ball(h, new Vector3(0.15f, 0.04f, -0.08f), new Vector3(0.13f, 0.09f, 0.13f), m);
-                Ball(h, new Vector3(0f, 0.08f, -0.15f), new Vector3(0.20f, 0.12f, 0.16f), m);
-            } },
-            new HairEntry { Name = "Curtains", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.15f, -0.02f), new Vector3(0.40f, 0.20f, 0.40f), m);
-                Blk(h, new Vector3(-0.14f, 0.14f, 0.09f), new Vector3(0.18f, 0.14f, 0.14f), new Vector3(0f,0f,20f), m);
-                Blk(h, new Vector3(0.14f, 0.14f, 0.09f), new Vector3(0.18f, 0.14f, 0.14f), new Vector3(0f,0f,-20f), m);
-                Ball(h, new Vector3(-0.17f, 0.08f, 0.00f), new Vector3(0.14f, 0.12f, 0.16f), m);
-                Ball(h, new Vector3(0.17f, 0.08f, 0.00f), new Vector3(0.14f, 0.12f, 0.16f), m);
-            } },
-            new HairEntry { Name = "Messy", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.40f, 0.22f, 0.40f), m);
-                Ball(h, new Vector3(-0.14f, 0.20f, 0.06f), new Vector3(0.13f, 0.13f, 0.13f), m);
-                Ball(h, new Vector3(0.12f, 0.23f, -0.02f), new Vector3(0.14f, 0.12f, 0.14f), m);
-                Ball(h, new Vector3(0.02f, 0.19f, 0.10f), new Vector3(0.12f, 0.11f, 0.12f), m);
-                Ball(h, new Vector3(-0.08f, 0.24f, -0.09f), new Vector3(0.13f, 0.14f, 0.13f), m);
-                Ball(h, new Vector3(0.16f, 0.13f, -0.10f), new Vector3(0.12f, 0.11f, 0.12f), m);
-                Ball(h, new Vector3(-0.17f, 0.09f, -0.03f), new Vector3(0.11f, 0.10f, 0.11f), m);
-            } },
-            new HairEntry { Name = "Textured Fringe", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);
-                Blk(h, new Vector3(0f, 0.04f, 0.14f), new Vector3(0.34f, 0.08f, 0.10f), new Vector3(18f,0f,0f), m);
-                Ball(h, new Vector3(-0.10f, 0.20f, 0.08f), new Vector3(0.11f, 0.10f, 0.11f), m);
-                Ball(h, new Vector3(0.10f, 0.20f, 0.08f), new Vector3(0.11f, 0.10f, 0.11f), m);
-                Ball(h, new Vector3(0f, 0.23f, 0.00f), new Vector3(0.12f, 0.11f, 0.12f), m);
-                Blk(h, new Vector3(0f, 0.08f, -0.13f), new Vector3(0.30f, 0.12f, 0.10f), m);
-            } },
-            new HairEntry { Name = "Side Swept", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);
-                Blk(h, new Vector3(0.05f, 0.10f, 0.11f), new Vector3(0.36f, 0.10f, 0.10f), new Vector3(10f,0f,-22f), m);
-                Ball(h, new Vector3(0.17f, 0.10f, 0.02f), new Vector3(0.16f, 0.14f, 0.18f), m);
-                Ball(h, new Vector3(-0.15f, 0.10f, 0.00f), new Vector3(0.12f, 0.10f, 0.14f), m);
-                Blk(h, new Vector3(0f, 0.08f, -0.14f), new Vector3(0.30f, 0.12f, 0.10f), m);
-            } },
-            new HairEntry { Name = "Taper Waves", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.42f, 0.24f, 0.42f), m);
-                Ball(h, new Vector3(-0.15f, 0.16f, 0.05f), new Vector3(0.13f, 0.09f, 0.13f), m);
-                Ball(h, new Vector3(0.14f, 0.13f, 0.03f), new Vector3(0.12f, 0.08f, 0.12f), m);
-                Ball(h, new Vector3(-0.10f, 0.08f, -0.06f), new Vector3(0.09f, 0.06f, 0.09f), m);
-                Ball(h, new Vector3(0.09f, 0.06f, -0.08f), new Vector3(0.08f, 0.05f, 0.08f), m);
-                Blk(h, new Vector3(0f, 0.07f, -0.15f), new Vector3(0.28f, 0.10f, 0.10f), m);
-            } },
-            new HairEntry { Name = "Corkscrew Curls", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.40f, 0.24f, 0.40f), m);
-                Ball(h, new Vector3(-0.16f, 0.16f, 0.06f), new Vector3(0.10f, 0.13f, 0.10f), m);
-                Ball(h, new Vector3(0.15f, 0.15f, 0.05f), new Vector3(0.10f, 0.13f, 0.10f), m);
-                Ball(h, new Vector3(-0.13f, 0.06f, 0.02f), new Vector3(0.09f, 0.12f, 0.09f), m);
-                Ball(h, new Vector3(0.13f, 0.05f, 0.00f), new Vector3(0.09f, 0.12f, 0.09f), m);
-                Ball(h, new Vector3(-0.08f, 0.20f, -0.08f), new Vector3(0.09f, 0.12f, 0.09f), m);
-                Ball(h, new Vector3(0.08f, 0.19f, -0.09f), new Vector3(0.09f, 0.12f, 0.09f), m);
-                Ball(h, new Vector3(0f, 0.10f, -0.15f), new Vector3(0.11f, 0.14f, 0.11f), m);
-            } },
-            new HairEntry { Name = "Shag", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);
-                Blk(h, new Vector3(0f, 0.22f, 0.02f), new Vector3(0.26f, 0.10f, 0.24f), m);
-                Blk(h, new Vector3(-0.16f, 0.10f, 0.02f), new Vector3(0.14f, 0.12f, 0.20f), new Vector3(0f,0f,15f), m);
-                Blk(h, new Vector3(0.16f, 0.10f, 0.02f), new Vector3(0.14f, 0.12f, 0.20f), new Vector3(0f,0f,-15f), m);
-                Blk(h, new Vector3(0f, 0.09f, -0.15f), new Vector3(0.30f, 0.12f, 0.12f), m);
-                Blk(h, new Vector3(0f, 0.05f, 0.13f), new Vector3(0.20f, 0.07f, 0.08f), new Vector3(15f,0f,0f), m);
-            } },
-            new HairEntry { Name = "Afro Taper", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.17f, 0f), new Vector3(0.46f, 0.34f, 0.46f), m);
-                Ball(h, new Vector3(-0.17f, 0.06f, 0.00f), new Vector3(0.16f, 0.14f, 0.18f), m);
-                Ball(h, new Vector3(0.17f, 0.06f, 0.00f), new Vector3(0.16f, 0.14f, 0.18f), m);
-                Ball(h, new Vector3(0f, 0.05f, -0.14f), new Vector3(0.24f, 0.16f, 0.18f), m);
-                Ball(h, new Vector3(0f, 0.06f, 0.08f), new Vector3(0.22f, 0.14f, 0.14f), m);
-            } },
-            new HairEntry { Name = "Twists", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.10f, -0.02f), new Vector3(0.40f, 0.18f, 0.40f), m);
-                Blk(h, new Vector3(-0.12f, 0.22f, 0.06f), new Vector3(0.07f, 0.14f, 0.07f), m);
-                Blk(h, new Vector3(0.12f, 0.22f, 0.06f), new Vector3(0.07f, 0.14f, 0.07f), m);
-                Blk(h, new Vector3(-0.10f, 0.22f, -0.06f), new Vector3(0.07f, 0.14f, 0.07f), m);
-                Blk(h, new Vector3(0.10f, 0.22f, -0.06f), new Vector3(0.07f, 0.14f, 0.07f), m);
-                Blk(h, new Vector3(0f, 0.24f, 0.00f), new Vector3(0.07f, 0.15f, 0.07f), m);
-                Blk(h, new Vector3(0f, 0.22f, -0.13f), new Vector3(0.07f, 0.14f, 0.07f), m);
-            } },
-            new HairEntry { Name = "Finger Waves", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.01f), new Vector3(0.42f, 0.20f, 0.42f), m);
-                Blk(h, new Vector3(0.02f, 0.19f, 0.06f), new Vector3(0.36f, 0.05f, 0.10f), m);
-                Blk(h, new Vector3(-0.02f, 0.14f, 0.02f), new Vector3(0.38f, 0.05f, 0.12f), m);
-                Blk(h, new Vector3(0.02f, 0.09f, -0.02f), new Vector3(0.36f, 0.05f, 0.12f), m);
-                Ball(h, new Vector3(0f, 0.06f, -0.10f), new Vector3(0.30f, 0.10f, 0.16f), m);
-            } },
-            new HairEntry { Name = "Brushed Up", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.12f, -0.02f), new Vector3(0.42f, 0.24f, 0.42f), m);
-                Blk(h, new Vector3(0f, 0.24f, 0.02f), new Vector3(0.30f, 0.20f, 0.20f), new Vector3(-8f,0f,0f), m);
-                Ball(h, new Vector3(-0.15f, 0.08f, 0.00f), new Vector3(0.13f, 0.10f, 0.16f), m);
-                Ball(h, new Vector3(0.15f, 0.08f, 0.00f), new Vector3(0.13f, 0.10f, 0.16f), m);
-                Blk(h, new Vector3(0f, 0.09f, -0.14f), new Vector3(0.28f, 0.12f, 0.10f), m);
-            } },
-            new HairEntry { Name = "Middle Part", Group = HairGroup.Medium, Build = (h,m) => {
-                Ball(h, new Vector3(-0.12f, 0.15f, -0.01f), new Vector3(0.22f, 0.24f, 0.36f), m);
-                Ball(h, new Vector3(0.12f, 0.15f, -0.01f), new Vector3(0.22f, 0.24f, 0.36f), m);
-                Ball(h, new Vector3(0f, 0.10f, -0.13f), new Vector3(0.34f, 0.18f, 0.20f), m);
-                Blk(h, new Vector3(-0.16f, 0.08f, 0.05f), new Vector3(0.14f, 0.12f, 0.16f), new Vector3(0f,0f,10f), m);
-                Blk(h, new Vector3(0.16f, 0.08f, 0.05f), new Vector3(0.14f, 0.12f, 0.16f), new Vector3(0f,0f,-10f), m);
-            } },
+            // MEDIUM (bounce + sway) --------------------------------------------
+            new HairEntry { Name = "Mohawk", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Strip, strands = 26, nodes = 4, length = 0.2f,
+                stiffness = 0.8f, flow = new Vector3(0f, 1f, 0f), curl = 0.015f, jitter = 0.08f, thickness = 0.01f } },
+            new HairEntry { Name = "Faux Hawk", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Strip, strands = 30, nodes = 4, length = 0.15f,
+                stiffness = 0.6f, flow = new Vector3(0f, 0.9f, -0.2f), curl = 0.02f, jitter = 0.12f, thickness = 0.012f } },
+            new HairEntry { Name = "Messy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 80, nodes = 4, length = 0.16f,
+                stiffness = 0.3f, flow = new Vector3(0f, 0.4f, 0f), curl = 0.03f, jitter = 0.45f, thickness = 0.015f } },
+            new HairEntry { Name = "Wavy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 70, nodes = 5, length = 0.22f,
+                stiffness = 0.28f, flow = new Vector3(0f, -0.3f, 0.1f), curl = 0.045f, jitter = 0.2f, thickness = 0.015f } },
+            new HairEntry { Name = "Curly", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 90, nodes = 5, length = 0.18f,
+                stiffness = 0.35f, flow = new Vector3(0f, 0.2f, 0f), curl = 0.06f, jitter = 0.4f, thickness = 0.015f } },
+            new HairEntry { Name = "Afro", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 120, nodes = 4, length = 0.16f,
+                stiffness = 0.55f, flow = new Vector3(0f, 1f, 0f), curl = 0.05f, jitter = 0.6f, thickness = 0.02f } },
 
-            // LONG --------------------------------------------------------------
-            new HairEntry { Name = "Long", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.28f, 0.44f), m);                                  // crown cap
-                Blk(h, new Vector3(0f, 0.02f, 0.14f), new Vector3(0.28f, 0.07f, 0.05f), m);                                    // thin center fringe
-                Blk(h, new Vector3(-0.17f, -0.06f, -0.04f), new Vector3(0.10f, 0.34f, 0.11f), new Vector3(0f, 0f, 6f), m);     // left curtain
-                Blk(h, new Vector3(0.17f, -0.06f, -0.04f), new Vector3(0.10f, 0.34f, 0.11f), new Vector3(0f, 0f, -6f), m);     // right curtain
-                Blk(h, new Vector3(0f, -0.10f, -0.19f), new Vector3(0.32f, 0.38f, 0.11f), m);                                  // back panel
-            } },
-            new HairEntry { Name = "Afro", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.20f, -0.02f), new Vector3(0.52f, 0.50f, 0.52f), m);   // big rounded crown
-                Ball(h, new Vector3(-0.16f, 0.10f, -0.08f), new Vector3(0.22f, 0.22f, 0.22f), m); // left texture lump
-                Ball(h, new Vector3(0.16f, 0.10f, -0.08f), new Vector3(0.22f, 0.22f, 0.22f), m);  // right texture lump
-                Ball(h, new Vector3(0f, 0.08f, -0.20f), new Vector3(0.26f, 0.24f, 0.24f), m);     // back texture lump
-                Ball(h, new Vector3(0f, 0.30f, -0.04f), new Vector3(0.20f, 0.18f, 0.20f), m);     // top texture lump
-            } },
-            new HairEntry { Name = "Ponytail", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.10f, -0.03f), new Vector3(0.44f, 0.32f, 0.46f), m);   // pulled-back cap
-                Blk(h, new Vector3(0f, 0.02f, 0.13f), new Vector3(0.20f, 0.05f, 0.04f), m);     // short swept fringe
-                Ball(h, new Vector3(0f, 0.06f, -0.20f), new Vector3(0.13f, 0.13f, 0.16f), m);   // tie
-                Blk(h, new Vector3(0f, -0.16f, -0.22f), new Vector3(0.09f, 0.42f, 0.09f), m);   // long tail down back
-                Blk(h, new Vector3(0.02f, -0.30f, -0.19f), new Vector3(0.05f, 0.10f, 0.05f), m); // tail tip flick
-            } },
-            new HairEntry { Name = "High Ponytail", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.30f, 0.44f), m);   // smooth pulled-back cap
-                Ball(h, new Vector3(0f, 0.26f, -0.10f), new Vector3(0.15f, 0.15f, 0.15f), m);   // high tie on crown
-                Blk(h, new Vector3(0f, 0.30f, -0.20f), new Vector3(0.09f, 0.10f, 0.10f), m);    // tie knot bump
-                Blk(h, new Vector3(0f, 0.10f, -0.26f), new Vector3(0.08f, 0.38f, 0.08f), new Vector3(20f, 0f, 0f), m); // tail arcing off crown
-                Blk(h, new Vector3(0f, -0.08f, -0.20f), new Vector3(0.07f, 0.20f, 0.07f), m);   // tail continuation down back
-            } },
-            new HairEntry { Name = "Man Bun", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.12f, -0.02f), new Vector3(0.42f, 0.28f, 0.42f), m);   // pulled-back cap
-                Blk(h, new Vector3(0f, 0.02f, 0.13f), new Vector3(0.10f, 0.05f, 0.04f), m);     // short front strand
-                Ball(h, new Vector3(0f, 0.22f, -0.16f), new Vector3(0.20f, 0.18f, 0.20f), m);   // top-back bun
-                Ball(h, new Vector3(0f, 0.19f, -0.21f), new Vector3(0.08f, 0.08f, 0.08f), m);   // tie wrap on bun
-            } },
-            new HairEntry { Name = "Top Knot", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.10f, -0.01f), new Vector3(0.40f, 0.16f, 0.40f), m);   // close-cropped cap, shaved-ish sides
-                Blk(h, new Vector3(0f, -0.04f, -0.14f), new Vector3(0.30f, 0.10f, 0.10f), m);   // trimmed nape line
-                Ball(h, new Vector3(0f, 0.27f, -0.02f), new Vector3(0.17f, 0.17f, 0.17f), m);   // small tight knot high on crown
-                Ball(h, new Vector3(0f, 0.24f, -0.02f), new Vector3(0.06f, 0.06f, 0.06f), m);   // knot wrap
-            } },
-            new HairEntry { Name = "Dreadlocks", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.40f, 0.24f, 0.40f), m);        // crown base
-                Blk(h, new Vector3(-0.16f, -0.08f, -0.08f), new Vector3(0.045f, 0.38f, 0.045f), m);  // dreadlock
-                Blk(h, new Vector3(-0.08f, -0.10f, -0.12f), new Vector3(0.045f, 0.42f, 0.045f), m);  // dreadlock
-                Blk(h, new Vector3(0f, -0.12f, -0.16f), new Vector3(0.045f, 0.44f, 0.045f), m);      // dreadlock
-                Blk(h, new Vector3(0.08f, -0.10f, -0.12f), new Vector3(0.045f, 0.42f, 0.045f), m);   // dreadlock
-                Blk(h, new Vector3(0.16f, -0.08f, -0.08f), new Vector3(0.045f, 0.38f, 0.045f), m);   // dreadlock
-                Blk(h, new Vector3(-0.12f, -0.06f, -0.16f), new Vector3(0.04f, 0.34f, 0.04f), m);    // dreadlock
-                Blk(h, new Vector3(0.12f, -0.06f, -0.16f), new Vector3(0.04f, 0.34f, 0.04f), m);     // dreadlock
-            } },
-            new HairEntry { Name = "Cornrows", Group = HairGroup.Long, Build = (h,m) => {
-                Blk(h, new Vector3(-0.12f, 0.20f, -0.02f), new Vector3(0.045f, 0.05f, 0.34f), m);  // ridge braid
-                Blk(h, new Vector3(-0.06f, 0.22f, -0.02f), new Vector3(0.045f, 0.05f, 0.36f), m);  // ridge braid
-                Blk(h, new Vector3(0f, 0.23f, -0.02f), new Vector3(0.045f, 0.05f, 0.36f), m);      // ridge braid
-                Blk(h, new Vector3(0.06f, 0.22f, -0.02f), new Vector3(0.045f, 0.05f, 0.36f), m);   // ridge braid
-                Blk(h, new Vector3(0.12f, 0.20f, -0.02f), new Vector3(0.045f, 0.05f, 0.34f), m);   // ridge braid
-                Blk(h, new Vector3(0f, -0.02f, -0.20f), new Vector3(0.34f, 0.14f, 0.10f), m);      // short gathered nape
-            } },
-            new HairEntry { Name = "Braided", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.28f, 0.42f), m);   // crown cap
-                Ball(h, new Vector3(0f, 0.02f, -0.20f), new Vector3(0.15f, 0.13f, 0.14f), m);   // braid segment 1
-                Ball(h, new Vector3(0f, -0.10f, -0.21f), new Vector3(0.13f, 0.13f, 0.13f), m);  // braid segment 2
-                Ball(h, new Vector3(0f, -0.22f, -0.20f), new Vector3(0.12f, 0.12f, 0.12f), m);  // braid segment 3
-                Ball(h, new Vector3(0f, -0.33f, -0.18f), new Vector3(0.10f, 0.10f, 0.10f), m);  // braid tip
-            } },
-            new HairEntry { Name = "Twin Braids", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.01f), new Vector3(0.42f, 0.28f, 0.42f), m);      // crown cap
-                Ball(h, new Vector3(-0.18f, -0.02f, -0.06f), new Vector3(0.11f, 0.11f, 0.11f), m); // left braid seg 1
-                Ball(h, new Vector3(-0.19f, -0.14f, -0.06f), new Vector3(0.10f, 0.10f, 0.10f), m); // left braid seg 2
-                Ball(h, new Vector3(-0.19f, -0.25f, -0.05f), new Vector3(0.09f, 0.09f, 0.09f), m); // left braid tip
-                Ball(h, new Vector3(0.18f, -0.02f, -0.06f), new Vector3(0.11f, 0.11f, 0.11f), m);  // right braid seg 1
-                Ball(h, new Vector3(0.19f, -0.14f, -0.06f), new Vector3(0.10f, 0.10f, 0.10f), m);  // right braid seg 2
-                Ball(h, new Vector3(0.19f, -0.25f, -0.05f), new Vector3(0.09f, 0.09f, 0.09f), m);  // right braid tip
-            } },
-            new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.01f), new Vector3(0.44f, 0.30f, 0.44f), m);    // crown cap
-                Blk(h, new Vector3(0f, 0.02f, 0.13f), new Vector3(0.30f, 0.07f, 0.05f), m);      // fringe
-                Blk(h, new Vector3(-0.18f, -0.12f, -0.03f), new Vector3(0.11f, 0.40f, 0.12f), m); // left curtain to shoulder
-                Blk(h, new Vector3(0.18f, -0.12f, -0.03f), new Vector3(0.11f, 0.40f, 0.12f), m);  // right curtain to shoulder
-                Blk(h, new Vector3(0f, -0.14f, -0.20f), new Vector3(0.34f, 0.44f, 0.12f), m);     // back panel
-            } },
-            new HairEntry { Name = "Flowing", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.28f, 0.42f), m);                                    // crown cap
-                Blk(h, new Vector3(-0.15f, -0.02f, -0.10f), new Vector3(0.10f, 0.30f, 0.12f), new Vector3(0f, 0f, 18f), m);      // left swept piece
-                Blk(h, new Vector3(0.15f, -0.02f, -0.10f), new Vector3(0.10f, 0.30f, 0.12f), new Vector3(0f, 0f, -18f), m);      // right swept piece
-                Blk(h, new Vector3(0f, -0.14f, -0.20f), new Vector3(0.30f, 0.46f, 0.13f), m);                                    // long flowing back panel
-                Blk(h, new Vector3(0f, -0.32f, -0.16f), new Vector3(0.20f, 0.16f, 0.10f), m);                                    // flared tail end
-            } },
-            new HairEntry { Name = "Wavy Long", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.28f, 0.42f), m);     // crown cap
-                Ball(h, new Vector3(-0.17f, -0.02f, -0.03f), new Vector3(0.15f, 0.15f, 0.15f), m); // left wave 1
-                Ball(h, new Vector3(-0.20f, -0.11f, -0.06f), new Vector3(0.14f, 0.14f, 0.14f), m); // left wave 2 (offset)
-                Ball(h, new Vector3(-0.16f, -0.20f, -0.04f), new Vector3(0.13f, 0.13f, 0.13f), m); // left wave 3 (offset)
-                Ball(h, new Vector3(0.17f, -0.02f, -0.03f), new Vector3(0.15f, 0.15f, 0.15f), m);  // right wave 1
-                Ball(h, new Vector3(0.20f, -0.11f, -0.06f), new Vector3(0.14f, 0.14f, 0.14f), m);  // right wave 2 (offset)
-                Ball(h, new Vector3(0.16f, -0.20f, -0.04f), new Vector3(0.13f, 0.13f, 0.13f), m);  // right wave 3 (offset)
-                Blk(h, new Vector3(0f, -0.10f, -0.20f), new Vector3(0.28f, 0.32f, 0.11f), m);      // back panel
-            } },
-            new HairEntry { Name = "Half Up", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);    // base cap
-                Ball(h, new Vector3(0f, 0.26f, -0.04f), new Vector3(0.15f, 0.14f, 0.15f), m);    // small top bun
-                Ball(h, new Vector3(0f, 0.24f, -0.06f), new Vector3(0.06f, 0.06f, 0.06f), m);    // bun tie
-                Blk(h, new Vector3(-0.17f, -0.10f, -0.05f), new Vector3(0.10f, 0.34f, 0.11f), m); // loose left curtain
-                Blk(h, new Vector3(0.17f, -0.10f, -0.05f), new Vector3(0.10f, 0.34f, 0.11f), m);  // loose right curtain
-                Blk(h, new Vector3(0f, -0.12f, -0.20f), new Vector3(0.28f, 0.36f, 0.10f), m);     // loose back
-            } },
-            new HairEntry { Name = "Bun", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.12f, -0.02f), new Vector3(0.42f, 0.28f, 0.42f), m);   // pulled-back cap
-                Blk(h, new Vector3(0f, 0.02f, 0.13f), new Vector3(0.10f, 0.05f, 0.04f), m);     // short front strand
-                Ball(h, new Vector3(0f, -0.06f, -0.22f), new Vector3(0.26f, 0.24f, 0.24f), m);  // large low bun at nape
-                Ball(h, new Vector3(0f, -0.05f, -0.24f), new Vector3(0.08f, 0.08f, 0.08f), m);  // wrap tie on bun
-            } },
-            new HairEntry { Name = "Space Buns", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.12f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);     // pulled-back cap
-                Ball(h, new Vector3(-0.14f, 0.24f, -0.06f), new Vector3(0.18f, 0.18f, 0.18f), m); // left high bun
-                Ball(h, new Vector3(-0.14f, 0.22f, -0.09f), new Vector3(0.06f, 0.06f, 0.06f), m); // left bun tie
-                Ball(h, new Vector3(0.14f, 0.24f, -0.06f), new Vector3(0.18f, 0.18f, 0.18f), m);  // right high bun
-                Ball(h, new Vector3(0.14f, 0.22f, -0.09f), new Vector3(0.06f, 0.06f, 0.06f), m);  // right bun tie
-            } },
-            new HairEntry { Name = "Slicked Long", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.13f, -0.02f), new Vector3(0.40f, 0.24f, 0.40f), m);   // sleek low-profile cap
-                Blk(h, new Vector3(0f, -0.04f, -0.14f), new Vector3(0.32f, 0.18f, 0.14f), m);   // swept transition
-                Blk(h, new Vector3(0f, -0.18f, -0.20f), new Vector3(0.26f, 0.36f, 0.09f), m);   // long straight back panel
-                Blk(h, new Vector3(0f, -0.36f, -0.18f), new Vector3(0.18f, 0.14f, 0.08f), m);   // straight tapered tip
-            } },
-            new HairEntry { Name = "Undercut Long", Group = HairGroup.Long, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.05f, 0.10f), new Vector3(0.24f, 0.06f, 0.06f), m);     // swept front strand
-                Ball(h, new Vector3(0f, 0.16f, 0.00f), new Vector3(0.34f, 0.24f, 0.40f), m);    // top volume strip, sides shaved
-                Blk(h, new Vector3(0f, -0.06f, -0.17f), new Vector3(0.20f, 0.30f, 0.12f), m);   // long back length
-                Blk(h, new Vector3(0f, -0.22f, -0.16f), new Vector3(0.16f, 0.16f, 0.10f), m);   // back tip
-            } },
-            new HairEntry { Name = "Mullet", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.16f, 0.02f), new Vector3(0.40f, 0.20f, 0.36f), m);    // short cropped top/sides
-                Blk(h, new Vector3(0f, -0.02f, -0.19f), new Vector3(0.20f, 0.30f, 0.11f), m);   // long back panel start
-                Blk(h, new Vector3(0f, -0.20f, -0.18f), new Vector3(0.16f, 0.24f, 0.09f), m);   // long back panel continuation
-                Blk(h, new Vector3(0f, -0.36f, -0.15f), new Vector3(0.12f, 0.14f, 0.07f), m);   // tapered tail tip
-            } },
-            new HairEntry { Name = "Hime", Group = HairGroup.Long, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.02f), new Vector3(0.42f, 0.26f, 0.42f), m);    // crown cap
-                Blk(h, new Vector3(0f, 0.04f, 0.15f), new Vector3(0.32f, 0.10f, 0.05f), m);      // blunt fringe slab
-                Blk(h, new Vector3(-0.18f, -0.06f, -0.02f), new Vector3(0.09f, 0.34f, 0.10f), m); // blunt straight left lock
-                Blk(h, new Vector3(0.18f, -0.06f, -0.02f), new Vector3(0.09f, 0.34f, 0.10f), m);  // blunt straight right lock
-                Blk(h, new Vector3(0f, -0.10f, -0.20f), new Vector3(0.34f, 0.40f, 0.10f), m);     // straight back panel
-            } },
+            // LONG (drape + flow) -----------------------------------------------
+            new HairEntry { Name = "Ponytail", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.BackCluster, strands = 40, nodes = 7, length = 0.42f,
+                stiffness = 0.3f, flow = new Vector3(0f, -0.5f, -1f), curl = 0.02f, jitter = 0.1f, thickness = 0.02f } },
+            new HairEntry { Name = "Man Bun", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.BackCluster, strands = 44, nodes = 4, length = 0.14f,
+                stiffness = 0.7f, flow = new Vector3(0f, 0.6f, -0.7f), curl = 0.03f, jitter = 0.5f, thickness = 0.02f } },
+            new HairEntry { Name = "Dreadlocks", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 34, nodes = 7, length = 0.4f,
+                stiffness = 0.5f, flow = new Vector3(0f, -0.9f, -0.2f), curl = 0.008f, jitter = 0.3f, thickness = 0.02f } },
+            new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.SidesBack, strands = 80, nodes = 6, length = 0.34f,
+                stiffness = 0.2f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.02f, jitter = 0.15f, thickness = 0.015f } },
+            new HairEntry { Name = "Long", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.SidesBack, strands = 90, nodes = 8, length = 0.5f,
+                stiffness = 0.15f, flow = new Vector3(0f, -1f, -0.15f), curl = 0.025f, jitter = 0.18f, thickness = 0.015f } },
+            new HairEntry { Name = "Flowing", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.SidesBack, strands = 100, nodes = 9, length = 0.58f,
+                stiffness = 0.12f, flow = new Vector3(0f, -0.95f, -0.25f), curl = 0.05f, jitter = 0.22f, thickness = 0.015f } },
         };
 
         // ---- facial hair catalog (index 0 = Clean-Shaven) -------------------

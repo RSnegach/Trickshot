@@ -19,7 +19,14 @@ namespace Trickshot
         GameObject _floor;
         ActiveRagdoll _ragdoll;
         GameObject _modelRoot;
-        float _yaw;
+        float _yaw;   // the MODEL's turn angle (deg) on top of its rest facing. The CAMERA is
+                      // fixed; dragging turns the model in place so the view can never drift or
+                      // misalign the way an orbiting camera did over many/sharp turns.
+
+        // Model rest facing: built facing -Z (yaw 180) so it looks into the fixed front camera.
+        // Euler(0,180,0) == LookRotation(Vector3.back), so _yaw 0 shows the chest.
+        const float FrontYaw = 180f;
+        Quaternion ModelFacing() => Quaternion.Euler(0f, FrontYaw + _yaw, 0f);
 
         // Viewport rect in pixels (top-left origin, like IMGUI); converted to the camera's
         // bottom-left normalized rect each frame so it tracks the panel.
@@ -29,11 +36,14 @@ namespace Trickshot
         // customize screen keeps this off in every stage and lets the player click-drag to
         // turn the model manually.
         public bool AutoRotate = true;
-        public void AddYaw(float deg) => _yaw += deg;   // manual drag from the UI
+        // Manual drag from the UI. Turns the MODEL (the camera is fixed). Negated so a drag
+        // spins the model the same on-screen direction it used to appear to spin back when the
+        // camera orbited by +deg, keeping the existing drag feel.
+        public void AddYaw(float deg) => _yaw -= deg;
 
-        // Snap the orbit to face the chest (front) or the back of the model, so the preview
-        // shows the side currently being drawn. The model faces -Z, so yaw 0 looks at the
-        // chest; a half-turn shows the back. Callers turn AutoRotate off first.
+        // Snap the model to show the chest (front) or the back, so the preview shows the side
+        // currently being drawn. The camera is fixed on the front; turning the model a half-turn
+        // shows the back. Callers turn AutoRotate off first.
         public void FaceSide(bool back) => _yaw = back ? 180f : 0f;
 
         public void Setup()
@@ -106,7 +116,7 @@ namespace Trickshot
             Material limbs = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
             _torsoMat = torso; _limbMat = limbs;
 
-            var facing = Quaternion.LookRotation(Vector3.back, Vector3.up); // face the camera (-Z)
+            var facing = ModelFacing(); // face the fixed camera, offset by the current drag turn
             // Pass the player's appearance so the preview shows skin tone + head cosmetics; Build
             // tints `limbs` to the skin colour (overriding the placeholder above) and attaches the
             // hair/facial/accessory visuals.
@@ -133,14 +143,19 @@ namespace Trickshot
                 _cam.rect = new Rect(nx, ny, nw, nh);
             }
 
-            // Frame the model: camera in front (-Z of the stage since the model faces -Z),
-            // orbiting so the player sees front + back (name/number + jersey art). On the
-            // customize screen AutoRotate is off and the player drives yaw by dragging.
+            // The MODEL turns; the CAMERA is FIXED. _yaw is the model's turn angle: on the
+            // customize screen AutoRotate is off and dragging drives _yaw, while auto-rotate
+            // (menu background) spins the model on its own. Turning the model instead of orbiting
+            // the camera means the view can never drift or misalign over many/sharp drags.
             if (AutoRotate) _yaw += Time.unscaledDeltaTime * 35f;
+
+            // Drive the (upright-locked) model to the target facing. UprightLock yaws the pelvis
+            // toward FacingRotation and kills any spin, so it turns cleanly in place.
+            if (_ragdoll != null) _ragdoll.FacingRotation = ModelFacing();
+
+            // Fixed front camera: parked on -Z looking at the model's mid-height, never orbits.
             Vector3 pivot = Stage + new Vector3(0f, 1.0f * PlayerProfile.HeightScale, 0f);
-            Quaternion rot = Quaternion.Euler(6f, _yaw, 0f);
-            Vector3 offset = rot * new Vector3(0f, 0f, -3.2f);
-            _cam.transform.position = pivot + offset + Vector3.up * 0.2f;
+            _cam.transform.position = pivot + new Vector3(0f, 0.2f, -3.2f);
             _cam.transform.LookAt(pivot);
         }
 

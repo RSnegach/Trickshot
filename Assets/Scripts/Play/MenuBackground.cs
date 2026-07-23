@@ -4,18 +4,24 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Purely aesthetic main-menu backdrop: a slow-motion goal reel shown as a real soccer
-    /// highlight edit. A striker buries a series of different finishes past a beaten keeper
-    /// (bicycle kick, volley, header, diving header, driven low finish); each goal plays out on
-    /// a fully scripted, deterministic timeline and a cinematic director cuts between a live wide
-    /// angle and slow replay angles, then advances to the next goal and loops. Not interactive.
+    /// Purely aesthetic main-menu backdrop: a slow-motion goal reel shown as a soccer highlight
+    /// edit. A striker plays five different finishes past a keeper (bicycle, volley, header,
+    /// diving header, driven low), and the driven one the keeper saves. Each clip plays on a fully
+    /// scripted, deterministic timeline while a cinematic director cuts between a wide angle and
+    /// slow replay angles, then advances to the next clip and loops. Not interactive.
     ///
-    /// Every puppet pose is driven from the game's genuine animation data: RagdollPose (Stand /
-    /// Load / Bicycle), KeeperPose (Ready / Dive / SaveLeft / SaveRight), and the DisplayAnim
-    /// Jump / Kick bone sets, plus the SimConfig layout angles (HeaderTorsoBend, DiveLayoutPitch,
-    /// KeeperDiveLayoutHigh/Low). No hand-invented skeleton eulers. Aerial moves pivot about the
-    /// PELVIS (anchoring basePos so the pelvis stays put while the body inverts / lays out), which
-    /// is why the legs read correctly instead of slinging about the feet.
+    /// The puppets are kinematic display bodies posed frame by frame. Each finish drives many
+    /// per-bone eulers as functions of the clip's action-time, so the limbs articulate through the
+    /// jump, kick, and dive instead of the body tilting as one rigid piece. Aerial moves get a real
+    /// ballistic pelvis arc through basePos; only genuine whole-body moves (the bicycle inversion,
+    /// the diving-header layout) use a root pitch/roll. Reference angles come from RagdollPose,
+    /// KeeperPose, and SimConfig (HeaderTorsoBend, DiveLayoutPitch, KeeperDiveLayoutHigh/Low), but
+    /// the per-frame motion is authored here, not replayed from a networked AnimState.
+    ///
+    /// The ball follows a scripted BallPath, not physics. Its collider is kept so contact with the
+    /// keeper reads true, but it is a kinematic body: on the save clip it rebounds off the keeper's
+    /// glove along a scripted deflection, and on the goal clips it routes past the beaten keeper so
+    /// it never phases through the body.
     ///
     /// Built the same way the customize preview is (PlayerPreview): a dedicated camera plus an
     /// off-pitch staging area far from the real arena, its own light, and procedural geometry, so
@@ -313,7 +319,19 @@ namespace Trickshot
 
             Material ballMat = M(new Color(0.95f, 0.95f, 0.97f), 0.35f);
             _ball = Make.Sphere("BgBall", SimConfig.BallRadius * 2f, striSpawn, ballMat, transform);
-            if (_ball.TryGetComponent<Collider>(out var col)) Destroy(col);   // visual only
+            // Keep the SphereCollider so contact with the keeper's glove reads true, and give it a
+            // bouncy PhysicsMaterial matching the in-game ball. Nothing simulates against it though:
+            // the ball is a kinematic body driven along BallPath every frame, and both puppets are
+            // kinematic too, so no collision is ever resolved. The rebound off the keeper on the
+            // save clip is scripted into BallPath, not physics.
+            if (_ball.TryGetComponent<Collider>(out var col))
+                col.material = Make.PhysMat("BgBall", SimConfig.BallBounciness, 0.2f, 0.2f);
+            // Sphere primitives ship no Rigidbody. Use TryGetComponent (Unity's ?? does not work on
+            // components: a missing one is a fake-null, not real null, so ?? would skip AddComponent
+            // and the .isKinematic set below would throw MissingComponentException).
+            var ballRb = _ball.TryGetComponent<Rigidbody>(out var existing) ? existing : _ball.AddComponent<Rigidbody>();
+            ballRb.isKinematic = true;
+            ballRb.useGravity = false;
 
             // Wire the ball into the net so it bulges when the shot buries itself.
             if (_net != null) _net.SetBall(_ball.transform, SimConfig.BallRadius);
@@ -358,12 +376,20 @@ namespace Trickshot
             PoseKeeper(c, a);
         }
 
-        // Ball flight: crossed / passed in (a: 0 -> 0.5), struck across the line (0.5 -> 0.78),
-        // driven into the back netting (0.78 -> 0.9), then billows down and settles inside the
-        // goal (0.9 -> 1). The last two legs live inside the goal box so the shot visibly GOES IN
-        // and the FlexNet bulges where it hits. crossArc/overArc shape each leg per clip.
+        // Ball flight. The four goal clips: crossed / passed in (a: 0 -> 0.5), struck across the
+        // line (0.5 -> 0.78), driven into the back netting (0.78 -> 0.9), then billows down and
+        // settles inside the goal (0.9 -> 1). The last two legs live inside the goal box so the
+        // shot visibly GOES IN and the FlexNet bulges where it hits. crossArc/overArc shape each
+        // leg. The beaten keeper dives low and lands under the flight (see PoseKeeper), so the
+        // ball clears the body without phasing through it.
+        //
+        // The Normal clip is the SAVE: the ball is driven at goal, but at the save instant it hits
+        // the keeper's glove at KeeperSavePt and rebounds up and wide, settling outside the post.
+        // It never crosses the goal line. The keeper is posed to reach that same point.
         Vector3 BallPath(in Clip c, float a)
         {
+            if (c.kind == ShotType.Normal) return SavePath(c, a);
+
             Vector3 p;
             if (a <= 0.5f)
             {
@@ -390,7 +416,47 @@ namespace Trickshot
             return p;
         }
 
-        // ---- Striker: one pose builder per finish, all from genuine animation data. ----
+        // The save clip's ball flight. Driven in low (0 -> 0.5), carries toward the save point
+        // (0.5 -> savePhase), rebounds off the glove up and wide (deflect leg), then drops and rolls
+        // to rest OUTSIDE the post. Deterministic and scripted; the collider only makes the contact
+        // read true (nothing simulates). Stage-relative, matching the goal path's return convention.
+        Vector3 SavePath(in Clip c, float a)
+        {
+            Vector3 savePt = KeeperSavePt(c) - Stage;               // back to Stage-relative
+            const float saveA = 0.70f;                              // the ball meets the glove here
+            // Where the parry sends it: up and wide, clearing the post on the keeper's dive side.
+            Vector3 parryApex = new Vector3(c.keeperDir * 4.2f, 1.9f, GoalZ - 0.4f);
+            Vector3 parryRest = new Vector3(c.keeperDir * 4.6f, SimConfig.BallRadius, GoalZ - 1.6f);
+
+            if (a <= 0.5f)
+            {
+                float t = a / 0.5f;
+                Vector3 p = Vector3.Lerp(c.origin, c.contact, t);
+                p.y += Mathf.Sin(t * Mathf.PI) * c.crossArc;
+                return p;
+            }
+            if (a <= saveA)
+            {
+                float t = (a - 0.5f) / (saveA - 0.5f);
+                Vector3 p = Vector3.Lerp(c.contact, savePt, t);     // driven at goal, into the glove
+                p.y += Mathf.Sin(t * Mathf.PI) * 0.25f;             // slight lift off the turf
+                return p;
+            }
+            if (a <= 0.85f)
+            {
+                float t = (a - saveA) / (0.85f - saveA);
+                Vector3 p = Vector3.Lerp(savePt, parryApex, t);     // kicks off the glove, up and wide
+                p.y += Mathf.Sin(t * Mathf.PI) * 0.6f;              // parabola over the parry
+                return p;
+            }
+            {
+                float t = (a - 0.85f) / 0.15f;
+                return Vector3.Lerp(parryApex, parryRest, t * t);   // drops and settles wide of the post
+            }
+        }
+
+        // ---- Striker: one pose builder per finish. Each drives many bone eulers across 'a' so the
+        // limbs articulate through the move; reference angles come from RagdollPose/SimConfig. ----
         void PoseStriker(in Clip c, float a)
         {
             if (_striker == null) return;
@@ -403,85 +469,190 @@ namespace Trickshot
             {
                 case ShotType.Bicycle:
                 {
-                    float air = Bump(a, 0.30f, 0.74f);
-                    float lay = Bump(a, 0.30f, 0.70f);               // 0..1..0 backward inversion
-                    float rootPitch = -lay * 100f;                   // tips backward, legs up/over toward goal
-                    float rootRoll = -lay * 6f;                      // a touch of lean for style
-                    // Genuine RagdollPose.Bicycle, eased in over the leap and back out on the way down.
-                    float blend = Mathf.Clamp01(Mathf.InverseLerp(0.30f, 0.46f, a))
-                                  * (1f - Mathf.Clamp01(Mathf.InverseLerp(0.70f, 0.82f, a)));
-                    LerpPose(_striBones, RagdollPose.Stand, RagdollPose.Bicycle, blend);
-                    // Whip the kicking (right) thigh through the ball around contact (a ~ 0.5).
-                    float whip = Mathf.Clamp01(Mathf.InverseLerp(0.44f, 0.54f, a));
-                    _striBones[(int)Bone.ThighR] = new Vector3(Mathf.Lerp(-70f, -115f, whip), 0f, 0f);
+                    // Back to goal (face is yawed 180). A bicycle kick IS a whole-body backward
+                    // inversion, so the root genuinely pitches back; on top of that the pelvis
+                    // follows a real leap-and-fall arc and both legs scissor while the arms fling
+                    // out to spin the body over. Nothing is a static held pose.
+                    float air    = Bump(a, 0.26f, 0.82f);            // pelvis leaves the ground and lands
+                    float invert = Ramp(a, 0.30f, 0.50f) * (1f - Ramp(a, 0.68f, 0.88f)); // tip back, hold, recover
+                    float load   = 1f - Ramp(a, 0.06f, 0.26f);       // crouch/gather before the leap
+                    float scis   = Ramp(a, 0.34f, 0.54f);            // legs reach the scissor
+                    float kick   = Bump(a, 0.42f, 0.60f);            // kicking leg snaps through contact
+
+                    float rootPitch = -invert * 112f;                // throws the legs up and over toward goal
+                    float rootRoll  = c.keeperDir * invert * 8f;     // slight corkscrew for style
+
+                    // Kicking (right) leg whips up and over; the calf snaps straight through the ball.
+                    _striBones[(int)Bone.ThighR] = new Vector3(-55f * scis - 70f * kick, 0f, 0f);
+                    _striBones[(int)Bone.CalfR]  = new Vector3(30f * load + 15f * scis - 55f * kick, 0f, 0f);
+                    _striBones[(int)Bone.FootR]  = new Vector3(-25f * kick, 0f, 0f);
+                    // Plant (left) leg counter-scissors to drive the rotation the other way.
+                    _striBones[(int)Bone.ThighL] = new Vector3(40f * load - 55f * scis, 0f, 0f);
+                    _striBones[(int)Bone.CalfL]  = new Vector3(70f * scis, 0f, 0f);
+                    _striBones[(int)Bone.FootL]  = new Vector3(-15f * scis, 0f, 0f);
+                    // Torso and head lead the inversion; the head tucks as the body goes over.
+                    _striBones[(int)Bone.Torso] = new Vector3(12f * load - 30f * invert, 0f, 0f);
+                    _striBones[(int)Bone.Head]  = new Vector3(-25f * invert, 0f, 0f);
+                    // Arms fling out and back for balance and to spin the body over.
+                    float armSwing = Ramp(a, 0.30f, 0.56f);
+                    _striBones[(int)Bone.UpperArmL] = new Vector3(60f * armSwing, 0f,  95f * armSwing);
+                    _striBones[(int)Bone.UpperArmR] = new Vector3(60f * armSwing, 0f, -95f * armSwing);
+                    _striBones[(int)Bone.ForearmL]  = new Vector3(-20f * armSwing, 0f, 0f);
+                    _striBones[(int)Bone.ForearmR]  = new Vector3(-20f * armSwing, 0f, 0f);
 
                     Quaternion root = face * Quaternion.Euler(rootPitch, 0f, rootRoll);
-                    Vector3 pelvis = Stage + c.striker + new Vector3(0f, PelvisY + air * 1.05f, air * 0.2f);
+                    Vector3 pelvis = Stage + c.striker + new Vector3(0f, PelvisY + air * 1.15f, air * 0.25f);
                     _striker.DisplayPose(PelvisAnchor(pelvis, root), face, rootPitch, rootRoll, _striBones);
                     break;
                 }
                 case ShotType.Header:
                 {
-                    float air = Bump(a, 0.30f, 0.74f);
-                    float nod = Bump(a, 0.40f, 0.62f);
-                    // Genuine DisplayAnim.Jump tuck ...
-                    _striBones[(int)Bone.ThighL] = new Vector3(-30f, 0f, 0f);
-                    _striBones[(int)Bone.ThighR] = new Vector3(-30f, 0f, 0f);
-                    _striBones[(int)Bone.CalfL] = new Vector3(40f, 0f, 0f);
-                    _striBones[(int)Bone.CalfR] = new Vector3(40f, 0f, 0f);
-                    _striBones[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 40f);
-                    _striBones[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -40f);
-                    // ... plus the genuine SimConfig header fold snapping through contact.
-                    _striBones[(int)Bone.Torso] = new Vector3(SimConfig.HeaderTorsoBend * nod, 0f, 0f);
-                    _striBones[(int)Bone.Head] = new Vector3(SimConfig.HeaderTorsoBend * 0.3f * nod, 0f, 0f);
+                    // Climbing header on a cross, faces goal (+Z). No root lean: the vertical reach
+                    // is a genuine pelvis ARC via basePos, and the pose articulates through many
+                    // per-limb eulers over 'a'. Crouch to load, spring, tuck the knees at the apex,
+                    // snap the neck through the ball, then land with the feet planted again.
+                    float air    = Bump(a, 0.20f, 0.85f);            // the jump: up and back down
+                    float crouch = 1f - Ramp(a, 0.10f, 0.28f);       // gather before the spring
+                    float land   = Ramp(a, 0.78f, 0.94f);            // re-plant on the way down
+                    float loadW  = Mathf.Max(crouch, land);
+                    float tuck   = Bump(a, 0.24f, 0.62f);            // knees tuck up at the apex
+                    float nod    = Bump(a, 0.40f, 0.66f);            // neck/torso snap into the ball
+                    float coil   = Bump(a, 0.26f, 0.46f);            // torso coils back before the nod
 
-                    Vector3 pelvis = Stage + c.striker + new Vector3(0f, PelvisY + air * 1.1f, air * 0.25f);
-                    _striker.DisplayPose(PelvisAnchor(pelvis, face), face, 0f, 0f, _striBones);
+                    float thighX = -35f * loadW - 55f * tuck;
+                    float calfX  =  60f * loadW + 70f * tuck;
+                    float footX  = -15f * loadW;
+                    _striBones[(int)Bone.ThighL] = new Vector3(thighX, 0f, 0f);
+                    _striBones[(int)Bone.ThighR] = new Vector3(thighX, 0f, 0f);
+                    _striBones[(int)Bone.CalfL]  = new Vector3(calfX, 0f, 0f);
+                    _striBones[(int)Bone.CalfR]  = new Vector3(calfX, 0f, 0f);
+                    _striBones[(int)Bone.FootL]  = new Vector3(footX, 0f, 0f);
+                    _striBones[(int)Bone.FootR]  = new Vector3(footX, 0f, 0f);
+                    _striBones[(int)Bone.Torso] = new Vector3(12f * loadW - 18f * coil + SimConfig.HeaderTorsoBend * nod, 0f, 0f);
+                    _striBones[(int)Bone.Head]  = new Vector3(-16f * coil + 45f * nod, 0f, 0f);
+                    float armUp = -95f * air;                        // arms swing up to climb
+                    _striBones[(int)Bone.UpperArmL] = new Vector3(armUp, 0f,  22f * air);
+                    _striBones[(int)Bone.UpperArmR] = new Vector3(armUp, 0f, -22f * air);
+                    _striBones[(int)Bone.ForearmL]  = new Vector3(25f * air, 0f, 0f);
+                    _striBones[(int)Bone.ForearmR]  = new Vector3(25f * air, 0f, 0f);
+
+                    float arc = 1.15f * air;
+                    Vector3 basePos = Stage + c.striker + new Vector3(0f, arc, 0f);
+                    _striker.DisplayPose(basePos, face, 0f, 0f, _striBones);
                     break;
                 }
                 case ShotType.DivingHeader:
                 {
-                    float air = Bump(a, 0.34f, 0.78f);
-                    float lay = Ramp(a, 0.34f, 0.52f) * (1f - Ramp(a, 0.80f, 0.94f)); // roll flat, hold, ease at land
+                    // Faces goal (+Z). Genuine horizontal layout via rootPitch (belly-down), plus a
+                    // real up-and-out pelvis arc so it flies rather than slides. Arms are thrown
+                    // forward at the ball, the neck snaps through contact, and the legs trail then
+                    // whip up behind as the body lays out. Pelvis-anchored (the body rotates about
+                    // it). This routes clear of the keeper: see the DivingHeader leg in BallPath.
+                    float launch = Ramp(a, 0.32f, 0.54f);            // leaves the feet and commits
+                    float lay    = Ramp(a, 0.34f, 0.52f) * (1f - Ramp(a, 0.82f, 0.96f)); // roll flat, hold, ease at land
+                    float air    = Bump(a, 0.34f, 0.86f);            // rise then fall of the dive
+                    float head   = Bump(a, 0.46f, 0.66f);            // neck snaps into the ball
+                    float trail  = Ramp(a, 0.36f, 0.62f);            // legs whip up behind
+
                     float rootPitch = lay * SimConfig.DiveLayoutPitch;   // 90 = belly-down (genuine)
-                    // Genuine ManageDive shaping (Striker.ManageDive): light torso + trailing legs.
-                    _striBones[(int)Bone.Torso] = new Vector3(15f * lay, 0f, 0f);
-                    _striBones[(int)Bone.ThighL] = new Vector3(25f * lay, 0f, 0f);
-                    _striBones[(int)Bone.ThighR] = new Vector3(25f * lay, 0f, 0f);
+
+                    // Arms reach forward and out to attack the ball and frame the header.
+                    _striBones[(int)Bone.UpperArmL] = new Vector3(-120f * launch, 0f,  30f * launch);
+                    _striBones[(int)Bone.UpperArmR] = new Vector3(-120f * launch, 0f, -30f * launch);
+                    _striBones[(int)Bone.ForearmL]  = new Vector3(-25f * launch, 0f, 0f);
+                    _striBones[(int)Bone.ForearmR]  = new Vector3(-25f * launch, 0f, 0f);
+                    // Torso/neck drive into the ball, snapping through contact.
+                    _striBones[(int)Bone.Torso] = new Vector3(18f * lay + 20f * head, 0f, 0f);
+                    _striBones[(int)Bone.Head]  = new Vector3(30f * head, 0f, 0f);
+                    // Legs trail, then fold up behind the body as it lays out.
+                    _striBones[(int)Bone.ThighL] = new Vector3(20f * lay - 30f * trail, 0f, 0f);
+                    _striBones[(int)Bone.ThighR] = new Vector3(20f * lay - 30f * trail, 0f, 0f);
+                    _striBones[(int)Bone.CalfL]  = new Vector3(50f * trail, 0f, 0f);
+                    _striBones[(int)Bone.CalfR]  = new Vector3(50f * trail, 0f, 0f);
+                    _striBones[(int)Bone.FootL]  = new Vector3(-15f * trail, 0f, 0f);
+                    _striBones[(int)Bone.FootR]  = new Vector3(-15f * trail, 0f, 0f);
 
                     Quaternion root = face * Quaternion.Euler(rootPitch, 0f, 0f);
-                    float fwd = Ramp(a, 0.34f, 0.78f) * 1.4f;            // launches out horizontally
-                    Vector3 pelvis = Stage + c.striker + new Vector3(0f, PelvisY + air * 0.5f, fwd);
+                    float fwd = Ramp(a, 0.32f, 0.80f) * 1.5f;            // travels out horizontally toward the cross
+                    Vector3 pelvis = Stage + c.striker + new Vector3(0f, PelvisY + air * 0.6f, fwd);
                     _striker.DisplayPose(PelvisAnchor(pelvis, root), face, rootPitch, 0f, _striBones);
                     break;
                 }
-                default: // Volley / Normal driven: planted, genuine DisplayAnim.Kick swing.
+                case ShotType.Volley:
                 {
-                    float windup = Mathf.Clamp01(Mathf.InverseLerp(0.30f, 0.44f, a));
-                    float thru = Mathf.Clamp01(Mathf.InverseLerp(0.44f, 0.56f, a));
-                    // Cock the leg back (Load-like), then swing through to the Kick values.
-                    _striBones[(int)Bone.ThighR] = new Vector3(Mathf.Lerp(windup * 25f, -70f, thru), 0f, 0f);
-                    _striBones[(int)Bone.CalfR] = new Vector3(Mathf.Lerp(windup * 60f, 20f, thru), 0f, 0f);
-                    _striBones[(int)Bone.Torso] = new Vector3(12f * Mathf.Max(windup, thru), 0f, 0f);
-                    _striBones[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 45f);
-                    _striBones[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -25f);
+                    // Faces goal (+Z). Half-volley on a dropping ball: load the plant leg, a small
+                    // genuine pelvis hop, the kicking leg swings UP to meet the ball at hip height
+                    // and the calf snaps straight through, torso leaning back over the plant. All
+                    // articulated across 'a'; no root lean, the hop is a short basePos arc.
+                    float wind  = Ramp(a, 0.06f, 0.32f);             // load onto the plant leg
+                    float swing = Ramp(a, 0.34f, 0.56f);             // kicking leg swings up to the ball
+                    float thru  = Ramp(a, 0.50f, 0.66f);             // snap and follow through
+                    float hop   = Bump(a, 0.34f, 0.64f);             // leaves the ground briefly
+                    float lean  = Ramp(a, 0.20f, 0.58f);             // torso leans back off the swing
 
-                    // A volley meets a dropping ball, so give it a small hop; the driven finish stays planted.
-                    float hop = c.kind == ShotType.Volley ? Bump(a, 0.40f, 0.60f) * 0.25f : 0f;
-                    Vector3 feet = Stage + c.striker + new Vector3(0f, hop, 0f);
-                    _striker.DisplayPose(feet, face, 0f, 0f, _striBones);
+                    // Kicking (right) leg lifts to meet the drop; calf snaps straight through contact.
+                    _striBones[(int)Bone.ThighR] = new Vector3(35f * wind - 95f * swing, 0f, 20f * swing);
+                    _striBones[(int)Bone.CalfR]  = new Vector3(55f * wind + 40f * swing - 75f * thru, 0f, 0f);
+                    _striBones[(int)Bone.FootR]  = new Vector3(-20f * thru, 0f, 0f);
+                    // Plant (left) leg loads then extends off the ground with the hop.
+                    _striBones[(int)Bone.ThighL] = new Vector3(-30f * wind + 10f * hop, 0f, 0f);
+                    _striBones[(int)Bone.CalfL]  = new Vector3(50f * wind - 20f * hop, 0f, 0f);
+                    _striBones[(int)Bone.FootL]  = new Vector3(-12f * wind, 0f, 0f);
+                    // Torso leans back and opens toward the swing; head watches the ball.
+                    _striBones[(int)Bone.Torso] = new Vector3(-22f * lean, 18f * swing, 12f * lean);
+                    _striBones[(int)Bone.Head]  = new Vector3(10f * lean, 0f, 0f);
+                    // Left arm flung up/out for balance; right arm sweeps down and across the strike.
+                    _striBones[(int)Bone.UpperArmL] = new Vector3(-40f * swing, 0f,  70f * swing);
+                    _striBones[(int)Bone.UpperArmR] = new Vector3(30f * swing, 0f, -55f * swing);
+                    _striBones[(int)Bone.ForearmL]  = new Vector3(-30f * swing, 0f, 0f);
+                    _striBones[(int)Bone.ForearmR]  = new Vector3(-15f * swing, 0f, 0f);
+
+                    Vector3 basePos = Stage + c.striker + new Vector3(0f, hop * 0.35f, 0f);
+                    _striker.DisplayPose(basePos, face, 0f, 0f, _striBones);
+                    break;
+                }
+                default: // Normal: planted first-time driven LOW finish. Faces goal (+Z), no hop, no root lean.
+                {
+                    float wind  = Ramp(a, 0.05f, 0.30f);
+                    float drive = Ramp(a, 0.30f, 0.58f);
+                    float plant = Bump(a, 0.00f, 0.60f);
+                    _striBones[(int)Bone.ThighR] = new Vector3( 40f * wind - 65f * drive, 0f, 0f);
+                    _striBones[(int)Bone.CalfR]  = new Vector3( 55f * wind - 65f * drive, 0f, 0f);
+                    _striBones[(int)Bone.FootR]  = new Vector3(-15f * drive,              0f, 0f);
+                    _striBones[(int)Bone.ThighL] = new Vector3(-25f * plant, 0f, 0f);
+                    _striBones[(int)Bone.CalfL]  = new Vector3( 45f * plant, 0f, 0f);
+                    _striBones[(int)Bone.FootL]  = new Vector3(-12f * plant, 0f, 0f);
+                    _striBones[(int)Bone.Torso]  = new Vector3(18f * Ramp(a, 0.15f, 0.55f), 12f * wind - 24f * drive, 0f);
+                    _striBones[(int)Bone.Head]   = new Vector3(6f * Ramp(a, 0.10f, 0.55f), 0f, 0f);
+                    _striBones[(int)Bone.UpperArmL] = new Vector3( 20f * wind - 45f * drive, 0f,  8f);
+                    _striBones[(int)Bone.UpperArmR] = new Vector3(-20f * wind + 45f * drive, 0f, -8f);
+                    _striBones[(int)Bone.ForearmL]  = new Vector3(20f + 15f * drive, 0f, 0f);
+                    _striBones[(int)Bone.ForearmR]  = new Vector3(20f + 15f * wind,  0f, 0f);
+                    Vector3 basePos = Stage + c.striker;
+                    _striker.DisplayPose(basePos, face, 0f, 0f, _striBones);
                     break;
                 }
             }
         }
 
-        // ---- Keeper: reads the shot late, commits, and is beaten. All poses genuine (KeeperPose). ----
+        // ---- Keeper: reads the shot late, commits, dives, and lands on the turf. Beaten on the
+        // four goal clips (dives under the flight); makes the stop on the driven clip (reaches the
+        // ball at KeeperSavePt). Reach targets come from KeeperPose, driven across 'a' here. ----
         void PoseKeeper(in Clip c, float a)
         {
             if (_keeper == null) return;
             for (int i = 0; i < _keepBones.Length; i++) _keepBones[i] = Vector3.zero;
             Quaternion face = Quaternion.LookRotation(Vector3.back, Vector3.up); // keeper faces the play (-Z)
-            float react = Ramp(a, 0.42f, 0.72f);   // commits only after the ball is struck
+            // Genuine dive envelopes: gather, push off the near foot, then extend to full stretch.
+            // The dive travels on a real arc: a short leap to the apex (hopUp), then the body comes
+            // all the way DOWN and LANDS flat on the turf and stays there (land). On the goal clips
+            // the shot clears the grounded body overhead. This is what stops the old phase-through
+            // and the old float: the keeper no longer hangs in the air after laying out, he hits
+            // the ground under the flight.
+            float commit = Ramp(a, 0.40f, 0.60f);   // decides and pushes off
+            float reach  = Ramp(a, 0.48f, 0.74f);   // full extension toward the shot
+            float hopUp  = Bump(a, 0.42f, 0.66f);   // brief rise as he leaves his feet
+            float land   = Ramp(a, 0.56f, 0.90f);   // then down onto the turf, and it holds at 1
 
             switch (c.kind)
             {
@@ -489,34 +660,66 @@ namespace Trickshot
                 case ShotType.Header:
                 case ShotType.Volley:
                 {
-                    // High dive, laid out and beaten: genuine KeeperPose.Dive + full layout roll.
-                    LerpPose(_keepBones, KeeperPose.Ready, KeeperPose.Dive, react);
-                    float roll = c.keeperDir * SimConfig.KeeperDiveLayoutHigh * react;
+                    // High dive, laid out and beaten. Genuine KeeperPose.Dive spread reached through
+                    // a push-then-extend, plus a push-off from the legs so it does not just hang.
+                    LerpPose(_keepBones, KeeperPose.Ready, KeeperPose.Dive, reach);
+                    _keepBones[(int)Bone.CalfL] = new Vector3(55f * commit - 45f * reach, 0f, 0f);
+                    _keepBones[(int)Bone.CalfR] = new Vector3(55f * commit - 45f * reach, 0f, 0f);
+                    float roll = c.keeperDir * SimConfig.KeeperDiveLayoutHigh * commit;
                     Quaternion root = face * Quaternion.Euler(0f, 0f, roll);
-                    Vector3 pelvis = Stage + c.keeper + new Vector3(c.keeperDir * 1.1f * react, PelvisY + react * 0.5f, 0f);
+                    // Out toward the corner, a brief leap (hopUp), then the laid-out body comes all
+                    // the way down and LANDS on the turf (land -> 1 holds it there, ~0.32 for the
+                    // rolled-flat pelvis) instead of floating.
+                    float pelvisY = Mathf.Lerp(PelvisY, 0.32f, land) + hopUp * 0.45f;
+                    Vector3 pelvis = Stage + c.keeper + new Vector3(c.keeperDir * 1.4f * reach, pelvisY, 0f);
                     _keeper.DisplayPose(PelvisAnchor(pelvis, root), face, 0f, roll, _keepBones);
                     break;
                 }
                 case ShotType.DivingHeader:
                 {
-                    // Dives across low but the header squeezes past: nearly flat (genuine Low layout).
-                    LerpPose(_keepBones, KeeperPose.Ready, KeeperPose.Dive, react);
-                    float roll = c.keeperDir * SimConfig.KeeperDiveLayoutLow * react;
+                    // Dives across LOW and ends up flat on the turf; the header clears him overhead
+                    // and inside the far post (see the DivingHeader leg in BallPath). Nearly flat
+                    // layout (genuine Low), pelvis driven down to the ground so nothing intersects.
+                    LerpPose(_keepBones, KeeperPose.Ready, KeeperPose.Dive, reach);
+                    _keepBones[(int)Bone.CalfL] = new Vector3(55f * commit - 45f * reach, 0f, 0f);
+                    _keepBones[(int)Bone.CalfR] = new Vector3(55f * commit - 45f * reach, 0f, 0f);
+                    float roll = c.keeperDir * SimConfig.KeeperDiveLayoutLow * commit;
                     Quaternion root = face * Quaternion.Euler(0f, 0f, roll);
-                    Vector3 pelvis = Stage + c.keeper + new Vector3(c.keeperDir * 1.3f * react, PelvisY + react * 0.25f, 0f);
+                    // Barely leaves the ground on a low dash and lands flat on the turf and holds.
+                    float pelvisY = Mathf.Lerp(PelvisY, 0.28f, land) + hopUp * 0.28f;
+                    Vector3 pelvis = Stage + c.keeper + new Vector3(c.keeperDir * 1.5f * reach, pelvisY, 0f);
                     _keeper.DisplayPose(PelvisAnchor(pelvis, root), face, 0f, roll, _keepBones);
                     break;
                 }
-                default: // Driven: genuine low block (SaveLeft/SaveRight), beaten to the corner.
+                default: // Driven: this is the one the keeper SAVES. He reaches the ball at KeeperSavePt.
                 {
+                    // Genuine low block (SaveLeft/SaveRight) flung along the ground toward the ball.
+                    // The pelvis is placed so the outstretched glove arrives at KeeperSavePt exactly
+                    // when the ball does; BallPath then rebounds the ball off that same point. The
+                    // keeper commits fully here (uses 'save' extension), so it looks like a real stop.
                     Vector3[] save = c.keeperDir < 0 ? KeeperPose.SaveLeft : KeeperPose.SaveRight;
-                    LerpPose(_keepBones, KeeperPose.Ready, save, react);
-                    Vector3 feet = Stage + c.keeper + new Vector3(c.keeperDir * 0.6f * react, 0f, 0f);
-                    _keeper.DisplayPose(feet, face, 0f, 0f, _keepBones);
+                    float stop  = Ramp(a, 0.46f, 0.68f);   // committed by the save instant (~0.68)
+                    float settle = Ramp(a, 0.70f, 0.92f);  // then he comes down onto the turf
+                    LerpPose(_keepBones, KeeperPose.Ready, save, stop);
+                    // Sit the pelvis a glove's length in from the save point on the keeper's dive
+                    // side, low to the turf, so the extended arm/glove overlaps the ball there.
+                    Vector3 savePt = KeeperSavePt(c);
+                    Vector3 pelvis = savePt + new Vector3(-c.keeperDir * 0.55f, -0.15f, -0.15f);
+                    pelvis = Vector3.Lerp(Stage + c.keeper + new Vector3(0f, PelvisY, 0f), pelvis, stop);
+                    // After the parry he drops to the ground rather than hanging at the save height.
+                    pelvis.y = Mathf.Lerp(pelvis.y, 0.34f, settle);
+                    _keeper.DisplayPose(pelvis, face, 0f, 0f, _keepBones);
                     break;
                 }
             }
         }
+
+        // World-space point where the keeper's glove meets the ball on the SAVE clip (Normal). The
+        // ball is deflected off this exact point in BallPath, and the keeper is posed to reach it,
+        // so the stop reads as real contact. Out to the keeper's dive side, low, just in front of
+        // the line. Kept as one function so the pose and the ball path can never drift apart.
+        static Vector3 KeeperSavePt(in Clip c)
+            => Stage + new Vector3(c.keeper.x + c.keeperDir * 0.9f, 0.85f, GoalZ - 0.7f);
 
         // Anchor a pose so the PELVIS lands on pelvisTarget while the body leans by `root`. Undoes
         // the pelvis rest offset DisplayPose will re-add. Assumes unit build scale (see PelvisY).
