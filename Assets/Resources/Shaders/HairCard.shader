@@ -15,12 +15,12 @@ Shader "Trickshot/HairCard"
         _Color      ("Hair Color", Color) = (0.3, 0.2, 0.1, 1)
         _Cutoff     ("Alpha Cutoff", Range(0,1)) = 0.4
         _SpecColor1 ("Spec Tint", Color) = (1, 1, 1, 1)
-        _SpecExp    ("Spec Sharpness", Range(1,200)) = 50
-        _SpecStr    ("Spec Strength", Range(0,4)) = 0.8
+        _SpecExp    ("Spec Sharpness", Range(1,200)) = 28
+        _SpecStr    ("Spec Strength", Range(0,4)) = 0.22
         _SpecShift  ("Highlight Shift", Range(-1,1)) = 0.15
-        _DiffWrap   ("Diffuse Wrap", Range(0,1)) = 0.5
+        _DiffWrap   ("Diffuse Wrap", Range(0,1)) = 0.6
         _RootDark   ("Root Darkening", Range(0,1)) = 0.35
-        _Ambient    ("Ambient Boost", Range(0,2)) = 1.0
+        _Ambient    ("Ambient Boost", Range(0,2)) = 1.1
     }
 
     SubShader

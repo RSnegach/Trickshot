@@ -1759,8 +1759,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_cs",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": "multiplayer.cs"
     },
     {
@@ -1776,8 +1776,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_trickshot_net_multiplayer",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": "multiplayer"
     },
     {
@@ -1804,8 +1804,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_trickshot_net_multiplayer_newtransport",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".newtransport()"
     },
     {
@@ -1821,8 +1821,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_trickshot_net_multiplayer_host",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".host()"
     },
     {
@@ -1838,8 +1838,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_trickshot_net_multiplayer_join",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".join()"
     },
     {
@@ -1872,8 +1872,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_trickshot_net_multiplayer_installquitguard",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".installquitguard()"
     },
     {
@@ -1900,8 +1900,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_multiplayer_trickshot_net_multiplayer_browse",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".browse()"
     },
     {
@@ -2191,8 +2191,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_shootoutstate",
-      "community": 54,
-      "community_name": "Goalkeeper",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "shootoutstate"
     },
     {
@@ -2744,8 +2744,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "netcodec"
     },
     {
@@ -2761,8 +2761,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_writeappearance",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".writeappearance()"
     },
     {
@@ -2795,8 +2795,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_hello",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".hello()"
     },
     {
@@ -2897,8 +2897,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_event",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".event()"
     },
     {
@@ -2914,8 +2914,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_roster",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".roster()"
     },
     {
@@ -2965,8 +2965,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_loadout",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".loadout()"
     },
     {
@@ -3101,8 +3101,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_shootout",
-      "community": 54,
-      "community_name": "Goalkeeper",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".shootout()"
     },
     {
@@ -3118,8 +3118,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netmessages_trickshot_net_netcodec_readshootout",
-      "community": 54,
-      "community_name": "Goalkeeper",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".readshootout()"
     },
     {
@@ -3547,8 +3547,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netsession_trickshot_net_netsession_jerseyforslot",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".jerseyforslot()"
     },
     {
@@ -3581,8 +3581,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netsession_trickshot_net_netsession_rosterslot",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".rosterslot()"
     },
     {
@@ -3819,8 +3819,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netsession_trickshot_net_netsession_broadcastevent",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".broadcastevent()"
     },
     {
@@ -3836,8 +3836,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netsession_trickshot_net_netsession_broadcastshootout",
-      "community": 54,
-      "community_name": "Goalkeeper",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".broadcastshootout()"
     },
     {
@@ -3938,8 +3938,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_net_netsession_trickshot_net_netsession_onconnectedtohost",
-      "community": 31,
-      "community_name": ".ToArray",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".onconnectedtohost()"
     },
     {
@@ -6161,8 +6161,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_cs_vector3",
-      "community": 69,
-      "community_name": "AimReticle",
+      "community": 48,
+      "community_name": "GameManager",
       "norm_label": "vector3"
     },
     {
@@ -6223,8 +6223,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_arm",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".arm()"
     },
     {
@@ -6240,8 +6240,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_idle",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".idle()"
     },
     {
@@ -6274,8 +6274,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_servenow",
-      "community": 69,
-      "community_name": "AimReticle",
+      "community": 48,
+      "community_name": "GameManager",
       "norm_label": ".servenow()"
     },
     {
@@ -6437,8 +6437,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_cs",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": "crowd.cs"
     },
     {
@@ -6454,8 +6454,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": "crowd"
     },
     {
@@ -6565,8 +6565,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd_build",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": ".build()"
     },
     {
@@ -6582,8 +6582,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd_celebrate",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": ".celebrate()"
     },
     {
@@ -6599,8 +6599,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd_ensurematerials",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": ".ensurematerials()"
     },
     {
@@ -6616,8 +6616,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd_pickjersey",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": ".pickjersey()"
     },
     {
@@ -6633,8 +6633,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd_buildfan",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": ".buildfan()"
     },
     {
@@ -6644,8 +6644,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "seat",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": "seat"
     },
     {
@@ -6661,8 +6661,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_crowd_trickshot_crowd_buildarm",
-      "community": 62,
-      "community_name": ".Configure",
+      "community": 54,
+      "community_name": "Goalkeeper",
       "norm_label": ".buildarm()"
     },
     {
@@ -7779,8 +7779,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_cs",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": "defensivewall.cs"
     },
     {
@@ -7796,8 +7796,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": "defensivewall"
     },
     {
@@ -7868,8 +7868,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_build",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".build()"
     },
     {
@@ -7907,8 +7907,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_buildat",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".buildat()"
     },
     {
@@ -7924,8 +7924,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_buildmannequin",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".buildmannequin()"
     },
     {
@@ -7952,8 +7952,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_buildarm",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".buildarm()"
     },
     {
@@ -7969,8 +7969,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_nocollide",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".nocollide()"
     },
     {
@@ -7997,8 +7997,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_triggerjump",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".triggerjump()"
     },
     {
@@ -8014,8 +8014,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_tick",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".tick()"
     },
     {
@@ -8031,8 +8031,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_ground",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".ground()"
     },
     {
@@ -8048,8 +8048,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_setlift",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".setlift()"
     },
     {
@@ -8065,8 +8065,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_defensivewall_trickshot_defensivewall_clear",
-      "community": 49,
-      "community_name": ".ToArray",
+      "community": 42,
+      "community_name": ".Empty",
       "norm_label": ".clear()"
     },
     {
@@ -9608,8 +9608,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_gamecamera_trickshot_gamecamera_init",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".init()"
     },
     {
@@ -9642,8 +9642,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_gamecamera_trickshot_gamecamera_setkeeperfollow",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".setkeeperfollow()"
     },
     {
@@ -9659,8 +9659,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_gamecamera_trickshot_gamecamera_setmode",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 20,
+      "community_name": "GameCamera",
       "norm_label": ".setmode()"
     },
     {
@@ -9710,8 +9710,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_gamecamera_trickshot_gamecamera_toggleballcam",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 48,
+      "community_name": "GameManager",
       "norm_label": ".toggleballcam()"
     },
     {
@@ -9974,8 +9974,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_setupreplay",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 16,
+      "community_name": ".Configure",
       "norm_label": ".setupreplay()"
     },
     {
@@ -10110,8 +10110,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_endreplay",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 48,
+      "community_name": "GameManager",
       "norm_label": ".endreplay()"
     },
     {
@@ -10144,8 +10144,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_resetround",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 48,
+      "community_name": "GameManager",
       "norm_label": ".resetround()"
     },
     {
@@ -10843,8 +10843,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": "hostsetupui"
     },
     {
@@ -10915,8 +10915,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_init",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".init()"
     },
     {
@@ -10932,8 +10932,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_ongui",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".ongui()"
     },
     {
@@ -10949,8 +10949,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_drawfreekicksetup",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".drawfreekicksetup()"
     },
     {
@@ -10966,8 +10966,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_create",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".create()"
     },
     {
@@ -10983,8 +10983,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_picker",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".picker()"
     },
     {
@@ -11000,8 +11000,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_pickervals",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".pickervals()"
     },
     {
@@ -11017,8 +11017,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_toggle",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".toggle()"
     },
     {
@@ -11034,8 +11034,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_hostsetupui_trickshot_hostsetupui_stadiumnames",
-      "community": 5,
-      "community_name": "Cross Map & Aiming",
+      "community": 56,
+      "community_name": "Light",
       "norm_label": ".stadiumnames()"
     },
     {
@@ -14102,8 +14102,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_buildscene",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".buildscene()"
     },
     {
@@ -14119,8 +14119,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_makebackstop",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".makebackstop()"
     },
     {
@@ -14130,8 +14130,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_cs_physicsmaterial",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": "physicsmaterial"
     },
     {
@@ -14664,8 +14664,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_netscrimmagematch_cs_refs",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "refs"
     },
     {
@@ -16042,8 +16042,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_cs_transform",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": "transform"
     },
     {
@@ -16081,8 +16081,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_configure",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".configure()"
     },
     {
@@ -16092,8 +16092,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_cs_camera",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": "camera"
     },
     {
@@ -16103,8 +16103,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_cs_material",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": "material"
     },
     {
@@ -16120,8 +16120,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_spawnbody",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".spawnbody()"
     },
     {
@@ -16137,8 +16137,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_spawncrosserbody",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".spawncrosserbody()"
     },
     {
@@ -16154,8 +16154,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_onrosterchanged",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".onrosterchanged()"
     },
     {
@@ -16171,8 +16171,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_onjerseyupdated",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".onjerseyupdated()"
     },
     {
@@ -16352,8 +16352,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_onreplaystarted",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 20,
+      "community_name": "GameCamera",
       "norm_label": ".onreplaystarted()"
     },
     {
@@ -16369,8 +16369,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_onreplayended",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 20,
+      "community_name": "GameCamera",
       "norm_label": ".onreplayended()"
     },
     {
@@ -16573,8 +16573,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_lockcursor",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".lockcursor()"
     },
     {
@@ -17674,8 +17674,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_replaysystem_trickshot_replaysystem_setup",
-      "community": 20,
-      "community_name": "GameCamera",
+      "community": 16,
+      "community_name": ".Configure",
       "norm_label": ".setup()"
     },
     {
@@ -18571,8 +18571,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_cs",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": "sessionbrowserui.cs"
     },
     {
@@ -18588,8 +18588,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": "sessionbrowserui"
     },
     {
@@ -18660,8 +18660,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_init",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".init()"
     },
     {
@@ -18677,8 +18677,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_refresh",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".refresh()"
     },
     {
@@ -18694,8 +18694,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_tryjoinbyip",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".tryjoinbyip()"
     },
     {
@@ -18711,8 +18711,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_update",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".update()"
     },
     {
@@ -18728,8 +18728,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_ongui",
-      "community": 33,
-      "community_name": "PitchBuilder",
+      "community": 40,
+      "community_name": ".PushRoster",
       "norm_label": ".ongui()"
     },
     {
@@ -18756,8 +18756,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": "setpiecemap"
     },
     {
@@ -18795,8 +18795,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_draw",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".draw()"
     },
     {
@@ -18834,8 +18834,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_clampoutsidebox",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".clampoutsidebox()"
     },
     {
@@ -18851,8 +18851,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_maptoworld",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".maptoworld()"
     },
     {
@@ -18879,8 +18879,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_worldtomap",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".worldtomap()"
     },
     {
@@ -18896,8 +18896,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawmarker",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".drawmarker()"
     },
     {
@@ -18913,8 +18913,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawreticle",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".drawreticle()"
     },
     {
@@ -18930,8 +18930,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawcircle",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".drawcircle()"
     },
     {
@@ -18947,8 +18947,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawdottedline",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".drawdottedline()"
     },
     {
@@ -18964,8 +18964,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawrectoutline",
-      "community": 11,
-      "community_name": "Net Set-Piece Match",
+      "community": 49,
+      "community_name": ".ToArray",
       "norm_label": ".drawrectoutline()"
     },
     {
@@ -18975,8 +18975,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_cs",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": "setpiecetaker.cs"
     },
     {
@@ -18992,8 +18992,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": "setpiecetaker"
     },
     {
@@ -19010,8 +19010,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_state",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": "state"
     },
     {
@@ -19082,8 +19082,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_begin",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".begin()"
     },
     {
@@ -19116,8 +19116,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_reset",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".reset()"
     },
     {
@@ -19133,8 +19133,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tick",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".tick()"
     },
     {
@@ -19150,8 +19150,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_combined",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".combined()"
     },
     {
@@ -19167,8 +19167,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_powerstat",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".powerstat()"
     },
     {
@@ -19184,8 +19184,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickcharging",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".tickcharging()"
     },
     {
@@ -19201,8 +19201,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickrunup",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".tickrunup()"
     },
     {
@@ -19218,8 +19218,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickstruck",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".tickstruck()"
     },
     {
@@ -19235,8 +19235,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_ticksettle",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".ticksettle()"
     },
     {
@@ -19252,8 +19252,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_rungait",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".rungait()"
     },
     {
@@ -19269,8 +19269,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_applyswingpose",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".applyswingpose()"
     },
     {
@@ -19286,8 +19286,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_setcolliders",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".setcolliders()"
     },
     {
@@ -20705,8 +20705,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_striker_trickshot_striker_init",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".init()"
     },
     {
@@ -20977,8 +20977,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_striker_trickshot_striker_forcerecover",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 48,
+      "community_name": "GameManager",
       "norm_label": ".forcerecover()"
     },
     {
@@ -22116,8 +22116,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_becomedisplaybody",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 69,
+      "community_name": "AimReticle",
       "norm_label": ".becomedisplaybody()"
     },
     {
@@ -22141,7 +22141,7 @@
       "label": ".SnapBone()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L882",
+      "source_location": "L887",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -22158,7 +22158,7 @@
       "label": ".DisplayEmote()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L919",
+      "source_location": "L924",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -22175,7 +22175,7 @@
       "label": ".DisplayAnim()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L950",
+      "source_location": "L956",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -22203,7 +22203,7 @@
       "label": ".DisplayPose()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1044",
+      "source_location": "L1050",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -22542,8 +22542,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_arena_cs",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "arena.cs"
     },
     {
@@ -22559,8 +22559,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_arena_trickshot_arena",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "arena"
     },
     {
@@ -22605,8 +22605,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_arena_trickshot_arena_build",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".build()"
     },
     {
@@ -22622,8 +22622,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_arena_trickshot_arena_line",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".line()"
     },
     {
@@ -22661,8 +22661,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_arena_trickshot_arena_makeinvisiblesolid",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".makeinvisiblesolid()"
     },
     {
@@ -22689,8 +22689,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_arena_trickshot_arena_makewall",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".makewall()"
     },
     {
@@ -23008,7 +23008,7 @@
       "label": ".Glass()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L712",
+      "source_location": "L710",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -23025,7 +23025,7 @@
       "label": ".Dark()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L713",
+      "source_location": "L711",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -23042,7 +23042,7 @@
       "label": "GeneratedMeshOwner",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L720",
+      "source_location": "L718",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -23070,7 +23070,7 @@
       "label": ".OnDestroy()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L723",
+      "source_location": "L721",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -24015,8 +24015,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_make_trickshot_make_cylinder",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".cylinder()"
     },
     {
@@ -24048,8 +24048,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_make_cs_physicsmaterial",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "physicsmaterial"
     },
     {
@@ -24093,8 +24093,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_make_trickshot_make_box",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".box()"
     },
     {
@@ -24178,8 +24178,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_make_trickshot_make_physmat",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".physmat()"
     },
     {
@@ -24189,8 +24189,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "physicsmaterialcombine",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "physicsmaterialcombine"
     },
     {
@@ -24200,8 +24200,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_cs",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": "pitchbuilder.cs"
     },
     {
@@ -24217,8 +24217,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": "pitchbuilder"
     },
     {
@@ -24256,8 +24256,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_build",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".build()"
     },
     {
@@ -24284,8 +24284,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_straightline",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".straightline()"
     },
     {
@@ -24323,8 +24323,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_spot",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".spot()"
     },
     {
@@ -24340,8 +24340,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_endmarkings",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".endmarkings()"
     },
     {
@@ -24357,8 +24357,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_cornerarcs",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".cornerarcs()"
     },
     {
@@ -24374,8 +24374,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_arc",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".arc()"
     },
     {
@@ -24391,8 +24391,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_circle",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".circle()"
     },
     {
@@ -24408,8 +24408,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_pointoncircle",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".pointoncircle()"
     },
     {
@@ -24425,8 +24425,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_arcsegment",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".arcsegment()"
     },
     {
@@ -24442,8 +24442,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_buildfargoal",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".buildfargoal()"
     },
     {
@@ -24459,8 +24459,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_netplanexy",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".netplanexy()"
     },
     {
@@ -24476,8 +24476,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_netplanezy",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".netplanezy()"
     },
     {
@@ -24493,8 +24493,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_pitchbuilder_trickshot_pitchbuilder_netplanexz",
-      "community": 42,
-      "community_name": ".Empty",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".netplanexz()"
     },
     {
@@ -24880,8 +24880,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_cs",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "scrimmagearena.cs"
     },
     {
@@ -24897,8 +24897,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "scrimmagearena"
     },
     {
@@ -24915,8 +24915,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_trickshot_refs",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": "refs"
     },
     {
@@ -24954,8 +24954,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".build()"
     },
     {
@@ -24982,8 +24982,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".buildgoal()"
     },
     {
@@ -24999,8 +24999,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_makebackstop",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".makebackstop()"
     },
     {
@@ -25027,8 +25027,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_makewall",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".makewall()"
     },
     {
@@ -25152,8 +25152,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_scrimhalflength",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".scrimhalflength()"
     },
     {
@@ -25169,8 +25169,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_scrimhalfwidth",
-      "community": 6,
-      "community_name": "Goalkeeper AI & Control",
+      "community": 11,
+      "community_name": "Net Set-Piece Match",
       "norm_label": ".scrimhalfwidth()"
     },
     {
@@ -25312,8 +25312,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_skilltree_trickshot_skilltree_mul",
-      "community": 40,
-      "community_name": ".PushRoster",
+      "community": 35,
+      "community_name": ".Build",
       "norm_label": ".mul()"
     },
     {
@@ -25987,8 +25987,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": "surroundbuilder"
     },
     {
@@ -26015,8 +26015,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_rand",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".rand()"
     },
     {
@@ -26032,8 +26032,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_range",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".range()"
     },
     {
@@ -26060,8 +26060,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_build",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".build()"
     },
     {
@@ -26088,8 +26088,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_ringpoint",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".ringpoint()"
     },
     {
@@ -26105,8 +26105,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_buildtrees",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".buildtrees()"
     },
     {
@@ -26122,8 +26122,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_tree",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".tree()"
     },
     {
@@ -26150,8 +26150,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_house",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".house()"
     },
     {
@@ -26167,8 +26167,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_buildtrack",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".buildtrack()"
     },
     {
@@ -26184,8 +26184,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_buildpalms",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".buildpalms()"
     },
     {
@@ -26201,8 +26201,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_beachchair",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".beachchair()"
     },
     {
@@ -26218,8 +26218,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_tikihut",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".tikihut()"
     },
     {
@@ -26235,8 +26235,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_surfboard",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".surfboard()"
     },
     {
@@ -26252,8 +26252,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_palm",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".palm()"
     },
     {
@@ -26269,8 +26269,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_buildflags",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".buildflags()"
     },
     {
@@ -26286,8 +26286,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_sim_surroundbuilder_trickshot_surroundbuilder_statue",
-      "community": 35,
-      "community_name": ".Build",
+      "community": 33,
+      "community_name": "PitchBuilder",
       "norm_label": ".statue()"
     },
     {
@@ -29498,8 +29498,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "mode",
-      "community": 16,
-      "community_name": ".Configure",
+      "community": 20,
+      "community_name": "GameCamera",
       "norm_label": "mode"
     },
     {
@@ -31794,7 +31794,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L720",
+      "source_location": "L718",
       "weight": 1.0,
       "metadata": {
         "ref_token": "MonoBehaviour"
@@ -34978,7 +34978,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L950",
+      "source_location": "L956",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -39220,7 +39220,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L927",
+      "source_location": "L932",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayemote",
@@ -39350,7 +39350,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L929",
+      "source_location": "L934",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayemote",
@@ -61249,7 +61249,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1024",
+      "source_location": "L1030",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -61294,7 +61294,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1030",
+      "source_location": "L1036",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -61339,7 +61339,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1029",
+      "source_location": "L1035",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -61541,7 +61541,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L950",
+      "source_location": "L956",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -61552,7 +61552,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L919",
+      "source_location": "L924",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -61563,7 +61563,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1044",
+      "source_location": "L1050",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -61805,7 +61805,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L882",
+      "source_location": "L887",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -61871,7 +61871,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L896",
+      "source_location": "L901",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -62006,7 +62006,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L950",
+      "source_location": "L956",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62021,7 +62021,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L919",
+      "source_location": "L924",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62036,7 +62036,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1044",
+      "source_location": "L1050",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62126,7 +62126,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L882",
+      "source_location": "L887",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62378,7 +62378,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L950",
+      "source_location": "L956",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62393,7 +62393,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L919",
+      "source_location": "L924",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62408,7 +62408,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1044",
+      "source_location": "L1050",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62558,7 +62558,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L882",
+      "source_location": "L887",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -62859,7 +62859,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1009",
+      "source_location": "L1015",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayanim",
@@ -62871,7 +62871,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L934",
+      "source_location": "L940",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayemote",
@@ -62883,7 +62883,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1054",
+      "source_location": "L1060",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displaypose",
@@ -62895,7 +62895,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L867",
+      "source_location": "L872",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displaysnap",
@@ -63273,7 +63273,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L867",
+      "source_location": "L872",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displaysnap",
@@ -63284,7 +63284,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L882",
+      "source_location": "L887",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -63782,7 +63782,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L720",
+      "source_location": "L718",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics",
@@ -63864,7 +63864,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L308",
+      "source_location": "L306",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -63945,7 +63945,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L713",
+      "source_location": "L711",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics",
@@ -63956,7 +63956,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L712",
+      "source_location": "L710",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics",
@@ -64335,7 +64335,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L713",
+      "source_location": "L711",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -64350,7 +64350,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L712",
+      "source_location": "L710",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -64379,7 +64379,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L712",
+      "source_location": "L710",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics_glass",
@@ -64391,7 +64391,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L713",
+      "source_location": "L711",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics_dark",
@@ -64401,7 +64401,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L722",
+      "source_location": "L720",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -64416,7 +64416,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L723",
+      "source_location": "L721",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_generatedmeshowner",
@@ -74158,5 +74158,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "ade5f23c6db17a277655abd2628a7c5d0798695f"
+  "built_at_commit": "c77252fcd62c833e54c8f13feeb794b45ca8f765"
 }
