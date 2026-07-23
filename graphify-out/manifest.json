@@ -55,9 +55,9 @@
     "semantic_hash": "6daf8531338c4587bf7721e37d06c6e5"
   },
   "Assets/Scripts/Net/NetSession.cs": {
-    "mtime": 1784746686.4496229,
-    "ast_hash": "54cfce84cc68f93473ce8b63bff2d9fe",
-    "semantic_hash": "54cfce84cc68f93473ce8b63bff2d9fe"
+    "mtime": 1784776972.7692802,
+    "ast_hash": "bb838bc39cbee49f9be9498ca0ca121e",
+    "semantic_hash": "bb838bc39cbee49f9be9498ca0ca121e"
   },
   "Assets/Scripts/Net/ReliableChannel.cs": {
     "mtime": 1784579874.075857,
@@ -85,9 +85,9 @@
     "semantic_hash": "5ad2c7053dea409c15adb2b2b8281ec8"
   },
   "Assets/Scripts/Play/BallController.cs": {
-    "mtime": 1784774973.6672075,
-    "ast_hash": "c62bd4837473915ae2c8c65a5165fe1d",
-    "semantic_hash": "c62bd4837473915ae2c8c65a5165fe1d"
+    "mtime": 1784776756.6541803,
+    "ast_hash": "11580c0b77c02f8a93016901268bf1d2",
+    "semantic_hash": "11580c0b77c02f8a93016901268bf1d2"
   },
   "Assets/Scripts/Play/Celebration.cs": {
     "mtime": 1784735972.8031082,
@@ -125,9 +125,9 @@
     "semantic_hash": "f8cfedbecbcbcb97dc021861a35b6fcc"
   },
   "Assets/Scripts/Play/DefensiveWall.cs": {
-    "mtime": 1784647998.48113,
-    "ast_hash": "1574cda9f31d0a29e9ebec36d9c2c7a4",
-    "semantic_hash": "1574cda9f31d0a29e9ebec36d9c2c7a4"
+    "mtime": 1784776667.2098055,
+    "ast_hash": "c21aef7197f0d9a8665e7cc226929f19",
+    "semantic_hash": "c21aef7197f0d9a8665e7cc226929f19"
   },
   "Assets/Scripts/Play/Dribble.cs": {
     "mtime": 1784591881.008817,
@@ -455,9 +455,9 @@
     "semantic_hash": "3f1a9cae715981af05a7d0cf89951a0c"
   },
   "Assets/Scripts/Sim/SimConfig.cs": {
-    "mtime": 1784776424.2479067,
-    "ast_hash": "899ae3caa6aad87158534ffecfd64a5f",
-    "semantic_hash": "899ae3caa6aad87158534ffecfd64a5f"
+    "mtime": 1784776681.8124845,
+    "ast_hash": "38ff9cb980e6a23971a8c4cec8aef369",
+    "semantic_hash": "38ff9cb980e6a23971a8c4cec8aef369"
   },
   "Assets/Scripts/Sim/SkillTree.cs": {
     "mtime": 1784670416.5394716,
@@ -513,5 +513,15 @@
     "mtime": 1784668341.3067856,
     "ast_hash": "5833ab6fb87042d6a7f39685b3752817",
     "semantic_hash": "5833ab6fb87042d6a7f39685b3752817"
+  },
+  ".claude/settings.json": {
+    "mtime": 1784776870.6299126,
+    "ast_hash": "d02bf86fdff2dc98647886ff0ce5797b",
+    "semantic_hash": "d02bf86fdff2dc98647886ff0ce5797b"
+  },
+  "CLAUDE.md": {
+    "mtime": 1784776870.6237895,
+    "ast_hash": "8a6643a420fdad6bfb583523bc6cef16",
+    "semantic_hash": "8a6643a420fdad6bfb583523bc6cef16"
   }
 }
