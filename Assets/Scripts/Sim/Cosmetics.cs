@@ -201,61 +201,61 @@ namespace Trickshot
         // stiffness lets it fall and drape. Runs on every body that wears it.
         //
         // COST vs LOOK are decoupled: `strands` is the SIMULATED chain count (the only real cost),
-        // `fan` multiplies the RENDERED cards per strand for free (verts only), and short styles set
-        // `staticToHead:true` to skip the sim entirely (they ride the head rigidly - correct for
-        // scalp-hugging hair). So "more cards, less lag" = raise fan / go static, not raise strands.
-        // def.thickness is CARD WIDTH. Long styles use TopSidesBack (covers the crown + sides + back,
-        // face kept clear) so hair sits ON TOP of the head, not just hanging off the back.
+        // `fan` multiplies RENDERED cards per strand for free (verts only), `staticToHead` skips the
+        // sim for scalp caps. Coverage/fullness here comes mostly from high `fan`, not strand count.
+        // def.thickness is CARD WIDTH. Long styles use TopSidesBack (crown + sides + back, face
+        // clear) so hair sits ON TOP; a ponytail uses BackCluster (a tight gathered tie) + a
+        // straight-down flow so it reads as one tail hanging down.
         static readonly List<HairEntry> _hair = new List<HairEntry>
         {
             new HairEntry { Name = "Bald", Group = HairGroup.Short, Bald = true },
 
-            // SHORT (STATIC scalp caps - no sim, so pile on cards for free) ------
+            // SHORT (STATIC scalp caps - no sim; heavy fan for dense coverage, free) ------
             new HairEntry { Name = "Buzz", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 90, nodes = 2, length = 0.05f, fan = 2, staticToHead = true,
+                root = HairSim.RootMode.Crown, strands = 120, nodes = 2, length = 0.05f, fan = 4, staticToHead = true,
                 stiffness = 0.95f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.3f, thickness = 0.05f } },
             new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 90, nodes = 3, length = 0.08f, fan = 2, staticToHead = true,
+                root = HairSim.RootMode.Crown, strands = 120, nodes = 3, length = 0.08f, fan = 4, staticToHead = true,
                 stiffness = 0.9f, flow = new Vector3(0f, 1f, 0.1f), curl = 0f, jitter = 0.25f, thickness = 0.05f } },
             new HairEntry { Name = "Spiky", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 70, nodes = 3, length = 0.15f, fan = 2, staticToHead = false,
+                root = HairSim.RootMode.Crown, strands = 90, nodes = 3, length = 0.15f, fan = 4, staticToHead = false,
                 stiffness = 0.85f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.4f, thickness = 0.045f } },
             new HairEntry { Name = "Fringe", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 60, nodes = 4, length = 0.15f, fan = 2, staticToHead = false,
-                stiffness = 0.45f, flow = new Vector3(0f, -0.5f, 0.7f), curl = 0.01f, jitter = 0.2f, thickness = 0.05f } },
+                root = HairSim.RootMode.Crown, strands = 80, nodes = 4, length = 0.15f, fan = 4, staticToHead = false,
+                stiffness = 0.45f, flow = new Vector3(0f, -0.5f, 0.7f), curl = 0.01f, jitter = 0.25f, thickness = 0.05f } },
             new HairEntry { Name = "Mohawk", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Strip, strands = 28, nodes = 4, length = 0.22f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.Strip, strands = 32, nodes = 4, length = 0.22f, fan = 4, staticToHead = false,
                 stiffness = 0.8f, flow = new Vector3(0f, 1f, 0f), curl = 0.01f, jitter = 0.1f, thickness = 0.05f } },
 
             // MEDIUM (fuller caps + some sway) -----------------------------------
             new HairEntry { Name = "Messy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 70, nodes = 4, length = 0.18f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.Crown, strands = 90, nodes = 4, length = 0.18f, fan = 4, staticToHead = false,
                 stiffness = 0.3f, flow = new Vector3(0f, 0.4f, 0f), curl = 0.03f, jitter = 0.5f, thickness = 0.055f } },
             new HairEntry { Name = "Wavy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 70, nodes = 5, length = 0.24f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.Crown, strands = 90, nodes = 5, length = 0.24f, fan = 4, staticToHead = false,
                 stiffness = 0.28f, flow = new Vector3(0f, -0.3f, 0.1f), curl = 0.045f, jitter = 0.25f, thickness = 0.06f } },
             new HairEntry { Name = "Curly", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 80, nodes = 5, length = 0.2f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.Crown, strands = 100, nodes = 5, length = 0.2f, fan = 4, staticToHead = false,
                 stiffness = 0.35f, flow = new Vector3(0f, 0.2f, 0f), curl = 0.06f, jitter = 0.45f, thickness = 0.06f } },
             new HairEntry { Name = "Afro", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 100, nodes = 4, length = 0.17f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.Crown, strands = 120, nodes = 4, length = 0.17f, fan = 4, staticToHead = false,
                 stiffness = 0.55f, flow = new Vector3(0f, 1f, 0f), curl = 0.05f, jitter = 0.6f, thickness = 0.07f } },
 
             // LONG (cover the TOP + sides + back, face clear; drape) -------------
             new HairEntry { Name = "Ponytail", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 44, nodes = 10, length = 0.45f, fan = 3, staticToHead = false,
-                stiffness = 0.22f, flow = new Vector3(0f, -0.5f, -1f), curl = 0.02f, jitter = 0.15f, thickness = 0.07f } },
+                root = HairSim.RootMode.BackCluster, strands = 40, nodes = 10, length = 0.5f, fan = 4, staticToHead = false,
+                stiffness = 0.16f, flow = new Vector3(0f, -1f, -0.15f), curl = 0.012f, jitter = 0.06f, thickness = 0.05f } },
             new HairEntry { Name = "Man Bun", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 44, nodes = 8, length = 0.15f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.TopSidesBack, strands = 54, nodes = 8, length = 0.15f, fan = 4, staticToHead = false,
                 stiffness = 0.5f, flow = new Vector3(0f, 0.4f, -0.7f), curl = 0.03f, jitter = 0.5f, thickness = 0.06f } },
             new HairEntry { Name = "Dreads", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 44, nodes = 10, length = 0.5f, fan = 2, staticToHead = false,
+                root = HairSim.RootMode.TopSidesBack, strands = 54, nodes = 10, length = 0.5f, fan = 3, staticToHead = false,
                 stiffness = 0.18f, flow = new Vector3(0f, -1f, -0.05f), curl = 0.006f, jitter = 0.4f, thickness = 0.05f } },
             new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 50, nodes = 10, length = 0.36f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.TopSidesBack, strands = 60, nodes = 10, length = 0.36f, fan = 4, staticToHead = false,
                 stiffness = 0.12f, flow = new Vector3(0f, -1f, -0.05f), curl = 0.02f, jitter = 0.2f, thickness = 0.075f } },
             new HairEntry { Name = "Long", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 54, nodes = 10, length = 0.5f, fan = 3, staticToHead = false,
+                root = HairSim.RootMode.TopSidesBack, strands = 64, nodes = 10, length = 0.5f, fan = 4, staticToHead = false,
                 stiffness = 0.1f, flow = new Vector3(0f, -1f, -0.08f), curl = 0.025f, jitter = 0.22f, thickness = 0.08f } },
         };
 

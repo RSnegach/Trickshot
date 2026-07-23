@@ -237,15 +237,17 @@ namespace Trickshot
                     break;
                 case RootMode.TopSidesBack:
                     // Cover the TOP of the head + sides + back, but keep a front wedge (the face)
-                    // clear. phi from near-top (0.12) down to the sides so the crown is filled;
-                    // theta spans everything EXCEPT a +/-54deg wedge around the face (+Z, theta 0).
-                    phi = Mathf.Lerp(0.12f, 1.35f, Rand01());
-                    theta = Mathf.Lerp(Mathf.PI * 0.3f, Mathf.PI * 1.7f, t) + RandSym() * 0.15f;
+                    // clear. phi from the very top (0.03) down past the sides so the crown is fully
+                    // filled; theta spans everything EXCEPT a +/-40deg wedge around the face.
+                    phi = Mathf.Lerp(0.03f, 1.5f, Rand01());
+                    theta = Mathf.Lerp(Mathf.PI * 0.22f, Mathf.PI * 1.78f, t) + RandSym() * 0.2f;
                     break;
                 case RootMode.BackCluster:
-                    // Tight patch at the back of the crown (ponytail / bun / braid gather point).
-                    phi = Mathf.Lerp(0.7f, 1.15f, Rand01());
-                    theta = Mathf.PI + RandSym() * 0.5f;
+                    // TIGHT gather point at the back of the crown (ponytail tie / bun). Small phi +
+                    // theta spread so all the strands start bunched at one spot and read as a single
+                    // gathered tail, not spread hair. The flow then carries the tail down.
+                    phi = Mathf.Lerp(0.9f, 1.08f, Rand01());
+                    theta = Mathf.PI + RandSym() * 0.22f;
                     break;
                 case RootMode.Strip:
                     // A front-to-back midline strip over the crown (mohawk).
@@ -256,9 +258,10 @@ namespace Trickshot
                     phi = Mathf.Lerp(1.15f, 1.5f, Rand01());
                     theta = t * Mathf.PI * 2f;
                     break;
-                default: // Crown: whole upper hemisphere, all around (general medium hair).
-                    phi = Mathf.Lerp(0.05f, 1.15f, Rand01());
-                    theta = t * Mathf.PI * 2f + RandSym() * 0.2f;
+                default: // Crown: whole upper hemisphere, all around (general medium hair). phi
+                    // reaches further down the sides (1.45) so a cap covers more of the head.
+                    phi = Mathf.Lerp(0.03f, 1.45f, Rand01());
+                    theta = t * Mathf.PI * 2f + RandSym() * 0.25f;
                     break;
             }
             float sp = Mathf.Sin(phi), cp = Mathf.Cos(phi);
