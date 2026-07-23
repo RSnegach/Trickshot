@@ -34,6 +34,16 @@ namespace Trickshot
         // surface. Must exceed the gap the backstop leaves (~one ball radius) or the
         // net never billows. Bigger = wider, deeper pocket.
         public const float NetBallReach = 0.85f;
+
+        // ---- Hair (soft dynamic strands, same Verlet model as the net) ----
+        // Root-pinned strands that fall, swing with head motion, collide off the head, and are
+        // pulled toward their styled rest by per-style stiffness. Runs on every body with hair.
+        public const float HairGravity = -6.5f;        // world-down accel on free nodes (softer than real g so it wafts)
+        public const float HairDamping = 0.92f;        // velocity retained per step (0..1); lower = settles faster, less flyaway
+        public const int   HairConstraintIters = 3;    // length-constraint passes/frame (more = stiffer, holds length better)
+        public const float HairStiffnessK = 30f;       // gain on the per-style pull toward the styled rest shape (scaled by def.stiffness*dt)
+        public const float HairHeadPad = 0.01f;        // keep nodes this far off the head sphere so strands don't sink into the skull
+
         public const float PenaltyBoxDepth = 16.5f;
         public const float PenaltyBoxWidth = 20f; // slightly narrower than field
 
@@ -253,7 +263,7 @@ namespace Trickshot
         public static float StrikerMoveSpeed = 4.8f;   // pre-match slider
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
-        public const float JumpVelocity = 8.0f;     // m/s upward added to the whole body on a standing jump
+        public const float JumpVelocity = 7.155f;   // m/s upward on a standing jump (base). ~20% lower peak height than 8.0 (h proportional to v^2, so sqrt(0.8)*8). Trait/run/sprint muls stack on top.
         public const float RunJumpMul = 1.0f;        // running jumps now go full height (more vertical pop)
         public const float SprintJumpMul = 0.85f;    // sprinting jumps a touch lower than that
         public const float RunJumpForwardKeep = 0.5f; // fraction of run momentum kept on a moving jump (toned down)
