@@ -31,7 +31,7 @@ namespace Trickshot
     public class MenuBackground : MonoBehaviour
     {
         // ---- Tuning (all local so the reel is easy to eyeball-adjust) ----
-        const float KeeperAbilityLevel = 0.85f;  // high enough to reach fast shots and save a good share
+        const float KeeperAbilityLevel = 1.0f;   // max (Goalkeeper clamps to 1): fastest tracking + longest dive reach
         const float BallSpeedBoost     = 1.5f;   // multiplies launch speed (shortens flight) for punch
         const float PlantOutZ          = 11f;    // metres in front of goal the shooter plants + strikes from
         const float RunBackDist        = 5f;     // how far behind the plant spot the run-up starts
@@ -61,7 +61,6 @@ namespace Trickshot
         Vector3 _plantSpot;     // where the shooter plants and strikes from (feet, y=0)
         Vector3 _runStart;      // where the shooter begins the run-up (behind the plant spot)
         Quaternion _shootFacing;// shooter facing toward goal (+Z)
-        Vector3 _pivotSmooth;   // damped camera pivot
 
         float _clock;           // free-running unscaled seconds
         float _phaseT;          // seconds in the current phase
@@ -118,7 +117,6 @@ namespace Trickshot
 
             // Start in the run-up phase: the shooter jogs in from _runStart, then plants and swings.
             BeginRunup();
-            _pivotSmooth = _goalC + new Vector3(0f, 1.2f, -4f);
         }
 
         // ---- Static dressing: ground (with a real collider), pitch stripes, goal frame + net +
@@ -223,14 +221,25 @@ namespace Trickshot
                               M(new Color(0.15f, 0.32f, 0.6f)), M(new Color(0.12f, 0.26f, 0.5f)),
                               withGloves: false);
             _crosser = crosserGo.AddComponent<Crosser>();
-            var launch = Make.Empty("BgLaunch", _plantSpot + new Vector3(0f, 0.4f, 0.5f), crosserGo.transform).transform;
+            // Launch point at GROUND level, a bit ahead of the plant spot, so the ball is struck
+            // from the turf just in front of the shooter. We deliberately do NOT call
+            // Crosser.SetOrigin (which forces a 0.4m-high origin and re-plants the ragdoll): with
+            // OriginOverride left null the Crosser launches from this fixed ground point, and the
+            // ball rests here through the run-up, so there is no teleport hop up to hip height.
+            Vector3 launchPos = _plantSpot + new Vector3(0f, SimConfig.BallRadius, 0.6f);
+            var launch = Make.Empty("BgLaunch", launchPos, crosserGo.transform).transform;
             // Reticle-free (the null is now guarded inside Crosser), manual serve so WE time each shot.
             _crosser.Init(null, _ball, launch, _crosserRag);
             _crosser.AutoServe = false;
 
-            // Ball home = where SetOrigin (called at plant) puts the launch point:
-            // plantSpot + aimDir*0.7 + up*0.4, aimDir = +Z toward goal.
-            _ballHome = _plantSpot + Vector3.forward * 0.7f + Vector3.up * 0.4f;
+            // The shooter launches the ball by CODE, never a physical kick. Permanently ignore
+            // collision between the ball and the shooter's own body so the swinging leg can't
+            // deflect the launched ball sideways (that was making every shot squirt to a side
+            // regardless of the aimed target). Only ball<->shooter pairs are ignored; the keeper's
+            // body still collides with the ball, so saves are unaffected.
+            _ball.IgnoreBody(_crosserRag, true);
+
+            _ballHome = launchPos;   // ball rests on the ground here and launches from here
             _ball.ResetTo(_ballHome);
         }
 
@@ -273,12 +282,13 @@ namespace Trickshot
                 else
                 {
                     // Arrived: stop, clear the gait, hand off to the Crosser's cosmetic swing which
-                    // launches the ball at contact. Re-plant the launch origin at the exact stop spot.
+                    // launches the ball at contact. Do NOT call SetOrigin (it would force a hip-high
+                    // launch origin and re-plant the body); the Crosser uses the fixed ground launch
+                    // point, so the ball is struck from the turf with no hop.
                     _crosserRag.MoveInput = Vector3.zero;
                     _crosserRag.FacingRotation = _shootFacing;
                     _crosserRag.ClearPoseOverrides();
                     _gaitPhase = 0f;
-                    _crosser.SetOrigin(_plantSpot);
                     _ball.ResetTo(_ballHome);
                     _crosser.Arm(0f);                                   // idle-armed (AutoServe false)
                     _crosser.ServeNow(PickShotTarget(), lofted: false, powerMul: 0f); // driven flat + fast
@@ -337,32 +347,27 @@ namespace Trickshot
             return new Vector3(tx, ty, _goalC.z);
         }
 
-        // ---- Camera: a slow, continuous FULL 360 orbit around the live action. The pivot tracks
-        // the ball and slides toward the keeper as the ball nears the line so saves stay framed;
-        // the yaw circles all the way around at OrbitSpeed. Wide and damped so ragdoll scrappiness
-        // reads as live action. No GameCamera, no direct timeScale writes here. ----
+        // ---- Camera: a slow, continuous FULL 360 orbit around a FIXED pivot at the centre of the
+        // scene (midway between the shooter and the goal). It does NOT track or zoom on the ball -
+        // it just circles the whole scene at a constant radius, so the shot, keeper, and goal all
+        // pass through frame as it comes around. No GameCamera, no direct timeScale writes here. ----
         void DirectLive(float dt)
         {
-            Vector3 ballPos = _ball != null ? _ball.transform.position : _goalC;
-            Vector3 keeperPos = _keeper != null ? _keeper.PelvisPos : _goalC;
-
-            // 0 when the ball is well out, 1 when it reaches the line -> blend the look to the keeper.
-            float nearLine = Mathf.Clamp01(Mathf.InverseLerp(6f, 1.5f, _goalC.z - ballPos.z));
-            Vector3 pivotTarget = Vector3.Lerp(ballPos, keeperPos, nearLine) + new Vector3(0f, 1.0f, 0f);
-            _pivotSmooth = Vector3.Lerp(_pivotSmooth, pivotTarget, 1f - Mathf.Exp(-dt * 4f));
+            // Fixed pivot: centre of the action (shooter is at goalC.z - PlantOutZ, goal at goalC.z).
+            Vector3 pivot = _goalC + new Vector3(0f, 1.1f, -PlantOutZ * 0.5f);
 
             // Full slow circle. _clock is scaled time, so the orbit slows with the reel.
             float yaw = _clock * OrbitSpeed;
-            float pitch = 11f + Mathf.Sin(_clock * 0.15f) * 3f;   // gentle rise/fall as it circles
-            float dist = 12f;
+            float pitch = 12f + Mathf.Sin(_clock * 0.15f) * 3f;   // gentle rise/fall as it circles
+            float dist = 15f;                                     // constant radius; frames the whole scene
 
             // Subtle handheld drift so the frame feels alive.
             yaw += (Mathf.PerlinNoise(_clock * 0.5f, 0f) - 0.5f) * 1.4f;
             pitch += (Mathf.PerlinNoise(0f, _clock * 0.5f) - 0.5f) * 1.0f;
 
             Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
-            _cam.transform.position = _pivotSmooth + rot * new Vector3(0f, 0f, -dist);
-            _cam.transform.LookAt(_pivotSmooth);
+            _cam.transform.position = pivot + rot * new Vector3(0f, 0f, -dist);
+            _cam.transform.LookAt(pivot);
             _cam.fieldOfView = 42f;
         }
 
