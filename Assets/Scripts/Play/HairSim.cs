@@ -32,14 +32,15 @@ namespace Trickshot
     {
         // How a style's strand roots are scattered over the scalp. Drives the silhouette far more
         // than length does: a Strip reads as a mohawk, a BackCluster as a ponytail/bun, etc.
-        public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring }
+        // TopSidesBack covers the crown + sides + back but leaves the FACE clear (long hair).
+        public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring, TopSidesBack }
 
         // A hair style as data (no per-primitive authoring). AttachAppearance builds a HairSim from
         // one of these; the catalog in Cosmetics is just a list of these defs.
         public struct HairDef
         {
             public RootMode root;
-            public int strands;        // CARD count (each card is a clump; keep low - tens, not hundreds)
+            public int strands;        // SIMULATED strand count (physics chains; cost = strands x nodes)
             public int nodes;          // nodes per strand (>=2); more = smoother drape, more cost
             public float length;       // total strand length in metres
             public float stiffness;    // 0 = floppy free hang .. 1 = strongly holds the styled shape
@@ -47,6 +48,14 @@ namespace Trickshot
             public float curl;         // sideways wobble amplitude down the strand (wavy/curly), metres
             public float jitter;       // per-strand random angular spread so cards don't overlap exactly
             public float thickness;    // CARD WIDTH in metres (a card is a clump, so this is wide)
+            // MORE CARDS, ~NO EXTRA SIM: each simulated strand renders as `fan` cards fanned around
+            // its axis (sharing the same physics nodes). 0/1 = one card; 3 = triple the visible
+            // density for zero extra physics. Cost is verts only.
+            public int fan;
+            // Zero-cost coverage: when true the cards are parented rigidly to the head and NOT
+            // simulated (no Verlet, no per-tick rebuild). Right for short scalp-hugging styles that
+            // don't really move (buzz, crew, afro cap), so you can pile them on for free.
+            public bool staticToHead;
         }
 
         // Vertical strips in Resources/Hair/HairAtlas.png (detected from the source art: 4 hair
@@ -67,7 +76,9 @@ namespace Trickshot
 
         Transform _head;
         int _perStrand;                 // nodes per strand
-        int _strandCount;               // card count
+        int _strandCount;               // simulated strand count
+        int _fan;                       // render cards per simulated strand (>=1); verts only, no sim
+        bool _static;                   // true = no sim; cards ride the head rigidly (built once)
 
         Vector3[] _restLocal;           // styled rest position of every PHYSICS node, head-local (stiffness target)
         Vector3[] _pos;                 // live physics-node positions, WORLD space
@@ -77,6 +88,8 @@ namespace Trickshot
         float _cardHalf;                // half the card width (metres)
 
         Vector3[] _simLocal;            // scratch: physics nodes converted to head-local this tick
+        float[] _fanSide;               // per fan-copy sideways offset (units of card half-width)
+        float[] _fanOut;                // per fan-copy outward offset (fuller clump, no overlap)
 
         Mesh _mesh;
         Vector3[] _vtx;                 // mesh vertices: 2 (left/right edge) per physics node
@@ -97,6 +110,8 @@ namespace Trickshot
             _head = head;
             _strandCount = Mathf.Max(1, def.strands);
             _perStrand = Mathf.Max(2, def.nodes);
+            _fan = Mathf.Max(1, def.fan);
+            _static = def.staticToHead;
             _segLen = def.length / (_perStrand - 1);
             _cardHalf = Mathf.Max(0.001f, def.thickness) * 0.5f;
             _rng = 2166136261u ^ (uint)(def.strands * 73856093) ^ (uint)((int)(def.length * 1000f) * 19349663)
@@ -110,8 +125,23 @@ namespace Trickshot
             _rootNode = new bool[n];
             _simLocal = new Vector3[n];
 
-            // Mesh: 2 verts (left/right ribbon edge) per physics node.
-            int vcount = n * 2;
+            // Precomputed fan offsets per (fan-copy, node): a small sideways + outward nudge, so the
+            // _fan render cards per simulated strand splay into a clump instead of stacking on one
+            // line. Stored in head-local so WriteVerts just adds them - no extra sim, verts only.
+            // Layout: mesh vert index = ((p * _fan + f) * 2 + edge).
+            _fanSide = new float[_fan];
+            _fanOut  = new float[_fan];
+            for (int f = 0; f < _fan; f++)
+            {
+                // Spread copies across the card's own width band, plus a touch of depth so they
+                // don't perfectly overlap (reads as a fuller clump from any angle).
+                float u = _fan > 1 ? (f / (float)(_fan - 1)) - 0.5f : 0f;   // -0.5..0.5
+                _fanSide[f] = u * _cardHalf * 1.6f;
+                _fanOut[f]  = (RandSym()) * _cardHalf * 0.5f;
+            }
+
+            // Mesh: 2 verts (left/right edge) per (physics node x fan copy).
+            int vcount = n * _fan * 2;
             _vtx = new Vector3[vcount];
             _norm = new Vector3[vcount];
             _uvAtlas = new Vector2[vcount];
@@ -119,7 +149,7 @@ namespace Trickshot
 
             Vector3 flow = def.flow.sqrMagnitude > 1e-4f ? def.flow.normalized : Vector3.down;
 
-            var tris = new System.Collections.Generic.List<int>(_strandCount * (_perStrand - 1) * 6);
+            var tris = new System.Collections.Generic.List<int>(_strandCount * _fan * (_perStrand - 1) * 6);
             for (int s = 0; s < _strandCount; s++)
             {
                 float t = _strandCount > 1 ? s / (float)(_strandCount - 1) : 0.5f;
@@ -134,9 +164,6 @@ namespace Trickshot
                 if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(growth, Vector3.forward);
                 side.Normalize();
 
-                // Assign this card an atlas strip (cycled so all 4 clumps get used across the head).
-                Vector2 stripU = AtlasStripsU[s % AtlasStripsU.Length];
-
                 int baseIdx = s * _perStrand;
                 for (int k = 0; k < _perStrand; k++)
                 {
@@ -148,21 +175,22 @@ namespace Trickshot
                     _restLocal[p] = local;
                     _rootNode[p] = (k == 0);
 
-                    // Two mesh verts per node (left = strip's u0 edge, right = u1 edge). Positions
-                    // are filled each tick in WriteVerts; UVs are static and set once here.
-                    int vL = p * 2, vR = p * 2 + 1;
                     float vv = Mathf.Lerp(AtlasVRoot, AtlasVTip, u);
-                    _uvAtlas[vL] = new Vector2(stripU.x, vv);
-                    _uvAtlas[vR] = new Vector2(stripU.y, vv);
-                    _uvRootTip[vL] = new Vector2(u, 0f);
-                    _uvRootTip[vR] = new Vector2(u, 0f);
-
-                    if (k < _perStrand - 1)
+                    for (int f = 0; f < _fan; f++)
                     {
-                        int nL = vL + 2, nR = vR + 2;   // next node's verts
-                        // Two triangles for the quad (vL,vR,nL,nR). Cull Off, so winding is moot.
-                        tris.Add(vL); tris.Add(nL); tris.Add(vR);
-                        tris.Add(vR); tris.Add(nL); tris.Add(nR);
+                        // Each fan copy gets its own atlas strip so the clump shows varied strands.
+                        Vector2 stripU = AtlasStripsU[(s + f) % AtlasStripsU.Length];
+                        int vL = (p * _fan + f) * 2, vR = vL + 1;
+                        _uvAtlas[vL] = new Vector2(stripU.x, vv);
+                        _uvAtlas[vR] = new Vector2(stripU.y, vv);
+                        _uvRootTip[vL] = new Vector2(u, 0f);
+                        _uvRootTip[vR] = new Vector2(u, 0f);
+                        if (k < _perStrand - 1)
+                        {
+                            int nL = (p + 1) * _fan * 2 + f * 2, nR = nL + 1;   // next node, same fan copy
+                            tris.Add(vL); tris.Add(nL); tris.Add(vR);
+                            tris.Add(vR); tris.Add(nL); tris.Add(nR);
+                        }
                     }
                 }
             }
@@ -177,6 +205,9 @@ namespace Trickshot
 
             _mesh = new Mesh { name = "HairCardMesh" };
             _mesh.MarkDynamic();
+            // Fill verts once from the rest pose in head-local space. For STATIC hair this is the
+            // only write ever: the mesh lives on a child of the head, so local-space verts ride the
+            // head rigidly with zero per-tick cost. Simulated hair overwrites this each FixedUpdate.
             WriteVerts(_head.worldToLocalMatrix);        // fills vertices + tangent normals
             _mesh.uv = _uvAtlas;                         // static atlas UV (set once)
             _mesh.uv2 = _uvRootTip;                      // static root->tip factor (set once)
@@ -204,6 +235,13 @@ namespace Trickshot
                     phi = Mathf.Lerp(0.45f, 1.35f, Rand01());
                     theta = Mathf.Lerp(Mathf.PI * 0.35f, Mathf.PI * 1.65f, t);
                     break;
+                case RootMode.TopSidesBack:
+                    // Cover the TOP of the head + sides + back, but keep a front wedge (the face)
+                    // clear. phi from near-top (0.12) down to the sides so the crown is filled;
+                    // theta spans everything EXCEPT a +/-54deg wedge around the face (+Z, theta 0).
+                    phi = Mathf.Lerp(0.12f, 1.35f, Rand01());
+                    theta = Mathf.Lerp(Mathf.PI * 0.3f, Mathf.PI * 1.7f, t) + RandSym() * 0.15f;
+                    break;
                 case RootMode.BackCluster:
                     // Tight patch at the back of the crown (ponytail / bun / braid gather point).
                     phi = Mathf.Lerp(0.7f, 1.15f, Rand01());
@@ -229,7 +267,7 @@ namespace Trickshot
 
         void FixedUpdate()
         {
-            if (_head == null || _pos == null) return;
+            if (_head == null || _pos == null || _static) return;   // static hair rides the head; no sim
             float dt = Time.fixedDeltaTime;
             float g = SimConfig.HairGravity;
             float damp = SimConfig.HairDamping;
@@ -323,8 +361,7 @@ namespace Trickshot
                     Vector3 axis = (k < _perStrand - 1) ? _simLocal[p + 1] - pos : pos - _simLocal[p - 1];
                     if (axis.sqrMagnitude < 1e-8f) axis = Vector3.up;
                     axis.Normalize();
-                    // Outward from the head centre (head-local centre is ~origin at head height; the
-                    // component sits at the head, so head-local origin is the head centre).
+                    // Outward from the head centre (head-local origin is the head centre).
                     Vector3 outward = pos;
                     if (outward.sqrMagnitude < 1e-6f) outward = Vector3.forward;
                     outward.Normalize();
@@ -334,11 +371,17 @@ namespace Trickshot
                     if (wdir.sqrMagnitude < 1e-6f) wdir = Vector3.Cross(axis, Vector3.up);
                     wdir.Normalize();
 
-                    int vL = p * 2, vR = p * 2 + 1;
-                    _vtx[vL] = pos - wdir * _cardHalf;
-                    _vtx[vR] = pos + wdir * _cardHalf;
-                    _norm[vL] = axis;
-                    _norm[vR] = axis;
+                    // Emit each fan copy: the same node chain, nudged sideways (along wdir) and out
+                    // (along outward) by the precomputed per-copy offsets. Verts only, no extra sim.
+                    for (int f = 0; f < _fan; f++)
+                    {
+                        Vector3 c = pos + wdir * _fanSide[f] + outward * _fanOut[f];
+                        int vL = (p * _fan + f) * 2, vR = vL + 1;
+                        _vtx[vL] = c - wdir * _cardHalf;
+                        _vtx[vR] = c + wdir * _cardHalf;
+                        _norm[vL] = axis;
+                        _norm[vR] = axis;
+                    }
                 }
             }
             _mesh.vertices = _vtx;

@@ -1,16 +1,16 @@
 # Graph Report - Trickshot  (2026-07-23)
 
 ## Corpus Check
-- 103 files · ~219,097 words
+- 104 files · ~219,760 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2111 nodes · 3638 edges · 475 communities (65 shown, 410 thin omitted)
+- 2112 nodes · 3639 edges · 473 communities (66 shown, 407 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 272 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3dfe51e6`
+- Built from commit: `add0891c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,7 +31,6 @@
 - GameBootstrap
 - OptionsMenu
 - PrematchUI
-- .Configure
 - Striker
 - CustomizeUI
 - DirectIpTransport
@@ -59,7 +58,7 @@
 - FlexNet
 - .Empty
 - Dribble
-- .SafeEncode
+- Bone
 - Crowd
 - dependencies
 - com.unity.modules.assetbundle
@@ -75,12 +74,10 @@
 - IStrikerInput
 - LocalTransport
 - com.unity.modules.animation
-- .Configure
 - LobbySlot
 - FreeplayGame
 - com.unity.modules.ai
 - com.unity.modules.imgui
-- Knockdown
 - com.unity.modules.audio
 - MenuUI
 - AimReticle
@@ -523,11 +520,11 @@
 - **Active-ragdoll bicycle-kick mechanic** — readme_activeragdoll, readme_ragdollpose, readme_kickdetector, readme_jointmath, readme_bicycle_kick [INFERRED 0.85]
 - **Host-authoritative frame loop (poll, input, snapshot)** — multiplayer_multiplayer, multiplayer_netsession, multiplayer_netmessages, multiplayer_host_authoritative [INFERRED 0.85]
 
-## Communities (475 total, 410 thin omitted)
+## Communities (473 total, 407 thin omitted)
 
 ### Community 0 - "Ball Physics & Launch"
-Cohesion: 0.09
-Nodes (8): BallController, SetPieceSpin, SetPieceTaker, State, ShotType, SetPieceSpin, SphereCollider, TrailRenderer
+Cohesion: 0.15
+Nodes (6): BallController, SetPieceSpin, ShotType, SetPieceSpin, SphereCollider, TrailRenderer
 
 ### Community 1 - "Jersey / Nation Designs"
 Cohesion: 0.14
@@ -553,13 +550,9 @@ Nodes (7): PhysicsMaterial, PhysicsMaterial, Refs, Arena, Refs, ScrimmageArena, 
 Cohesion: 0.09
 Nodes (9): CrossMap, FreeKickGame, Outcome, Phase, Hud, P, Outcome, P (+1 more)
 
-### Community 8 - "AccuracyGame"
-Cohesion: 0.14
-Nodes (3): BoxCollider, AccuracyGame, AccuracyTarget
-
 ### Community 9 - "Direct IP Transport"
 Cohesion: 0.06
-Nodes (14): NetInputSource, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns (+6 more)
+Nodes (13): JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesigns (+5 more)
 
 ### Community 10 - "Kick Detection / Ragdoll Wiring"
 Cohesion: 0.11
@@ -577,14 +570,6 @@ Nodes (4): Footballer, KickDetector, Knockdown, GameBootstrap
 Cohesion: 0.12
 Nodes (5): Keybinds, OptionsMenu, Tab, PauseMenu, Tab
 
-### Community 15 - "PrematchUI"
-Cohesion: 0.07
-Nodes (11): bool, float, int, Vector3, Delivery, ScrimRole, SimConfig, FreeplayGame (+3 more)
-
-### Community 16 - ".Configure"
-Cohesion: 0.17
-Nodes (5): Rigidbody, Rigidbody, Bone, RagdollPose, euler
-
 ### Community 17 - "Striker"
 Cohesion: 0.12
 Nodes (7): b, bone, Striker, Trick, KeeperPose, e, Trick
@@ -598,8 +583,8 @@ Cohesion: 0.08
 Nodes (7): DirectIpTransport, NetEndpoint, Pending, ReliableChannel, ConcurrentQueue, Thread, UdpClient
 
 ### Community 20 - "GameCamera"
-Cohesion: 0.16
-Nodes (3): Transform, GameCamera, Mode
+Cohesion: 0.09
+Nodes (6): Transform, Camera, Material, Transform, GameCamera, Mode
 
 ### Community 22 - "Celebration"
 Cohesion: 0.21
@@ -634,28 +619,40 @@ Cohesion: 0.16
 Nodes (3): IPlayerController, KeeperController, State
 
 ### Community 32 - "NetReader"
+Cohesion: 0.14
+Nodes (3): BinaryReader, JerseyChunkMsg, NetReader
+
+### Community 33 - "PitchBuilder"
+Cohesion: 0.18
+Nodes (11): dependencies, depth, source, version, dependencies, depth, source, version (+3 more)
+
+### Community 34 - "LobbyUI"
 Cohesion: 0.13
-Nodes (3): BinaryReader, NetReader, ShootoutState
+Nodes (9): bool, float, int, Vector3, Delivery, ScrimRole, SimConfig, FreeplayGame (+1 more)
 
 ### Community 35 - ".Build"
 Cohesion: 0.20
 Nodes (5): GameInput, InputAction, InputActionAsset, InputActionMap, PlayerInput
 
+### Community 36 - "NetCodec"
+Cohesion: 0.14
+Nodes (3): InputFrame, NetCodec, ShootoutState
+
 ### Community 37 - "MonoBehaviour"
-Cohesion: 0.12
-Nodes (6): Goal, MultiplayerHubUI, NetBackstop, StadiumSelectUI, Refs, MonoBehaviour
+Cohesion: 0.11
+Nodes (7): NetPump, Goal, MultiplayerHubUI, NetBackstop, StadiumSelectUI, Refs, MonoBehaviour
 
 ### Community 38 - "PlayerPreview"
 Cohesion: 0.12
 Nodes (11): bool, Camera, float, GameObject, Light, Material, Quaternion, Rect (+3 more)
 
-### Community 41 - "FlexNet"
-Cohesion: 0.20
-Nodes (3): Frame, ReplaySystem, Mode
+### Community 40 - ".PushRoster"
+Cohesion: 0.07
+Nodes (5): Multiplayer, HostSetupUI, LobbyUI, SessionBrowserUI, SetPieceMap
 
-### Community 44 - ".SafeEncode"
-Cohesion: 0.18
-Nodes (11): dependencies, depth, source, version, dependencies, depth, source, version (+3 more)
+### Community 44 - "Bone"
+Cohesion: 0.17
+Nodes (5): Rigidbody, Rigidbody, Bone, RagdollPose, euler
 
 ### Community 46 - "dependencies"
 Cohesion: 0.17
@@ -666,8 +663,8 @@ Cohesion: 0.12
 Nodes (17): dependencies, depth, source, version, dependencies, depth, source, version (+9 more)
 
 ### Community 48 - "GameManager"
-Cohesion: 0.20
-Nodes (6): bool, float, int, string, Vector3, GameManager
+Cohesion: 0.11
+Nodes (9): bool, float, int, string, Vector3, GameManager, Frame, ReplaySystem (+1 more)
 
 ### Community 50 - "com.unity.modules.uielements"
 Cohesion: 0.12
@@ -701,12 +698,12 @@ Nodes (6): BodyState, LobbySlot, MatchConfig, MsgType, Snapshot, ushort
 Cohesion: 0.18
 Nodes (11): dependencies, depth, source, version, dependencies, depth, source, version (+3 more)
 
-### Community 61 - ".Configure"
-Cohesion: 0.16
-Nodes (3): Camera, Material, Transform
+### Community 62 - "LobbySlot"
+Cohesion: 0.20
+Nodes (3): IStrikerInput, NetInputSource, CrosserControl
 
 ### Community 63 - "FreeplayGame"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (5): NetRole, JerseyRx, NetSession, StampedSnap, StampedSnap
 
 ### Community 65 - "com.unity.modules.imgui"
@@ -718,7 +715,7 @@ Cohesion: 0.17
 Nodes (12): dependencies, depth, source, version, dependencies, depth, source, version (+4 more)
 
 ### Community 69 - "AimReticle"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (6): bool, float, Transform, Vector3, Crosser, AimReticle
 
 ### Community 70 - ".Configure"
@@ -784,21 +781,21 @@ Nodes (9): dependencies, com.unity.inputsystem, com.unity.modules.accessibility,
 ## Knowledge Gaps
 - **244 isolated node(s):** `LobbyInfo`, `StampedSnap`, `JerseyRx`, `Pending`, `SetPieceSpin` (+239 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **410 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **407 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Trickshot` connect `Direct IP Transport` to `Ball Physics & Launch`, `Jersey / Nation Designs`, `Dribble System`, `Input & Keybinds`, `SkillTree`, `Goalkeeper AI & Control`, `Skill Icon Drawing`, `AccuracyGame`, `Kick Detection / Ragdoll Wiring`, `Net Set-Piece Match`, `GameBootstrap`, `OptionsMenu`, `PrematchUI`, `.Configure`, `Striker`, `CustomizeUI`, `GameCamera`, `GameInput`, `Celebration`, `KeeperGame`, `.ToArray`, `LobbyUI`, `.Build`, `MonoBehaviour`, `PlayerPreview`, `DefensiveWall`, `.PushRoster`, `FlexNet`, `.Empty`, `Dribble`, `Crowd`, `GameManager`, `TimeTrialGame`, `ShotServer`, `Sniper`, `IStrikerInput`, `LobbySlot`, `MenuUI`, `AimReticle`, `.Configure`, `FlexNet`, `StadiumStyle`?**
-  _High betweenness centrality (0.148) - this node is a cross-community bridge._
-- **Why does `NetStrikerMatch` connect `NetStrikerMatch` to `Ball Physics & Launch`, `.Build`, `AimReticle`, `MonoBehaviour`, `Skill Icon Drawing`, `NetSetPieceMatch`, `Direct IP Transport`, `FlexNet`, `.Configure`, `GameCamera`, `LocalTransport`, `.Configure`, `FreeplayGame`?**
-  _High betweenness centrality (0.083) - this node is a cross-community bridge._
-- **Why does `Trickshot.Net` connect `Direct IP Transport` to `LobbyUI`, `MonoBehaviour`, `.PushRoster`, `GameBootstrap`, `DirectIpTransport`, `LocalTransport`, `INetTransport`?**
-  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+- **Why does `Trickshot` connect `Direct IP Transport` to `Ball Physics & Launch`, `Jersey / Nation Designs`, `Dribble System`, `Input & Keybinds`, `SkillTree`, `Goalkeeper AI & Control`, `Skill Icon Drawing`, `AccuracyGame`, `Kick Detection / Ragdoll Wiring`, `Net Set-Piece Match`, `GameBootstrap`, `OptionsMenu`, `PrematchUI`, `Striker`, `CustomizeUI`, `GameCamera`, `GameInput`, `Celebration`, `KeeperGame`, `.ToArray`, `LobbyUI`, `.Build`, `MonoBehaviour`, `PlayerPreview`, `.PushRoster`, `FlexNet`, `.Empty`, `Dribble`, `Bone`, `Crowd`, `GameManager`, `.ToArray`, `TimeTrialGame`, `ShotServer`, `Sniper`, `IStrikerInput`, `LobbySlot`, `MenuUI`, `AimReticle`, `.Configure`, `FlexNet`, `StadiumStyle`?**
+  _High betweenness centrality (0.147) - this node is a cross-community bridge._
+- **Why does `NetStrikerMatch` connect `NetStrikerMatch` to `Ball Physics & Launch`, `.Build`, `AimReticle`, `MonoBehaviour`, `Skill Icon Drawing`, `NetSetPieceMatch`, `Direct IP Transport`, `Bone`, `GameManager`, `GameCamera`, `LocalTransport`, `FreeplayGame`?**
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+- **Why does `Trickshot.Net` connect `Direct IP Transport` to `MonoBehaviour`, `.PushRoster`, `GameBootstrap`, `DirectIpTransport`, `LocalTransport`, `INetTransport`, `LobbySlot`?**
+  _High betweenness centrality (0.058) - this node is a cross-community bridge._
 - **What connects `LobbyInfo`, `StampedSnap`, `JerseyRx` to the rest of the system?**
   _244 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Ball Physics & Launch` be split into smaller, more focused modules?**
-  _Cohesion score 0.09269162210338681 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.14705882352941177 - nodes in this community are weakly interconnected._
 - **Should `Jersey / Nation Designs` be split into smaller, more focused modules?**
   _Cohesion score 0.14086538461538461 - nodes in this community are weakly interconnected._
 - **Should `Dribble System` be split into smaller, more focused modules?**

@@ -270,8 +270,8 @@
     "semantic_hash": "170afca84a9e83ce523d65b4679dfbaa"
   },
   "Assets/Scripts/Play/MenuBackground.cs": {
-    "mtime": 1784786740.276949,
-    "ast_hash": "505bb923f25feed9b911c9893dc6a2fb",
+    "mtime": 1784789008.404642,
+    "ast_hash": "49982b307fc585ef87c01d411e2f8019",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuUI.cs": {
@@ -420,8 +420,8 @@
     "semantic_hash": "ad7b60e13e611e8b043df0070aad3e3a"
   },
   "Assets/Scripts/Sim/Cosmetics.cs": {
-    "mtime": 1784786406.1323562,
-    "ast_hash": "b4f71e5456ee0d70bdf57ef07b92ee9c",
+    "mtime": 1784789055.7275987,
+    "ast_hash": "29b42ef6c2af06e65b2869b1e1b9fc51",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
@@ -525,8 +525,8 @@
     "semantic_hash": "8a6643a420fdad6bfb583523bc6cef16"
   },
   "Assets/Scripts/Play/HairSim.cs": {
-    "mtime": 1784787171.6307948,
-    "ast_hash": "52042e5c69fdf7513473197c80e3b382",
+    "mtime": 1784789011.508153,
+    "ast_hash": "6e8a24c61e371a59768fa6b2b9e17caa",
     "semantic_hash": ""
   },
   "Assets/Resources/Hair/HairAtlas-License.txt": {
