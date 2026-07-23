@@ -57,14 +57,35 @@ namespace Trickshot
 
         // ---- Screen flow: main menu -> pre-match settings -> match (+ pause menu) ----
         GameObject _matchRoot;   // holds everything spawned for a running match
+        MenuBackground _menuBg;  // aesthetic bicycle-kick backdrop, alive only on the title screen
 
         void ShowMainMenu()
         {
+            // Aesthetic backdrop behind the title screen. Built on its own camera + off-pitch
+            // stage, torn down the instant a mode or the multiplayer flow is chosen so it never
+            // fights the match camera or the customize preview.
+            ShowMenuBackground();
+
             var menuGo = new GameObject("MenuUI");
             var menu = menuGo.AddComponent<MenuUI>();
             menu.Init(
-                onChoose: mode => { Destroy(menuGo); ShowStadiumSelect(mode); },
-                onMultiplayer: () => { Destroy(menuGo); ShowMultiplayerHub(); });
+                onChoose: mode => { HideMenuBackground(); Destroy(menuGo); ShowStadiumSelect(mode); },
+                onMultiplayer: () => { HideMenuBackground(); Destroy(menuGo); ShowMultiplayerHub(); });
+        }
+
+        void ShowMenuBackground()
+        {
+            if (_menuBg != null) return;
+            var bgGo = new GameObject("MenuBackground");
+            _menuBg = bgGo.AddComponent<MenuBackground>();
+            _menuBg.Setup();
+        }
+
+        void HideMenuBackground()
+        {
+            if (_menuBg == null) return;
+            _menuBg.Teardown();
+            _menuBg = null;
         }
 
         // ---- Multiplayer flow: hub -> host setup / browser -> lobby -> networked match ----

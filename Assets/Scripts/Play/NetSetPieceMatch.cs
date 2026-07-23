@@ -517,8 +517,14 @@ namespace Trickshot
                     // shooter uses its real profile.
                     IStrikerInput src = (_activeShooter == _localSlot) ? (IStrikerInput)_input : b.netInput;
                     float combined = (_activeShooter == _localSlot) ? -1f : 0.6f;
+                    // Remote shooter aim comes from its networked look. A host-local shooter is
+                    // not a NetInputSource, so aim stays null and the corner auto-aim is used.
+                    var nsrc = src as NetInputSource;
+                    System.Func<Vector3> remoteAim = nsrc != null
+                        ? () => SetPieceTaker.LookAimPoint(_ballSpot, nsrc.LookYaw, nsrc.LookPitch, SimConfig.AttackGoalCenter.z)
+                        : null;
                     _taker.Begin(src, b.ragdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter,
-                                 displayOnly: false, combinedOverride: combined);
+                                 displayOnly: false, combinedOverride: combined, aimPoint: remoteAim);
                     _takerArmed = true;
                 }
                 _taker.Tick();
@@ -573,7 +579,8 @@ namespace Trickshot
             if (!_takerArmed)
             {
                 _taker.Begin(_input, me.ragdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter,
-                             displayOnly: true, combinedOverride: -1f);
+                             displayOnly: true, combinedOverride: -1f,
+                             aimPoint: () => SetPieceTaker.LookAimPoint(_ballSpot, _cam.Yaw, _cam.Pitch, SimConfig.AttackGoalCenter.z));
                 _takerArmed = true;
             }
             _taker.Tick();
@@ -629,7 +636,7 @@ namespace Trickshot
                 _snapAccum = 0f;
                 // A local keeper sends its cone yaw (KeeperLookYaw); everyone else sends camera yaw.
                 float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
-                _s.SetLocalInput(_input.SampleFrame(_tick, wireYaw));
+                _s.SetLocalInput(_input.SampleFrame(_tick, wireYaw, _cam.Pitch));
                 BroadcastSnapshot();
                 _tick++;
             }
@@ -639,7 +646,7 @@ namespace Trickshot
         {
             // A local keeper sends its cone yaw (KeeperLookYaw); everyone else sends camera yaw.
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
-            _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
+            _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw, _cam.Pitch));
 
             // Reconcile our own predicted body (mainly the local keeper, who moves freely) against
             // the host's authoritative state.
@@ -798,7 +805,7 @@ namespace Trickshot
 
             Hud.Legend(youAre == "Keeper"
                 ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
-                : "HOLD Space power (release to shoot)   A/D curl   W topspin   S knuckle   V ball cam");
+                : "HOLD Space power   Mouse aim   WASD spin   Tap Space dribble   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawScoreboard(st);

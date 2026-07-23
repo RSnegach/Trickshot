@@ -83,6 +83,9 @@ namespace Trickshot
         /// direction so movement is camera-relative, Minecraft third-person style.</summary>
         public float Yaw => _yaw;
 
+        public float Pitch => _pitch;
+        public Vector3 LookDirection() => Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward;
+
         // How far DOWN the keeper camera is angled within its allowed pitch range:
         // 0 = fully up, 1 = fully down (lowest angle). 0 when not in keeper mode so the
         // net always renders in other views.

@@ -84,9 +84,14 @@ namespace Trickshot
             Vector3 toAim = aim - spot; toAim.y = 0f;
             if (toAim.sqrMagnitude < 0.0001f) { toAim = SimConfig.GoalCenter - spot; toAim.y = 0f; }
             if (toAim.sqrMagnitude < 0.0001f) toAim = Vector3.forward;
+            Vector3 aimDir = toAim.normalized;
             if (_ragdoll != null && Cosmetic)
-                _ragdoll.ResetTo(spot, Quaternion.LookRotation(toAim.normalized, Vector3.up));
-            OriginOverride = spot + Vector3.up * 0.4f;   // ball launches from ~ball height at the spot
+                _ragdoll.ResetTo(spot, Quaternion.LookRotation(aimDir, Vector3.up));
+            // Launch from ~ball height, pushed forward toward the aim so the ball spawns AHEAD of the
+            // crosser instead of inside his legs. Without this offset the ball starts inside the
+            // ragdoll's own colliders (an AI crosser deflects with plain physics), so it squirts off
+            // along the ground in a random direction instead of solving a clean arc to the target.
+            OriginOverride = spot + aimDir * 0.7f + Vector3.up * 0.4f;
         }
 
         public void Arm(float firstDelay)

@@ -93,7 +93,8 @@ namespace Trickshot.Net
         public uint tick;
         public Vector2 move;      // wasd
         public float lookYaw;     // desired facing yaw (camera yaw)
-        public bool jump, legL, legR, sprint, passGround, passLofted, tackle;
+        public float lookPitch;   // camera pitch (deg): set-piece vertical aim comes from this
+        public bool jump, legL, legR, sprint, passGround, passLofted, tackle, reset;
         public byte emoteId;      // 255 = none; else Celebration.Emote to start this tick
     }
 
@@ -212,10 +213,11 @@ namespace Trickshot.Net
         public static byte[] Input(in InputFrame f)
         {
             var w = new NetWriter(MsgType.PlayerInput);
-            w.U32(f.tick); w.V2(f.move); w.F(f.lookYaw);
+            w.U32(f.tick); w.V2(f.move); w.F(f.lookYaw); w.F(f.lookPitch);
             byte bits = 0;
             if (f.jump) bits |= 1; if (f.legL) bits |= 2; if (f.legR) bits |= 4; if (f.sprint) bits |= 8;
             if (f.passGround) bits |= 16; if (f.passLofted) bits |= 32; if (f.tackle) bits |= 64;
+            if (f.reset) bits |= 128;
             w.U8(bits);
             w.U8(f.emoteId);   // 255 = none
             return w.ToArray();
@@ -223,10 +225,11 @@ namespace Trickshot.Net
 
         public static InputFrame ReadInput(NetReader r)
         {
-            var f = new InputFrame { tick = r.U32(), move = r.V2(), lookYaw = r.F() };
+            var f = new InputFrame { tick = r.U32(), move = r.V2(), lookYaw = r.F(), lookPitch = r.F() };
             byte bits = r.U8();
             f.jump = (bits & 1) != 0; f.legL = (bits & 2) != 0; f.legR = (bits & 4) != 0; f.sprint = (bits & 8) != 0;
             f.passGround = (bits & 16) != 0; f.passLofted = (bits & 32) != 0; f.tackle = (bits & 64) != 0;
+            f.reset = (bits & 128) != 0;
             f.emoteId = r.U8();
             return f;
         }

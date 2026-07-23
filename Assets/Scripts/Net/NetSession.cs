@@ -68,8 +68,9 @@ namespace Trickshot.Net
         class JerseyRx { public byte[] buf; public uint total; public int have; public bool[] got; }
         readonly bool[] _slotReady = new bool[MaxSlots];
         // Host-only: per-slot AI enable. A non-human slot with _slotAi[i] true is an AI
-        // ("Clanker"); false = an open, unfilled slot. Defaults all-on (AI fills by default;
-        // the host toggles individual slots off in the lobby).
+        // ("Clanker"); false = an open, unfilled slot. Defaults OFF for all slots except the
+        // keeper (slot 0), so the lobby starts empty apart from an AI goalkeeper; the host
+        // toggles individual slots on in the lobby. (Set in Host().)
         readonly bool[] _slotAi = new bool[MaxSlots];
         public MatchConfig Config;                 // host authors it; clients receive it
         public LobbySlot[] Roster { get; private set; } = new LobbySlot[0];   // client mirror + host snapshot
@@ -107,7 +108,11 @@ namespace Trickshot.Net
         // ---- lifecycle ----
         public void Host(int maxPlayers)
         {
-            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = true; }
+            // AI defaults OFF for every slot EXCEPT the keeper (slot 0), so an unfilled lobby
+            // starts empty (open) apart from an AI goalkeeper. The host toggles other slots' AI
+            // on per-slot in the lobby. (The crosser still feeds balls on the host regardless of
+            // its AI toggle - see NetStrikerMatch - so crosses come even with crosser AI off.)
+            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; }
             Transport.StartHost(Mathf.Clamp(maxPlayers, 1, MaxSlots));
             // The host takes a slot immediately. Default: host is a shooter (slot 1) so the
             // keeper (slot 0) can be a joining human or AI; a striker-only host with no

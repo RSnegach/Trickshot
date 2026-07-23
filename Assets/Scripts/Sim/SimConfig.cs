@@ -108,7 +108,10 @@ namespace Trickshot
         public const float BallBounciness = 0.55f;
 
         // ---- Cross tuning ----
-        public const float CrossTimeLoft = 1.55f;  // loftier serve: floaty, slow (chipped)
+        // Loft flight times are kept SHORT so a lofted cross is a low, crossable arc (~3m apex to
+        // a target ~8m out), not a moon ball. A longer flight time to the same target = higher arc,
+        // so these directly cap the loft height for both the AI serve and the human chip.
+        public const float CrossTimeLoft = 1.05f;  // loftier serve: floaty (chipped) but low-arc
         public const float CrossTimeDrive = 0.95f; // driven serve: faster, flatter (low)
         public const float MaxCurlAccel = 8f;      // lateral accel while airborne
         // Human crosser charge: hold time (0..CrossMaxCharge s) scales flight time between a
@@ -116,7 +119,10 @@ namespace Trickshot
         public const float CrossMaxCharge = 0.6f;  // seconds of hold for max floatiness
         public const float CrossTapMaxHold = 0.18f; // held below this = a tap (driven); above = a chip
         public const float CrossChargeFlatMul = 0.8f;  // bare tap: 0.8x the type's flight time (flatter/faster)
-        public const float CrossChargeFloatMul = 1.5f;  // full hold: 1.5x (much floatier/higher at max charge)
+        public const float CrossChargeFloatMul = 1.2f;  // full hold: 1.2x (a bit floatier, still a low arc)
+        // Human crosser: pressing R drops a fresh ball at their feet, but only if the current ball
+        // has been served away (is at least this far from the feet). Avoids yanking a ready ball.
+        public const float CrosserRefillDist = 1.5f;
 
         // ---- Crosser (ragdoll leg-swing before a perfect launch) ----
         // He plants, plays a right-leg swing, and the ball leaves at contact - but the
@@ -178,10 +184,11 @@ namespace Trickshot
         // start). Set true to restore per-serve repositioning.
         public const bool ResetStrikerOnServe = false;
         public const float ServeTime = 1.25f;       // fixed time of flight (legacy default)
-        // AI/auto crosser delivery. Crosses LOFT through the air by default (a high arc that
-        // drops onto the target); GROUND is a fast, flat, low ball (only when toggled in the
-        // cross map's Crosser tab). Longer flight time to the same target = higher arc.
-        public const float CrossServeAirTime = 1.9f;      // lofted arc, clearly airborne
+        // AI/auto crosser delivery. Crosses LOFT through the air by default (a low, crossable arc
+        // that drops onto the target); GROUND is a fast, flat, low ball (only when toggled in the
+        // cross map's Crosser tab). Longer flight time to the same target = higher arc, so this is
+        // kept short so the lofted cross clears heads without ballooning into a moon ball.
+        public const float CrossServeAirTime = 1.15f;     // lofted but LOW arc (~3m apex to an 8m target)
         public const float CrossServeGroundTime = 0.7f;   // driven low + fast
         // Default landing spot (same every serve): centred, a bit off the goal line.
         public static readonly Vector3 ServeTarget =
@@ -344,7 +351,8 @@ namespace Trickshot
         // Accuracy = the fraction of AssistSteerFrac applied (how much the shot is helped
         // toward goal). Strong foot/leg is the reference (full); weak side is half; a body
         // (torso/pelvis) touch is scrappy and inaccurate. Head is handled by heading rules.
-        public const float ArmHitboxScale = 1.9f;    // arm collider radius vs the thin visible arm (stops ball phasing)
+        public const float ArmHitboxScale = 1.9f;    // KEEPER base arm collider radius vs the thin visible arm (times KeeperHitboxBoost)
+        public const float StrikerArmHitboxScale = 2.6f; // OUTFIELD arm collider radius: fatter than the keeper base so an arm/hand touch reliably TRAPS the ball instead of glancing off / phasing through
         public const float LegHitboxScale = 1.6f;    // keeper/striker leg collider radius vs the visible leg
         // The keeper multiplies its arm/leg/foot/glove hitboxes by this on top of the base
         // scales, so every limb is chunkier than the visible body part and saves connect off
@@ -366,7 +374,7 @@ namespace Trickshot
         // Shooting ACCURACY (+ power) scales the goal-steer. Values are tuned aggressive on
         // purpose - the old set pieces were far too weak even at max stats.
         public const float SetPieceBaseSpeed   = 22f;    // goalward launch speed floor at power 1.0 (m/s)
-        public const float SetPieceMaxSpeed    = 42f;    // hard cap on a set-piece launch (x Cannon ceiling)
+        public const float SetPieceMaxSpeed    = 29.4f;  // hard cap on a set-piece launch (x Cannon ceiling); scaled down 30% from 42
         public const float SetPieceLoft        = 0.32f;  // up-velocity as a fraction of launch speed (gentle; the vy cap + ballistic solve own the real height)
         public const float SetPieceCurl        = 12.0f;  // base curl/bend accel (x ShotPowerMul) - pronounced
         public const float SetPieceAssistFloor = 0.08f;  // goal-steer with NO shooting investment (near zero)
@@ -387,28 +395,52 @@ namespace Trickshot
         // the runup, and fires a scripted LaunchSetPiece. Overcharging power or over-holding spin
         // botches the shot. See Play/SetPieceTaker.cs.
         public const float SetPieceMeterRate     = 1.6f;  // power-meter ping-pong speed (full sweeps/sec-ish)
+        public const float SetPieceReleaseDebounce = 0.05f; // Space must read UP this long (s) before a release commits - rejects a single-frame input drop that used to fire the shot mid-hold
         public const float SetPieceOverchargeTime = 0.45f; // seconds pegged at max power before it OVERCHARGES (botch); Accuracy widens this
         public const float SetPieceSpinChargeRate = 1.1f;  // WASD spin charge build rate (per second held, 0..1 then over)
         public const float SetPieceSpinOverTime  = 1.35f; // seconds holding a spin dir past full before it BOTCHES; Accuracy widens this
         public const float SetPieceBotchScatterX = 3.2f;  // max horizontal target scatter (m) at full botch
         public const float SetPieceBotchScatterY = 1.1f;  // max vertical target scatter (m) at full botch (still capped by apex)
         public const float SetPieceCornerPull    = 0.85f; // how far combined pulls the aim from centre toward a corner (0..1 of the half-goal)
-        // Power STAT scales LESS than accuracy in this mode: it only nudges the launch-SPEED
-        // ceiling the on-screen bar can reach (never height). At the minimum power stat the bar
-        // tops out at this fraction of the base->max speed range; at full stat, the full range.
-        // A small spread by design, so the power stat "scales up less" than the accuracy stat
-        // (which drives placement, swerve, corner pull and the assist window).
-        public const float SetPiecePowerStatFloor = 0.82f;
-        // OVERPOWERING the on-screen power BAR (overcharge, not the power stat) lofts the ball
-        // OVER the crossbar: this much extra UPWARD velocity (m/s) is added at full overcharge,
-        // ON TOP of the clean apex cap and INDEPENDENT of the power stat/bar. So a clean max-power
-        // shot still stays under the bar, but any overpowered bar sails over - a weak-power
-        // striker clears it too, just with less forward pace ("over the bar, just slower").
-        public const float SetPieceOverchargeVy  = 7.0f;
+        // Power STAT scales the whole launch-SPEED band the on-screen bar sweeps (never height).
+        // At the MIN power stat a FULL bar tops out at SetPieceMinStatSpeed (a weak lob); at the MAX
+        // power stat a full bar reaches SetPieceMaxSpeed. The empty end of the bar is always this
+        // fraction of the stat's ceiling, so the bar always has travel. A WIDE spread by design so an
+        // uninvested striker is clearly weaker. NOTE: this path intentionally does NOT use
+        // SetPieceBaseSpeed as the floor (that constant is shared with the open-play strike launch);
+        // the scripted set-piece speed is rebuilt entirely from these two, see LaunchSetPiece.
+        public const float SetPieceMinStatSpeed   = 10f;   // full-bar launch speed (m/s) at 0 power stat
+        public const float SetPieceLaunchFloorFrac = 0.55f; // empty-bar speed as a fraction of the stat's ceiling
+        // OVER-THE-BAR LOFT (m/s of extra UPWARD velocity, on top of the clean apex cap). Driven by
+        // shot POWER and INVERSE accuracy: loft = power01 * (1 - accuracyStat) * this. So a high-power
+        // shot with LOW accuracy balloons well over the crossbar, spending accuracy pulls the loft
+        // down, and at MAX accuracy the loft is zero (the ball caps right at the crossbar). A soft
+        // overcharge bonus is added on top so over-holding the bar still sails a touch higher.
+        public const float SetPieceLoftVy         = 8.0f;  // max over-bar loft (m/s) at full power + zero accuracy
+        public const float SetPieceOverchargeVy   = 2.5f;  // small extra loft (m/s) at full overcharge, on top of the power/accuracy loft
+        // Power-bar GATE for the over-bar loft: below this bar fraction the power-driven loft is ZERO
+        // (the shot just travels slow + low), and from here to a full bar it ramps up to the SAME loft
+        // it has always had at full power. Set to the HIGH-RED end of the meter so a low-accuracy
+        // player only balloons the ball when they deliberately hold the bar up into the red, not on a
+        // mid-bar shot. (The overcharge bonus above is unaffected - it already only accrues at max.)
+        public const float SetPieceLoftGate       = 0.8f;
         // Swerve is driven PRIMARILY by the accuracy stat: curl magnitude scales from this floor
         // (a raw striker still bends a little) up to full at max accuracy. The WASD spin hold only
         // modulates within that band, so a low-accuracy striker can't buy a big banana with WASD.
-        public const float SetPieceCurlAccFloor  = 0.25f;
+        public const float SetPieceCurlAccFloor  = 0.7f;
+        // ---- Look-ray aim (free kicks/penalties + net set pieces) ----
+        // A very short power hold fires a low, fast tap pass instead of a lofted strike.
+        public const float SetPieceTapThreshold  = 0.18f; // power01 at/below this = a tap pass, not a struck shot
+        public const float SetPieceTapSpeed      = 12f;   // launch speed of a tap pass (m/s)
+        public const float SetPieceTapAimHeight  = 0.6f;  // aim height (m) used for a tap pass
+        public const float SetPieceLookScatterMax = 7.0f; // max look-aim scatter (m) a ZERO-accuracy striker sprays; keyed to accuracy ONLY (power does NOT affect it) and shrinks to 0 at full accuracy
+        // AIM CONE: the goal-ward look window inside which aim assist applies. If the aim ray lands
+        // more than this many degrees off the ball->goal line (looking egregiously to the side), the
+        // shot is FORCED off target regardless of accuracy: the goal-ward steer, the curl-return, and
+        // the vertical steer are all cut so nothing can drag the ball back into a corner, and the aim
+        // is shoved further wide. 45 deg = a 90 deg full cone. Inside the cone, accuracy is untouched.
+        public const float SetPieceAimConeHalfAngle = 45f;  // degrees off the ball->goal line before a shot is forced wide
+        public const float SetPieceOffTargetPush    = 3.0f; // extra metres the aim is shoved outward once outside the cone (guarantees it clears the post)
         public const float SetPieceRunupSpeed    = 5.5f;  // run-in speed (m/s); matches a brisk approach (the driver places the taker ~3m back)
         public const float SetPiecePlantOffset   = 0.55f; // stops the run-in this far short of the ball (plant beside it)
         public const float SetPieceSwingTime     = 0.22f; // seconds of cosmetic leg swing after the plant before contact
@@ -421,6 +453,13 @@ namespace Trickshot
         public const float SetPieceKnuckleChance = 0.20f; // 20% base chance a bottom strike knuckles instead of chipping (rises linearly w/ power)
         public const float SetPieceKnucklePaceMul = 1.15f; // a knuckle drives flatter + faster than a chip
         public const float SetPieceKnuckleMul  = 0.9f;   // wobble strength of a knuckle (x base curl, scales LINEARLY with power) - pronounced
+        // Scripted knuckle (S) AIR WIGGLE: an oscillating side-to-side lateral force applied over the
+        // flight so the ball visibly snakes left-right in the air. Amplitude scales LINEARLY with shot
+        // POWER (a weak knuckle barely wobbles, a full-power one snakes hard). These are SEPARATE from
+        // SetPieceKnuckleMul (which the open-play strike path also uses) so tuning the wiggle can't
+        // touch open play. Amplitude is an ACCELERATION (m/s^2) so it's mass-independent.
+        public const float SetPieceWiggleAmp   = 70f;    // peak lateral wiggle accel (m/s^2) at full power
+        public const float SetPieceWiggleFreq  = 9.0f;   // wiggle oscillations rate (radians/sec); ~1.4 full snakes per second
         public const float SetPieceChipLoft    = 0.95f;  // a bottom-strike chip scoops up high (up-vel fraction of launch)
         public const float SetPieceChipPaceMul = 0.65f;  // ...with softer forward pace than a driven shot
 
@@ -594,7 +633,7 @@ namespace Trickshot
         public const float ReconcileSnap       = 2.5f;   // m error above which we hard-snap
 
         // ---- Skill-tree capstone perk magnitudes ----
-        public const float CannonCapMul     = 1.5f;   // Cannon: raises the shot-speed ceiling
+        public const float CannonCapMul     = 1.25f;  // Cannon: raises the shot-speed ceiling
         public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)
         public const float AfterburnerMul   = 1.15f;  // Afterburners: extra sprint speed on top
         public const float AerialPaceKeep   = 0.5f;   // Aerial: header keeps this fraction of vertical (vs HeaderVerticalKeep)

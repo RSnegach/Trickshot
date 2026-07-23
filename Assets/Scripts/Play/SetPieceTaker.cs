@@ -35,6 +35,8 @@ namespace Trickshot
         bool _displayOnly;     // client prediction: animate + meter HUD, but do NOT launch the ball
                                // (the host is authoritative; the client ball is kinematic).
         float _combinedOverride = -1f;   // >=0 forces the skill stat (MP remote shooter); <0 = local profile.
+        System.Func<Vector3> _aimPoint;  // null = use BallController's built-in corner auto-aim (AI path).
+                                         // non-null = the driver's look-ray aim (SP free kick / MP set piece).
 
         State _state = State.Idle;
         float _meter;          // 0..1 power meter value (ping-pongs while charging)
@@ -48,11 +50,19 @@ namespace Trickshot
         float _committedOvercharge;   // overcharge (power-bar) botch ONLY -> drives the over-the-bar loft
         float _committedPowerStat;    // 0..1 power STAT -> scales ONLY the launch-speed ceiling (not height)
         BallController.SetPieceSpin _committedSpin;
+        Vector3? _committedAim;   // look-ray aim captured at release (null = built-in auto-aim)
+        bool _committedTap;       // short hold -> universal low dribble toward the look ray
+        float _spaceHeldTime;     // seconds Space has been held this attempt (tap vs full charge)
 
         float _phaseTime;      // time in the current Runup/Struck/Settle phase
         float _gaitPhase;
         bool _launched;
         bool _charged;         // the player has begun holding Space this attempt (gates commit)
+        float _releaseTime;    // seconds Space has read UP since the last held frame (debounce vs a 1-frame input drop)
+        bool _awaitingRelease; // Space was ALREADY held when this attempt armed (stale actuation carried in
+                               // from the menu/confirm that launched the mode, or the input map enabling
+                               // mid-press). Blocks all charging until Space is released once, so the FIRST
+                               // attempt of a round can't commit off a held key with no genuine release.
 
         // ---- public read surface (HUD + driver) ----
         public State Phase => _state;
@@ -71,20 +81,43 @@ namespace Trickshot
         // PlayerProfile (single-player and the local shooter).
         public void Begin(IStrikerInput input, ActiveRagdoll ragdoll, BallController ball,
                           Vector3 ballSpot, Vector3 goalCenter, bool displayOnly = false,
-                          float combinedOverride = -1f)
+                          float combinedOverride = -1f, System.Func<Vector3> aimPoint = null)
         {
             _input = input; _ragdoll = ragdoll; _ball = ball;
             _ballSpot = ballSpot; _goalCenter = goalCenter;
             _displayOnly = displayOnly;
             _combinedOverride = combinedOverride;
+            _aimPoint = aimPoint;
             _state = State.Charging;
             _meter = 0f; _meterDir = 1f; _pegTime = 0f;
             _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
             _spin = BallController.SetPieceSpin.None;
             _phaseTime = 0f; _plantTime = 0f; _gaitPhase = 0f; _launched = false; _charged = false;
+            _releaseTime = 0f;
+            _spaceHeldTime = 0f;
+            // If Space is ALREADY down the moment we arm (a stale actuation carried in from the
+            // menu/confirm that opened this mode, or the input map enabling mid-press), require a
+            // genuine release before charging can begin. Otherwise the first attempt's very first
+            // Tick reads Space held, latches _charged, and commits with no real release.
+            _awaitingRelease = input != null && input.JumpHeld;
+            _committedAim = null; _committedTap = false;
             JustStruck = false;
             SetColliders(true);
             if (_ragdoll != null) _ragdoll.UprightLock = true;
+        }
+
+        // Ray from the dead-ball spot along the camera look direction, intersected with the
+        // goal plane (z = goalPlaneZ). Returns the world aim point; y comes from camera pitch.
+        public static Vector3 LookAimPoint(Vector3 from, float yaw, float pitch, float goalPlaneZ)
+        {
+            Vector3 dir = Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
+            float dz = goalPlaneZ - from.z;
+            if (Mathf.Abs(dir.z) < 0.05f) dir.z = Mathf.Sign(dz != 0f ? dz : 1f) * 0.05f;
+            float t = dz / dir.z;
+            if (t < 0f) t = Mathf.Abs(dz);   // camera pointing away from goal: clamp
+            Vector3 p = from + dir * t;
+            p.y = Mathf.Max(0.05f, p.y);
+            return p;
         }
 
         // Force back to idle (turn change / reset). Restores the body collider.
@@ -135,12 +168,24 @@ namespace Trickshot
         {
             float combined = Combined();
 
+            // A Space that was already held when this attempt armed is stale: swallow it until it
+            // is released once. Until then, no charging and no commit can happen, so the first
+            // attempt of a round can't fire off a held key. A genuine fresh press then charges
+            // normally. (The host's AFK watchdog still fires if a human truly never engages.)
+            if (_awaitingRelease)
+            {
+                if (!_input.JumpHeld) _awaitingRelease = false;
+                return;
+            }
+
             // Oscillate the power meter while Space is held; release commits. We only commit once
             // the player has ACTUALLY begun charging (held Space at least once) so an attempt that
             // starts with Space up does not instantly fire on frame one.
             if (_input.JumpHeld)
             {
                 _charged = true;
+                _releaseTime = 0f;   // still held: a phantom 1-frame drop can't accrue enough to commit
+                _spaceHeldTime += Time.deltaTime;   // total hold this attempt (short = tap dribble)
                 _meter += _meterDir * SimConfig.SetPieceMeterRate * Time.deltaTime;
                 if (_meter >= 1f) { _meter = 1f; _meterDir = -1f; }
                 else if (_meter <= 0f) { _meter = 0f; _meterDir = 1f; }
@@ -183,12 +228,25 @@ namespace Trickshot
             // so an attempt armed with Space up does not fire on frame one.
             if (!_charged) return;
 
+            // Debounce the release: Space must stay up for a short continuous window before we
+            // commit. A genuine release clears this in a blink; a single dropped input frame
+            // (focus blip / hitch) that briefly reads Space up gets reset by the held branch next
+            // frame, so it can no longer fire the shot mid-hold. The meter keeps its value while we
+            // wait, so a real release commits the value that was on the bar when the key came up.
+            _releaseTime += Time.deltaTime;
+            if (_releaseTime < SimConfig.SetPieceReleaseDebounce) return;
+
             // Released: commit. A quick tap still fires a soft, central shot.
             _committedCombined = combined;
             _committedPower = _meter;
             _committedPowerStat = PowerStat();
             _committedSpin = _spin;
             _committedSpinCharge = _spinCharge;
+
+            // Freeze the aim ray at release (camera can move during the runup) and decide tap vs full.
+            // A tap (short hold) is a universal low dribble toward the look ray, regardless of skill.
+            _committedAim = _aimPoint != null ? (Vector3?)_aimPoint() : null;
+            _committedTap = _spaceHeldTime < SimConfig.SetPieceTapThreshold;
 
             // Botch from overcharge + spin over-hold, each widened by accuracy. 0 = clean.
             float overWin = SimConfig.SetPieceOverchargeTime * (1f + combined);
@@ -247,7 +305,8 @@ namespace Trickshot
                         _ball.ResetTo(_ballSpot);
                         _ball.LaunchSetPiece(_committedPower, _committedSpin, _committedSpinCharge,
                                              _committedBotch, _committedCombined, _goalCenter,
-                                             _committedOvercharge, _committedPowerStat);
+                                             _committedOvercharge, _committedPowerStat,
+                                             _committedAim, _committedTap);
                     }
                     JustStruck = true;
                     _state = State.Struck;

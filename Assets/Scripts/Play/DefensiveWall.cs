@@ -4,16 +4,19 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// A configurable defensive WALL for free-kick mode: a row of cheap capsule
-    /// "blockers" standing shoulder-to-shoulder on the line between the dead ball and
-    /// the goal centre, a set distance out, optionally shifted sideways so the player
-    /// can position it.
+    /// A configurable defensive WALL for free-kick mode: a row of humanoid "blockers"
+    /// standing shoulder-to-shoulder on the line between the dead ball and the goal
+    /// centre, a set distance out, optionally shifted sideways so the player can
+    /// position it. They face the shooter with their hands crossed over their groins
+    /// (the classic wall pose).
     ///
-    /// The blockers are the simple option (not full active ragdolls): each is a
-    /// Make.Capsule with its capsule collider kept and a bouncy PhysicsMaterial, so a
-    /// struck ball deflects off them, plus a kinematic Rigidbody so we can animate a
-    /// small jump HOP to challenge higher shots without them being knocked over. All
-    /// blockers hop together when the wall jumps.
+    /// Each blocker is a CONTAINER GameObject (the one returned by Blockers) that owns
+    /// the single body-approximating CapsuleCollider + a bouncy PhysicsMaterial (so a
+    /// struck ball deflects off it) + a kinematic Rigidbody (so the hop can't knock it
+    /// over). The mannequin itself (head/torso/shorts/legs/crossed-arms) is a set of
+    /// collider-less child meshes parented to that container, so there is still exactly
+    /// ONE collider per blocker - the driver's contact test and the ball deflection both
+    /// key off it, unchanged. All blockers hop together when the wall jumps.
     ///
     /// Built entirely from code (Build()); pumped by Tick() from the driver each frame.
     /// A plain class, not a MonoBehaviour: the FreeKickGame driver owns it and pumps it.
@@ -81,33 +84,101 @@ namespace Trickshot
 
             wallCenter.y = 0f;
 
-            var mat = Make.Mat(new Color(0.8f, 0.25f, 0.25f));
+            // Facing: recover the ball->goal direction from the lateral axis (lateral = up x dir),
+            // so dir = lateral x up. The wall faces the SHOOTER (opposite the goal), which is where
+            // the crossed hands and chest point.
+            Vector3 dir = Vector3.Cross(lateral, Vector3.up).normalized;
+            if (dir.sqrMagnitude < 1e-4f) dir = Vector3.forward;
+            Quaternion facing = Quaternion.LookRotation(-dir, Vector3.up);
+
+            var shirt = Make.Mat(new Color(0.8f, 0.25f, 0.25f));
+            var shorts = Make.Mat(new Color(0.14f, 0.15f, 0.2f));
+            var skin = Make.Mat(new Color(0.82f, 0.64f, 0.5f));
             float half = (count - 1) * 0.5f;
-            float centerY = BlockerHeight * 0.5f;   // so the capsule base sits on y = 0
+            float centerY = BlockerHeight * 0.5f;   // container sits at body-centre; capsule base on y = 0
 
             for (int i = 0; i < count; i++)
             {
                 float along = (i - half) * ShoulderSpacing;
                 Vector3 groundPos = wallCenter + lateral * along + Vector3.up * centerY;
 
-                var go = Make.Capsule("WallBlocker" + i, BlockerRadius, BlockerHeight, groundPos, mat, root);
+                // Container = the returned blocker. It owns the ONE body-approximating collider
+                // (a full-height capsule, matching the old bare-capsule blocker exactly) + the
+                // bouncy material + a kinematic body. The mannequin meshes hang off it collider-less.
+                var go = Make.Empty("WallBlocker" + i, groundPos, root);
+                go.transform.rotation = facing;
 
-                // Keep the primitive's capsule collider and give it the bouncy material so
-                // the ball deflects off it.
-                var col = go.GetComponent<Collider>();
-                if (col != null) col.material = _bounce;
+                var cap = go.AddComponent<CapsuleCollider>();
+                cap.direction = 1;               // local Y
+                cap.radius = BlockerRadius;
+                cap.height = BlockerHeight;
+                cap.center = Vector3.zero;        // container is at the body centre
+                cap.material = _bounce;
 
-                // Kinematic body: the collider moves with the animated hop and still
-                // deflects the (dynamic) ball, but nothing can knock the blocker over.
+                // Kinematic body: the collider moves with the animated hop and still deflects the
+                // (dynamic) ball, but nothing can knock the blocker over.
                 var rb = go.AddComponent<Rigidbody>();
                 rb.isKinematic = true;
                 rb.useGravity = false;
                 rb.interpolation = RigidbodyInterpolation.Interpolate;
                 rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
+                BuildMannequin(go.transform, centerY, shirt, shorts, skin);
+
                 _blockers.Add(go);
                 _groundPos.Add(groundPos);
             }
+        }
+
+        // Hang a collider-less humanoid on the container, posed with the hands crossed low over the
+        // groin and facing the shooter (+localZ is the ball-facing front). Local Y is measured from
+        // the body centre (the container origin), so the feet sit at local y = -centerY (world 0).
+        void BuildMannequin(Transform body, float centerY, Material shirt, Material shorts, Material skin)
+        {
+            float feet = -centerY;   // local y of the ground
+
+            // Head, torso, shorts.
+            NoCollide(Make.Sphere("Head", 0.30f, body.position, skin, body), new Vector3(0f, feet + 1.78f, 0f), Quaternion.identity);
+            NoCollide(Make.Capsule("Torso", 0.19f, 0.72f, body.position, shirt, body), new Vector3(0f, feet + 1.36f, 0f), Quaternion.identity);
+            Make.Box("Shorts", new Vector3(0.44f, 0.32f, 0.32f), body.position, shorts, body, collider: false)
+                .transform.localPosition = new Vector3(0f, feet + 0.94f, 0f);
+
+            // Legs + simple feet.
+            NoCollide(Make.Capsule("LegL", 0.12f, 0.92f, body.position, skin, body), new Vector3(-0.11f, feet + 0.46f, 0f), Quaternion.identity);
+            NoCollide(Make.Capsule("LegR", 0.12f, 0.92f, body.position, skin, body), new Vector3(0.11f, feet + 0.46f, 0f), Quaternion.identity);
+            Make.Box("FootL", new Vector3(0.16f, 0.08f, 0.30f), body.position, shorts, body, collider: false)
+                .transform.localPosition = new Vector3(-0.11f, feet + 0.04f, 0.06f);
+            Make.Box("FootR", new Vector3(0.16f, 0.08f, 0.30f), body.position, shorts, body, collider: false)
+                .transform.localPosition = new Vector3(0.11f, feet + 0.04f, 0.06f);
+
+            // Arms crossed low in FRONT (over the groin). Each arm runs from its shoulder down and
+            // inward to a hand that crosses past the body centre, so the two forearms overlap in
+            // front of the crotch - the standard wall pose. +Z is the ball-facing front.
+            Vector3 shoulderL = new Vector3(-0.30f, feet + 1.60f, 0.02f);
+            Vector3 handL     = new Vector3(0.05f,  feet + 0.90f, 0.20f);
+            Vector3 shoulderR = new Vector3(0.30f,  feet + 1.60f, 0.02f);
+            Vector3 handR     = new Vector3(-0.05f, feet + 0.90f, 0.20f);
+            BuildArm(body, "ArmL", shoulderL, handL, skin);
+            BuildArm(body, "ArmR", shoulderR, handR, skin);
+        }
+
+        // One straight arm capsule spanning shoulder->hand in the body's local space.
+        void BuildArm(Transform body, string name, Vector3 shoulder, Vector3 hand, Material skin)
+        {
+            Vector3 seg = hand - shoulder;
+            float len = seg.magnitude;
+            if (len < 0.01f) return;
+            var arm = Make.Capsule(name, 0.075f, len, body.position, skin, body);
+            NoCollide(arm, (shoulder + hand) * 0.5f, Quaternion.FromToRotation(Vector3.up, seg / len));
+        }
+
+        // Place a primitive at a local pose under the body and strip its collider (visual only).
+        static void NoCollide(GameObject go, Vector3 localPos, Quaternion localRot)
+        {
+            var col = go.GetComponent<Collider>();
+            if (col != null) Object.Destroy(col);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = localRot;
         }
 
         /// <summary>Start a single wall hop (all blockers jump together, then land).</summary>

@@ -189,12 +189,11 @@ namespace Trickshot
 
             MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
                      ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
-            // Head: 0.19 visible radius, 0.22 collider (dims.y override) - narrower than
-            // before so the header hitbox doesn't overlap the shoulders, still a bit bigger
-            // than the visible head. Shifted forward (+Z) and down (-Y) to reach in front.
+            // Head: 0.19 visible radius, 0.22 collider (dims.y override) - the header hitbox
+            // is only slightly bigger than the visible head and is CENTERED on it (no offset),
+            // so the hitbox lines up with the drawn head shape instead of reaching in front.
             MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.72f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.19f, 0.22f, 0f), 4.5f, limbMat,
-                     1f, new Vector3(0f, -0.05f, 0.12f));
+                     ColliderKind.Sphere, new Vector3(0.19f, 0.22f, 0f), 4.5f, limbMat);
 
             // Leg hitboxes are fattened (LegHitboxScale) beyond the visible leg so the ball
             // connects off the legs reliably instead of clipping through. The keeper fattens
@@ -232,7 +231,11 @@ namespace Trickshot
             // pre-stress the shoulder/elbow joints, which girth scaling would amplify).
             // Arm HITBOXES are fattened (colliderScale ArmHitboxScale) beyond the thin
             // visible arm so the ball stops phasing through the keeper's arms.
-            float armHb = SimConfig.ArmHitboxScale * _keeperHb;
+            // Keeper uses the base ArmHitboxScale (then * _keeperHb boost); the outfield body
+            // uses the fatter StrikerArmHitboxScale so an arm/hand touch reliably TRAPS the ball
+            // instead of glancing off or phasing through. _keeperHb > 1 identifies the keeper.
+            float armBase = _keeperHb > 1f ? SimConfig.ArmHitboxScale : SimConfig.StrikerArmHitboxScale;
+            float armHb = armBase * _keeperHb;
             MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
                      ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat, armHb);
             MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
@@ -1005,6 +1008,31 @@ namespace Trickshot
                 var (b, off) = _displayBones[k];
                 Vector3 worldPos = basePos + (root * Off(off.x, off.y, off.z));
                 Quaternion rot = root * Quaternion.Euler(over[(int)b]);
+                var rb = _rb[(int)b];
+                if (rb == null) continue;
+                rb.position = worldPos; rb.rotation = rot;
+                rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
+                rb.transform.position = worldPos; rb.transform.rotation = rot;
+            }
+        }
+
+        // Aesthetic display poser: like DisplayAnim, but the whole-body lean (rootPitch/rootRoll)
+        // and the per-bone euler overrides come straight from the caller instead of a fixed
+        // AnimState. Lets a fully scripted cinematic (e.g. the main-menu bicycle kick) drive the
+        // kinematic puppet frame-by-frame without adding a networked animation state. Bones are
+        // placed at their rest offsets rotated by the root lean; `boneEuler` is indexed by Bone
+        // (pass Vector3.zero, or a short/absent entry, to leave a bone at rest). Requires the body
+        // to already be a kinematic display puppet (call BecomeDisplayBody first).
+        public void DisplayPose(Vector3 basePos, Quaternion facing, float rootPitch, float rootRoll, Vector3[] boneEuler)
+        {
+            FacingRotation = facing;
+            Quaternion root = facing * Quaternion.Euler(rootPitch, 0f, rootRoll);
+            for (int k = 0; k < _displayBones.Length; k++)
+            {
+                var (b, off) = _displayBones[k];
+                Vector3 e = (boneEuler != null && (int)b < boneEuler.Length) ? boneEuler[(int)b] : Vector3.zero;
+                Vector3 worldPos = basePos + (root * Off(off.x, off.y, off.z));
+                Quaternion rot = root * Quaternion.Euler(e);
                 var rb = _rb[(int)b];
                 if (rb == null) continue;
                 rb.position = worldPos; rb.rotation = rot;
