@@ -28,7 +28,11 @@ namespace Trickshot
         {
             public string Name; public HairGroup Group;
             public bool Bald;                 // index 0 only: no hair at all
-            public HairSim.HairDef Def;       // the simulated style (ignored when Bald)
+            public HairSim.HairDef Def;       // the simulated style (ignored when Bald or NoCards)
+            public bool NoCards;              // skip the HairSim card build - this style is just
+                                              // solid pieces (e.g. the man bun = spheres)
+            public Action<Transform, Material> Extra;  // optional solid hair-coloured pieces built
+                                              // on the head (a bun, a tie), in the hair material
         }
         public class FacialEntry
         {
@@ -66,14 +70,31 @@ namespace Trickshot
             // so remote MP puppets' hair swings too (style + colour ride PlayerAppearance).
             if (a.HairStyle > 0 && a.HairStyle < _hair.Count && !_hair[a.HairStyle].Bald)
             {
+                var entry = _hair[a.HairStyle];
                 var mat = Make.Hair(a.HairColor);
                 rag.RegisterCosmeticMaterial(mat);
-                var go = new GameObject("HairSim");
-                go.transform.SetParent(head, false);
-                go.transform.localPosition = Vector3.zero;
-                go.transform.localRotation = Quaternion.identity;
-                go.transform.localScale = Vector3.one;
-                go.AddComponent<HairSim>().Build(head, _hair[a.HairStyle].Def, mat);
+
+                // Crown cap: a hair-coloured skullcap sphere over the top of the head, UNDER the
+                // cards, so no bare scalp peeks through the gaps between clumps. It's a solid lit
+                // piece (not the card shader) - a base layer of hair colour, not simulated. Every
+                // non-bald style gets it.
+                var capMat = Make.Mat(a.HairColor, 0.15f);
+                rag.RegisterCosmeticMaterial(capMat);
+                Ball(head, new Vector3(0f, 0.11f, -0.03f), new Vector3(0.45f, 0.34f, 0.46f), capMat);
+
+                // Solid extra pieces for this style (e.g. the man bun's spheres), in hair colour.
+                entry.Extra?.Invoke(head, mat);
+
+                // Dynamic card strands, unless this style is solid-only (NoCards).
+                if (!entry.NoCards)
+                {
+                    var go = new GameObject("HairSim");
+                    go.transform.SetParent(head, false);
+                    go.transform.localPosition = Vector3.zero;
+                    go.transform.localRotation = Quaternion.identity;
+                    go.transform.localScale = Vector3.one;
+                    go.AddComponent<HairSim>().Build(head, entry.Def, mat);
+                }
             }
             // Facial hair (index 0 = clean-shaven -> nothing).
             if (a.FacialStyle > 0 && a.FacialStyle < _facial.Count)
@@ -245,9 +266,12 @@ namespace Trickshot
             new HairEntry { Name = "Ponytail", Group = HairGroup.Long, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.BackCluster, strands = 40, nodes = 10, length = 0.5f, fan = 4, staticToHead = false,
                 stiffness = 0.16f, flow = new Vector3(0f, -1f, -0.15f), curl = 0.012f, jitter = 0.06f, thickness = 0.05f } },
-            new HairEntry { Name = "Man Bun", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 54, nodes = 8, length = 0.15f, fan = 4, staticToHead = false,
-                stiffness = 0.5f, flow = new Vector3(0f, 0.4f, -0.7f), curl = 0.03f, jitter = 0.5f, thickness = 0.06f } },
+            // Man Bun: no card strands - just a solid sphere bun high on the back of the crown
+            // (plus a thin tie), over the shared hair crown cap. Simplest and reads cleanly.
+            new HairEntry { Name = "Man Bun", Group = HairGroup.Long, NoCards = true, Extra = (h,m) => {
+                Ball(h, new Vector3(0f, 0.24f, -0.13f), new Vector3(0.20f, 0.20f, 0.20f), m);   // the bun
+                Ball(h, new Vector3(0f, 0.21f, -0.19f), new Vector3(0.07f, 0.07f, 0.07f), m);   // tie wrap
+            } },
             new HairEntry { Name = "Dreads", Group = HairGroup.Long, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.TopSidesBack, strands = 54, nodes = 10, length = 0.5f, fan = 3, staticToHead = false,
                 stiffness = 0.18f, flow = new Vector3(0f, -1f, -0.05f), curl = 0.006f, jitter = 0.4f, thickness = 0.05f } },
@@ -580,14 +604,19 @@ namespace Trickshot
                 Blk(h, new Vector3(0.035f, -0.10f, 0.185f), new Vector3(0.008f, 0.022f, 0.008f), new Vector3(-8f, 0f, 0f), m);   // right fang pointing down
             } },
             new AccessoryEntry { Name = "Chain Necklace", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(0.0f, -0.18f, 0.13f), new Vector3(0.014f, 0.014f, 0.014f), m);     // chain link, front
-                Ball(h, new Vector3(0.106f, -0.18f, 0.086f), new Vector3(0.014f, 0.014f, 0.014f), m);  // chain link
-                Ball(h, new Vector3(0.15f, -0.18f, -0.02f), new Vector3(0.014f, 0.014f, 0.014f), m);   // chain link, right side
-                Ball(h, new Vector3(0.106f, -0.18f, -0.126f), new Vector3(0.014f, 0.014f, 0.014f), m); // chain link
-                Blk(h, new Vector3(0.0f, -0.18f, -0.17f), new Vector3(0.02f, 0.014f, 0.01f), Dark());  // clasp at the back
-                Ball(h, new Vector3(-0.106f, -0.18f, -0.126f), new Vector3(0.014f, 0.014f, 0.014f), m); // chain link
-                Ball(h, new Vector3(-0.15f, -0.18f, -0.02f), new Vector3(0.014f, 0.014f, 0.014f), m);  // chain link, left side
-                Ball(h, new Vector3(-0.106f, -0.18f, 0.086f), new Vector3(0.014f, 0.014f, 0.014f), m); // chain link
+                // A chain resting ON the chest, NOT ringing the neck: the links sit LOWER (y -0.30,
+                // below the head bone so they're at collar/upper-chest height) and the ring is
+                // pushed FORWARD (+z biased) so it drapes over the front of the torso instead of
+                // clipping through it. Torso box is ~0.18 half-width / 0.11 half-depth; the front
+                // links sit proud of that, the back links hug the nape above the shoulders.
+                Ball(h, new Vector3(0.0f, -0.34f, 0.20f), new Vector3(0.016f, 0.016f, 0.016f), m);     // front centre, on the sternum
+                Ball(h, new Vector3(0.12f, -0.32f, 0.16f), new Vector3(0.016f, 0.016f, 0.016f), m);    // front-right
+                Ball(h, new Vector3(0.20f, -0.27f, 0.04f), new Vector3(0.016f, 0.016f, 0.016f), m);    // right shoulder
+                Ball(h, new Vector3(0.16f, -0.20f, -0.10f), new Vector3(0.014f, 0.014f, 0.014f), m);   // right, rising to nape
+                Blk(h, new Vector3(0.0f, -0.17f, -0.19f), new Vector3(0.02f, 0.014f, 0.01f), Dark());  // clasp at the nape (above shoulders)
+                Ball(h, new Vector3(-0.16f, -0.20f, -0.10f), new Vector3(0.014f, 0.014f, 0.014f), m);  // left, rising to nape
+                Ball(h, new Vector3(-0.20f, -0.27f, 0.04f), new Vector3(0.016f, 0.016f, 0.016f), m);   // left shoulder
+                Ball(h, new Vector3(-0.12f, -0.32f, 0.16f), new Vector3(0.016f, 0.016f, 0.016f), m);   // front-left
             } },
             new AccessoryEntry { Name = "Face Tattoo", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(-0.10f, 0.00f, 0.178f), new Vector3(0.05f, 0.005f, 0.003f), new Vector3(0f, 0f, 20f), m);    // line marking, upper cheek
