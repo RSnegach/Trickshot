@@ -395,8 +395,8 @@
     "semantic_hash": "6a34ccbefd38ed5671a877f24d042a71"
   },
   "Assets/Scripts/Ragdoll/ActiveRagdoll.cs": {
-    "mtime": 1784781728.4080546,
-    "ast_hash": "c52e771deda9d6d21f77a93effe5f9bf",
+    "mtime": 1784786369.884782,
+    "ast_hash": "0a0e53dc2e4dbe3f180f6cb78a229b45",
     "semantic_hash": ""
   },
   "Assets/Scripts/Ragdoll/JointMath.cs": {

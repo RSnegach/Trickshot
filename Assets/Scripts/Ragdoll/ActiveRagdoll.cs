@@ -863,20 +863,25 @@ namespace Trickshot
         public void DisplaySnap(Vector3 basePos, Quaternion facing)
         {
             FacingRotation = facing;
-            // Reuse the same bone offsets as ResetTo, but only move transforms (kinematic).
-            SnapBone(Bone.Pelvis, basePos + Off(0f, 1.02f, 0f), facing);
-            SnapBone(Bone.Torso,  basePos + Off(0f, 1.34f, 0f), facing);
-            SnapBone(Bone.Head,   basePos + Off(0f, 1.72f, 0f), facing);
-            SnapBone(Bone.ThighL, basePos + Off(-0.11f, 0.73f, 0f), facing);
-            SnapBone(Bone.ThighR, basePos + Off(0.11f, 0.73f, 0f), facing);
-            SnapBone(Bone.CalfL,  basePos + Off(-0.11f, 0.33f, 0f), facing);
-            SnapBone(Bone.CalfR,  basePos + Off(0.11f, 0.33f, 0f), facing);
-            SnapBone(Bone.FootL,  basePos + Off(-0.11f, 0.06f, 0.06f), facing);
-            SnapBone(Bone.FootR,  basePos + Off(0.11f, 0.06f, 0.06f), facing);
-            SnapBone(Bone.UpperArmL, basePos + Off(-0.26f, 1.40f, 0f), facing);
-            SnapBone(Bone.UpperArmR, basePos + Off(0.26f, 1.40f, 0f), facing);
-            SnapBone(Bone.ForearmL,  basePos + Off(-0.26f, 1.08f, 0f), facing);
-            SnapBone(Bone.ForearmR,  basePos + Off(0.26f, 1.08f, 0f), facing);
+            // Reuse the same bone offsets as ResetTo, but only move transforms (kinematic). The
+            // offset is ROTATED by `facing` so every bone ORBITS the vertical axis as the body
+            // turns - the whole thing rotates rigidly. Without the rotation, off-axis bones (arms
+            // x=+/-0.26, legs x=+/-0.11, feet z=0.06) stayed pinned at their forward-facing spot
+            // while only their rotation yawed, so on a drag-turn the spine/feet appeared to spin
+            // while the arms/legs stayed locked (the customize-preview tearing bug).
+            SnapBone(Bone.Pelvis, basePos + facing * Off(0f, 1.02f, 0f), facing);
+            SnapBone(Bone.Torso,  basePos + facing * Off(0f, 1.34f, 0f), facing);
+            SnapBone(Bone.Head,   basePos + facing * Off(0f, 1.72f, 0f), facing);
+            SnapBone(Bone.ThighL, basePos + facing * Off(-0.11f, 0.73f, 0f), facing);
+            SnapBone(Bone.ThighR, basePos + facing * Off(0.11f, 0.73f, 0f), facing);
+            SnapBone(Bone.CalfL,  basePos + facing * Off(-0.11f, 0.33f, 0f), facing);
+            SnapBone(Bone.CalfR,  basePos + facing * Off(0.11f, 0.33f, 0f), facing);
+            SnapBone(Bone.FootL,  basePos + facing * Off(-0.11f, 0.06f, 0.06f), facing);
+            SnapBone(Bone.FootR,  basePos + facing * Off(0.11f, 0.06f, 0.06f), facing);
+            SnapBone(Bone.UpperArmL, basePos + facing * Off(-0.26f, 1.40f, 0f), facing);
+            SnapBone(Bone.UpperArmR, basePos + facing * Off(0.26f, 1.40f, 0f), facing);
+            SnapBone(Bone.ForearmL,  basePos + facing * Off(-0.26f, 1.08f, 0f), facing);
+            SnapBone(Bone.ForearmR,  basePos + facing * Off(0.26f, 1.08f, 0f), facing);
         }
 
         void SnapBone(Bone b, Vector3 worldPos, Quaternion facing)
@@ -927,11 +932,12 @@ namespace Trickshot
             EmotePose.Apply(e, pc, (bone, euler) => over[(int)bone] = euler);
             // Whole-body vertical bob (e.g. push-ups drop into a plank + pump up/down).
             basePos.y += EmotePose.RootLift(e, pc);
-            // Place each bone at its rest position, rotated by facing * poseEuler.
+            // Place each bone at its rest position, rotated by facing * poseEuler. The rest offset
+            // is rotated by `facing` too so off-axis bones orbit with the body turn (see DisplaySnap).
             for (int k = 0; k < _displayBones.Length; k++)
             {
                 var (b, off) = _displayBones[k];
-                Vector3 worldPos = basePos + Off(off.x, off.y, off.z);
+                Vector3 worldPos = basePos + facing * Off(off.x, off.y, off.z);
                 Quaternion rot = facing * Quaternion.Euler(over[(int)b]);
                 var rb = _rb[(int)b];
                 if (rb == null) continue;

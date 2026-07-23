@@ -395,8 +395,8 @@
     "semantic_hash": "6a34ccbefd38ed5671a877f24d042a71"
   },
   "Assets/Scripts/Ragdoll/ActiveRagdoll.cs": {
-    "mtime": 1784781728.4080546,
-    "ast_hash": "c52e771deda9d6d21f77a93effe5f9bf",
+    "mtime": 1784786360.724027,
+    "ast_hash": "0bca2aef1ebbcff540c609a297fb4965",
     "semantic_hash": ""
   },
   "Assets/Scripts/Ragdoll/JointMath.cs": {
@@ -420,8 +420,8 @@
     "semantic_hash": "ad7b60e13e611e8b043df0070aad3e3a"
   },
   "Assets/Scripts/Sim/Cosmetics.cs": {
-    "mtime": 1784784000.2511215,
-    "ast_hash": "77ff0e70db83af1ad492219246d020d3",
+    "mtime": 1784785797.663372,
+    "ast_hash": "f96c638a8118856873cf21b44686eb89",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
@@ -525,8 +525,8 @@
     "semantic_hash": "8a6643a420fdad6bfb583523bc6cef16"
   },
   "Assets/Scripts/Play/HairSim.cs": {
-    "mtime": 1784782832.3218558,
-    "ast_hash": "5fd4179387b71a8255c698ce554d38bc",
+    "mtime": 1784785755.5516331,
+    "ast_hash": "7ad58c397722e2a09d3cee7057494ef0",
     "semantic_hash": ""
   },
   "Assets/Resources/Hair/HairAtlas-License.txt": {
