@@ -52,16 +52,20 @@ namespace Trickshot
         }
 
         static Shader s_Hair;
-        /// <summary>Anisotropic (Kajiya-Kay) hair material for HairSim's line-mesh strands: a
-        /// shifted dual specular streak off the strand TANGENT plus wrapped diffuse, so strands
-        /// read as lit hair instead of flat 1px wires. Loaded from Resources/Shaders (no scene
-        /// wiring); falls back to flat Unlit if the shader is somehow absent from the build.</summary>
+        static Texture2D s_HairAtlas;
+        /// <summary>Hair-CARD material for HairSim's textured quad ribbons: an alpha-cutout
+        /// (Kajiya-Kay lit) shader sampling a shared grayscale hair atlas, tinted to the player's
+        /// hair colour. The wispy strand edges come from the atlas opacity mask, not geometry.
+        /// Loaded from Resources (no scene wiring); falls back to flat Unlit if the card shader is
+        /// somehow absent from the build.</summary>
         public static Material Hair(Color c)
         {
-            if (s_Hair == null) s_Hair = Resources.Load<Shader>("Shaders/HairStrand");
+            if (s_Hair == null) s_Hair = Resources.Load<Shader>("Shaders/HairCard");
+            if (s_HairAtlas == null) s_HairAtlas = Resources.Load<Texture2D>("Hair/HairAtlas");
             if (s_Hair == null) return Unlit(c);        // graceful fallback: still visible
             var m = new Material(s_Hair);
             m.SetColor("_Color", c);
+            if (s_HairAtlas != null) { s_HairAtlas.wrapMode = TextureWrapMode.Clamp; m.SetTexture("_MainTex", s_HairAtlas); }
             return m;
         }
 

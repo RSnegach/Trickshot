@@ -100,9 +100,9 @@
     "semantic_hash": "317e427a40bcac3b818eb765c8d25627"
   },
   "Assets/Scripts/Play/Crosser.cs": {
-    "mtime": 1784774934.850055,
-    "ast_hash": "d24ea26f3978b9097b3b69176f821cc6",
-    "semantic_hash": "d24ea26f3978b9097b3b69176f821cc6"
+    "mtime": 1784784204.090613,
+    "ast_hash": "c4f9385eaa831b75f3fd51f2ecea23c7",
+    "semantic_hash": ""
   },
   "Assets/Scripts/Play/CrosserControl.cs": {
     "mtime": 1784588043.1008003,
@@ -270,8 +270,8 @@
     "semantic_hash": "170afca84a9e83ce523d65b4679dfbaa"
   },
   "Assets/Scripts/Play/MenuBackground.cs": {
-    "mtime": 1784781775.248722,
-    "ast_hash": "68db1d42ef527f6fb1bbfbbece4682c5",
+    "mtime": 1784784485.6425147,
+    "ast_hash": "21e7d8119bcb146b46c704793efb6ef6",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuUI.cs": {
@@ -420,8 +420,8 @@
     "semantic_hash": "ad7b60e13e611e8b043df0070aad3e3a"
   },
   "Assets/Scripts/Sim/Cosmetics.cs": {
-    "mtime": 1784782735.3694427,
-    "ast_hash": "c2bc00d3e271dd6516d8954d41dbed03",
+    "mtime": 1784784000.2511215,
+    "ast_hash": "77ff0e70db83af1ad492219246d020d3",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
@@ -430,8 +430,8 @@
     "semantic_hash": "148fe17a165497dc748c8e85f8a0662a"
   },
   "Assets/Scripts/Sim/Make.cs": {
-    "mtime": 1784782727.1200182,
-    "ast_hash": "ef50a8cd8b623926e003f4c2ce7282fd",
+    "mtime": 1784785556.6681528,
+    "ast_hash": "3abd2a8a117f4c0f5f61a4b44e2cdb46",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/PitchBuilder.cs": {
@@ -445,9 +445,9 @@
     "semantic_hash": "b8b4ba696fe207bc844fdd9b44051a5b"
   },
   "Assets/Scripts/Sim/PlayerProfile.cs": {
-    "mtime": 1784737658.072585,
-    "ast_hash": "a8f3fe13d064463804cb63f9c3cbd7ec",
-    "semantic_hash": "a8f3fe13d064463804cb63f9c3cbd7ec"
+    "mtime": 1784784667.5840273,
+    "ast_hash": "b674586df0452a35ddeb6a0ec651c4f3",
+    "semantic_hash": ""
   },
   "Assets/Scripts/Sim/ScrimmageArena.cs": {
     "mtime": 1784598680.3236232,
@@ -527,6 +527,16 @@
   "Assets/Scripts/Play/HairSim.cs": {
     "mtime": 1784782832.3218558,
     "ast_hash": "5fd4179387b71a8255c698ce554d38bc",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Hair/HairAtlas-License.txt": {
+    "mtime": 1784785502.8474455,
+    "ast_hash": "28da04bdb0d182b4155f3c15c1023862",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Hair/HairAtlas.png": {
+    "mtime": 1784785513.3141205,
+    "ast_hash": "a828f2c2b7926df90f0c472affeec564",
     "semantic_hash": ""
   }
 }

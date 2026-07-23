@@ -102,7 +102,7 @@ namespace Trickshot
             _manualPending = false;
             _swing = 0f;
             JustServed = false;
-            _reticle.Hide();
+            if (_reticle != null) _reticle.Hide();
             _ball.ResetTo(Origin);
         }
 
@@ -133,7 +133,7 @@ namespace Trickshot
             if (!_telegraphed && _timer <= SimConfig.CrosserWindupTime)
             {
                 if (AutoServe && !_manualPending) PickServe();
-                _reticle.Show(_pendingTarget);
+                if (_reticle != null) _reticle.Show(_pendingTarget);
                 _telegraphed = true;
             }
 
@@ -247,7 +247,7 @@ namespace Trickshot
         {
             _ball.ResetTo(Origin);
             _ball.LaunchTo(_pendingTarget, _pendingTime, _pendingCurl, _pendingSpin);
-            _reticle.Hide();
+            if (_reticle != null) _reticle.Hide();
             _swing = 1f;         // held on the follow-through a moment
             JustServed = true;
         }

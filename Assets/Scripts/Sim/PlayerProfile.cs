@@ -71,12 +71,15 @@ namespace Trickshot
         public static float MassMul => Weight / DefaultWeight;
 
         // ---- Body baselines (1.0 = default build), from height/weight only ----
-        static float BodyMove   => Mathf.Clamp(1f + (0.5f - WeightT) * 0.30f + (0.5f - HeightT) * 0.10f, 0.75f, 1.25f);
-        static float BodySprint => Mathf.Clamp(1f + (0.5f - WeightT) * 0.40f + (0.5f - HeightT) * 0.12f, 0.7f, 1.3f);
+        // Every base stat is scaled down 15% (BaseStatScale) EXCEPT jump height, which keeps its
+        // full baseline. Applied OUTSIDE the clamp so the whole band shifts down uniformly.
+        const float BaseStatScale = 0.85f;   // -15% to every base stat except jump height
+        static float BodyMove   => BaseStatScale * Mathf.Clamp(1f + (0.5f - WeightT) * 0.30f + (0.5f - HeightT) * 0.10f, 0.75f, 1.25f);
+        static float BodySprint => BaseStatScale * Mathf.Clamp(1f + (0.5f - WeightT) * 0.40f + (0.5f - HeightT) * 0.12f, 0.7f, 1.3f);
         static float BodyJump   => Mathf.Clamp(1f + (0.5f - WeightT) * 0.45f + (0.5f - HeightT) * 0.18f, 0.65f, 1.35f);
-        static float BodyShot   => Mathf.Clamp(1f + (WeightT - 0.5f) * 0.45f + (HeightT - 0.5f) * 0.15f, 0.75f, 1.35f);
-        static float BodyPush   => Mathf.Clamp(1f + (WeightT - 0.5f) * 0.6f  + (HeightT - 0.5f) * 0.2f,  0.7f, 1.5f);
-        static float BodyReach  => Mathf.Clamp(1f + (HeightT - 0.5f) * 0.35f, 0.85f, 1.2f);
+        static float BodyShot   => BaseStatScale * Mathf.Clamp(1f + (WeightT - 0.5f) * 0.45f + (HeightT - 0.5f) * 0.15f, 0.75f, 1.35f);
+        static float BodyPush   => BaseStatScale * Mathf.Clamp(1f + (WeightT - 0.5f) * 0.6f  + (HeightT - 0.5f) * 0.2f,  0.7f, 1.5f);
+        static float BodyReach  => BaseStatScale * Mathf.Clamp(1f + (HeightT - 0.5f) * 0.35f, 0.85f, 1.2f);
 
         // ---- Final TRAIT multipliers = body baseline * skill-tree bonus (STACKED). ----
         public static float MoveSpeedMul   => BodyMove   * SkillTree.Mul("move");
