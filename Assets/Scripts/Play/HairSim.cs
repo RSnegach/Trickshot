@@ -3,25 +3,28 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Soft, dynamic hair built the same way the goal net is (FlexNet): a Verlet-integrated
-    /// mass-spring system drawn as a LINE mesh, not rigid primitives. Where the net is a pinned
-    /// grid that springs back to a flat rest, hair is a set of STRANDS each pinned only at its
-    /// ROOT on the scalp; the rest of every strand falls under gravity, swings when the head
-    /// moves, collides off the head sphere, and (per style) is pulled toward a "styled" rest
-    /// shape by a stiffness spring. So a mohawk holds up but wobbles, a ponytail sways, and long
-    /// hair drapes and flows.
+    /// Soft, dynamic hair: a Verlet strand simulation (same model as the goal net's FlexNet)
+    /// rendered as textured HAIR CARDS. Each strand is a chain pinned only at its ROOT on the
+    /// scalp; the rest falls under gravity, swings when the head moves, collides off the head
+    /// sphere, and (per style) is pulled toward a "styled" rest shape by a stiffness spring. So a
+    /// mohawk holds up but wobbles, a ponytail sways, and long hair drapes.
     ///
-    /// Purely cosmetic: like the other head cosmetics it never gets a collider and never touches
-    /// the ball. Runs locally on EVERY body that has it (local player, remote MP puppets, and the
-    /// customize preview), so in multiplayer every player sees every other player's hair move -
-    /// the hair STYLE + COLOUR already ride the networked PlayerAppearance, and each machine sims
-    /// the swing itself (no per-node sync needed, exactly like each peer runs its own net).
+    /// RENDER: instead of drawing each strand as a line, every strand is a flat QUAD RIBBON (a
+    /// strip of quads down the strand, 2 verts per node) UV-mapped to one vertical strip of a
+    /// shared grayscale hair atlas. An alpha-cutout shader (Trickshot/HairCard) clips the gaps
+    /// between the painted strands, so the wispy strand detail comes from the TEXTURE, not from
+    /// thousands of line segments - the standard low-cost "hair cards" approach. The card faces
+    /// outward from the head so it reads from outside; its width is def.thickness.
     ///
-    /// Node coordinates: the component GameObject is a child of the head bone at identity, so the
-    /// mesh is authored in HEAD-LOCAL space (+Y up, +Z faces the front of the face, +X to the
-    /// side), matching the rest of Cosmetics. The Verlet integration itself runs in WORLD space
-    /// (gravity is world-down and must survive the head turning), and positions are converted back
-    /// to head-local when writing the mesh.
+    /// Purely cosmetic: never gets a collider, never touches the ball. Runs locally on EVERY body
+    /// that has it (local player, remote MP puppets, customize preview), so in multiplayer everyone
+    /// sees everyone's hair move - style + colour ride the networked PlayerAppearance and each
+    /// machine sims the swing itself (no per-node sync).
+    ///
+    /// The component GameObject is a child of the head bone at identity, so the mesh is authored in
+    /// HEAD-LOCAL space (+Y up, +Z front, +X side). Verlet integration runs in WORLD space (gravity
+    /// is world-down and must survive the head turning); positions convert back to head-local for
+    /// the mesh.
     /// </summary>
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
@@ -32,46 +35,59 @@ namespace Trickshot
         public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring }
 
         // A hair style as data (no per-primitive authoring). AttachAppearance builds a HairSim from
-        // one of these; the catalog in Cosmetics is now just a list of these defs.
+        // one of these; the catalog in Cosmetics is just a list of these defs.
         public struct HairDef
         {
             public RootMode root;
-            public int strands;        // strand count (cost knob; keep modest, sims on every body)
+            public int strands;        // CARD count (each card is a clump; keep low - tens, not hundreds)
             public int nodes;          // nodes per strand (>=2); more = smoother drape, more cost
             public float length;       // total strand length in metres
             public float stiffness;    // 0 = floppy free hang .. 1 = strongly holds the styled shape
             public Vector3 flow;       // styled direction a strand grows toward (local); (0,-1,0)=hang, (0,1,0)=up
             public float curl;         // sideways wobble amplitude down the strand (wavy/curly), metres
-            public float jitter;       // per-strand random angular spread so strands don't overlap exactly
-            public float thickness;    // outward offset of the root off the scalp (visual volume), metres
+            public float jitter;       // per-strand random angular spread so cards don't overlap exactly
+            public float thickness;    // CARD WIDTH in metres (a card is a clump, so this is wide)
         }
+
+        // Vertical strips in Resources/Hair/HairAtlas.png (detected from the source art: 4 hair
+        // clumps side by side, each a full-height strand strip). U bounds are normalized; a card is
+        // UV'd to one of these. The atlas has ROOTS at the BOTTOM (low V) and TIPS at the TOP.
+        static readonly Vector2[] AtlasStripsU =
+        {
+            new Vector2(0.021f, 0.240f),
+            new Vector2(0.291f, 0.482f),
+            new Vector2(0.536f, 0.724f),
+            new Vector2(0.794f, 0.980f),
+        };
+        const float AtlasVRoot = 0.10f;   // V at the strand root (bottom of the atlas strip)
+        const float AtlasVTip  = 0.92f;   // V at the strand tip (top of the atlas strip)
 
         // Nominal head radius (matches Cosmetics.HeadR) for root placement + collision.
         const float HeadR = 0.19f;
 
         Transform _head;
         int _perStrand;                 // nodes per strand
-        int _strandCount;
+        int _strandCount;               // card count
 
         Vector3[] _restLocal;           // styled rest position of every PHYSICS node, head-local (stiffness target)
         Vector3[] _pos;                 // live physics-node positions, WORLD space
         Vector3[] _prev;                // previous world positions (Verlet)
         bool[] _rootNode;               // true for the pinned root node of each strand
         float _segLen;                  // rest length between consecutive nodes on a strand
-        int[] _lineIdx;                 // line-mesh indices (segments along each sub-line)
+        float _cardHalf;                // half the card width (metres)
 
-        int _lines;                     // sub-lines drawn per physics strand (visual thickness ring)
-        float _bundleR;                 // ring radius of the sub-line bundle (metres)
         Vector3[] _simLocal;            // scratch: physics nodes converted to head-local this tick
 
         Mesh _mesh;
-        Vector3[] _localScratch;        // reused mesh-vertex buffer (_lines per physics node)
-        Vector3[] _normScratch;         // reused mesh-NORMAL buffer: per-vertex STRAND TANGENT (the
-                                        // hair shader lights off this, not a surface normal)
-        Vector2[] _uv;                  // static per-vertex uv.x = root(0)->tip(1) factor (set once)
+        Vector3[] _vtx;                 // mesh vertices: 2 (left/right edge) per physics node
+        Vector3[] _norm;                // mesh normals: strand TANGENT per vert (Kajiya-Kay shading)
+        Vector2[] _uvAtlas;             // static atlas UV per vert (strip U, root->tip V)
+        Vector2[] _uvRootTip;           // static uv2.x = root(0)->tip(1) per vert
+        int[] _tris;                    // triangle indices (two tris per strand segment)
 
-        // Deterministic per-instance RNG seed so a rebuilt preview looks identical run to run
-        // (Random.* is banned in some hosts; use a tiny LCG seeded from the def instead).
+        float _stiffness;
+
+        // Deterministic per-instance RNG (Random.* is banned in some hosts; tiny LCG seeded from def).
         uint _rng;
         float Rand01() { _rng = _rng * 1664525u + 1013904223u; return (_rng >> 8) * (1f / 16777216f); }
         float RandSym() => Rand01() * 2f - 1f;
@@ -82,74 +98,75 @@ namespace Trickshot
             _strandCount = Mathf.Max(1, def.strands);
             _perStrand = Mathf.Max(2, def.nodes);
             _segLen = def.length / (_perStrand - 1);
+            _cardHalf = Mathf.Max(0.001f, def.thickness) * 0.5f;
             _rng = 2166136261u ^ (uint)(def.strands * 73856093) ^ (uint)((int)(def.length * 1000f) * 19349663)
                    ^ (uint)((int)def.root * 83492791);
 
-            // PHYSICS nodes: one Verlet node per (strand, node-along). These are what the sim
-            // integrates; their count (strands x nodes) is the whole cost, so keep it modest.
+            // PHYSICS nodes: one Verlet node per (strand, node-along). Cost is strands x nodes.
             int n = _strandCount * _perStrand;
             _restLocal = new Vector3[n];
             _pos = new Vector3[n];
             _prev = new Vector3[n];
             _rootNode = new bool[n];
+            _simLocal = new Vector3[n];
 
-            // RENDER thickness: each physics strand is drawn as _lines parallel sub-lines fanned in
-            // a ring around the strand axis, so a strand reads as a lock/rope with visible width
-            // rather than a 1px wire. Only the physics nodes are simulated + matrix-transformed; the
-            // ring copies are cheap offsets built in WriteLocalVerts, so thickness barely adds cost.
-            _lines = Mathf.Max(1, SimConfig.HairStrandLines);
-            _bundleR = def.thickness;
-            _simLocal = new Vector3[n];                 // scratch: physics nodes in head-local space
-            _localScratch = new Vector3[n * _lines];    // mesh verts: _lines per physics node
-            _normScratch = new Vector3[n * _lines];     // mesh normals: strand tangent per vert
-            _uv = new Vector2[n * _lines];              // uv.x = root->tip factor per vert (static)
+            // Mesh: 2 verts (left/right ribbon edge) per physics node.
+            int vcount = n * 2;
+            _vtx = new Vector3[vcount];
+            _norm = new Vector3[vcount];
+            _uvAtlas = new Vector2[vcount];
+            _uvRootTip = new Vector2[vcount];
 
             Vector3 flow = def.flow.sqrMagnitude > 1e-4f ? def.flow.normalized : Vector3.down;
 
-            // Line segments connect consecutive nodes WITHIN each sub-line of each strand.
-            var idx = new System.Collections.Generic.List<int>(n * _lines * 2);
+            var tris = new System.Collections.Generic.List<int>(_strandCount * (_perStrand - 1) * 6);
             for (int s = 0; s < _strandCount; s++)
             {
                 float t = _strandCount > 1 ? s / (float)(_strandCount - 1) : 0.5f;
                 Vector3 rootDir = RootDir(def.root, t);              // unit dir from head centre to the scalp root
-                Vector3 rootPos = rootDir * (HeadR + def.thickness); // sit a touch proud of the scalp
+                Vector3 rootPos = rootDir * (HeadR + 0.01f);         // sit a touch proud of the scalp
 
-                // Per-strand growth direction: the styled flow, blended a little toward "straight out
-                // of the scalp" near stiff styles, plus a jittered tilt so strands fan out.
                 Vector3 growth = Vector3.Slerp(flow, rootDir, 0.25f).normalized;
                 Vector3 tilt = new Vector3(RandSym(), RandSym(), RandSym()) * def.jitter;
                 growth = (growth + tilt).normalized;
 
-                // A sideways axis for the curl wobble (perpendicular to growth).
                 Vector3 side = Vector3.Cross(growth, Vector3.up);
                 if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(growth, Vector3.forward);
                 side.Normalize();
+
+                // Assign this card an atlas strip (cycled so all 4 clumps get used across the head).
+                Vector2 stripU = AtlasStripsU[s % AtlasStripsU.Length];
 
                 int baseIdx = s * _perStrand;
                 for (int k = 0; k < _perStrand; k++)
                 {
                     float along = k * _segLen;
-                    float u = _perStrand > 1 ? k / (float)(_perStrand - 1) : 0f;
-                    // Curl grows toward the tip so roots stay tidy and ends wave.
+                    float u = _perStrand > 1 ? k / (float)(_perStrand - 1) : 0f;   // 0 root .. 1 tip
                     Vector3 wob = side * (Mathf.Sin(u * Mathf.PI * 3f) * def.curl * u);
                     Vector3 local = rootPos + growth * along + wob;
                     int p = baseIdx + k;               // physics node index
                     _restLocal[p] = local;
                     _rootNode[p] = (k == 0);
-                    // Static root->tip factor for every sub-line vert of this node (shader roots).
-                    for (int L = 0; L < _lines; L++) _uv[p * _lines + L] = new Vector2(u, 0f);
+
+                    // Two mesh verts per node (left = strip's u0 edge, right = u1 edge). Positions
+                    // are filled each tick in WriteVerts; UVs are static and set once here.
+                    int vL = p * 2, vR = p * 2 + 1;
+                    float vv = Mathf.Lerp(AtlasVRoot, AtlasVTip, u);
+                    _uvAtlas[vL] = new Vector2(stripU.x, vv);
+                    _uvAtlas[vR] = new Vector2(stripU.y, vv);
+                    _uvRootTip[vL] = new Vector2(u, 0f);
+                    _uvRootTip[vR] = new Vector2(u, 0f);
+
                     if (k < _perStrand - 1)
                     {
-                        int pNext = p + 1;
-                        for (int L = 0; L < _lines; L++)
-                        {
-                            idx.Add(p * _lines + L);
-                            idx.Add(pNext * _lines + L);
-                        }
+                        int nL = vL + 2, nR = vR + 2;   // next node's verts
+                        // Two triangles for the quad (vL,vR,nL,nR). Cull Off, so winding is moot.
+                        tris.Add(vL); tris.Add(nL); tris.Add(vR);
+                        tris.Add(vR); tris.Add(nL); tris.Add(nR);
                     }
                 }
             }
-            _lineIdx = idx.ToArray();
+            _tris = tris.ToArray();
 
             // Seed physics-node world positions from the rest pose under the head's current transform.
             for (int i = 0; i < n; i++)
@@ -158,11 +175,12 @@ namespace Trickshot
                 _pos[i] = w; _prev[i] = w;
             }
 
-            _mesh = new Mesh { name = "HairMesh" };
+            _mesh = new Mesh { name = "HairCardMesh" };
             _mesh.MarkDynamic();
-            WriteLocalVerts(_head.worldToLocalMatrix);   // fills vertices + tangent normals
-            _mesh.uv = _uv;                              // static root->tip factor (set once)
-            _mesh.SetIndices(_lineIdx, MeshTopology.Lines, 0);
+            WriteVerts(_head.worldToLocalMatrix);        // fills vertices + tangent normals
+            _mesh.uv = _uvAtlas;                         // static atlas UV (set once)
+            _mesh.uv2 = _uvRootTip;                      // static root->tip factor (set once)
+            _mesh.triangles = _tris;
             _mesh.RecalculateBounds();
 
             GetComponent<MeshFilter>().sharedMesh = _mesh;
@@ -173,8 +191,6 @@ namespace Trickshot
 
             _stiffness = Mathf.Clamp01(def.stiffness);
         }
-
-        float _stiffness;
 
         // Unit direction from head centre to a strand's scalp root, for parameter t in [0,1].
         Vector3 RootDir(RootMode mode, float t)
@@ -194,7 +210,7 @@ namespace Trickshot
                     theta = Mathf.PI + RandSym() * 0.5f;
                     break;
                 case RootMode.Strip:
-                    // A front-to-back midline strip over the crown (mohawk / faux hawk).
+                    // A front-to-back midline strip over the crown (mohawk).
                     float a = Mathf.Lerp(-1.15f, 1.15f, t);   // arc angle over the top in the Z plane
                     return new Vector3(RandSym() * 0.05f, Mathf.Cos(a), Mathf.Sin(a)).normalized;
                 case RootMode.Ring:
@@ -221,10 +237,8 @@ namespace Trickshot
             float gStep = g * dt * dt;
 
             // Cache the head's transform matrices ONCE per tick and transform points inline with
-            // MultiplyPoint3x4, instead of calling Transform.TransformPoint / InverseTransformPoint
-            // per node. Those are native-interop calls and, at ~700 strands x up to 5 nodes across
-            // ~10 bodies, they were the whole cost of the sim. The matrices are constant across all
-            // this body's nodes this tick, so this is exact, not an approximation.
+            // MultiplyPoint3x4, instead of per-node TransformPoint / InverseTransformPoint native
+            // calls. The matrices are constant across this body's nodes this tick, so it's exact.
             Matrix4x4 l2w = _head.localToWorldMatrix;
             Matrix4x4 w2l = _head.worldToLocalMatrix;
 
@@ -277,19 +291,18 @@ namespace Trickshot
                 if (m < rad && m > 1e-4f) _pos[i] = centre + d * (rad / m);
             }
 
-            WriteLocalVerts(w2l);
+            WriteVerts(w2l);
             _mesh.RecalculateBounds();
         }
 
-        // Build the mesh verts + tangent normals from the physics nodes.
+        // Build the card ribbon verts + tangent normals from the physics nodes.
         //   1) convert each physics node world->local once (tick-cached matrix, MultiplyPoint3x4);
-        //   2) per node compute the STRAND AXIS (tangent), then fan the node into a ring of _lines
-        //      verts offset perpendicular to that axis by _bundleR, so a strand renders as a
-        //      lock/rope with width instead of a 1px wire.
-        // The axis is also written into mesh.normals for EVERY vert: the hair shader (Kajiya-Kay)
-        // lights strands from this tangent, not a surface normal. All pure vector math (no native
-        // calls beyond the one matrix multiply per node), so thickness + shading are near-free.
-        void WriteLocalVerts(Matrix4x4 w2l)
+        //   2) per node compute the STRAND AXIS (tangent) and an OUTWARD direction (away from the
+        //      head centre), then place the two ribbon-edge verts offset sideways = axis x outward,
+        //      by _cardHalf. So the flat card faces outward from the head (visible from outside) and
+        //      its width direction stays perpendicular to the strand as it bends.
+        // The axis goes into mesh.normals for both verts: the hair shader lights from this tangent.
+        void WriteVerts(Matrix4x4 w2l)
         {
             for (int i = 0; i < _pos.Length; i++)
                 _simLocal[i] = w2l.MultiplyPoint3x4(_pos[i]);
@@ -301,38 +314,30 @@ namespace Trickshot
                 {
                     int p = b0 + k;
                     Vector3 pos = _simLocal[p];
-                    // Strand axis (tangent) at this node: toward the next node, or from the previous
-                    // at the tip. This is the direction the hair shader lights from.
+                    // Strand axis (tangent): toward the next node, or from the previous at the tip.
                     Vector3 axis = (k < _perStrand - 1) ? _simLocal[p + 1] - pos : pos - _simLocal[p - 1];
                     if (axis.sqrMagnitude < 1e-8f) axis = Vector3.up;
                     axis.Normalize();
+                    // Outward from the head centre (head-local centre is ~origin at head height; the
+                    // component sits at the head, so head-local origin is the head centre).
+                    Vector3 outward = pos;
+                    if (outward.sqrMagnitude < 1e-6f) outward = Vector3.forward;
+                    outward.Normalize();
+                    // Card width direction: perpendicular to both the strand and outward, so the flat
+                    // of the card faces outward.
+                    Vector3 wdir = Vector3.Cross(axis, outward);
+                    if (wdir.sqrMagnitude < 1e-6f) wdir = Vector3.Cross(axis, Vector3.up);
+                    wdir.Normalize();
 
-                    if (_lines <= 1 || _bundleR <= 1e-5f)
-                    {
-                        // Single-wire: mesh vert == physics node; tangent is the axis.
-                        _localScratch[p] = pos;
-                        _normScratch[p] = axis;
-                        continue;
-                    }
-
-                    // Two perpendiculars to fan the ring around the axis (so the bundle has width
-                    // from every view angle, never collapsing edge-on).
-                    Vector3 perp0 = Vector3.Cross(axis, Vector3.up);
-                    if (perp0.sqrMagnitude < 1e-6f) perp0 = Vector3.Cross(axis, Vector3.forward);
-                    perp0.Normalize();
-                    Vector3 perp1 = Vector3.Cross(axis, perp0);
-                    int outBase = p * _lines;
-                    for (int L = 0; L < _lines; L++)
-                    {
-                        float ang = (Mathf.PI * 2f) * L / _lines;
-                        Vector3 off = (perp0 * Mathf.Cos(ang) + perp1 * Mathf.Sin(ang)) * _bundleR;
-                        _localScratch[outBase + L] = pos + off;
-                        _normScratch[outBase + L] = axis;   // shader tangent, shared across the ring
-                    }
+                    int vL = p * 2, vR = p * 2 + 1;
+                    _vtx[vL] = pos - wdir * _cardHalf;
+                    _vtx[vR] = pos + wdir * _cardHalf;
+                    _norm[vL] = axis;
+                    _norm[vR] = axis;
                 }
             }
-            _mesh.vertices = _localScratch;
-            _mesh.normals = _normScratch;
+            _mesh.vertices = _vtx;
+            _mesh.normals = _norm;
         }
 
         // A runtime-generated mesh is not freed by destroying the GameObject, and the customize
