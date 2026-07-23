@@ -250,6 +250,11 @@ namespace Trickshot
             new HairEntry { Name = "Dreadlocks", Group = HairGroup.Long, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.Crown, strands = 34, nodes = 7, length = 0.4f,
                 stiffness = 0.5f, flow = new Vector3(0f, -0.9f, -0.2f), curl = 0.008f, jitter = 0.3f, thickness = 0.02f } },
+            // Dreads: fuller + longer than Dreadlocks. More locks all around the head, thicker
+            // and heavier so they hang straighter and sway as a curtain of ropes.
+            new HairEntry { Name = "Dreads", Group = HairGroup.Long, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 60, nodes = 9, length = 0.55f,
+                stiffness = 0.35f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.006f, jitter = 0.45f, thickness = 0.03f } },
             new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.SidesBack, strands = 80, nodes = 6, length = 0.34f,
                 stiffness = 0.2f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.02f, jitter = 0.15f, thickness = 0.015f } },
