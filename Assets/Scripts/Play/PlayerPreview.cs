@@ -123,10 +123,15 @@ namespace Trickshot
             _ragdoll.BuildScaled(Stage, facing, torso, limbs,
                                  PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
                                  withGloves: false, appearance: PlayerProfile.Appearance);
-            // Hold it upright and still (a calm mannequin, not a live ragdoll).
-            _ragdoll.UprightLock = true;
-            _ragdoll.BalanceEnabled = false;
-            _ragdoll.LocomotionEnabled = false;
+            // A calm mannequin: make it a KINEMATIC display body and pose it by transform every
+            // frame (DisplaySnap), instead of a live dynamic ragdoll. This kills two preview bugs:
+            //   - the respawn JERK/DRIFT (a dynamic body settles under gravity/joints and, with a
+            //     fixed camera, slides out of frame - UprightLock only froze rotation, not position);
+            //   - torso/pelvis TWISTING APART on a fast drag (a joint-driven torso lags the pelvis
+            //     yaw). Kinematic bones don't fall and have no joint spring, so the body stays rigid
+            //     and pinned exactly at Stage. The loose jointed body is still used in gameplay.
+            _ragdoll.BecomeDisplayBody();
+            _ragdoll.DisplaySnap(Stage, facing);
         }
 
         void LateUpdate()
@@ -149,9 +154,10 @@ namespace Trickshot
             // the camera means the view can never drift or misalign over many/sharp drags.
             if (AutoRotate) _yaw += Time.unscaledDeltaTime * 35f;
 
-            // Drive the (upright-locked) model to the target facing. UprightLock yaws the pelvis
-            // toward FacingRotation and kills any spin, so it turns cleanly in place.
-            if (_ragdoll != null) _ragdoll.FacingRotation = ModelFacing();
+            // Pose the KINEMATIC display body rigidly at the fixed Stage with the current facing.
+            // Snapping every bone by transform (no physics, no joint spring) keeps it pinned in
+            // frame and keeps the torso/pelvis locked together no matter how fast the drag turns.
+            if (_ragdoll != null) _ragdoll.DisplaySnap(Stage, ModelFacing());
 
             // Fixed front camera: parked on -Z looking at the model's mid-height, never orbits.
             Vector3 pivot = Stage + new Vector3(0f, 1.0f * PlayerProfile.HeightScale, 0f);
