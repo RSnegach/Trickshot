@@ -420,8 +420,8 @@
     "semantic_hash": "ad7b60e13e611e8b043df0070aad3e3a"
   },
   "Assets/Scripts/Sim/Cosmetics.cs": {
-    "mtime": 1784780765.8024583,
-    "ast_hash": "8a9e6e99ffc7c7cdf584f323ae91f8e2",
+    "mtime": 1784781089.7609975,
+    "ast_hash": "797ab087b25ab8eba1d414f707456a17",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
@@ -527,11 +527,6 @@
   "Assets/Scripts/Play/HairSim.cs": {
     "mtime": 1784780727.672091,
     "ast_hash": "dafef8675e93b1d1f502c3db2d028fbd",
-    "semantic_hash": ""
-  },
-  "hair_catalog_block.txt": {
-    "mtime": 1784780841.4936812,
-    "ast_hash": "ebc37646280488ee51ef07f8b9e4463a",
     "semantic_hash": ""
   }
 }
