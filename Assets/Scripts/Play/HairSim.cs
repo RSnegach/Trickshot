@@ -66,6 +66,9 @@ namespace Trickshot
 
         Mesh _mesh;
         Vector3[] _localScratch;        // reused mesh-vertex buffer (_lines per physics node)
+        Vector3[] _normScratch;         // reused mesh-NORMAL buffer: per-vertex STRAND TANGENT (the
+                                        // hair shader lights off this, not a surface normal)
+        Vector2[] _uv;                  // static per-vertex uv.x = root(0)->tip(1) factor (set once)
 
         // Deterministic per-instance RNG seed so a rebuilt preview looks identical run to run
         // (Random.* is banned in some hosts; use a tiny LCG seeded from the def instead).
@@ -98,6 +101,8 @@ namespace Trickshot
             _bundleR = def.thickness;
             _simLocal = new Vector3[n];                 // scratch: physics nodes in head-local space
             _localScratch = new Vector3[n * _lines];    // mesh verts: _lines per physics node
+            _normScratch = new Vector3[n * _lines];     // mesh normals: strand tangent per vert
+            _uv = new Vector2[n * _lines];              // uv.x = root->tip factor per vert (static)
 
             Vector3 flow = def.flow.sqrMagnitude > 1e-4f ? def.flow.normalized : Vector3.down;
 
@@ -131,6 +136,8 @@ namespace Trickshot
                     int p = baseIdx + k;               // physics node index
                     _restLocal[p] = local;
                     _rootNode[p] = (k == 0);
+                    // Static root->tip factor for every sub-line vert of this node (shader roots).
+                    for (int L = 0; L < _lines; L++) _uv[p * _lines + L] = new Vector2(u, 0f);
                     if (k < _perStrand - 1)
                     {
                         int pNext = p + 1;
@@ -153,7 +160,8 @@ namespace Trickshot
 
             _mesh = new Mesh { name = "HairMesh" };
             _mesh.MarkDynamic();
-            WriteLocalVerts(_head.worldToLocalMatrix);
+            WriteLocalVerts(_head.worldToLocalMatrix);   // fills vertices + tangent normals
+            _mesh.uv = _uv;                              // static root->tip factor (set once)
             _mesh.SetIndices(_lineIdx, MeshTopology.Lines, 0);
             _mesh.RecalculateBounds();
 
@@ -273,23 +281,18 @@ namespace Trickshot
             _mesh.RecalculateBounds();
         }
 
-        // Build the mesh verts from the physics nodes. Two passes:
+        // Build the mesh verts + tangent normals from the physics nodes.
         //   1) convert each physics node world->local once (tick-cached matrix, MultiplyPoint3x4);
-        //   2) fan each node into a ring of _lines verts, offset perpendicular to the strand axis
-        //      by _bundleR, so a strand renders as a lock/rope with width instead of a 1px wire.
-        // Pass 2 is pure vector math (no native calls), so thickness is nearly free.
+        //   2) per node compute the STRAND AXIS (tangent), then fan the node into a ring of _lines
+        //      verts offset perpendicular to that axis by _bundleR, so a strand renders as a
+        //      lock/rope with width instead of a 1px wire.
+        // The axis is also written into mesh.normals for EVERY vert: the hair shader (Kajiya-Kay)
+        // lights strands from this tangent, not a surface normal. All pure vector math (no native
+        // calls beyond the one matrix multiply per node), so thickness + shading are near-free.
         void WriteLocalVerts(Matrix4x4 w2l)
         {
             for (int i = 0; i < _pos.Length; i++)
                 _simLocal[i] = w2l.MultiplyPoint3x4(_pos[i]);
-
-            if (_lines <= 1 || _bundleR <= 1e-5f)
-            {
-                // Single-wire fast path: mesh vert == physics node.
-                for (int i = 0; i < _simLocal.Length; i++) _localScratch[i] = _simLocal[i];
-                _mesh.vertices = _localScratch;
-                return;
-            }
 
             for (int s = 0; s < _strandCount; s++)
             {
@@ -298,10 +301,20 @@ namespace Trickshot
                 {
                     int p = b0 + k;
                     Vector3 pos = _simLocal[p];
-                    // Strand axis at this node (toward the next node, or from the previous at the tip).
+                    // Strand axis (tangent) at this node: toward the next node, or from the previous
+                    // at the tip. This is the direction the hair shader lights from.
                     Vector3 axis = (k < _perStrand - 1) ? _simLocal[p + 1] - pos : pos - _simLocal[p - 1];
                     if (axis.sqrMagnitude < 1e-8f) axis = Vector3.up;
                     axis.Normalize();
+
+                    if (_lines <= 1 || _bundleR <= 1e-5f)
+                    {
+                        // Single-wire: mesh vert == physics node; tangent is the axis.
+                        _localScratch[p] = pos;
+                        _normScratch[p] = axis;
+                        continue;
+                    }
+
                     // Two perpendiculars to fan the ring around the axis (so the bundle has width
                     // from every view angle, never collapsing edge-on).
                     Vector3 perp0 = Vector3.Cross(axis, Vector3.up);
@@ -314,10 +327,12 @@ namespace Trickshot
                         float ang = (Mathf.PI * 2f) * L / _lines;
                         Vector3 off = (perp0 * Mathf.Cos(ang) + perp1 * Mathf.Sin(ang)) * _bundleR;
                         _localScratch[outBase + L] = pos + off;
+                        _normScratch[outBase + L] = axis;   // shader tangent, shared across the ring
                     }
                 }
             }
             _mesh.vertices = _localScratch;
+            _mesh.normals = _normScratch;
         }
 
         // A runtime-generated mesh is not freed by destroying the GameObject, and the customize
