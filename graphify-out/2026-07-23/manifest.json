@@ -420,8 +420,8 @@
     "semantic_hash": "ad7b60e13e611e8b043df0070aad3e3a"
   },
   "Assets/Scripts/Sim/Cosmetics.cs": {
-    "mtime": 1784817864.7175267,
-    "ast_hash": "56d9482ab5c4ebba885f6c0f934f69af",
+    "mtime": 1784817893.3774714,
+    "ast_hash": "574bd1951ae655e4e4545ec11934662e",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {

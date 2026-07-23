@@ -480,9 +480,9 @@
     "semantic_hash": "66bfaf0aa078308d7a2ab1d9f1b4b6eb"
   },
   "Packages/manifest.json": {
-    "mtime": 1784248587.4424963,
-    "ast_hash": "4cd9ab1a655163c401d5fa907da18636",
-    "semantic_hash": "4cd9ab1a655163c401d5fa907da18636"
+    "mtime": 1784818716.0034432,
+    "ast_hash": "a5136b25e62da2470bd413232b1d09a7",
+    "semantic_hash": ""
   },
   "Packages/packages-lock.json": {
     "mtime": 1784248624.2516952,
