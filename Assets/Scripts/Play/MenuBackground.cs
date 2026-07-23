@@ -33,9 +33,17 @@ namespace Trickshot
         // ---- Tuning (all local so the reel is easy to eyeball-adjust) ----
         const float KeeperAbilityLevel = 0.85f;  // high enough to reach fast shots and save a good share
         const float BallSpeedBoost     = 1.5f;   // multiplies launch speed (shortens flight) for punch
-        const float CrosserOutZ        = 11f;    // metres in front of goal the shooter stands
-        const float ReadyHold          = 1.4f;   // settle + framing pause before each serve
-        const float LiveDuration       = 2.6f;   // time a shot + save is allowed to play before reset
+        const float PlantOutZ          = 11f;    // metres in front of goal the shooter plants + strikes from
+        const float RunBackDist        = 5f;     // how far behind the plant spot the run-up starts
+        const float RunupSpeed         = 5.0f;   // jog-in speed (m/s)
+        const float PlantStopDist      = 0.35f;  // within this of the plant spot -> stop and swing
+        const float RunupTimeout       = 3.0f;   // safety: force the swing if the jog stalls
+        const float LiveDuration       = 2.9f;   // time a shot + save is allowed to play before reset
+        const float SlowMo             = 0.7f;   // global time scale while the reel plays (restored on teardown)
+        const float OrbitSpeed         = 22f;    // deg/sec the camera circles the action (full 360 loop)
+
+        // Cosmetic run gait, mirroring Footballer.RunGait (procedural leg + arm pump via pose overrides).
+        float _gaitPhase;
 
         Camera _cam;
         Light _light;
@@ -50,15 +58,20 @@ namespace Trickshot
         Vector3 _goalC;         // SimConfig.GoalCenter, cached
         Vector3 _keeperHome;    // where the keeper resets to between shots
         Vector3 _ballHome;      // where the ball sits before each swing (matches Crosser.SetOrigin)
+        Vector3 _plantSpot;     // where the shooter plants and strikes from (feet, y=0)
+        Vector3 _runStart;      // where the shooter begins the run-up (behind the plant spot)
+        Quaternion _shootFacing;// shooter facing toward goal (+Z)
         Vector3 _pivotSmooth;   // damped camera pivot
 
         float _clock;           // free-running unscaled seconds
         float _phaseT;          // seconds in the current phase
-        int _phase;             // 0 = ready (waiting to serve), 1 = live (shot + save playing)
+        int _phase;             // 0 = run-up (jog in + gait), 1 = live (swing + shot + save)
 
-        // Mutable SimConfig sliders we set for the reel and restore on teardown.
+        // Globals we set for the reel and restore on teardown so nothing leaks into a match.
         float _savedKeeperAbility;
         float _savedBallSpeedMul;
+        float _savedTimeScale;
+        float _savedFixedDt;
 
         public void Setup()
         {
@@ -70,6 +83,13 @@ namespace Trickshot
             _savedBallSpeedMul = SimConfig.BallSpeedMul;
             SimConfig.KeeperAbility = KeeperAbilityLevel;
             SimConfig.BallSpeedMul = BallSpeedBoost;
+
+            // Gentle slow-mo for the whole reel (the game slows replays the same way). Cache and
+            // restore synchronously on teardown so it can never leak into real gameplay.
+            _savedTimeScale = Time.timeScale;
+            _savedFixedDt = Time.fixedDeltaTime;
+            Time.timeScale = SlowMo;
+            Time.fixedDeltaTime = 0.02f * SlowMo;
 
             // Dedicated camera behind the menu (main camera is depth 0; IMGUI draws over both).
             var camGo = new GameObject("MenuBgCamera");
@@ -96,9 +116,8 @@ namespace Trickshot
             BuildScene();
             BuildActors();
 
-            // Start in the ready phase; the first serve fires after ReadyHold once bodies settle.
-            _phase = 0;
-            _phaseT = 0f;
+            // Start in the run-up phase: the shooter jogs in from _runStart, then plants and swings.
+            BeginRunup();
             _pivotSmooth = _goalC + new Vector3(0f, 1.2f, -4f);
         }
 
@@ -188,69 +207,124 @@ namespace Trickshot
             _keeper.Init(_keeperRag, _ball);
             _keeper.ResetTo(_keeperHome);
 
-            // AI shooter (Crosser: a live ragdoll that plays a run-up + swing and code-launches the
+            // AI shooter (Crosser: a live ragdoll that plays a cosmetic swing and code-launches the
             // ball at contact), same wiring as GameBootstrap.BuildCrosser but reticle-free and manual.
-            Vector3 crosserSpot = new Vector3(0f, 0f, _goalC.z - CrosserOutZ);
+            // We add a run-up in front of it: the body jogs from _runStart to _plantSpot under its own
+            // locomotion + a procedural gait, then the Crosser swing fires.
+            _plantSpot = new Vector3(0f, 0f, _goalC.z - PlantOutZ);
+            _runStart = _plantSpot - Vector3.forward * RunBackDist;   // start further from goal (-Z)
+            Vector3 toGoal = _goalC - _plantSpot; toGoal.y = 0f;
+            _shootFacing = Quaternion.LookRotation(toGoal.normalized, Vector3.up);
+
             var crosserGo = new GameObject("BgShooter");
             crosserGo.transform.SetParent(transform, true);
             _crosserRag = crosserGo.AddComponent<ActiveRagdoll>();
-            Vector3 toGoal = _goalC - crosserSpot; toGoal.y = 0f;
-            var cFacing = Quaternion.LookRotation(toGoal.normalized, Vector3.up);
-            _crosserRag.Build(crosserSpot, cFacing,
+            _crosserRag.Build(_runStart, _shootFacing,
                               M(new Color(0.15f, 0.32f, 0.6f)), M(new Color(0.12f, 0.26f, 0.5f)),
                               withGloves: false);
             _crosser = crosserGo.AddComponent<Crosser>();
-            var launch = Make.Empty("BgLaunch", crosserSpot + new Vector3(0f, 0.4f, 0.5f), crosserGo.transform).transform;
+            var launch = Make.Empty("BgLaunch", _plantSpot + new Vector3(0f, 0.4f, 0.5f), crosserGo.transform).transform;
             // Reticle-free (the null is now guarded inside Crosser), manual serve so WE time each shot.
             _crosser.Init(null, _ball, launch, _crosserRag);
             _crosser.AutoServe = false;
-            _crosser.SetOrigin(crosserSpot);            // stand facing goal, launch from ahead of the feet
-            _crosser.Arm(0f);                           // AutoServe false -> stays idle until ServeNow
 
-            // Ball home = where SetOrigin puts the launch point (spot + aimDir*0.7 + up*0.4), aimDir +Z.
-            _ballHome = crosserSpot + Vector3.forward * 0.7f + Vector3.up * 0.4f;
+            // Ball home = where SetOrigin (called at plant) puts the launch point:
+            // plantSpot + aimDir*0.7 + up*0.4, aimDir = +Z toward goal.
+            _ballHome = _plantSpot + Vector3.forward * 0.7f + Vector3.up * 0.4f;
             _ball.ResetTo(_ballHome);
         }
 
         void Update()
         {
             if (_cam == null) return;
-            float dt = Time.unscaledDeltaTime;
+            // Use SCALED delta so the whole reel (gait, timers, camera pacing) slows together with
+            // the physics under our SlowMo timeScale. Keeper always reads the ball and reacts.
+            float dt = Time.deltaTime;
             _clock += dt;
             _phaseT += dt;
 
-            // Drive the live AI every frame. The shooter idles until ServeNow; the keeper always
-            // reads the ball and reacts.
-            if (_crosser != null) _crosser.Tick();
             if (_keeper != null) _keeper.Tick();
-
-            RunServeCycle();
+            RunServeCycle(dt);
             DirectLive(dt);
         }
 
-        // Serve loop: wait, fire a powerful accurate shot, let the save play out, hard-reset, repeat.
-        void RunServeCycle()
+        // Phase machine: run in with a cosmetic gait, plant + swing + launch, let the save play, reset.
+        void RunServeCycle(float dt)
         {
-            if (_phase == 0)   // ready: bodies settling, framing the goal, about to serve
+            if (_phase == 0)   // RUN-UP: jog from _runStart toward the plant spot, legs pumping.
             {
-                if (_phaseT >= ReadyHold && _crosser != null && _crosser.ReadyToServe)
+                // NOTE: do NOT tick the Crosser here - Crosser.Tick calls ClearPoseOverrides every
+                // frame and would wipe the gait we set below. The Crosser stays idle until the swing.
+                Vector3 me = _crosserRag.Pelvis != null ? _crosserRag.Pelvis.position : _plantSpot;
+                Vector3 flat = new Vector3(me.x, 0f, me.z);
+                Vector3 to = _plantSpot - flat; to.y = 0f;
+                float dist = to.magnitude;
+                Vector3 dir = dist > 0.05f ? to / dist : Vector3.forward;
+
+                if (dist > PlantStopDist && _phaseT < RunupTimeout)
                 {
+                    // Steer + gait toward the plant spot (same idiom as SetPieceTaker.TickRunup).
+                    _crosserRag.UprightLock = true;
+                    _crosserRag.LocomotionEnabled = true;
+                    _crosserRag.MoveInput = dir * RunupSpeed;
+                    _crosserRag.FacingRotation = Quaternion.LookRotation(dir, Vector3.up);
+                    RunGait(1f);
+                }
+                else
+                {
+                    // Arrived: stop, clear the gait, hand off to the Crosser's cosmetic swing which
+                    // launches the ball at contact. Re-plant the launch origin at the exact stop spot.
+                    _crosserRag.MoveInput = Vector3.zero;
+                    _crosserRag.FacingRotation = _shootFacing;
+                    _crosserRag.ClearPoseOverrides();
+                    _gaitPhase = 0f;
+                    _crosser.SetOrigin(_plantSpot);
                     _ball.ResetTo(_ballHome);
-                    _crosser.ServeNow(PickShotTarget(), lofted: false, powerMul: 0f);  // driven flat + fast
+                    _crosser.Arm(0f);                                   // idle-armed (AutoServe false)
+                    _crosser.ServeNow(PickShotTarget(), lofted: false, powerMul: 0f); // driven flat + fast
                     _phase = 1;
                     _phaseT = 0f;
                 }
             }
-            else               // live: shot in flight, keeper diving; then reset for the next one
+            else               // LIVE: tick the Crosser (plays the swing + fires), keeper dives.
             {
+                if (_crosser != null) _crosser.Tick();
                 if (_phaseT >= LiveDuration)
                 {
                     if (_keeper != null) _keeper.ResetTo(_keeperHome);
                     _ball.ResetTo(_ballHome);
-                    _phase = 0;
-                    _phaseT = 0f;
+                    // Teleport the shooter back to the run-up start for the next repetition.
+                    _crosserRag.ResetTo(_runStart, _shootFacing);
+                    BeginRunup();
                 }
             }
+        }
+
+        void BeginRunup()
+        {
+            _phase = 0;
+            _phaseT = 0f;
+            _gaitPhase = 0f;
+        }
+
+        // Cosmetic alternating-leg run + arm pump (same shape as Footballer.RunGait), applied as
+        // pose overrides on top of the live locomotion so the legs visibly stride during the jog.
+        void RunGait(float amount)
+        {
+            if (_crosserRag == null) return;
+            _crosserRag.ClearPoseOverrides();
+            if (amount < 0.05f) { _gaitPhase = 0f; return; }
+            _gaitPhase += Time.deltaTime * SimConfig.StrideRateMax * amount;
+            float s = Mathf.Sin(_gaitPhase);
+            float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
+            _crosserRag.SetPoseOverride(Bone.ThighL, new Vector3(-s * SimConfig.GaitThighSwing - liftL * SimConfig.GaitThighLift, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.CalfL,  new Vector3(liftL * SimConfig.GaitKneeBend, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.ThighR, new Vector3(s * SimConfig.GaitThighSwing - liftR * SimConfig.GaitThighLift, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.CalfR,  new Vector3(liftR * SimConfig.GaitKneeBend, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.UpperArmR, new Vector3(s * SimConfig.ArmPumpSwing, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.ForearmR,  new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.UpperArmL, new Vector3(-s * SimConfig.ArmPumpSwing, 0f, 0f));
+            _crosserRag.SetPoseOverride(Bone.ForearmL,  new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
         }
 
         // A hard, accurate shot into a random spot inside the goal mouth (hunts both corners and
@@ -263,10 +337,10 @@ namespace Trickshot
             return new Vector3(tx, ty, _goalC.z);
         }
 
-        // ---- Camera: follow the live action. Orbit + LookAt like PlayerPreview, but the pivot
-        // tracks the ball and slides toward the keeper as the ball nears the line so saves are
-        // framed. Wide and damped so ragdoll scrappiness reads as live action. No GameCamera, no
-        // Time.timeScale. ----
+        // ---- Camera: a slow, continuous FULL 360 orbit around the live action. The pivot tracks
+        // the ball and slides toward the keeper as the ball nears the line so saves stay framed;
+        // the yaw circles all the way around at OrbitSpeed. Wide and damped so ragdoll scrappiness
+        // reads as live action. No GameCamera, no direct timeScale writes here. ----
         void DirectLive(float dt)
         {
             Vector3 ballPos = _ball != null ? _ball.transform.position : _goalC;
@@ -277,13 +351,14 @@ namespace Trickshot
             Vector3 pivotTarget = Vector3.Lerp(ballPos, keeperPos, nearLine) + new Vector3(0f, 1.0f, 0f);
             _pivotSmooth = Vector3.Lerp(_pivotSmooth, pivotTarget, 1f - Mathf.Exp(-dt * 4f));
 
-            float yaw = 62f + Mathf.Sin(_clock * 0.22f) * 12f;   // slow side-on drift, shows the dive
-            float pitch = 9f;
-            float dist = 11.5f;
+            // Full slow circle. _clock is scaled time, so the orbit slows with the reel.
+            float yaw = _clock * OrbitSpeed;
+            float pitch = 11f + Mathf.Sin(_clock * 0.15f) * 3f;   // gentle rise/fall as it circles
+            float dist = 12f;
 
-            // Subtle handheld drift so the frame feels alive (deterministic, unscaled-clock driven).
-            yaw += (Mathf.PerlinNoise(_clock * 0.6f, 0f) - 0.5f) * 1.6f;
-            pitch += (Mathf.PerlinNoise(0f, _clock * 0.6f) - 0.5f) * 1.0f;
+            // Subtle handheld drift so the frame feels alive.
+            yaw += (Mathf.PerlinNoise(_clock * 0.5f, 0f) - 0.5f) * 1.4f;
+            pitch += (Mathf.PerlinNoise(0f, _clock * 0.5f) - 0.5f) * 1.0f;
 
             Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
             _cam.transform.position = _pivotSmooth + rot * new Vector3(0f, 0f, -dist);
@@ -308,6 +383,11 @@ namespace Trickshot
             // Restore the SimConfig sliders we tuned for the reel so nothing leaks into a match.
             SimConfig.KeeperAbility = _savedKeeperAbility;
             SimConfig.BallSpeedMul = _savedBallSpeedMul;
+
+            // Restore time scale synchronously (BEFORE any match physics runs), mirroring how
+            // GameCamera.OnDisable resets it. Never leave the menu's slow-mo applied globally.
+            Time.timeScale = _savedTimeScale > 0f ? _savedTimeScale : 1f;
+            Time.fixedDeltaTime = _savedFixedDt > 0f ? _savedFixedDt : 0.02f;
 
             // Materials created here are not owned by any GameObject, so free them explicitly.
             for (int i = 0; i < _mats.Count; i++)

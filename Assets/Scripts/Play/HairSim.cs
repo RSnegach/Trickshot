@@ -233,7 +233,12 @@ namespace Trickshot
             float dt = Time.fixedDeltaTime;
             float g = SimConfig.HairGravity;
             float damp = SimConfig.HairDamping;
-            float stiffPull = Mathf.Clamp01(_stiffness * SimConfig.HairStiffnessK * dt);
+            // Pull toward the styled rest scales with stiffness SQUARED: this collapses the low
+            // end hard (a 0.1 style barely resists gravity, so it drapes) while leaving the high
+            // end almost untouched (a 0.8 mohawk still holds up). Fixes "everything too stiff
+            // except the mohawk" - the soft styles were being yanked back to their outward/up rest
+            // faster than gravity could drape them, because the pull used to be linear in stiffness.
+            float stiffPull = Mathf.Clamp01(_stiffness * _stiffness * SimConfig.HairStiffnessK * dt);
             float gStep = g * dt * dt;
 
             // Cache the head's transform matrices ONCE per tick and transform points inline with
