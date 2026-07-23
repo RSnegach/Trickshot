@@ -225,6 +225,11 @@ namespace Trickshot
             if (trick) _trickGoals++;
             Flash("GOAL!");   // plain callout, no shot-type specification
             CrowdCheer.Celebrate();
+            // Stand the striker back up on the goal. A trick finish (diving header / bicycle)
+            // leaves him prone + limp (DriveScale low, upright lock off), and his Tick() is
+            // suspended through the replay hold + replay, so without this he'd stay slumped on
+            // the deck for the whole celebration. ForceRecover pops him upright immediately.
+            _striker.ForceRecover();
             _replayHold = SimConfig.ReplayHold;   // arm the post-goal replay
         }
 

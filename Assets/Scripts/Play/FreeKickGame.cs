@@ -205,7 +205,9 @@ namespace Trickshot
             _strikerRagdoll.ResetTo(_strikerBase, Quaternion.identity);   // identity faces +Z (goal)
             if (_keeper != null && _keeperRagdoll != null) _keeper.ResetTo(SimConfig.KeeperStart);
             if (_wall != null) _wall.Ground();
-            _taker.Begin(_input, _strikerRagdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter);
+            _taker.Begin(_input, _strikerRagdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter,
+                false, -1f,
+                () => SetPieceTaker.LookAimPoint(_ballSpot, _cam.Yaw, _cam.Pitch, SimConfig.AttackGoalCenter.z));
             _phase = Phase.Armed;
         }
 
@@ -277,8 +279,8 @@ namespace Trickshot
             Hud.Stat(ref p, "Distance", $"{dist:0.0} m");
 
             Hud.Legend(SimConfig.PenaltyMode
-                ? "HOLD Space power (release to shoot)   A/D curl   W topspin   S knuckle   V ball cam   R reset"
-                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    HOLD Space power   A/D curl   W topspin   S knuckle   V ball cam   R reset");
+                ? "HOLD Space power   Mouse aim   WASD spin   TAP Space dribble   V ball cam   R reset"
+                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    HOLD Space power   Mouse aim   WASD spin   TAP Space dribble   V ball cam   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawPowerMeter();

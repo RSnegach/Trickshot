@@ -20,6 +20,11 @@ namespace Trickshot
         bool _chosen;
         bool _inChallenges;
 
+        // Vignette textures for legibility over the animated backdrop: a faint full-screen tint
+        // and a soft dark disc drawn behind the title + button column. Built lazily, freed on destroy.
+        Texture2D _tintTex;
+        Texture2D _vignetteTex;
+
         public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null)
         {
             _onChoose = onChoose;
@@ -35,6 +40,10 @@ namespace Trickshot
 
             float w = 320f, h = 66f, gap = 20f;
             float cx = Screen.width * 0.5f - w * 0.5f;
+
+            // Darken behind the menu so the white title and buttons read over the moving scene,
+            // while the pitch stays visible at the screen edges.
+            DrawVignette();
 
             var title = new GUIStyle(GUI.skin.label)
             {
@@ -74,6 +83,51 @@ namespace Trickshot
             _chosen = true;
             enabled = false;
             _onChoose?.Invoke(m);   // may destroy this object; do nothing after
+        }
+
+        // A faint even tint over the whole screen plus a soft radial dark patch centered on the
+        // menu column. The radial patch is a small texture stretched by GUI, so its bilinear
+        // filtering does the smoothing for free.
+        void DrawVignette()
+        {
+            if (_tintTex == null)
+            {
+                _tintTex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+                _tintTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.28f));
+                _tintTex.Apply();
+                _tintTex.hideFlags = HideFlags.HideAndDontSave;
+            }
+            if (_vignetteTex == null)
+            {
+                const int N = 64;
+                _vignetteTex = new Texture2D(N, N, TextureFormat.RGBA32, false);
+                var px = new Color[N * N];
+                float c = (N - 1) * 0.5f;
+                for (int y = 0; y < N; y++)
+                    for (int x = 0; x < N; x++)
+                    {
+                        float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c; // 0 center -> 1 edge
+                        float a = Mathf.Clamp01(1f - d);
+                        a = a * a;                       // tighter falloff, transparent by the rim
+                        px[y * N + x] = new Color(0f, 0f, 0f, a * 0.62f);
+                    }
+                _vignetteTex.SetPixels(px);
+                _vignetteTex.Apply();
+                _vignetteTex.wrapMode = TextureWrapMode.Clamp;
+                _vignetteTex.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            // Even tint everywhere.
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _tintTex);
+            // Dark disc behind the column: tall enough for title + up to six buttons, centered.
+            float vw = 720f, vh = Screen.height * 1.15f;
+            GUI.DrawTexture(new Rect(Screen.width * 0.5f - vw * 0.5f, Screen.height * 0.5f - vh * 0.5f, vw, vh), _vignetteTex);
+        }
+
+        void OnDestroy()
+        {
+            if (_tintTex != null) Destroy(_tintTex);
+            if (_vignetteTex != null) Destroy(_vignetteTex);
         }
     }
 }

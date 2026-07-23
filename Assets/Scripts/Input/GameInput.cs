@@ -232,13 +232,14 @@ namespace Trickshot
 
         // Sample the current device state into a network InputFrame for sending to the host.
         // Booleans are HELD states (edges are re-derived on the receiving side per tick).
-        public Net.InputFrame SampleFrame(uint tick, float lookYaw)
+        public Net.InputFrame SampleFrame(uint tick, float lookYaw, float lookPitch = 0f)
         {
             var f = new Net.InputFrame
             {
-                tick = tick, move = Move, lookYaw = lookYaw,
+                tick = tick, move = Move, lookYaw = lookYaw, lookPitch = lookPitch,
                 jump = JumpHeld, legL = LeftLegHeld, legR = RightLegHeld, sprint = SprintHeld,
                 passGround = PassGroundHeld, passLofted = PassLoftedHeld, tackle = TacklePressed,
+                reset = ResetPressed,
                 emoteId = _pendingEmote,
             };
             _pendingEmote = 255;   // one-shot: consumed once it is sampled into a frame

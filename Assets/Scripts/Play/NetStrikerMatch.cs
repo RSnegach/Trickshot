@@ -153,18 +153,22 @@ namespace Trickshot
             bool ai    = rosterSlot.ai;
             bool occupied = human || ai;
 
-            // An empty (open) slot spawns nothing: no AI keeper, no auto-crosser, no inert
-            // shooter. The local slot is always the human themselves, so it's never skipped.
-            if (!occupied && !isLocal)
+            // The CROSSER slot always has a ball-feeder on the host: if no human holds it, the AI
+            // auto-serve loop runs (regardless of the slot's AI toggle) so crosses keep coming and
+            // shooters can always call for a pass. Only a CLIENT with an unheld crosser slot idles
+            // it (the client never sims the feeder; it just renders the host's ball). This is what
+            // makes the MP AI crosser cross consistently instead of standing idle.
+            if (crosser)
             {
-                // Crosser slot left open: silence the auto-serve loop so no AI ball-feeder runs.
-                // Call-for-pass is gated on _crosser.AutoServe, so no crosses come unless a human
-                // takes the crosser role or the host toggles the crosser AI on.
-                if (crosser && _crosser != null) { _crosser.AutoServe = false; _crosser.Idle(); }
+                if (hostSim) { SpawnCrosserBody(slot, isLocal, hostSim, human); return; }
+                if (!isLocal && !occupied) { if (_crosser != null) _crosser.Idle(); return; }
+                SpawnCrosserBody(slot, isLocal, hostSim, human);
                 return;
             }
 
-            if (crosser) { SpawnCrosserBody(slot, isLocal, hostSim, human); return; }
+            // An empty (open) non-crosser slot spawns nothing: no AI keeper, no inert shooter.
+            // The local slot is always the human themselves, so it's never skipped.
+            if (!occupied && !isLocal) return;
 
             var go = new GameObject("NetSlot" + slot);
             go.transform.SetParent(root, true);
@@ -278,7 +282,27 @@ namespace Trickshot
             }
             else
             {
-                _crosser.AutoServe = true;                               // AI auto-serve loop (planted)
+                // AI auto-serve loop (planted). Fully restore the planted state in case a human
+                // previously held this slot and left it mobile (Striker-driven, locomotion on):
+                // re-plant the ragdoll, drop any Striker, and re-arm the serve loop so it feeds
+                // balls consistently instead of standing idle.
+                var stray = ragdoll != null ? ragdoll.GetComponent<Striker>() : null;
+                if (stray != null) Destroy(stray);
+                var strayCc = _crosser.GetComponent<CrosserControl>();
+                if (strayCc != null) Destroy(strayCc);
+                _crosser.Cosmetic = true;
+                _crosser.ServeFromFeet = false;
+                _crosser.AutoServe = true;
+                if (ragdoll != null)
+                {
+                    ragdoll.UprightLock = true;
+                    ragdoll.LocomotionEnabled = false;
+                    ragdoll.MoveInput = Vector3.zero;
+                    Vector3 toGoal = SimConfig.GoalCenter - SimConfig.CrosserStart; toGoal.y = 0f;
+                    ragdoll.ResetTo(SimConfig.CrosserStart,
+                                    Quaternion.LookRotation(toGoal.normalized, Vector3.up));
+                }
+                _crosser.Arm(SimConfig.ServeFirstDelay);                  // start the serve countdown now
             }
 
             _bodies[slot] = b;
@@ -353,8 +377,24 @@ namespace Trickshot
             rb.gameObject.AddComponent<KickDetector>().Init(striker, ragdoll, _ball);
         }
 
-        void OnMatchEvent(string tag) { Flash(tag); }
+        void OnMatchEvent(string tag)
+        {
+            Flash(tag);
+            // On a goal, stand the LOCAL striker back up. A trick finish (diving header / bicycle)
+            // leaves him prone + limp, and his Tick() is suspended through the goal hold + replay,
+            // so without this he'd stay slumped on the deck for the whole celebration. Only the
+            // local body has a live Striker to recover (remote bodies are host-driven / puppeted).
+            if (tag == "GOAL!") RecoverLocalStriker();
+        }
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
+
+        // Pop the local striker upright out of any trick/limp pose. Safe to call on host or client
+        // (the local shooter always owns a real Striker); no-op for a local keeper/crosser body.
+        void RecoverLocalStriker()
+        {
+            var me = _bodies[_localSlot];
+            if (me != null && me.striker != null) me.striker.ForceRecover();
+        }
 
         // Crosser's cross-targeting map: free the cursor while open (to click the map), re-lock
         // on close. The chosen _crossTarget feeds CrosserControl (via the closure in SpawnBody).
@@ -458,9 +498,10 @@ namespace Trickshot
                 return;
             }
 
-            // R: multiplayer re-serves the shared ball to the crosser (host-authoritative);
-            // no player reset. (Single-player R still fully resets via GameManager.)
-            // A human crosser shouldn't auto-refill the ball on R (they deliver manually).
+            // R: with an AI crosser, multiplayer re-serves the shared ball to the crosser
+            // (host-authoritative; no player reset). A HUMAN crosser instead refills a ball at
+            // their own feet if one isn't already there (handled host-side in HostUpdate, so a
+            // remote crosser's R works too). (Single-player R still fully resets via GameManager.)
             if (_input.ResetPressed && _s.IsHost && _crosser.AutoServe) { _goalHold = 0f; _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
 
             // Local crosser: M toggles the cross-targeting map (freeze aim, free the cursor).
@@ -518,6 +559,20 @@ namespace Trickshot
             }
         }
 
+        // Host: a human crosser pressed R. Drop a fresh ball at their feet, but ONLY if the current
+        // ball has been served away (it isn't already resting on/near them) - so tapping R when a
+        // ball is already spawned does nothing. Host-authoritative: the client's R arrives via the
+        // wire (its NetInputSource), and the resulting ball position streams back in the snapshot.
+        void HostRefillCrosserBall(Body b)
+        {
+            if (b == null || b.ragdoll == null || b.ragdoll.Pelvis == null) return;
+            Vector3 feet = b.ragdoll.Pelvis.position; feet.y = SimConfig.BallRadius;
+            Vector3 ballFlat = _ball.transform.position; ballFlat.y = feet.y;
+            if (Vector3.Distance(ballFlat, feet) < SimConfig.CrosserRefillDist) return;   // one already there
+            _ball.ResetTo(feet);
+            Flash("NEW BALL");
+        }
+
         void HostUpdate()
         {
             // Post-goal hold: freeze GAMEPLAY (no crosser serve, no controllers, no re-detect)
@@ -558,7 +613,15 @@ namespace Trickshot
                 if (remote && b.striker != null && !emoting) b.striker.Tick();
                 if (b.ai != null) b.ai.Tick();
                 if (b.keeper != null && !emoting) b.keeper.Tick();   // suspend keeper control while emoting
-                if (b.crosserCtl != null) b.crosserCtl.Tick();
+                if (b.crosserCtl != null)
+                {
+                    b.crosserCtl.Tick();
+                    // Human crosser presses R to drop a fresh ball at their feet, but only if the
+                    // current ball has been served away (isn't already sitting on them). Uses this
+                    // body's own input (local device or remote wire), so any human crosser can refill.
+                    IStrikerInput csrc = (i == _localSlot) ? (IStrikerInput)_input : b.netInput;
+                    if (csrc != null && csrc.ResetPressed) HostRefillCrosserBall(b);
+                }
             }
 
             // Call-for-pass: when the crosser is AI (no human in the crosser slot), any human
@@ -571,6 +634,11 @@ namespace Trickshot
             if (!_replaying && BallInGoal(c))
             {
                 _goals++; _s.BroadcastEvent("GOAL!"); _goalHold = SimConfig.ReplayHold;
+                // Host's own goal: BroadcastEvent only fires MatchEvent on CLIENTS, so stand the
+                // host's local striker up here too (a trick finish otherwise stays limp through
+                // the hold + replay). Flash the callout locally to match the clients' HUD.
+                Flash("GOAL!");
+                RecoverLocalStriker();
             }
 
             PublishSnapshotIfDue();
@@ -764,7 +832,7 @@ namespace Trickshot
             Hud.Stat(ref p, "Goals", _goals.ToString());
             Hud.Stat(ref p, "You are", youAre);
             Hud.Legend(_localIsCrosser
-                ? "WASD move   M aim map   Tap Q/E driven   Hold Q/E chip   V ball cam"
+                ? "WASD move   M aim map   Tap Q/E driven   Hold Q/E chip   R new ball   V ball cam"
                 : (youAre == "Keeper"
                     ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
                     : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q/E call low/high   V ball cam   R reset"));

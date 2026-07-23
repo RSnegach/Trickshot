@@ -32,12 +32,19 @@ namespace Trickshot
         // a remote keeper's body / aim a remote crosser to match their view.
         public float LookYaw => _cur.lookYaw;
 
+        // The remote player's camera pitch (deg), synced each frame. The set-piece taker reads
+        // this together with LookYaw to reconstruct the remote shooter's 3D aim direction.
+        public float LookPitch => _cur.lookPitch;
+
         public bool JumpHeld => _cur.jump;
         public bool JumpPressed => _cur.jump && !_prev.jump;
         public bool JumpReleased => !_cur.jump && _prev.jump;
 
         public bool LeftLegHeld => _cur.legL;
         public bool RightLegHeld => _cur.legR;
+
+        // Reset edge from the reset bit (same rising-edge scheme as jump).
+        public bool ResetPressed => _cur.reset && !_prev.reset;
 
         // Click edges from the leg-held bits (LMB = left leg, RMB = right leg).
         public bool LeftClickPressed => _cur.legL && !_prev.legL;

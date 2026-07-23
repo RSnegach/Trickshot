@@ -21,6 +21,11 @@ namespace Trickshot
         bool LeftLegHeld { get; }
         bool RightLegHeld { get; }
 
+        // Reset (R) edge. Single-player fully resets the round; multiplayer re-serves the ball,
+        // and a human crosser uses it to refill a ball at their feet. Networked via the reset
+        // frame bit (edge re-derived on the receiving side).
+        bool ResetPressed { get; }
+
         // Click edges (LMB/RMB): the keeper's save lunges + replay-skip read these. Derived
         // from the leg-held bits on the network side.
         bool LeftClickPressed { get; }
