@@ -538,10 +538,5 @@
     "mtime": 1784785513.3141205,
     "ast_hash": "a828f2c2b7926df90f0c472affeec564",
     "semantic_hash": ""
-  },
-  "chk.py": {
-    "mtime": 1784789658.1583996,
-    "ast_hash": "b4156ed2b70207e23db56db49633c5a7",
-    "semantic_hash": ""
   }
 }
