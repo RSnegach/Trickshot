@@ -66,7 +66,7 @@ namespace Trickshot
             // so remote MP puppets' hair swings too (style + colour ride PlayerAppearance).
             if (a.HairStyle > 0 && a.HairStyle < _hair.Count && !_hair[a.HairStyle].Bald)
             {
-                var mat = Make.Unlit(a.HairColor);
+                var mat = Make.Hair(a.HairColor);
                 rag.RegisterCosmeticMaterial(mat);
                 var go = new GameObject("HairSim");
                 go.transform.SetParent(head, false);
