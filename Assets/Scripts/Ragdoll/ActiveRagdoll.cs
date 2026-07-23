@@ -1016,28 +1016,68 @@ namespace Trickshot
             }
         }
 
-        // Aesthetic display poser: like DisplayAnim, but the whole-body lean (rootPitch/rootRoll)
-        // and the per-bone euler overrides come straight from the caller instead of a fixed
-        // AnimState. Lets a fully scripted cinematic (e.g. the main-menu bicycle kick) drive the
-        // kinematic puppet frame-by-frame without adding a networked animation state. Bones are
-        // placed at their rest offsets rotated by the root lean; `boneEuler` is indexed by Bone
-        // (pass Vector3.zero, or a short/absent entry, to leave a bone at rest). Requires the body
-        // to already be a kinematic display puppet (call BecomeDisplayBody first).
+        // Parent map for the display skeleton, indexed by Bone (value = parent Bone index, -1 = root).
+        // Mirrors the nested hierarchy built in Build(): Torso and both Thighs hang off the Pelvis,
+        // each Calf off its Thigh, each Foot off its Calf, both UpperArms off the Torso, each Forearm
+        // off its UpperArm. Index order below is already parent-before-child (every parent index is
+        // less than its children), so a single forward pass computes correct world transforms.
+        static readonly int[] _displayParent = { -1, 0, 1, 0, 0, 3, 4, 5, 6, 1, 1, 9, 10 };
+
+        // FK scratch, reused each frame (DisplayPose runs every frame for the two menu puppets, so we
+        // avoid allocating three arrays per call).
+        readonly Vector3[] _fkRest = new Vector3[(int)Bone.Count];
+        readonly Vector3[] _fkPos = new Vector3[(int)Bone.Count];
+        readonly Quaternion[] _fkRot = new Quaternion[(int)Bone.Count];
+
+        // Aesthetic display poser: like DisplayAnim, but the whole-body lean (rootPitch/rootRoll) and
+        // the per-bone euler overrides come straight from the caller instead of a fixed AnimState.
+        // Lets a fully scripted cinematic (e.g. the main-menu goal reel) drive the kinematic puppet
+        // frame by frame without adding a networked animation state.
+        //
+        // Genuine forward kinematics: each bone is placed relative to its PARENT, so a rotated thigh
+        // carries its calf and foot and a rotated upper arm carries its forearm, instead of every
+        // bone teleporting to a fixed rest offset and only spinning in place (which read as a rigid,
+        // static pose). `boneEuler` is indexed by Bone (pass Vector3.zero, or a short/absent entry,
+        // to leave a bone at rest). At rest (all eulers zero) the chain telescopes back to exactly
+        // basePos + root*restOffset[b], so the pelvis anchor (PelvisAnchor) and camera framing are
+        // unchanged. Requires a kinematic display puppet (call BecomeDisplayBody first).
         public void DisplayPose(Vector3 basePos, Quaternion facing, float rootPitch, float rootRoll, Vector3[] boneEuler)
         {
             FacingRotation = facing;
             Quaternion root = facing * Quaternion.Euler(rootPitch, 0f, rootRoll);
+
+            // Rest offsets (feet-relative, build-scaled) indexed by Bone.
+            for (int i = 0; i < _fkRest.Length; i++) _fkRest[i] = Vector3.zero;
             for (int k = 0; k < _displayBones.Length; k++)
             {
                 var (b, off) = _displayBones[k];
-                Vector3 e = (boneEuler != null && (int)b < boneEuler.Length) ? boneEuler[(int)b] : Vector3.zero;
-                Vector3 worldPos = basePos + (root * Off(off.x, off.y, off.z));
-                Quaternion rot = root * Quaternion.Euler(e);
-                var rb = _rb[(int)b];
+                _fkRest[(int)b] = Off(off.x, off.y, off.z);
+            }
+
+            // Forward pass. A child's pivot is its parent's pivot plus the bind offset (parent->child
+            // rest vector) rotated into the parent's accumulated frame; the child's own euler only
+            // spins it about that pivot, so it swings as a connected limb.
+            for (int b = 0; b < (int)Bone.Count; b++)
+            {
+                Vector3 e = (boneEuler != null && b < boneEuler.Length) ? boneEuler[b] : Vector3.zero;
+                int p = _displayParent[b];
+                if (p < 0)
+                {
+                    _fkRot[b] = root * Quaternion.Euler(e);
+                    _fkPos[b] = basePos + root * _fkRest[b];
+                }
+                else
+                {
+                    _fkRot[b] = _fkRot[p] * Quaternion.Euler(e);
+                    _fkPos[b] = _fkPos[p] + _fkRot[p] * (_fkRest[b] - _fkRest[p]);
+                }
+
+                var rb = _rb[b];
                 if (rb == null) continue;
-                rb.position = worldPos; rb.rotation = rot;
-                rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
-                rb.transform.position = worldPos; rb.transform.rotation = rot;
+                // World-space writes, parent already placed. No velocity writes: the bodies are
+                // kinematic (Unity rejects setting velocity on them, and it would be meaningless).
+                rb.position = _fkPos[b]; rb.rotation = _fkRot[b];
+                rb.transform.position = _fkPos[b]; rb.transform.rotation = _fkRot[b];
             }
         }
     }

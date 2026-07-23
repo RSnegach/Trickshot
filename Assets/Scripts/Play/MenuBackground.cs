@@ -413,6 +413,15 @@ namespace Trickshot
                 float t = (a - 0.9f) / 0.1f;
                 p = Vector3.Lerp(c.netPunch, c.netRest, t * t); // accelerating fall, settles
             }
+
+            // Keeper flyover: while the ball is passing the keeper's plane, floor its height above
+            // the laid-out, grounded keeper's full reach so it never grazes the body on its way in.
+            // Pose-independent (does not depend on the exact dive angles), so retuning the keeper
+            // can't silently reintroduce the phase-through. 1.2 = laid-body top ~0.9 + BallRadius +
+            // margin. The low finishes (header, diving header) are the ones this actually lifts; the
+            // bicycle/volley already fly higher than this. Not applied to the save clip (SavePath).
+            if (Mathf.Abs(p.z - c.keeper.z) < 0.8f)
+                p.y = Mathf.Max(p.y, 1.2f);
             return p;
         }
 

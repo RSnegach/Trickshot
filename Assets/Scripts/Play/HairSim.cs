@@ -53,15 +53,19 @@ namespace Trickshot
         int _perStrand;                 // nodes per strand
         int _strandCount;
 
-        Vector3[] _restLocal;           // styled rest position of every node, head-local (stiffness target)
-        Vector3[] _pos;                 // live node positions, WORLD space
+        Vector3[] _restLocal;           // styled rest position of every PHYSICS node, head-local (stiffness target)
+        Vector3[] _pos;                 // live physics-node positions, WORLD space
         Vector3[] _prev;                // previous world positions (Verlet)
         bool[] _rootNode;               // true for the pinned root node of each strand
         float _segLen;                  // rest length between consecutive nodes on a strand
-        int[] _lineIdx;                 // line-mesh indices (segments along each strand)
+        int[] _lineIdx;                 // line-mesh indices (segments along each sub-line)
+
+        int _lines;                     // sub-lines drawn per physics strand (visual thickness ring)
+        float _bundleR;                 // ring radius of the sub-line bundle (metres)
+        Vector3[] _simLocal;            // scratch: physics nodes converted to head-local this tick
 
         Mesh _mesh;
-        Vector3[] _localScratch;        // reused local-space vertex buffer
+        Vector3[] _localScratch;        // reused mesh-vertex buffer (_lines per physics node)
 
         // Deterministic per-instance RNG seed so a rebuilt preview looks identical run to run
         // (Random.* is banned in some hosts; use a tiny LCG seeded from the def instead).
@@ -78,16 +82,27 @@ namespace Trickshot
             _rng = 2166136261u ^ (uint)(def.strands * 73856093) ^ (uint)((int)(def.length * 1000f) * 19349663)
                    ^ (uint)((int)def.root * 83492791);
 
+            // PHYSICS nodes: one Verlet node per (strand, node-along). These are what the sim
+            // integrates; their count (strands x nodes) is the whole cost, so keep it modest.
             int n = _strandCount * _perStrand;
             _restLocal = new Vector3[n];
             _pos = new Vector3[n];
             _prev = new Vector3[n];
             _rootNode = new bool[n];
-            _localScratch = new Vector3[n];
+
+            // RENDER thickness: each physics strand is drawn as _lines parallel sub-lines fanned in
+            // a ring around the strand axis, so a strand reads as a lock/rope with visible width
+            // rather than a 1px wire. Only the physics nodes are simulated + matrix-transformed; the
+            // ring copies are cheap offsets built in WriteLocalVerts, so thickness barely adds cost.
+            _lines = Mathf.Max(1, SimConfig.HairStrandLines);
+            _bundleR = def.thickness;
+            _simLocal = new Vector3[n];                 // scratch: physics nodes in head-local space
+            _localScratch = new Vector3[n * _lines];    // mesh verts: _lines per physics node
 
             Vector3 flow = def.flow.sqrMagnitude > 1e-4f ? def.flow.normalized : Vector3.down;
 
-            var idx = new System.Collections.Generic.List<int>(n * 2);
+            // Line segments connect consecutive nodes WITHIN each sub-line of each strand.
+            var idx = new System.Collections.Generic.List<int>(n * _lines * 2);
             for (int s = 0; s < _strandCount; s++)
             {
                 float t = _strandCount > 1 ? s / (float)(_strandCount - 1) : 0.5f;
@@ -113,15 +128,23 @@ namespace Trickshot
                     // Curl grows toward the tip so roots stay tidy and ends wave.
                     Vector3 wob = side * (Mathf.Sin(u * Mathf.PI * 3f) * def.curl * u);
                     Vector3 local = rootPos + growth * along + wob;
-                    int i = baseIdx + k;
-                    _restLocal[i] = local;
-                    _rootNode[i] = (k == 0);
-                    if (k < _perStrand - 1) { idx.Add(i); idx.Add(i + 1); }
+                    int p = baseIdx + k;               // physics node index
+                    _restLocal[p] = local;
+                    _rootNode[p] = (k == 0);
+                    if (k < _perStrand - 1)
+                    {
+                        int pNext = p + 1;
+                        for (int L = 0; L < _lines; L++)
+                        {
+                            idx.Add(p * _lines + L);
+                            idx.Add(pNext * _lines + L);
+                        }
+                    }
                 }
             }
             _lineIdx = idx.ToArray();
 
-            // Seed world positions from the rest pose under the head's current transform.
+            // Seed physics-node world positions from the rest pose under the head's current transform.
             for (int i = 0; i < n; i++)
             {
                 Vector3 w = _head.TransformPoint(_restLocal[i]);
@@ -130,7 +153,7 @@ namespace Trickshot
 
             _mesh = new Mesh { name = "HairMesh" };
             _mesh.MarkDynamic();
-            WriteLocalVerts();
+            WriteLocalVerts(_head.worldToLocalMatrix);
             _mesh.SetIndices(_lineIdx, MeshTopology.Lines, 0);
             _mesh.RecalculateBounds();
 
@@ -187,6 +210,15 @@ namespace Trickshot
             float g = SimConfig.HairGravity;
             float damp = SimConfig.HairDamping;
             float stiffPull = Mathf.Clamp01(_stiffness * SimConfig.HairStiffnessK * dt);
+            float gStep = g * dt * dt;
+
+            // Cache the head's transform matrices ONCE per tick and transform points inline with
+            // MultiplyPoint3x4, instead of calling Transform.TransformPoint / InverseTransformPoint
+            // per node. Those are native-interop calls and, at ~700 strands x up to 5 nodes across
+            // ~10 bodies, they were the whole cost of the sim. The matrices are constant across all
+            // this body's nodes this tick, so this is exact, not an approximation.
+            Matrix4x4 l2w = _head.localToWorldMatrix;
+            Matrix4x4 w2l = _head.worldToLocalMatrix;
 
             // 1) Pin roots to the scalp (they ride the head), Verlet-integrate the rest under
             //    gravity, then spring each free node toward its styled rest so shaped styles hold.
@@ -194,16 +226,16 @@ namespace Trickshot
             {
                 if (_rootNode[i])
                 {
-                    Vector3 w = _head.TransformPoint(_restLocal[i]);
+                    Vector3 w = l2w.MultiplyPoint3x4(_restLocal[i]);
                     _pos[i] = w; _prev[i] = w;
                     continue;
                 }
                 Vector3 vel = (_pos[i] - _prev[i]) * damp;
                 _prev[i] = _pos[i];
                 _pos[i] += vel;
-                _pos[i] += Vector3.up * (g * dt * dt);            // world gravity
+                _pos[i] += new Vector3(0f, gStep, 0f);            // world gravity
                 if (stiffPull > 0f)
-                    _pos[i] += (_head.TransformPoint(_restLocal[i]) - _pos[i]) * stiffPull;
+                    _pos[i] += (l2w.MultiplyPoint3x4(_restLocal[i]) - _pos[i]) * stiffPull;
             }
 
             // 2) Solve segment length constraints along each strand (spreads motion, keeps length).
@@ -237,16 +269,54 @@ namespace Trickshot
                 if (m < rad && m > 1e-4f) _pos[i] = centre + d * (rad / m);
             }
 
-            WriteLocalVerts();
+            WriteLocalVerts(w2l);
             _mesh.RecalculateBounds();
         }
 
-        // Convert the world-space node positions back into head-local space (the GO is a child of
-        // the head at identity) and push them to the dynamic line mesh.
-        void WriteLocalVerts()
+        // Build the mesh verts from the physics nodes. Two passes:
+        //   1) convert each physics node world->local once (tick-cached matrix, MultiplyPoint3x4);
+        //   2) fan each node into a ring of _lines verts, offset perpendicular to the strand axis
+        //      by _bundleR, so a strand renders as a lock/rope with width instead of a 1px wire.
+        // Pass 2 is pure vector math (no native calls), so thickness is nearly free.
+        void WriteLocalVerts(Matrix4x4 w2l)
         {
             for (int i = 0; i < _pos.Length; i++)
-                _localScratch[i] = _head.InverseTransformPoint(_pos[i]);
+                _simLocal[i] = w2l.MultiplyPoint3x4(_pos[i]);
+
+            if (_lines <= 1 || _bundleR <= 1e-5f)
+            {
+                // Single-wire fast path: mesh vert == physics node.
+                for (int i = 0; i < _simLocal.Length; i++) _localScratch[i] = _simLocal[i];
+                _mesh.vertices = _localScratch;
+                return;
+            }
+
+            for (int s = 0; s < _strandCount; s++)
+            {
+                int b0 = s * _perStrand;
+                for (int k = 0; k < _perStrand; k++)
+                {
+                    int p = b0 + k;
+                    Vector3 pos = _simLocal[p];
+                    // Strand axis at this node (toward the next node, or from the previous at the tip).
+                    Vector3 axis = (k < _perStrand - 1) ? _simLocal[p + 1] - pos : pos - _simLocal[p - 1];
+                    if (axis.sqrMagnitude < 1e-8f) axis = Vector3.up;
+                    axis.Normalize();
+                    // Two perpendiculars to fan the ring around the axis (so the bundle has width
+                    // from every view angle, never collapsing edge-on).
+                    Vector3 perp0 = Vector3.Cross(axis, Vector3.up);
+                    if (perp0.sqrMagnitude < 1e-6f) perp0 = Vector3.Cross(axis, Vector3.forward);
+                    perp0.Normalize();
+                    Vector3 perp1 = Vector3.Cross(axis, perp0);
+                    int outBase = p * _lines;
+                    for (int L = 0; L < _lines; L++)
+                    {
+                        float ang = (Mathf.PI * 2f) * L / _lines;
+                        Vector3 off = (perp0 * Mathf.Cos(ang) + perp1 * Mathf.Sin(ang)) * _bundleR;
+                        _localScratch[outBase + L] = pos + off;
+                    }
+                }
+            }
             _mesh.vertices = _localScratch;
         }
 

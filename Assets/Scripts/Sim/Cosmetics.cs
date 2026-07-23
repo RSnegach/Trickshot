@@ -194,76 +194,79 @@ namespace Trickshot
         }
 
         // ---- hair catalog (index 0 = Bald) ----------------------------------
-        // Every non-bald style is now a SOFT DYNAMIC HairSim (see HairSim.cs): root-pinned Verlet
+        // Every non-bald style is a SOFT DYNAMIC HairSim (see HairSim.cs): root-pinned Verlet
         // strands drawn as a line mesh, exactly the model the goal net uses. A style is pure DATA
-        // (root scatter, strand/node counts, length, stiffness, flow direction, curl) - no rigid
-        // primitives. Stiffness holds a shaped style up (mohawk, spikes) while low stiffness lets it
-        // fall and flow (long, ponytail). It runs on every body that wears it, so hair swings on the
-        // local player, on remote multiplayer puppets, and in the customize preview alike.
-        // Head-local axes: +Y up, +Z faces the front, +X to the side. flow (0,-1,0) hangs, (0,1,0)
-        // stands up, (0,-0.6,-1) sweeps back and down (a tail).
+        // (root scatter, strand/node counts, length, stiffness, flow, curl). Stiffness holds a
+        // shaped style up (mohawk, spikes) while low stiffness lets it fall and flow (long, tail).
+        // Runs on every body that wears it - local player, remote MP puppets, customize preview -
+        // so everyone sees everyone's hair move.
+        //
+        // Node budget: cost is strands x nodes-per-strand, so short/stiff styles use just 2 nodes
+        // (a rigid pendulum stub - all they need), and long styles are capped at 5 (enough bend to
+        // drape) so ~700 strands a head stays cheap even in a full lobby. Visual THICKNESS comes
+        // from HairSim drawing each strand as a ring of sub-lines (SimConfig.HairStrandLines) at
+        // radius def.thickness, NOT from more nodes - so bigger hair costs almost nothing extra.
+        // Head-local axes: +Y up, +Z front, +X side. flow (0,-1,0) hangs, (0,1,0) up, (0,-.6,-1) tail.
         static readonly List<HairEntry> _hair = new List<HairEntry>
         {
             new HairEntry { Name = "Bald", Group = HairGroup.Short, Bald = true },
 
-            // SHORT (short, stiff strands that barely move) -----------------------
+            // SHORT (2-node rigid stubs) -----------------------------------------
             new HairEntry { Name = "Buzz", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 90, nodes = 2, length = 0.04f,
-                stiffness = 0.95f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.25f, thickness = 0.005f } },
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 2, length = 0.04f,
+                stiffness = 0.95f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.25f, thickness = 0.012f } },
             new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 80, nodes = 3, length = 0.07f,
-                stiffness = 0.9f, flow = new Vector3(0f, 1f, 0.1f), curl = 0f, jitter = 0.2f, thickness = 0.01f } },
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 2, length = 0.07f,
+                stiffness = 0.9f, flow = new Vector3(0f, 1f, 0.1f), curl = 0f, jitter = 0.2f, thickness = 0.013f } },
             new HairEntry { Name = "Spiky", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 46, nodes = 3, length = 0.14f,
-                stiffness = 0.85f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.35f, thickness = 0.01f } },
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 2, length = 0.14f,
+                stiffness = 0.85f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.35f, thickness = 0.014f } },
             new HairEntry { Name = "Fringe", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 70, nodes = 4, length = 0.13f,
-                stiffness = 0.45f, flow = new Vector3(0f, -0.5f, 0.7f), curl = 0.01f, jitter = 0.15f, thickness = 0.012f } },
-
-            // MEDIUM (bounce + sway) --------------------------------------------
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 2, length = 0.13f,
+                stiffness = 0.45f, flow = new Vector3(0f, -0.5f, 0.7f), curl = 0f, jitter = 0.15f, thickness = 0.014f } },
             new HairEntry { Name = "Mohawk", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Strip, strands = 26, nodes = 4, length = 0.2f,
-                stiffness = 0.8f, flow = new Vector3(0f, 1f, 0f), curl = 0.015f, jitter = 0.08f, thickness = 0.01f } },
+                root = HairSim.RootMode.Strip, strands = 700, nodes = 2, length = 0.2f,
+                stiffness = 0.8f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.08f, thickness = 0.014f } },
             new HairEntry { Name = "Faux Hawk", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Strip, strands = 30, nodes = 4, length = 0.15f,
-                stiffness = 0.6f, flow = new Vector3(0f, 0.9f, -0.2f), curl = 0.02f, jitter = 0.12f, thickness = 0.012f } },
-            new HairEntry { Name = "Messy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 80, nodes = 4, length = 0.16f,
-                stiffness = 0.3f, flow = new Vector3(0f, 0.4f, 0f), curl = 0.03f, jitter = 0.45f, thickness = 0.015f } },
-            new HairEntry { Name = "Wavy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 70, nodes = 5, length = 0.22f,
-                stiffness = 0.28f, flow = new Vector3(0f, -0.3f, 0.1f), curl = 0.045f, jitter = 0.2f, thickness = 0.015f } },
-            new HairEntry { Name = "Curly", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 90, nodes = 5, length = 0.18f,
-                stiffness = 0.35f, flow = new Vector3(0f, 0.2f, 0f), curl = 0.06f, jitter = 0.4f, thickness = 0.015f } },
-            new HairEntry { Name = "Afro", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 120, nodes = 4, length = 0.16f,
-                stiffness = 0.55f, flow = new Vector3(0f, 1f, 0f), curl = 0.05f, jitter = 0.6f, thickness = 0.02f } },
+                root = HairSim.RootMode.Strip, strands = 700, nodes = 2, length = 0.15f,
+                stiffness = 0.6f, flow = new Vector3(0f, 0.9f, -0.2f), curl = 0f, jitter = 0.12f, thickness = 0.015f } },
 
-            // LONG (drape + flow) -----------------------------------------------
+            // MEDIUM (bounce + sway; 4 nodes so waves/curl read) -----------------
+            new HairEntry { Name = "Messy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 4, length = 0.16f,
+                stiffness = 0.3f, flow = new Vector3(0f, 0.4f, 0f), curl = 0.03f, jitter = 0.45f, thickness = 0.016f } },
+            new HairEntry { Name = "Wavy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 4, length = 0.22f,
+                stiffness = 0.28f, flow = new Vector3(0f, -0.3f, 0.1f), curl = 0.045f, jitter = 0.2f, thickness = 0.017f } },
+            new HairEntry { Name = "Curly", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 4, length = 0.18f,
+                stiffness = 0.35f, flow = new Vector3(0f, 0.2f, 0f), curl = 0.06f, jitter = 0.4f, thickness = 0.018f } },
+            new HairEntry { Name = "Afro", Group = HairGroup.Medium, Def = new HairSim.HairDef {
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 4, length = 0.16f,
+                stiffness = 0.55f, flow = new Vector3(0f, 1f, 0f), curl = 0.05f, jitter = 0.6f, thickness = 0.022f } },
+
+            // LONG (drape + flow; capped at 5 nodes) -----------------------------
             new HairEntry { Name = "Ponytail", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.BackCluster, strands = 40, nodes = 7, length = 0.42f,
-                stiffness = 0.3f, flow = new Vector3(0f, -0.5f, -1f), curl = 0.02f, jitter = 0.1f, thickness = 0.02f } },
+                root = HairSim.RootMode.BackCluster, strands = 700, nodes = 5, length = 0.42f,
+                stiffness = 0.3f, flow = new Vector3(0f, -0.5f, -1f), curl = 0.02f, jitter = 0.1f, thickness = 0.022f } },
             new HairEntry { Name = "Man Bun", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.BackCluster, strands = 44, nodes = 4, length = 0.14f,
-                stiffness = 0.7f, flow = new Vector3(0f, 0.6f, -0.7f), curl = 0.03f, jitter = 0.5f, thickness = 0.02f } },
+                root = HairSim.RootMode.BackCluster, strands = 700, nodes = 4, length = 0.14f,
+                stiffness = 0.7f, flow = new Vector3(0f, 0.6f, -0.7f), curl = 0.03f, jitter = 0.5f, thickness = 0.022f } },
             new HairEntry { Name = "Dreadlocks", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 34, nodes = 7, length = 0.4f,
-                stiffness = 0.5f, flow = new Vector3(0f, -0.9f, -0.2f), curl = 0.008f, jitter = 0.3f, thickness = 0.02f } },
-            // Dreads: fuller + longer than Dreadlocks. More locks all around the head, thicker
-            // and heavier so they hang straighter and sway as a curtain of ropes.
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 5, length = 0.4f,
+                stiffness = 0.5f, flow = new Vector3(0f, -0.9f, -0.2f), curl = 0.008f, jitter = 0.3f, thickness = 0.026f } },
             new HairEntry { Name = "Dreads", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 60, nodes = 9, length = 0.55f,
-                stiffness = 0.35f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.006f, jitter = 0.45f, thickness = 0.03f } },
+                root = HairSim.RootMode.Crown, strands = 700, nodes = 5, length = 0.55f,
+                stiffness = 0.35f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.006f, jitter = 0.45f, thickness = 0.032f } },
             new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.SidesBack, strands = 80, nodes = 6, length = 0.34f,
-                stiffness = 0.2f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.02f, jitter = 0.15f, thickness = 0.015f } },
+                root = HairSim.RootMode.SidesBack, strands = 700, nodes = 5, length = 0.34f,
+                stiffness = 0.2f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.02f, jitter = 0.15f, thickness = 0.02f } },
             new HairEntry { Name = "Long", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.SidesBack, strands = 90, nodes = 8, length = 0.5f,
-                stiffness = 0.15f, flow = new Vector3(0f, -1f, -0.15f), curl = 0.025f, jitter = 0.18f, thickness = 0.015f } },
+                root = HairSim.RootMode.SidesBack, strands = 700, nodes = 5, length = 0.5f,
+                stiffness = 0.15f, flow = new Vector3(0f, -1f, -0.15f), curl = 0.025f, jitter = 0.18f, thickness = 0.02f } },
             new HairEntry { Name = "Flowing", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.SidesBack, strands = 100, nodes = 9, length = 0.58f,
-                stiffness = 0.12f, flow = new Vector3(0f, -0.95f, -0.25f), curl = 0.05f, jitter = 0.22f, thickness = 0.015f } },
+                root = HairSim.RootMode.SidesBack, strands = 700, nodes = 5, length = 0.58f,
+                stiffness = 0.12f, flow = new Vector3(0f, -0.95f, -0.25f), curl = 0.05f, jitter = 0.22f, thickness = 0.02f } },
         };
 
         // ---- facial hair catalog (index 0 = Clean-Shaven) -------------------

@@ -43,6 +43,12 @@ namespace Trickshot
         public const int   HairConstraintIters = 3;    // length-constraint passes/frame (more = stiffer, holds length better)
         public const float HairStiffnessK = 30f;       // gain on the per-style pull toward the styled rest shape (scaled by def.stiffness*dt)
         public const float HairHeadPad = 0.01f;        // keep nodes this far off the head sphere so strands don't sink into the skull
+        // Visual thickness: each SIMULATED strand is drawn as this many parallel sub-lines fanned
+        // around the strand axis (a bundle), so a strand reads as a rope/lock with width instead of
+        // a 1px wire (MeshTopology.Lines ignores line width). Only the sim nodes are matrix-
+        // transformed each tick; the bundle copies are cheap fixed offsets, so thickness barely
+        // adds cost. 1 = single wire (no bundle). def.thickness sets the bundle radius (metres).
+        public const int   HairStrandLines = 3;
 
         public const float PenaltyBoxDepth = 16.5f;
         public const float PenaltyBoxWidth = 20f; // slightly narrower than field
