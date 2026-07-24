@@ -189,6 +189,9 @@ namespace Trickshot.Net
             w.U8((byte)Mathf.Clamp(a.HairStyle, 0, 255));   w.Col(a.HairColor);
             w.U8((byte)Mathf.Clamp(a.FacialStyle, 0, 255)); w.Col(a.FacialColor);
             w.U8((byte)Mathf.Clamp(a.Accessory, 0, 255));   w.Col(a.AccessoryColor);
+            w.B(a.Adult);   // appended so the field order stays consistent both ways
+            // Third Leg size multipliers (only meaningful when Adult). Appended after Adult.
+            w.F(a.MemberLen); w.F(a.MemberGirth); w.F(a.BallSize);
         }
         public static PlayerAppearance ReadAppearance(NetReader r)
         {
@@ -197,6 +200,8 @@ namespace Trickshot.Net
             a.HairStyle = r.U8();   a.HairColor = r.Col();
             a.FacialStyle = r.U8(); a.FacialColor = r.Col();
             a.Accessory = r.U8();   a.AccessoryColor = r.Col();
+            a.Adult = r.B();
+            a.MemberLen = r.F(); a.MemberGirth = r.F(); a.BallSize = r.F();
             return a;
         }
 
