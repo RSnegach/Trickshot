@@ -15357,8 +15357,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_hostupdate",
-      "community": 68,
-      "community_name": "PitchBuilder",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".hostupdate()"
     },
     {
@@ -16018,8 +16018,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_update",
-      "community": 10,
-      "community_name": "Kick Detection / Ragdoll Wiring",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".update()"
     },
     {
@@ -16035,8 +16035,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_localisactiveshooter",
-      "community": 10,
-      "community_name": "Kick Detection / Ragdoll Wiring",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".localisactiveshooter()"
     },
     {
@@ -16154,7 +16154,7 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_publishsnapshotifdue",
-      "community": 68,
+      "community": 79,
       "community_name": "PitchBuilder",
       "norm_label": ".publishsnapshotifdue()"
     },
@@ -16171,8 +16171,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_clientupdate",
-      "community": 10,
-      "community_name": "Kick Detection / Ragdoll Wiring",
+      "community": 68,
+      "community_name": "PitchBuilder",
       "norm_label": ".clientupdate()"
     },
     {
@@ -16188,8 +16188,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_reconcilelocalbody",
-      "community": 10,
-      "community_name": "Kick Detection / Ragdoll Wiring",
+      "community": 68,
+      "community_name": "PitchBuilder",
       "norm_label": ".reconcilelocalbody()"
     },
     {
@@ -16205,8 +16205,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_findbody",
-      "community": 10,
-      "community_name": "Kick Detection / Ragdoll Wiring",
+      "community": 68,
+      "community_name": "PitchBuilder",
       "norm_label": ".findbody()"
     },
     {
@@ -16375,8 +16375,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_drawpowermeter",
-      "community": 10,
-      "community_name": "Kick Detection / Ragdoll Wiring",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".drawpowermeter()"
     },
     {
@@ -21641,8 +21641,8 @@
       },
       "_origin": "ast",
       "id": "c_users_rsnegach_onedrive_blue_origin_llc_desktop_trickshot_assets_scripts_play_striker_trickshot_striker_setdribble",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 101,
+      "community_name": ".BuildFootballer",
       "norm_label": ".setdribble()"
     },
     {
@@ -22501,8 +22501,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_buildscaled",
-      "community": 59,
-      "community_name": "AccuracyTarget",
+      "community": 26,
+      "community_name": "NetStrikerMatch",
       "norm_label": ".buildscaled()"
     },
     {
@@ -24734,7 +24734,7 @@
       "label": ".Glass()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L821",
+      "source_location": "L825",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -24751,7 +24751,7 @@
       "label": ".Dark()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L822",
+      "source_location": "L826",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -24768,7 +24768,7 @@
       "label": "GeneratedMeshOwner",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L829",
+      "source_location": "L833",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -24796,7 +24796,7 @@
       "label": ".OnDestroy()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L832",
+      "source_location": "L836",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -24905,8 +24905,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_gameobject",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 9,
+      "community_name": "Direct IP Transport",
       "norm_label": "gameobject"
     },
     {
@@ -25369,8 +25369,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_material",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 101,
+      "community_name": ".BuildFootballer",
       "norm_label": "material"
     },
     {
@@ -25471,8 +25471,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
-      "community": 26,
-      "community_name": "NetStrikerMatch",
+      "community": 101,
+      "community_name": ".BuildFootballer",
       "norm_label": ".buildfootballer()"
     },
     {
@@ -25539,8 +25539,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_attachkickdetectors",
-      "community": 3,
-      "community_name": "Net Messages & Wire Codec",
+      "community": 101,
+      "community_name": ".BuildFootballer",
       "norm_label": ".attachkickdetectors()"
     },
     {
@@ -25556,8 +25556,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_adddetector",
-      "community": 3,
-      "community_name": "Net Messages & Wire Codec",
+      "community": 101,
+      "community_name": ".BuildFootballer",
       "norm_label": ".adddetector()"
     },
     {
@@ -25567,8 +25567,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_rigidbody",
-      "community": 3,
-      "community_name": "Net Messages & Wire Codec",
+      "community": 101,
+      "community_name": ".BuildFootballer",
       "norm_label": "rigidbody"
     },
     {
@@ -28404,8 +28404,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_packages_lock",
-      "community": 71,
-      "community_name": ".SkillPresetButtons",
+      "community": 65,
+      "community_name": "com.unity.modules.imgui",
       "norm_label": "packages-lock.json"
     },
     {
@@ -28415,8 +28415,8 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "packages_packages_lock_dependencies",
-      "community": 71,
-      "community_name": ".SkillPresetButtons",
+      "community": 65,
+      "community_name": "com.unity.modules.imgui",
       "norm_label": "dependencies"
     },
     {
@@ -32373,7 +32373,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L829",
+      "source_location": "L833",
       "weight": 1.0,
       "metadata": {
         "ref_token": "MonoBehaviour"
@@ -75988,7 +75988,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L829",
+      "source_location": "L833",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics",
@@ -76070,7 +76070,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L412",
+      "source_location": "L416",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -76162,7 +76162,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L822",
+      "source_location": "L826",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics",
@@ -76173,7 +76173,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L821",
+      "source_location": "L825",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics",
@@ -76621,7 +76621,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L822",
+      "source_location": "L826",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -76636,7 +76636,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L821",
+      "source_location": "L825",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -76665,7 +76665,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L821",
+      "source_location": "L825",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics_glass",
@@ -76677,7 +76677,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L822",
+      "source_location": "L826",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_cosmetics_dark",
@@ -76687,7 +76687,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L831",
+      "source_location": "L835",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -76702,7 +76702,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L832",
+      "source_location": "L836",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_cosmetics_trickshot_generatedmeshowner",
