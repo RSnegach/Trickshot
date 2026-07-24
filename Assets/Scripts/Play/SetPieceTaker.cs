@@ -112,9 +112,25 @@ namespace Trickshot
         {
             Vector3 dir = Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
             float dz = goalPlaneZ - from.z;
-            if (Mathf.Abs(dir.z) < 0.05f) dir.z = Mathf.Sign(dz != 0f ? dz : 1f) * 0.05f;
+
+            // Camera pointing AWAY from the goal (the look ray never crosses the goal plane on the
+            // goal side): there is no honest aim point in front. Project the look direction straight
+            // onto the goal plane far off to whichever side it faces, so the aim lands well OUTSIDE
+            // the shot cone and the caller forces the shot wide (no laser-curl back to a corner).
+            // Previously this faked a forward point (t = |dz|), which let a backward look still aim
+            // on-goal and curve into the top corner.
+            bool towardGoal = (dir.z * dz) > 0f && Mathf.Abs(dir.z) >= 0.05f;
+            if (!towardGoal)
+            {
+                Vector3 flat = new Vector3(dir.x, 0f, dir.z);
+                if (flat.sqrMagnitude < 1e-4f) flat = new Vector3(Mathf.Sign(yaw == 0f ? 1f : yaw), 0f, 0f);
+                Vector3 wide = from + flat.normalized * (Mathf.Abs(dz) + 30f);   // far to the side, off-cone
+                wide.z = goalPlaneZ;   // on the goal plane so downstream math is well-formed
+                wide.y = Mathf.Max(0.05f, from.y + dir.y * Mathf.Abs(dz));
+                return wide;
+            }
+
             float t = dz / dir.z;
-            if (t < 0f) t = Mathf.Abs(dz);   // camera pointing away from goal: clamp
             Vector3 p = from + dir * t;
             p.y = Mathf.Max(0.05f, p.y);
             return p;

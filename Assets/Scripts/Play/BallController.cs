@@ -47,6 +47,7 @@ namespace Trickshot
         bool _assistVertOff;       // OVERPOWERED set-piece: skip the VERTICAL steer so the intended
                                    // over-the-bar loft is not predicted back down onto goal height.
         float _bikeCamCooldown;    // guard so one bicycle flip cuts to ball-cam only once
+        float _kickSfxCooldown;    // guard so one contact (several bones) plays only one kick thud
 
         // Camera to pulse into ball-cam on a genuine shot (optional; null in modes that
         // don't want it). Set by the mode builder.
@@ -400,6 +401,7 @@ namespace Trickshot
             if (_assistCooldown > 0f) _assistCooldown -= Time.fixedDeltaTime;
             if (_strikeSuppress > 0f) _strikeSuppress -= Time.fixedDeltaTime;
             if (_bikeCamCooldown > 0f) _bikeCamCooldown -= Time.fixedDeltaTime;
+            if (_kickSfxCooldown > 0f) _kickSfxCooldown -= Time.fixedDeltaTime;
             if (_trickBonusCooldown > 0f) _trickBonusCooldown -= Time.fixedDeltaTime;
 
             if (_assistRemaining > 0f)
@@ -464,6 +466,11 @@ namespace Trickshot
 
         void OnCollisionEnter(Collision c)
         {
+            // Knuckle (S) wiggle is a flight-only trick: the instant the ball touches ANYTHING
+            // (ground, goal frame, keeper, wall, post), stop snaking and bounce normally. Done
+            // first, before any early-return below, so every contact type kills it.
+            _wiggleRemaining = 0f;
+
             // Net backstop: kill the rebound in code (material combine can't beat the
             // ball's own Maximum bounce). Keep a little velocity so it slides down.
             if (c.collider.GetComponentInParent<NetBackstop>() != null)
@@ -476,6 +483,18 @@ namespace Trickshot
             // Was this a striker limb? (KickDetector lives on limbs, or any ActiveRagdoll bone.)
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
+
+            // Ball hit a PLAYER body (any keeper/striker/footballer) -> 3D kick thud at the contact
+            // point. One per contact (cooldown swallows the extra bones of a single touch). In MP the
+            // client ball is kinematic so this only fires on host/SP; the host also broadcasts the
+            // position so every client plays it spatialised to their own player (10 m rolloff).
+            if (_kickSfxCooldown <= 0f)
+            {
+                _kickSfxCooldown = 0.08f;
+                Vector3 hitPos = c.contactCount > 0 ? c.GetContact(0).point : Rb.position;
+                AudioManager.Instance?.PlayBallKick(hitPos);
+                if (Trickshot.Net.Multiplayer.IsHost) Trickshot.Net.Multiplayer.Session.BroadcastBallKick(hitPos);
+            }
 
             // Strike/redirect logic is ONLY for the HUMAN-controlled striker. An AI keeper,
             // crosser, or AI footballer (which also carries a Striker for takeover, but with
@@ -557,9 +576,23 @@ namespace Trickshot
             bool volley = false;   // flying ball + swinging leg -> free-kick launch (set in the isLeg branch)
             if (header)
             {
-                // Heading tree scales accuracy + power.
-                _accuracyMul = SimConfig.HeaderAccuracyMul * PlayerProfile.HeaderAccuracyMul;
-                shotMul *= PlayerProfile.HeaderPowerMul;
+                // Heading tree scales accuracy + power. The boost is FULL on an airborne header
+                // (a timed jump) and only GroundedHeaderBoostFrac of it when standing, so jumping
+                // to head the ball is rewarded. Scale the amount ABOVE the 1.0 baseline, not the
+                // whole multiplier, so a grounded header still works - just weaker + less accurate.
+                float headAcc = SimConfig.HeaderAccuracyMul * PlayerProfile.HeaderAccuracyMul;
+                float headPow = PlayerProfile.HeaderPowerMul;
+                if (!ragdoll.IsGrounded)
+                {
+                    _accuracyMul = headAcc;
+                    shotMul *= headPow;
+                }
+                else
+                {
+                    float f = SimConfig.GroundedHeaderBoostFrac;
+                    _accuracyMul = 1f + (headAcc - 1f) * f;
+                    shotMul *= 1f + (headPow - 1f) * f;
+                }
             }
             else if (isLeg)
             {

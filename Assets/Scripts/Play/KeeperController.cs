@@ -32,6 +32,10 @@ namespace Trickshot
         // fully committed rather than a stationary block).
         public bool IsCommitting => _state == State.Diving || _state == State.Saving;
 
+        // True while airborne in a HIGH (full lay-out) dive specifically, not a low dash dive.
+        // One of the two EPIC SAVE criteria (the other is ball speed at contact).
+        public bool IsHighDive => _state == State.Diving && _diveIsHigh;
+
         // Dive lifecycle: landing detection.
         float _diveDir;       // -1 left / +1 right (for the leading-leg bend)
         Quaternion _diveOrient;  // held horizontal lay-out target for the current dive
@@ -295,8 +299,9 @@ namespace Trickshot
             // Initial roll kick in the same direction so the lay-out snaps in immediately.
             _ragdoll.AddTorqueToPelvis(fwd * (-dir * SimConfig.KeeperDiveRoll));
 
-            _airPose = KeeperPose.Dive;
-            _ragdoll.SetPose(KeeperPose.Dive, 16f);
+            // High dive gets its own arms-overhead base pose; the low dash dive keeps the wide star.
+            _airPose = isHigh ? KeeperPose.DiveHigh : KeeperPose.Dive;
+            _ragdoll.SetPose(_airPose, 16f);
         }
 
         // Landing-gated recovery: hold the dive pose through the flight; only get up
@@ -328,18 +333,9 @@ namespace Trickshot
                 _ragdoll.SetPoseOverride(backThigh, new Vector3(-SimConfig.KeeperDiveBackKnee * 0.5f, 0f, 0f));
                 _ragdoll.SetPoseOverride(backCalf,  new Vector3(SimConfig.KeeperDiveBackKnee, 0f, 0f));
 
-                // High dive only: swing the TOP arm (the one on the up side, opposite the dive
-                // direction) over toward the dive so the two outstretched arms close the gap
-                // between them and cover more space. Local +Z swings a hanging arm toward the
-                // keeper's LEFT, -Z toward his RIGHT: diving left (top = UpperArmR, base -Z) we
-                // add +Z to bring it left/over; diving right (top = UpperArmL, base +Z) we add -Z.
-                // Low dash dives skip this (arms stay wide) so it reads as a distinct move.
-                if (_diveIsHigh)
-                {
-                    Bone topArm = _diveDir < 0f ? Bone.UpperArmR : Bone.UpperArmL;
-                    float swing = _diveDir < 0f ? SimConfig.KeeperDiveArmSwing : -SimConfig.KeeperDiveArmSwing;
-                    _ragdoll.SetPoseOverride(topArm, new Vector3(0f, 0f, swing));
-                }
+                // The high dive's arms-overhead shape lives in its BASE pose (KeeperPose.DiveHigh,
+                // set in DoDive), so no additive arm override here - overrides ADD to the base, so
+                // layering onto the wide arms only tilted them instead of lifting them overhead.
             }
 
             _diveAir += Time.deltaTime;

@@ -88,7 +88,7 @@ namespace Trickshot
 
         // Dive: arms SPREAD WIDE to both sides to cover area, legs straight together.
         // The KeeperController rolls the whole body horizontal, so relative to the
-        // laid-out torso these arms reach out to make a big star.
+        // laid-out torso these arms reach out to make a big star. Used by the LOW dash dive.
         public static readonly Vector3[] Dive = Set(New(), new (Bone, Vector3)[]
         {
             (Bone.UpperArmL, new Vector3(0f, 0f, 150f)),  // left arm straight out left
@@ -96,6 +96,23 @@ namespace Trickshot
             (Bone.ForearmL,  new Vector3(0f, 0f, 12f)),
             (Bone.ForearmR,  new Vector3(0f, 0f, -12f)),
             (Bone.ThighL, new Vector3(5f, 0f, 6f)),       // legs long, slightly spread
+            (Bone.ThighR, new Vector3(5f, 0f, -6f)),
+            (Bone.CalfL,  new Vector3(5f, 0f, 0f)),
+            (Bone.CalfR,  new Vector3(5f, 0f, 0f)),
+        });
+
+        // High dive: both arms punched OVERHEAD (past the head, like the Jump pose) and only
+        // modestly apart, rather than the wide star. Same overhead X as Jump (-170 flips the
+        // hanging arm to point up); the ±Z gives a clean gap between them without crossing. Legs
+        // as in Dive. The KeeperController drives this as the high dive's BASE pose (not an
+        // additive override), so the arms are genuinely overhead instead of the wide arms tilted.
+        public static readonly Vector3[] DiveHigh = Set(New(), new (Bone, Vector3)[]
+        {
+            (Bone.UpperArmL, new Vector3(-170f, 0f, 26f)),  // both up past the head, a modest gap apart
+            (Bone.UpperArmR, new Vector3(-170f, 0f, -26f)),
+            (Bone.ForearmL,  new Vector3(-6f, 0f, 0f)),      // forearms extend straight up
+            (Bone.ForearmR,  new Vector3(-6f, 0f, 0f)),
+            (Bone.ThighL, new Vector3(5f, 0f, 6f)),
             (Bone.ThighR, new Vector3(5f, 0f, -6f)),
             (Bone.CalfL,  new Vector3(5f, 0f, 0f)),
             (Bone.CalfR,  new Vector3(5f, 0f, 0f)),

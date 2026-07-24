@@ -104,10 +104,13 @@ namespace Trickshot
         public const float KeeperDiveRoll = 90f;         // strong initial roll kick -> lays out near-instantly
         public const float KeeperDiveLeadKnee = 130f;    // leading leg folds up hard
         public const float KeeperDiveBackKnee = 95f;     // back leg also bends a good amount
-        public const float KeeperDiveArmSwing = 55f;     // high dive: top arm swings over toward the dive to close the arm gap
         public const float KeeperDiveMinAir = 0.25f;     // min airborne time before we check for landing
         public const float KeeperDiveSettle = 0.25f;     // time on the ground after landing before getting up
         public const float KeeperDiveMaxTime = 2.5f;     // hard safety cap so a dive can never get stuck
+        // EPIC SAVE ball-speed gate (m/s at the moment of contact). A save on a shot struck at least
+        // this hard is EPIC; so is any save made in a high dive (see KeeperController.IsHighDive).
+        // Those are the only two epic criteria. Set above a firm shot but below a rocket.
+        public const float KeeperEpicSaveSpeed = 22f;
         public static float KeeperJumpVel = 6.5f;        // straight-up jump (Space); pre-match slider
         public const float KeeperJumpVelBase = 6.5f;     // 1.0x reference for jump/dive-height scaling
         // Keeper camera slight mouse look (clamped, stays a behind-view). Yaw is carried
@@ -350,6 +353,10 @@ namespace Trickshot
         // A contact only counts as a "shot" (worth cutting to ball-cam) if the ball leaves
         // with at least this much horizontal pace toward the goal.
         public const float ShotCamMinSpeed = 8f;
+        // MP Striker crowd-boo miss detection: goalward ball speed (m/s on +z) that arms a "shot"
+        // whose failure to score counts as a miss. Above pass/dribble pace so a pass or a nudged
+        // loose ball never arms it - only a struck attempt at goal.
+        public const float MissShotSpeed = 12f;
         // The auto ball-cam now ONLY cuts for a shot taken FACING AWAY from the opponents'
         // goal - the bicycle / over-shoulder shots the striker can't watch himself. When he's
         // facing the goal (dead-ahead in the cone OR merely side-on) he can already see it, so
@@ -474,7 +481,7 @@ namespace Trickshot
         // POWER (a weak knuckle barely wobbles, a full-power one snakes hard). These are SEPARATE from
         // SetPieceKnuckleMul (which the open-play strike path also uses) so tuning the wiggle can't
         // touch open play. Amplitude is an ACCELERATION (m/s^2) so it's mass-independent.
-        public const float SetPieceWiggleAmp   = 70f;    // peak lateral wiggle accel (m/s^2) at full power
+        public const float SetPieceWiggleAmp   = 48f;    // peak lateral wiggle accel (m/s^2) at full power (toned down from 70)
         public const float SetPieceWiggleFreq  = 9.0f;   // wiggle oscillations rate (radians/sec); ~1.4 full snakes per second
         public const float SetPieceChipLoft    = 0.95f;  // a bottom-strike chip scoops up high (up-vel fraction of launch)
         public const float SetPieceChipPaceMul = 0.65f;  // ...with softer forward pace than a driven shot
@@ -660,6 +667,9 @@ namespace Trickshot
         public const float HeaderPowerMul = 1.3f;    // extra power vs a normal strike (low base)
         public const float HeaderSwerve = 3f;        // added swerve (spin + lateral curl) - minimal by default
         public const float HeaderAccuracyMul = 1.35f; // base goal-ward steer on a header (low; Heading tree adds more)
+        // Fraction of the header power+accuracy BOOST (the part above 1.0) applied on a GROUNDED
+        // header; an airborne (jumped) header gets the full boost. Rewards timing a jump.
+        public const float GroundedHeaderBoostFrac = 0.25f;
         // A header REDIRECTS the ball onto a goal-ward horizontal line (not just faster
         // in its old direction), so even a glancing touch flies fast toward goal.
         public const float HeaderGoalBias = 0.85f;   // 0..1: how strongly it aims at goal
