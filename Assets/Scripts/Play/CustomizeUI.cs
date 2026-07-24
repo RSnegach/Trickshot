@@ -32,6 +32,9 @@ namespace Trickshot
 
         // Skill tree UI state.
         SkillTree.Category _skillCat = SkillTree.Category.Pace;
+        // Adult-mode-only extra skill tab. UI-only (NOT a real SkillTree.Category), so it doesn't
+        // touch the stats heptagon or node lists; its graph body is intentionally blank for now.
+        bool _thirdLegTab;
 
         // Body-stage appearance sub-menu (cycled by the arrows beside the BODY title).
         enum BodySub { Traits, Skin, Hair, Facial, Accessories }
@@ -45,6 +48,16 @@ namespace Trickshot
         bool _leftFooted;
         string _name;
         int _number;
+
+        // Adult-mode gate. The toggle ARMS the confirmation popup; Continue there opens a random
+        // knowledge-quiz popup; answering correctly finally flips _adultMode on. Turning the toggle
+        // OFF is immediate (no popup). It's a joke gate: a wrong answer just serves another question.
+        bool _adultMode;
+        bool _adultPrompt;   // stage 1: the "are you 18" popup is showing (modal)
+        bool _adultQuiz;     // stage 2: the knowledge-quiz popup is showing (modal)
+        int _quizIdx = -1;   // current question index into AdultQuiz.Bank
+        int _quizPick = -1;  // the option the user clicked this question (-1 = none yet)
+        float _quizFeedbackUntil;   // unscaled time until the red/green feedback clears + next Q
 
         // ---- Jersey canvas (ATLAS) ----
         // The jersey texture is a 256x520 atlas with two stacked 256x256 drawable regions:
@@ -332,7 +345,9 @@ namespace Trickshot
             // radar over the lower preview, so the shape updates as nodes are bought.
             if (_stage == Stage.Skill)
             {
-                SkillPresetButtons(previewRect);
+                // Preset/RANDOMIZE column is hidden on the blank Third Leg tab; the radar heptagon
+                // stays as-is (left unchanged per the request).
+                if (!(_adultMode && _thirdLegTab)) SkillPresetButtons(previewRect);
                 var radarRect = new Rect(previewRect.x + 20f, previewRect.yMax - 210f, previewW - 40f, 190f);
                 var pc = GUI.color; GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.72f);
                 GUI.DrawTexture(radarRect, Texture2D.whiteTexture); GUI.color = pc;
@@ -362,6 +377,12 @@ namespace Trickshot
             else
                 GUI.Label(new Rect(x + 28f, y + 14f, panelW - 56f, 36f), "CUSTOMIZE - " + _stage.ToString().ToUpper(), title);
 
+            // While an adult-mode popup (age confirm OR quiz) is up, disable + darken the whole
+            // menu so it reads as modal; the popup itself re-enables GUI below.
+            bool adultModal = _adultPrompt || _adultQuiz;
+            bool prevEnabled = GUI.enabled;
+            if (adultModal) GUI.enabled = false;
+
             switch (_stage)
             {
                 case Stage.Body:   BodyStage(x, y, panelW, panelH); break;
@@ -371,6 +392,123 @@ namespace Trickshot
             }
 
             NavButtons(x, y, panelW, panelH);
+
+            GUI.enabled = prevEnabled;
+            if (_adultPrompt) DrawAdultPrompt();
+            else if (_adultQuiz) DrawAdultQuiz();
+        }
+
+        // Modal age-confirmation popup for ADULT MODE. Darkens the whole screen and shows a
+        // centered dialog: Continue confirms (adult mode ON), Back cancels (stays OFF). Drawn last
+        // in OnGUI, on top of the disabled/dimmed menu.
+        void DrawAdultPrompt()
+        {
+            // Full-screen dim.
+            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            float w = 460f, h = 200f;
+            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            // Panel + gold top accent (matches the options/menu look).
+            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
+                "By continuing, you confirm that you are over 18 years old.", msg);
+
+            var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
+            float bw = 150f, bh = 42f, by = py + h - bh - 22f, gap = 24f;
+            if (GUI.Button(new Rect(px + w * 0.5f - bw - gap * 0.5f, by, bw, bh), "Back", btn))
+            {
+                _adultPrompt = false;   // cancel: popup away, background restored, stays OFF
+                _adultMode = false;
+            }
+            if (GUI.Button(new Rect(px + w * 0.5f + gap * 0.5f, by, bw, bh), "Continue", btn))
+            {
+                // Confirmed 18+: keep the screen darkened and move to the knowledge quiz. Adult
+                // mode only turns on after a correct answer (in DrawAdultQuiz).
+                _adultPrompt = false;
+                _adultQuiz = true;
+                NextQuizQuestion();
+            }
+        }
+
+        // Serve a fresh random question. Random.Range is fine here (customize UI, not the sim).
+        void NextQuizQuestion()
+        {
+            int n = AdultQuiz.Bank.Length;
+            if (n <= 0) { _adultQuiz = false; _adultMode = true; return; }   // empty bank: just pass
+            int next = Random.Range(0, n);
+            if (n > 1 && next == _quizIdx) next = (next + 1) % n;   // avoid repeating the same one back-to-back
+            _quizIdx = next;
+            _quizPick = -1;
+            _quizFeedbackUntil = 0f;
+        }
+
+        // Stage-2 modal: a random multiple-choice question. Wrong pick flashes red (with the correct
+        // one green) then serves the next question; a correct pick flashes green then closes the
+        // modal with adult mode ON. Non-serious gate - you can always Back out.
+        void DrawAdultQuiz()
+        {
+            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            if (_quizIdx < 0 || _quizIdx >= AdultQuiz.Bank.Length) { NextQuizQuestion(); return; }
+            var q = AdultQuiz.Bank[_quizIdx];
+
+            float w = 560f, h = 380f;
+            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.86f, 0.32f) } };
+            GUI.Label(new Rect(px + 20f, py + 12f, w - 40f, 20f), "ADULT KNOWLEDGE CHECK", hdr);
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 18, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(px + 30f, py + 36f, w - 60f, 70f), q.Text, msg);
+
+            bool feedback = _quizPick >= 0;   // a pick is being shown with red/green outlines
+            var ansStyle = new GUIStyle(GUI.skin.button) { fontSize = 15, alignment = TextAnchor.MiddleLeft };
+            float ax = px + 40f, aw = w - 80f, ah = 44f, agap = 12f, ay0 = py + 118f;
+            for (int i = 0; i < 4; i++)
+            {
+                var r = new Rect(ax, ay0 + i * (ah + agap), aw, ah);
+                GUI.Button(r, "   " + q.A[i], ansStyle);
+
+                if (feedback)
+                {
+                    // Outline the correct answer green; if the user picked a wrong one, outline it red.
+                    var oc = GUI.color;
+                    if (i == q.Correct) { GUI.color = new Color(0.3f, 0.9f, 0.4f); DrawRectOutline(r, 3f); }
+                    else if (i == _quizPick) { GUI.color = new Color(0.95f, 0.3f, 0.3f); DrawRectOutline(r, 3f); }
+                    GUI.color = oc;
+                }
+                else if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition))
+                {
+                    _quizPick = i;
+                    _quizFeedbackUntil = Time.unscaledTime + (i == q.Correct ? 0.6f : 0.9f);
+                    Event.current.Use();
+                }
+            }
+
+            // After the feedback window: correct -> finish (adult mode ON); wrong -> next question.
+            if (feedback && Time.unscaledTime >= _quizFeedbackUntil)
+            {
+                if (_quizPick == q.Correct) { _adultQuiz = false; _adultMode = true; _quizIdx = -1; }
+                else NextQuizQuestion();
+            }
+
+            var note = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.75f, 0.76f, 0.8f) } };
+            GUI.Label(new Rect(px + 20f, py + h - 44f, w - 40f, 18f), "Answer correctly to enable Adult Mode.", note);
+            var backBtn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
+            if (GUI.Button(new Rect(px + w - 110f, py + h - 34f, 90f, 26f), "Cancel", backBtn))
+            {
+                _adultQuiz = false; _adultMode = false; _quizIdx = -1;
+            }
         }
 
         // Every stage: click-drag anywhere on the preview to turn the model. Only grabs when
@@ -397,7 +535,16 @@ namespace Trickshot
         void BodyStage(float x, float y, float pw, float ph)
         {
             var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
-            float lx = x + 30f, lw = pw - 60f, row = y + 66f;
+            float lx = x + 30f, lw = pw - 60f, row = y + 56f;
+
+            // ADULT MODE toggle, above every other body control. Flipping it ON opens a modal
+            // age-confirmation popup (drawn in OnGUI); _adultMode only becomes true once confirmed.
+            // Flipping OFF is immediate. GUI.Toggle returns the new checkbox state each frame.
+            var togStyle = new GUIStyle(GUI.skin.toggle) { fontSize = 15, fontStyle = FontStyle.Bold };
+            bool want = GUI.Toggle(new Rect(lx, row, lw, 24f), _adultMode, "  ADULT MODE", togStyle);
+            if (want && !_adultMode && !_adultPrompt) _adultPrompt = true;   // arm the confirm popup
+            else if (!want && _adultMode) _adultMode = false;                // turn off immediately
+            row += 34f;
 
             GUI.Label(new Rect(lx, row, lw, 20f), $"Height:  {_height:0.00} m", st); row += 24f;
             _height = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _height, PlayerProfile.MinHeight, PlayerProfile.MaxHeight); row += 40f;
@@ -486,7 +633,7 @@ namespace Trickshot
         }
         Color ValueBar(Rect bar, Color current)
         {
-            Color.RGBToHSV(current, out float h, out float s, out float v);
+            Color.RGBToHSV(current, out float h, out float s, out _);
             // A near-grey current colour has no meaningful hue; keep a stable hue for the gradient.
             if (s < 0.02f) h = _valueBarHue >= 0f ? _valueBarHue : 0f;
             float satForBar = Mathf.Max(s, 0.85f);   // show a vivid hue mid-bar even if current is desaturated
@@ -503,9 +650,19 @@ namespace Trickshot
             }
             GUI.DrawTexture(bar, _valueBar);
 
-            // Where the current colour sits on the bar: white (v=1,s=0) -> 0, pure hue (v=1,s=1) ->
-            // 0.5, black (v=0) -> 1.
-            float tCur = v >= 0.999f ? 0.5f * (1f - s) : 0.5f + 0.5f * (1f - v);
+            // Handle position for `current`. The old readback reverse-engineered t from HSV, but on
+            // the white->hue (left) half saturation is NOT linear in t (an RGB lerp of white->hue
+            // doesn't give s = 2t), so the handle warped. Instead find the t whose gradient sample
+            // best matches current - the exact inverse of ValueBarSample, so both halves track.
+            float tCur = 0.5f;
+            float best = float.MaxValue;
+            for (int i = 0; i <= 64; i++)
+            {
+                float tt = i / 64f;
+                Color c = ValueBarSample(h, satForBar, tt);
+                float d = (c.r - current.r) * (c.r - current.r) + (c.g - current.g) * (c.g - current.g) + (c.b - current.b) * (c.b - current.b);
+                if (d < best) { best = d; tCur = tt; }
+            }
 
             Event e = Event.current;
             Color result = current;
@@ -707,17 +864,29 @@ namespace Trickshot
             var big = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
             GUI.Label(new Rect(lx, y + 52f, lw, 24f), $"Skill points: {SkillTree.Remaining} / {SkillTree.Budget}", big);
 
-            // Category tabs.
+            // Category tabs. Adult mode adds one extra UI-only tab ("Third Leg") at the end.
             var cats = (SkillTree.Category[])System.Enum.GetValues(typeof(SkillTree.Category));
-            float tw = (lw - (cats.Length - 1) * 4f) / cats.Length;
+            int tabCount = cats.Length + (_adultMode ? 1 : 0);
+            float tw = (lw - (tabCount - 1) * 4f) / tabCount;
             for (int i = 0; i < cats.Length; i++)
             {
-                bool sel = _skillCat == cats[i];
+                bool sel = _skillCat == cats[i] && !_thirdLegTab;
                 var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
                 if (sel) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
                 if (GUI.Button(new Rect(lx + i * (tw + 4f), y + 84f, tw, 26f), cats[i].ToString(), tb))
-                    _skillCat = cats[i];
+                    { _skillCat = cats[i]; _thirdLegTab = false; }
             }
+            if (_adultMode)
+            {
+                var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = _thirdLegTab ? FontStyle.Bold : FontStyle.Normal };
+                if (_thirdLegTab) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
+                if (GUI.Button(new Rect(lx + cats.Length * (tw + 4f), y + 84f, tw, 26f), "Third Leg", tb))
+                    _thirdLegTab = true;
+            }
+            else _thirdLegTab = false;   // adult mode off -> can't be on this tab
+
+            // Third Leg tab is blank for now: skip the node graph + preset column entirely.
+            if (_thirdLegTab) return;
 
             // Graph area for the selected category.
             var area = new Rect(lx, y + 120f, lw, ph - 120f - 130f);
@@ -1392,7 +1561,7 @@ namespace Trickshot
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
             // Anchor Back/Next to the far LEFT and RIGHT of the screen (not the panel), so
             // they clear the panel content and sit at the window edges.
-            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
+            float by = Screen.height - 72f;    // sit a little lower, closer to the screen bottom
             float bw = 150f, edge = 24f;
 
             if (GUI.Button(new Rect(edge, by, bw, 44f), "Back", btn))
