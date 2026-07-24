@@ -33,7 +33,7 @@ namespace Trickshot
         // How a style's strand roots are scattered over the scalp. Drives the silhouette far more
         // than length does: a Strip reads as a mohawk, a BackCluster as a ponytail/bun, etc.
         // TopSidesBack covers the crown + sides + back but leaves the FACE clear (long hair).
-        public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring, TopSidesBack }
+        public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring, TopSidesBack, FrontSweep }
 
         // A hair style as data (no per-primitive authoring). AttachAppearance builds a HairSim from
         // one of these; the catalog in Cosmetics is just a list of these defs.
@@ -71,8 +71,11 @@ namespace Trickshot
         const float AtlasVRoot = 0.10f;   // V at the strand root (bottom of the atlas strip)
         const float AtlasVTip  = 0.92f;   // V at the strand tip (top of the atlas strip)
 
-        // Nominal head radius (matches Cosmetics.HeadR) for root placement + collision.
-        const float HeadR = 0.19f;
+        // Nominal head radius (matches Cosmetics.HeadR). The VISIBLE head is this * girth, so we
+        // scale by the head's girth (set in Build) for root placement + collision; otherwise a
+        // scaled-up head grows past the roots and swallows the hair.
+        const float HeadRBase = 0.19f;
+        float HeadR = 0.19f;   // = HeadRBase * girth, resolved in Build
 
         Transform _head;
         int _perStrand;                 // nodes per strand
@@ -108,6 +111,10 @@ namespace Trickshot
         public void Build(Transform head, in HairDef def, Material mat)
         {
             _head = head;
+            // Root + collide against the VISIBLE head radius (HeadRBase * girth), so hair sits on
+            // the scalp at any body size instead of being swallowed by a scaled-up head.
+            var rag = head != null ? head.GetComponentInParent<ActiveRagdoll>() : null;
+            HeadR = HeadRBase * (rag != null ? rag.GirthScale : 1f);
             _strandCount = Mathf.Max(1, def.strands);
             _perStrand = Mathf.Max(2, def.nodes);
             _fan = Mathf.Max(1, def.fan);
@@ -257,6 +264,14 @@ namespace Trickshot
                     // A band low around the whole head (short caps / fringes).
                     phi = Mathf.Lerp(1.15f, 1.5f, Rand01());
                     theta = t * Mathf.PI * 2f;
+                    break;
+                case RootMode.FrontSweep:
+                    // Front hairline over the brow (a fringe/bangs): roots clustered near the top-
+                    // front of the head in a +/-55deg wedge around the face (theta ~0 = +Z front),
+                    // so paired with a forward+down flow the hair sweeps down over the forehead
+                    // instead of ringing the whole head. phi kept near the crown so it starts high.
+                    phi = Mathf.Lerp(0.15f, 0.7f, Rand01());
+                    theta = Mathf.Lerp(-0.95f, 0.95f, t) + RandSym() * 0.12f;   // front wedge only
                     break;
                 default: // Crown: whole upper hemisphere, all around (general medium hair). phi
                     // reaches further down the sides (1.45) so a cap covers more of the head.

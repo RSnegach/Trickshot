@@ -404,6 +404,18 @@ namespace Trickshot
                 case "pacap": // Maestro - ball + radiating pinpoint lines
                     Ball(32f, 32f, 9f); Burst(32f, 32f, 13f, 20f); break;
 
+                // ---------------- UI GLYPHS ----------------
+                case "_shuffle": // two crossing arrows (classic shuffle icon)
+                    // Upper strand: enters low-left, bows up over the middle, exits high-right w/ head.
+                    Stroke(12f, 22f, 24f, 22f, 2.6f);
+                    Arc(32f, 22f, 8f, 180f, 360f, 2.6f);
+                    ArrowSeg(40f, 22f, 50f, 14f, 2.6f, 6f);
+                    // Lower strand: enters high-left, dips under the middle, exits low-right w/ head.
+                    Stroke(12f, 42f, 24f, 42f, 2.6f);
+                    Arc(32f, 42f, 8f, 0f, 180f, 2.6f);
+                    ArrowSeg(40f, 42f, 50f, 50f, 2.6f, 6f);
+                    break;
+
                 default:
                     Ring(32f, 32f, 14f, 2.4f); break;
             }

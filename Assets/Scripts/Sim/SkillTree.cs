@@ -165,6 +165,45 @@ namespace Trickshot
 
         public static void Clear() => Owned.Clear();
 
+        // Wipe the tree and roll a fresh, always-LEGAL random build: pick a random subset of the
+        // areas, then greedily buy random buyable nodes within them until a random target count is
+        // reached or nothing else is buyable. Every add goes through CanBuy, so prereqs and the
+        // point budget are always respected - it can never produce an illegal spend. Gives a
+        // different node count from different areas on each call.
+        public static void Randomize()
+        {
+            Clear();
+
+            // Choose how many of the 7 areas to draw from (at least 1), then that many distinct ones.
+            var cats = (Category[])System.Enum.GetValues(typeof(Category));
+            int catCount = Random.Range(1, cats.Length + 1);
+            var pool = new List<Category>(cats);
+            var chosen = new List<Category>();
+            for (int i = 0; i < catCount && pool.Count > 0; i++)
+            {
+                int k = Random.Range(0, pool.Count);
+                chosen.Add(pool[k]);
+                pool.RemoveAt(k);
+            }
+
+            // Candidate nodes = all nodes in the chosen areas.
+            var candidates = new List<Node>();
+            foreach (var c in chosen) candidates.AddRange(InCategory(c));
+
+            // A random target number of picks; capped so it can't loop forever if budget runs out.
+            int target = Random.Range(3, candidates.Count + 1);
+            int bought = 0, guard = 0;
+            while (bought < target && guard++ < 500)
+            {
+                // Gather everything buyable right now (prereqs met + affordable), pick one at random.
+                var buyable = new List<Node>();
+                foreach (var n in candidates) if (CanBuy(n)) buyable.Add(n);
+                if (buyable.Count == 0) break;
+                Buy(buyable[Random.Range(0, buyable.Count)]);
+                bought++;
+            }
+        }
+
         public static IEnumerable<Node> InCategory(Category c)
         {
             foreach (var n in All) if (n.Cat == c) yield return n;

@@ -49,3 +49,6 @@ desktop.ini
 # Unity crash-recovery scratch
 Assets/_Recovery/
 Assets/_Recovery.meta
+
+# graphify derived cache (regenerated on every run; not source)
+graphify-out/cache/
