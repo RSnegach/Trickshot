@@ -472,6 +472,58 @@ namespace Trickshot
             return current;
         }
 
+        // Value/brightness bar shown under a hue wheel. The wheel's value is fixed at 1, so it can't
+        // reach dark shades; this bar covers that axis. Left = white, middle = the currently-picked
+        // hue at full brightness, right = black - so dragging left brightens/desaturates toward
+        // white and dragging right darkens toward black. Returns the new colour (else `current`).
+        Texture2D _valueBar;      // cached gradient (rebuilt when the hue changes)
+        float _valueBarHue = -1f, _valueBarSat = -1f;
+        Color ValueBarSample(float h, float s, float t)
+        {
+            Color hue = Color.HSVToRGB(h, s, 1f);
+            return t <= 0.5f ? Color.Lerp(Color.white, hue, t / 0.5f)
+                             : Color.Lerp(hue, Color.black, (t - 0.5f) / 0.5f);
+        }
+        Color ValueBar(Rect bar, Color current)
+        {
+            Color.RGBToHSV(current, out float h, out float s, out float v);
+            // A near-grey current colour has no meaningful hue; keep a stable hue for the gradient.
+            if (s < 0.02f) h = _valueBarHue >= 0f ? _valueBarHue : 0f;
+            float satForBar = Mathf.Max(s, 0.85f);   // show a vivid hue mid-bar even if current is desaturated
+
+            // (Re)build the gradient texture when the hue/sat changes.
+            if (_valueBar == null || !Mathf.Approximately(h, _valueBarHue) || !Mathf.Approximately(satForBar, _valueBarSat))
+            {
+                const int n = 128;
+                if (_valueBar == null) _valueBar = new Texture2D(n, 1, TextureFormat.RGBA32, false);
+                var px = new Color32[n];
+                for (int i = 0; i < n; i++) px[i] = ValueBarSample(h, satForBar, i / (float)(n - 1));
+                _valueBar.SetPixels32(px); _valueBar.Apply();
+                _valueBarHue = h; _valueBarSat = satForBar;
+            }
+            GUI.DrawTexture(bar, _valueBar);
+
+            // Where the current colour sits on the bar: white (v=1,s=0) -> 0, pure hue (v=1,s=1) ->
+            // 0.5, black (v=0) -> 1.
+            float tCur = v >= 0.999f ? 0.5f * (1f - s) : 0.5f + 0.5f * (1f - v);
+
+            Event e = Event.current;
+            Color result = current;
+            if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && bar.Contains(e.mousePosition))
+            {
+                float t = Mathf.Clamp01((e.mousePosition.x - bar.x) / bar.width);
+                tCur = t;
+                result = ValueBarSample(h, satForBar, t);
+                e.Use();
+            }
+
+            // Handle marker at the current position.
+            float hx = bar.x + tCur * bar.width;
+            var hRect = new Rect(hx - 2f, bar.y - 2f, 4f, bar.height + 4f);
+            var pc = GUI.color; GUI.color = Color.white; DrawRectOutline(hRect, 2f); GUI.color = pc;
+            return result;
+        }
+
         // A row/grid of preset colour swatches; returns the picked colour (else `current`).
         Color SwatchRow(float x, float y, float w, Color current, Color[] cols, float sw = 30f, float gap = 6f)
         {
@@ -491,15 +543,6 @@ namespace Trickshot
             }
             return result;
         }
-
-        // Dark neutrals the HSV wheel can't reach (its value is fixed at 1, so it tops out at
-        // full-brightness hues and pure white; black and dark greys are unreachable). Offered as
-        // swatches under the hair/facial/accessory wheels. Pure black is first.
-        static readonly Color[] _darkSwatches =
-        {
-            new Color(0.02f, 0.02f, 0.02f), new Color(0.15f, 0.15f, 0.16f),
-            new Color(0.32f, 0.32f, 0.34f), new Color(0.55f, 0.55f, 0.57f),
-        };
 
         // Human-looking skin tones for the "Human" group.
         static readonly Color[] _humanSkins =
@@ -567,9 +610,9 @@ namespace Trickshot
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             GUI.Label(new Rect(wx, row, wsz, 18f), "Hair colour", st);
             PlayerProfile.Appearance.HairColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.HairColor);
-            // The HSV wheel is fixed at full value so it can't reach black; offer it as a swatch.
-            PlayerProfile.Appearance.HairColor = SwatchRow(wx, row + 26f + wsz, wsz,
-                PlayerProfile.Appearance.HairColor, _darkSwatches, 26f, 6f);
+            // The HSV wheel is fixed at full value so it can't reach dark shades; a value bar under
+            // it goes white -> the picked hue -> black.
+            PlayerProfile.Appearance.HairColor = ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), PlayerProfile.Appearance.HairColor);
         }
 
         void FacialSubMenu(float lx, float row, float lw, float bottom)
@@ -583,8 +626,7 @@ namespace Trickshot
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             GUI.Label(new Rect(wx, row, wsz, 18f), "Facial colour", st);
             PlayerProfile.Appearance.FacialColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.FacialColor);
-            PlayerProfile.Appearance.FacialColor = SwatchRow(wx, row + 26f + wsz, wsz,
-                PlayerProfile.Appearance.FacialColor, _darkSwatches, 26f, 6f);
+            PlayerProfile.Appearance.FacialColor = ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), PlayerProfile.Appearance.FacialColor);
         }
 
         void AccessorySubMenu(float lx, float row, float lw, float bottom)
@@ -605,8 +647,7 @@ namespace Trickshot
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             GUI.Label(new Rect(wx, row, wsz, 18f), "Accessory colour", st);
             PlayerProfile.Appearance.AccessoryColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.AccessoryColor);
-            PlayerProfile.Appearance.AccessoryColor = SwatchRow(wx, row + 26f + wsz, wsz,
-                PlayerProfile.Appearance.AccessoryColor, _darkSwatches, 26f, 6f);
+            PlayerProfile.Appearance.AccessoryColor = ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), PlayerProfile.Appearance.AccessoryColor);
         }
 
         void Trait(float lx, ref float row, float lw, string label, float mul)
@@ -794,7 +835,8 @@ namespace Trickshot
             float colX = Mathf.Max(edge, previewRect.x - gap - bw);
 
             float bh = 32f, bgap = 6f;
-            float contentH = 26f + presets.Length * (bh + bgap) + 34f;
+            float randBh = 30f, randGap = 14f;   // RANDOMIZE button sits above the QUICK BUILDS header
+            float contentH = randBh + randGap + 26f + presets.Length * (bh + bgap) + 34f;
             float colY = previewRect.y + Mathf.Max(0f, (previewRect.height - contentH) * 0.5f);
 
             // Backing panel.
@@ -802,10 +844,26 @@ namespace Trickshot
             GUI.DrawTexture(new Rect(colX - pad, colY - pad, bw + pad * 2f, contentH + pad * 2f), Texture2D.whiteTexture);
             GUI.color = prevC;
 
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
-            GUI.Label(new Rect(colX, colY, bw, 20f), "QUICK BUILDS", hdr);
+            // RANDOMIZE: roll a fresh legal random build (random node count from random areas). The
+            // radar + 3D preview read live from SkillTree, so no explicit apply is needed.
+            var randRect = new Rect(colX, colY, bw, randBh);
+            var prevR = GUI.color; GUI.color = new Color(0.30f, 0.24f, 0.42f); GUI.DrawTexture(randRect, Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(randRect, 1.5f); GUI.color = prevR;
+            var shuf = SkillIcons.Get("_shuffle");
+            if (shuf != null)
+            {
+                var p2 = GUI.color; GUI.color = Color.white;
+                GUI.DrawTexture(new Rect(randRect.x + 8f, randRect.y + 5f, 20f, 20f), shuf, ScaleMode.ScaleToFit, true);
+                GUI.color = p2;
+            }
+            var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), "RANDOMIZE", randSt);
+            if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) { SkillTree.Randomize(); _selNode = null; }
 
-            float row = colY + 26f;
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+            GUI.Label(new Rect(colX, colY + randBh + randGap, bw, 20f), "QUICK BUILDS", hdr);
+
+            float row = colY + randBh + randGap + 26f;
             for (int i = 0; i < presets.Length; i++)
             {
                 var p = presets[i];

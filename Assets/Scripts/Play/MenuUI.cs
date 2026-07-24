@@ -20,15 +20,22 @@ namespace Trickshot
         bool _chosen;
         bool _inChallenges;
 
+        // Options overlay (Keybindings + Audio), same panel the pause menu uses. Built lazily from
+        // the passed GameInput; null if none was supplied (then no Options button is shown).
+        OptionsMenu _options;
+        bool _optionsOpen;
+
         // Vignette textures for legibility over the animated backdrop: a faint full-screen tint
         // and a soft dark disc drawn behind the title + button column. Built lazily, freed on destroy.
         Texture2D _tintTex;
         Texture2D _vignetteTex;
 
-        public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null)
+        public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null,
+                         GameInput input = null)
         {
             _onChoose = onChoose;
             _onMultiplayer = onMultiplayer;
+            if (input != null) _options = new OptionsMenu(input);
             // Menu needs a visible, free cursor.
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -45,6 +52,13 @@ namespace Trickshot
             // while the pitch stays visible at the screen edges.
             DrawVignette();
 
+            // Options overlay takes over the whole menu while open (same panel as the pause menu).
+            if (_optionsOpen && _options != null)
+            {
+                _options.Draw(() => _optionsOpen = false);
+                return;
+            }
+
             var title = new GUIStyle(GUI.skin.label)
             {
                 fontSize = 54, fontStyle = FontStyle.Bold,
@@ -55,7 +69,10 @@ namespace Trickshot
 
             if (!_inChallenges)
             {
-                float cy = Screen.height * 0.5f - (h * 2f + gap * 1.5f);
+                // Row count grows by one when Options is available, so keep the column centered.
+                bool hasOptions = _options != null;
+                float rows = hasOptions ? 5f : 4f;
+                float cy = Screen.height * 0.5f - (h * rows + gap * (rows - 1f)) * 0.5f;
                 GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "TRICKSHOT", title);
                 if (GUI.Button(new Rect(cx, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
                 if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
@@ -64,6 +81,8 @@ namespace Trickshot
                 {
                     _chosen = true; enabled = false; _onMultiplayer?.Invoke();
                 }
+                if (hasOptions && GUI.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Options", btn))
+                    _optionsOpen = true;
             }
             else
             {
@@ -128,6 +147,7 @@ namespace Trickshot
         {
             if (_tintTex != null) Destroy(_tintTex);
             if (_vignetteTex != null) Destroy(_vignetteTex);
+            _options?.Dispose();   // abort any in-flight rebind so the op isn't orphaned
         }
     }
 }

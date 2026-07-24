@@ -187,10 +187,10 @@ namespace Trickshot
         {
             switch (o)
             {
-                case Outcome.Goal:    _goals++; Flash("GOAL!"); break;
-                case Outcome.Save:    Flash("SAVE!");    break;
-                case Outcome.Blocked: Flash("BLOCKED!"); break;
-                default:              Flash("MISS");     break;
+                case Outcome.Goal:    _goals++; Flash("GOAL!"); AudioManager.Instance?.OnSetPieceGoal(0); break;
+                case Outcome.Save:    Flash("SAVE!");    AudioManager.Instance?.OnSetPieceMiss(0); break;
+                case Outcome.Blocked: Flash("BLOCKED!"); AudioManager.Instance?.OnSetPieceMiss(0); break;
+                default:              Flash("MISS");     AudioManager.Instance?.OnSetPieceMiss(0); break;
             }
             _phase = Phase.Cooldown;
             _cooldown = ResetDelay;
@@ -209,6 +209,7 @@ namespace Trickshot
                 false, -1f,
                 () => SetPieceTaker.LookAimPoint(_ballSpot, _cam.Yaw, _cam.Pitch, SimConfig.AttackGoalCenter.z));
             _phase = Phase.Armed;
+            AudioManager.Instance?.PlayWhistle();   // whistle as the shooter is set behind the ball (first arm + every reset)
         }
 
         // R: rebuild the wall from current settings and re-arm.

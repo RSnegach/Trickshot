@@ -30,6 +30,8 @@ namespace Trickshot
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
         InputAction _passGround, _passLofted, _switchPlayer, _emote, _tackle;   // scrimmage
         InputAction _crossMap;   // striker mode: toggle the cross-targeting map (fixed M)
+        InputAction _qcText;     // multiplayer: Tab opens the custom-quickchat text box (fixed)
+        readonly InputAction[] _qcDigit = new InputAction[6];   // multiplayer: number keys 1-6 send a preset quickchat
         PlayerInput _playerInput;
 
         public void Init()
@@ -69,6 +71,13 @@ namespace Trickshot
             _tackle      = Btn("Tackle");
             // Striker-mode cross map: fixed to M (not in the rebind list).
             _crossMap    = _map.AddAction("CrossMap", InputActionType.Button, "<Keyboard>/m");
+
+            // Multiplayer quickchat: Tab opens the custom text box; number keys 1-6 send the preset
+            // assigned to that key. Fixed binds (the ASSIGNMENT of phrase->key is handled by the
+            // QuickChat prefs, not the input binding). The driver only reads these in MP.
+            _qcText = _map.AddAction("QuickChatText", InputActionType.Button, "<Keyboard>/tab");
+            for (int i = 0; i < 6; i++)
+                _qcDigit[i] = _map.AddAction("QuickChat" + (i + 1), InputActionType.Button, "<Keyboard>/" + (i + 1));
 
             _map.Enable();
 
@@ -222,6 +231,16 @@ namespace Trickshot
         public bool TacklePressed => _tackle != null && _tackle.WasPressedThisFrame();
         // Striker cross-targeting map toggle (M).
         public bool CrossMapPressed => _crossMap != null && _crossMap.WasPressedThisFrame();
+
+        // Multiplayer quickchat. Tab opens the custom text box; digits 1-6 send a preset.
+        public bool QuickChatTextPressed => _qcText != null && _qcText.WasPressedThisFrame();
+        // Returns the number key (1-6) pressed this frame, or 0 if none.
+        public int QuickChatDigitPressed()
+        {
+            for (int i = 0; i < 6; i++)
+                if (_qcDigit[i] != null && _qcDigit[i].WasPressedThisFrame()) return i + 1;
+            return 0;
+        }
 
         // Emote chosen from the wheel this frame (Celebration.Emote index, or 255 = none). The
         // match UI stashes the pick via SetEmotePick; EmoteId returns it once then it is cleared

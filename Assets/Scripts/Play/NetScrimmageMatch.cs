@@ -50,6 +50,7 @@ namespace Trickshot
         bool _localIsKeeper;
         uint _tick; float _snapAccum;
         string _flash = ""; float _flashTime;
+        QuickChatFeed _qcFeed;   // multiplayer quickchat feed + custom-text entry
 
         // Slot conventions for the capped two-team board.
         const int HomeKeeper = 0, AwayKeeper = 4, TeamSplit = 4;
@@ -67,8 +68,11 @@ namespace Trickshot
             _s = Multiplayer.Session;
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
             _s.MatchEvent += OnMatchEvent;
+            _s.BallKicked += OnBallKicked;
             _s.JerseyUpdated += OnJerseyUpdated;
             _s.RosterChanged += OnRosterChanged;
+            _qcFeed = gameObject.AddComponent<QuickChatFeed>();
+            _qcFeed.Bind(_s);
 
             // HOST: create the ScrimmageGame component FIRST so the Footballers built in SpawnBody
             // can take a valid game ref (Footballer reads _game.HomeGoal/PossessionTeam in AiTick).
@@ -240,12 +244,30 @@ namespace Trickshot
             rb.gameObject.AddComponent<KickDetector>().Init(striker, ragdoll, _ball);
         }
 
-        void OnMatchEvent(string tag) { Flash(tag); }
+        void OnMatchEvent(string tag)
+        {
+            // Referee whistles are audio-only crowd/ref cues, not HUD callouts.
+            if (tag == "WHISTLE")  { AudioManager.Instance?.PlayWhistle();       return; }
+            if (tag == "WHISTLE3") { AudioManager.Instance?.PlayWhistleTriple(); return; }
+            Flash(tag);
+        }
+        // Client: 3D kick thud at the host-reported contact point (10 m rolloff, per-player).
+        void OnBallKicked(Vector3 pos) => AudioManager.Instance?.PlayBallKick(pos);
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
         void Update()
         {
             if (_s == null || PauseMenu.Paused) return;
+
+            // Quickchat (multiplayer): Tab types a custom message; while typing, gameplay is
+            // suspended. Number keys 1-6 send a preset.
+            if (_qcFeed != null)
+            {
+                if (_input.QuickChatTextPressed) _qcFeed.ToggleTextEntry();
+                if (_qcFeed.Typing) return;
+                int qd = _input.QuickChatDigitPressed();
+                if (qd > 0) _qcFeed.SendPreset(qd);
+            }
 
             // Local emote + control for the local player's own body (client + host predict locally).
             var me = _bodies[_localSlot];
@@ -350,6 +372,7 @@ namespace Trickshot
         }
 
         int _homeScore, _awayScore, _clockSec;
+        bool _clientFullTime;   // client-side latch so full-time applause plays exactly once
 
         void ClientUpdate()
         {
@@ -360,7 +383,24 @@ namespace Trickshot
 
             if (!_s.SampleInterpolated(SimConfig.NetInterpDelay, out var a, out var bSnap, out float f))
                 return;
+            int prevClock = _clockSec, prevHome = _homeScore, prevAway = _awayScore;
             _homeScore = bSnap.homeScore; _awayScore = bSnap.awayScore; _clockSec = bSnap.clockSec;
+
+            // Per-goal crowd audio on CLIENTS, edge-triggered off the replicated score. The host
+            // runs ScrimmageGame.OnGoal; clients don't run that sim, so mirror it off score deltas.
+            // Scores only ever rise by one (no join-in-progress in scrimmage), so a plain delta is
+            // safe; OnScrimmageGoal ignores a no-op and handles the trailing-margin boos itself.
+            if (_homeScore > prevHome || _awayScore > prevAway)
+                AudioManager.Instance?.OnScrimmageGoal(_homeScore, _awayScore);
+
+            // Full-time applause on CLIENTS, edge-triggered off the replicated clock reaching 0.
+            // The host plays it in ScrimmageGame.EndMatch; clients don't run that sim, so mirror it
+            // off the synced clock (once, on the transition to zero).
+            if (!_clientFullTime && prevClock > 0 && _clockSec == 0)
+            {
+                _clientFullTime = true;
+                AudioManager.Instance?.PlayGoalCelebration();
+            }
 
             for (int i = 0; i < _bodies.Length; i++)
             {
@@ -442,7 +482,7 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
@@ -463,6 +503,9 @@ namespace Trickshot
             Hud.Legend(_localIsKeeper ? "WASD move   Mouse aim   LMB/RMB dive   Space jump"
                                       : "WASD move   Mouse aim   LMB/RMB legs   C tackle   B emote   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);
+
+            // Quickchat feed + custom-text box (multiplayer).
+            if (_qcFeed != null) _qcFeed.Draw();
         }
     }
 }

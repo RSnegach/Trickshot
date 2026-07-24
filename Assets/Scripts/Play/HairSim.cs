@@ -71,8 +71,11 @@ namespace Trickshot
         const float AtlasVRoot = 0.10f;   // V at the strand root (bottom of the atlas strip)
         const float AtlasVTip  = 0.92f;   // V at the strand tip (top of the atlas strip)
 
-        // Nominal head radius (matches Cosmetics.HeadR) for root placement + collision.
-        const float HeadR = 0.19f;
+        // Nominal head radius (matches Cosmetics.HeadR). The VISIBLE head is this * girth, so we
+        // scale by the head's girth (set in Build) for root placement + collision; otherwise a
+        // scaled-up head grows past the roots and swallows the hair.
+        const float HeadRBase = 0.19f;
+        float HeadR = 0.19f;   // = HeadRBase * girth, resolved in Build
 
         Transform _head;
         int _perStrand;                 // nodes per strand
@@ -108,6 +111,10 @@ namespace Trickshot
         public void Build(Transform head, in HairDef def, Material mat)
         {
             _head = head;
+            // Root + collide against the VISIBLE head radius (HeadRBase * girth), so hair sits on
+            // the scalp at any body size instead of being swallowed by a scaled-up head.
+            var rag = head != null ? head.GetComponentInParent<ActiveRagdoll>() : null;
+            HeadR = HeadRBase * (rag != null ? rag.GirthScale : 1f);
             _strandCount = Mathf.Max(1, def.strands);
             _perStrand = Mathf.Max(2, def.nodes);
             _fan = Mathf.Max(1, def.fan);

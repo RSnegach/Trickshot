@@ -20,6 +20,13 @@ namespace Trickshot
         // front of the face, +X is to the side. These are facing-independent (local to the head).
         const float HeadR = 0.19f;
 
+        // Head girth scale for the CURRENT AttachAppearance pass. The head's visible radius is
+        // HeadR * girth, but cosmetics parent to the head BONE (localScale=1), so their fixed
+        // literal offsets/sizes must be multiplied by this to track the head as it grows/shrinks
+        // with weight. Set at the top of AttachAppearance; read by Ball/Blk/BeardMesh/CrownPatch.
+        // Builds are sequential (no reentrancy), so a static scratch field is safe.
+        static float _cosScale = 1f;
+
         // ---- catalog entry types --------------------------------------------
         // Hair is now a SOFT DYNAMIC style (HairSim), described by data, not a rigid primitive
         // builder. Bald is the one entry with no def (Bald = true). Everything else is simulated
@@ -64,6 +71,11 @@ namespace Trickshot
             var head = rag.Phys(Bone.Head);
             if (head == null) return;
 
+            // Every cosmetic this pass scales by the head's girth so it tracks the head as weight
+            // changes the visible head radius (HeadR * girth). Read once here; Ball/Blk/BeardMesh/
+            // CrownPatch multiply their fixed literals by it.
+            _cosScale = rag.GirthScale;
+
             // Hair (index 0 = bald -> nothing). A non-bald style is a SOFT DYNAMIC HairSim: a
             // child of the head carrying the line-mesh + the Verlet strand sim (built like the
             // net). Cosmetic only - no collider, never a hitbox. Runs on every body with hair,
@@ -74,13 +86,20 @@ namespace Trickshot
                 var mat = Make.Hair(a.HairColor);
                 rag.RegisterCosmeticMaterial(mat);
 
-                // Crown cap: a hair-coloured skullcap sphere over the top of the head, UNDER the
-                // cards, so no bare scalp peeks through the gaps between clumps. It's a solid lit
-                // piece (not the card shader) - a base layer of hair colour, not simulated. Every
-                // non-bald style gets it.
-                var capMat = Make.Mat(a.HairColor, 0.15f);
-                rag.RegisterCosmeticMaterial(capMat);
-                Ball(head, new Vector3(0f, 0.11f, -0.03f), new Vector3(0.45f, 0.34f, 0.46f), capMat);
+                // Crown patch: a hair-coloured skin over the TOP of the head that hugs the head
+                // sphere (built like the beard bib, upper hemisphere), UNDER the cards, so no bare
+                // scalp peeks through the gaps between clumps. Because it's placed at the real head
+                // radius (HeadR * girth) it scales with head size and follows the head silhouette,
+                // instead of the old fixed floating sphere shell. Skipped for the Mohawk, which
+                // bares the sides by design - a full crown skin would fill in the shaved scalp.
+                if (entry.Name != "Mohawk")
+                {
+                    // Wear the HAIR shader (opaque variant) so the cap shares the hair's tint +
+                    // anisotropic sheen instead of reading as a flat plastic dome.
+                    var capMat = Make.HairCap(a.HairColor);
+                    rag.RegisterCosmeticMaterial(capMat);
+                    CrownPatch(head, capMat);
+                }
 
                 // Solid extra pieces for this style (e.g. the man bun's spheres), in hair colour.
                 entry.Extra?.Invoke(head, mat);
@@ -122,9 +141,9 @@ namespace Trickshot
         static void Ball(Transform head, Vector3 localPos, Vector3 localScale, Material mat)
         {
             var go = Make.Sphere("cz", 1f, head.position, mat, head);
-            go.transform.localPosition = localPos;
+            go.transform.localPosition = localPos * _cosScale;      // offset scales so the piece stays on the head
             go.transform.localRotation = Quaternion.identity;
-            go.transform.localScale = localScale;
+            go.transform.localScale = localScale * _cosScale;       // size scales with the head
             var col = go.GetComponent<Collider>();
             if (col != null) UnityEngine.Object.Destroy(col);
         }
@@ -136,9 +155,9 @@ namespace Trickshot
         static void Blk(Transform head, Vector3 localPos, Vector3 localScale, Vector3 euler, Material mat)
         {
             var go = Make.Box("cz", Vector3.one, head.position, mat, head, collider: false);
-            go.transform.localPosition = localPos;
+            go.transform.localPosition = localPos * _cosScale;      // offset + size scale with the head girth
             go.transform.localRotation = Quaternion.Euler(euler);
-            go.transform.localScale = localScale;
+            go.transform.localScale = localScale * _cosScale;
         }
 
         // A curved polygon "bib" for facial hair, generated as a triangle grid that wraps the
@@ -165,13 +184,14 @@ namespace Trickshot
                 float phi = Mathf.Lerp(phiTop, phiBot, tv);
                 float widen = Mathf.Lerp(1f, widenBottom, tv);
                 float cphi = Mathf.Cos(phi), sphi = Mathf.Sin(phi);
-                float rr = HeadR + Mathf.Lerp(0.008f, 0.008f + bulge, tv);
+                // Radius (and the downward hang) scale with head girth so beards track head size.
+                float rr = (HeadR + Mathf.Lerp(0.008f, 0.008f + bulge, tv)) * _cosScale;
                 for (int i = 0; i <= cols; i++)
                 {
                     float tu = i / (float)cols;             // 0 left .. 1 right
                     float theta = Mathf.Lerp(-thetaMax, thetaMax, tu) * widen;
                     float x = rr * cphi * Mathf.Sin(theta);
-                    float y = rr * sphi - drop * tv * tv;   // quadratic hang so the top stays flush
+                    float y = rr * sphi - drop * _cosScale * tv * tv;   // quadratic hang so the top stays flush
                     float z = rr * cphi * Mathf.Cos(theta);
                     int idx = j * (cols + 1) + i;
                     verts[idx] = new Vector3(x, y, z);
@@ -211,6 +231,75 @@ namespace Trickshot
             go.AddComponent<MeshRenderer>().sharedMaterial = mat;
             // Destroying the GameObject does NOT free a runtime-generated mesh (same as materials),
             // and the customize preview rebuilds the body repeatedly, so track it for teardown.
+            go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
+        }
+
+        // A hair-coloured skin over the TOP of the head - the scalp base under the hair cards, so
+        // no bare head shows through the gaps. A dome of triangles wrapping the upper hemisphere at
+        // the real head radius (HeadR * girth) pushed a hair's breadth proud, so it hugs the head
+        // and scales with head size (unlike the old fixed floating sphere). Rings of latitude from
+        // the crown (phi = pi/2, the +Y pole) down to a lower band edge, sweeping the full circle.
+        static void CrownPatch(Transform head, Material mat)
+        {
+            const int rings = 5, seg = 16;
+            float rr = (HeadR + 0.006f) * _cosScale;    // just proud of the head surface, girth-scaled
+            const float phiTop = Mathf.PI * 0.5f;       // +Y pole (top of head)
+            const float phiBot = Mathf.PI * 0.5f - 1.05f; // ~down to just above ear level
+            // Nudge back slightly so it favours the crown/back (hairline sits a touch behind the brow).
+            float zBias = -0.02f * _cosScale;
+
+            int cols = seg;
+            var verts = new Vector3[(cols + 1) * (rings + 1)];
+            var norms = new Vector3[verts.Length];
+            for (int j = 0; j <= rings; j++)
+            {
+                float tv = j / (float)rings;                 // 0 top .. 1 bottom band
+                float phi = Mathf.Lerp(phiTop, phiBot, tv);
+                float cphi = Mathf.Cos(phi), sphi = Mathf.Sin(phi);
+                for (int i = 0; i <= cols; i++)
+                {
+                    float theta = Mathf.Lerp(-Mathf.PI, Mathf.PI, i / (float)cols);
+                    float x = rr * cphi * Mathf.Sin(theta);
+                    float y = rr * sphi;
+                    float z = rr * cphi * Mathf.Cos(theta) + zBias;
+                    int idx = j * (cols + 1) + i;
+                    verts[idx] = new Vector3(x, y, z);
+                    // The hair shader reads the vertex normal as the strand TANGENT for its
+                    // anisotropic sheen, so point it along the MERIDIAN (crown -> down the head,
+                    // d(pos)/d(phi)) - the way hair flows - rather than radially out. Gives the cap
+                    // a hair-like highlight that runs down the head instead of a plastic dome.
+                    norms[idx] = new Vector3(-sphi * Mathf.Sin(theta), cphi, -sphi * Mathf.Cos(theta)).normalized;
+                }
+            }
+            // Double-sided (emit both windings; the culled one is free) - same trick as BeardMesh,
+            // so we don't depend on the cull convention (can't be playtested here).
+            var tris = new int[cols * rings * 12];
+            int t = 0;
+            for (int j = 0; j < rings; j++)
+            for (int i = 0; i < cols; i++)
+            {
+                int a = j * (cols + 1) + i;
+                int b = a + 1;
+                int c = a + (cols + 1);
+                int d = c + 1;
+                tris[t++] = a; tris[t++] = c; tris[t++] = b;
+                tris[t++] = b; tris[t++] = c; tris[t++] = d;
+                tris[t++] = a; tris[t++] = b; tris[t++] = c;
+                tris[t++] = b; tris[t++] = d; tris[t++] = c;
+            }
+            var mesh = new Mesh();
+            mesh.vertices = verts;
+            mesh.normals = norms;
+            mesh.triangles = tris;
+            mesh.RecalculateBounds();
+
+            var go = new GameObject("cz");
+            go.transform.SetParent(head, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
             go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
         }
 

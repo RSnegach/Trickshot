@@ -69,6 +69,22 @@ namespace Trickshot
             return m;
         }
 
+        /// <summary>Hair material for a SOLID surface (the crown patch / skullcap). Same HairCard
+        /// shader as the strands - so the cap shares the hair's Kajiya-Kay tint + anisotropic sheen
+        /// instead of reading as flat plastic - but with the alpha cutoff at 0 so it never clips
+        /// (a solid cap must stay opaque to hide the scalp; the strand atlas only drives opacity,
+        /// which we don't want here). Tint the cap's vertex tangents along the hair flow for a
+        /// hair-like highlight. Falls back to a flat lit material if the shader is absent.</summary>
+        public static Material HairCap(Color c)
+        {
+            if (s_Hair == null) s_Hair = Resources.Load<Shader>("Shaders/HairCard");
+            if (s_Hair == null) return Mat(c, 0.15f);   // graceful fallback: flat lit cap
+            var m = new Material(s_Hair);
+            m.SetColor("_Color", c);
+            m.SetFloat("_Cutoff", 0f);                  // never clip -> fully opaque dome
+            return m;
+        }
+
         /// <summary>
         /// A cylinder visual with a CapsuleCollider (rounded, gives clean bounces).
         /// axis: 0 = X, 1 = Y, 2 = Z. length spans that axis; radius is the tube radius.

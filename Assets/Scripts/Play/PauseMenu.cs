@@ -16,15 +16,18 @@ namespace Trickshot
 
         System.Action _onMainMenu;
         System.Action _onMatchSetup;
+        System.Action _onLeave;    // client-only: leave a net match without ending it for others
         GameInput _input;
         OptionsMenu _options;
         bool _optionsOpen;
         float _savedTimeScale = 1f;
 
-        public void Init(System.Action onMainMenu, System.Action onMatchSetup = null, GameInput input = null)
+        public void Init(System.Action onMainMenu, System.Action onMatchSetup = null, GameInput input = null,
+                         System.Action onLeave = null)
         {
             _onMainMenu = onMainMenu;
             _onMatchSetup = onMatchSetup;
+            _onLeave = onLeave;
             _input = input;
             if (input != null) _options = new OptionsMenu(input);
             Paused = false;
@@ -77,10 +80,11 @@ namespace Trickshot
             }
 
             float w = 300f, h = 60f, gap = 16f;
-            // Rows: Resume, [Match Setup], [Options], Main Menu.
+            // Rows: Resume, [Match Setup], [Options], [Leave Match], Main Menu.
             bool hasSetup = _onMatchSetup != null;
             bool hasOptions = _options != null;
-            int rows = 2 + (hasSetup ? 1 : 0) + (hasOptions ? 1 : 0);
+            bool hasLeave = _onLeave != null;   // client in a networked match
+            int rows = 2 + (hasSetup ? 1 : 0) + (hasOptions ? 1 : 0) + (hasLeave ? 1 : 0);
             float cx = Screen.width * 0.5f - w * 0.5f;
             float cy = Screen.height * 0.5f - (rows * h + (rows - 1) * gap) * 0.5f;
 
@@ -109,7 +113,23 @@ namespace Trickshot
                 ry += h + gap;
             }
 
-            if (GUI.Button(new Rect(cx, ry, w, h), "Main Menu", btn))
+            // Client in a networked match: leave without ending it for everyone else. The host
+            // keeps running the sim and this player's slot reverts to AI.
+            if (hasLeave)
+            {
+                if (GUI.Button(new Rect(cx, ry, w, h), "Leave Match", btn))
+                {
+                    Time.timeScale = 1f;
+                    Paused = false;
+                    _onLeave?.Invoke();
+                }
+                ry += h + gap;
+            }
+
+            // For a networked HOST this ends the match for everyone (no host migration); in
+            // single-player it's just quit-to-menu. Label reflects that.
+            string quitLabel = Trickshot.Net.Multiplayer.IsHost ? "End Match" : "Main Menu";
+            if (GUI.Button(new Rect(cx, ry, w, h), quitLabel, btn))
             {
                 // Restore time/cursor before tearing down.
                 Time.timeScale = 1f;
