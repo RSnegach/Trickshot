@@ -140,6 +140,24 @@ namespace Trickshot
                     acc.Build(head, mat);
                 }
             }
+
+            // Adult-mode appendage: a collider-less Verlet pendulum on the bottom-front of the
+            // pelvis (skin-tinted, girth-scaled). Purely cosmetic; it pushes out of player bodies
+            // but never the ball. Only when the flag is set.
+            if (a.Adult)
+            {
+                var pelvis = rag.Phys(Bone.Pelvis);
+                if (pelvis != null)
+                {
+                    var go = new GameObject("AnatomySim");
+                    go.transform.SetParent(pelvis, false);
+                    go.transform.localPosition = Vector3.zero;
+                    go.transform.localRotation = Quaternion.identity;
+                    go.transform.localScale = Vector3.one;
+                    go.AddComponent<AnatomySim>().Build(pelvis, a.Skin, rag.GirthScale,
+                                                        a.MemberLen, a.MemberGirth, a.BallSize);
+                }
+            }
         }
 
         // ---- collider-less piece helpers ------------------------------------
