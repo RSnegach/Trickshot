@@ -70,6 +70,8 @@ namespace Trickshot
         Phase _phase = Phase.Armed;
         float _liveTime, _restTimer, _settle;
         bool _keeperTouched;
+        bool _saveWasEpic;   // latched at keeper contact: human keeper + (fast shot OR high dive)
+        QuickChatFeed _qcFeed;   // multiplayer quickchat feed + custom-text entry
 
         // The set-piece taker for the active shooter (HOST only drives the scripted launch). The
         // local player also runs one for HUD prediction (its meter) even as a client. AI/parked
@@ -112,7 +114,10 @@ namespace Trickshot
             }
             _ball.SetPieceShot = true;   // arcadey loft + curl + stat-scaled assist
             _s.MatchEvent += OnMatchEvent;
+            _s.BallKicked += OnBallKicked;
             _s.ShootoutUpdated += OnShootoutUpdated;
+            _qcFeed = gameObject.AddComponent<QuickChatFeed>();
+            _qcFeed.Bind(_s);
 
             foreach (var slot in _s.Roster)
                 SpawnBody(slot.slot, torso, limb, glove, root);
@@ -263,7 +268,13 @@ namespace Trickshot
             rb.gameObject.AddComponent<KickDetector>().Init(striker, ragdoll, _ball);
         }
 
-        void OnMatchEvent(string tag) { Flash(tag); }
+        void OnMatchEvent(string tag)
+        {
+            if (tag == "WHISTLE") { AudioManager.Instance?.PlayWhistle(); return; }   // ref call, no HUD splash
+            Flash(tag);
+        }
+        // Client: 3D kick thud at the host-reported contact point (10 m rolloff, per-player).
+        void OnBallKicked(Vector3 pos) => AudioManager.Instance?.PlayBallKick(pos);
         // Clients (and the host) learn the active shooter + over-state from the synced tally.
         // The client needs _activeShooter so LocalIsActiveShooter gates its own prediction; the
         // host already set these authoritatively before broadcasting (harmless to re-apply).
@@ -283,10 +294,36 @@ namespace Trickshot
                 }
                 _lastLocalTaken = myTaken;
             }
+            // Crowd streak stingers, driven off the replicated tally so they fire identically on
+            // the host AND every client (this handler runs on both). Per shooter: a resolved
+            // attempt is a +1 step in taken[]; +1 in scored[] too means a goal, else a miss. We
+            // require a taken delta of exactly 1 so a departed shooter (OnRosterChanged jumps their
+            // taken to ShotsEach) never registers as a phantom miss.
+            if (s.taken != null && s.scored != null)
+            {
+                for (int i = 0; i < s.taken.Length && i < NetSession.MaxSlots; i++)
+                {
+                    int dt = s.taken[i]  - _prevTaken[i];
+                    int dg = s.scored[i] - _prevScored[i];
+                    if (dt == 1)
+                    {
+                        if (dg >= 1) AudioManager.Instance?.OnSetPieceGoal(i);
+                        else         AudioManager.Instance?.OnSetPieceMiss(i);
+                    }
+                    _prevTaken[i]  = s.taken[i];
+                    _prevScored[i] = s.scored[i];
+                }
+            }
+
+            // Match-end applause (host + clients), once, on the shootout going over.
+            if (s.over && !_over) AudioManager.Instance?.PlayApplauseOnly();
+
             _activeShooter = s.activeShooter;
             _over = s.over;
         }
         int _lastLocalTaken;
+        readonly int[] _prevTaken  = new int[NetSession.MaxSlots];
+        readonly int[] _prevScored = new int[NetSession.MaxSlots];
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
         // A player left mid-shootout: despawn their body so it doesn't freeze as a statue. The
@@ -372,6 +409,11 @@ namespace Trickshot
             _taker.Reset();
             _aiKickDelay = Random.Range(0.6f, 1.4f);
             _armedElapsed = 0f;
+
+            // Whistle as the shooter is set behind the ball (first turn + each new turn). Host plays
+            // locally and broadcasts so every client hears the same ref call.
+            AudioManager.Instance?.PlayWhistle();
+            _s.BroadcastEvent("WHISTLE");
         }
 
         // Advance to the next live shooter that still has attempts left; end the match if none.
@@ -433,6 +475,16 @@ namespace Trickshot
         void Update()
         {
             if (_s == null || PauseMenu.Paused) return;
+
+            // Quickchat (multiplayer): Tab types a custom message; while typing, gameplay is
+            // suspended. Number keys 1-6 send a preset.
+            if (_qcFeed != null)
+            {
+                if (_input.QuickChatTextPressed) _qcFeed.ToggleTextEntry();
+                if (_qcFeed.Typing) return;
+                int qd = _input.QuickChatDigitPressed();
+                if (qd > 0) _qcFeed.SendPreset(qd);
+            }
 
             if (_replaying)
             {
@@ -596,6 +648,7 @@ namespace Trickshot
                     if (_ball.Speed > KickSpeed)
                     {
                         _phase = Phase.Live; _liveTime = _restTimer = 0f; _keeperTouched = false;
+                        _saveWasEpic = false;
                         if (_wall != null) _wall.TriggerJump();
                         Flash("STRIKE!");
                     }
@@ -603,7 +656,16 @@ namespace Trickshot
 
                 case Phase.Live:
                     _liveTime += Time.deltaTime;
-                    if (!_keeperTouched && KeeperContactedBall(c)) _keeperTouched = true;
+                    if (!_keeperTouched && KeeperContactedBall(c))
+                    {
+                        _keeperTouched = true;
+                        // EPIC SAVE criteria, latched at the contact frame (before the touch slows
+                        // the ball), and only for a HUMAN keeper: shot arriving at least
+                        // KeeperEpicSaveSpeed, OR the save made in a high dive. Same rule as KeeperGame.
+                        var kb = _bodies[0];
+                        if (kb != null && kb.keeper != null)
+                            _saveWasEpic = _ball.Speed >= SimConfig.KeeperEpicSaveSpeed || kb.keeper.IsHighDive;
+                    }
                     if (BallInGoal(c)) { ResolveAttempt(true); break; }
                     if (_ball.Speed < RestSpeed) _restTimer += Time.deltaTime; else _restTimer = 0f;
                     bool out_ = c.y < -3f || Mathf.Abs(c.x) > SimConfig.FieldWidth || Mathf.Abs(c.z) > SimConfig.FieldLength;
@@ -621,7 +683,7 @@ namespace Trickshot
         {
             _taken[_activeShooter]++;
             if (goal) { _scored[_activeShooter]++; _s.BroadcastEvent("GOAL!"); }
-            else _s.BroadcastEvent(_keeperTouched ? "SAVED!" : "MISS");
+            else _s.BroadcastEvent(_keeperTouched ? (_saveWasEpic ? "EPIC SAVE!" : "SAVED!") : "MISS");
             BroadcastShootout();
             _phase = Phase.Settle;
             _advanceAfterReplay = true;
@@ -759,6 +821,7 @@ namespace Trickshot
             if (_s != null)
             {
                 _s.MatchEvent -= OnMatchEvent;
+                _s.BallKicked -= OnBallKicked;
                 _s.ShootoutUpdated -= OnShootoutUpdated;
                 _s.ReplayStarted -= OnReplayStarted;
                 _s.ReplayEnded -= OnReplayEnded;
@@ -810,6 +873,9 @@ namespace Trickshot
 
             DrawScoreboard(st);
             DrawPowerMeter();
+
+            // Quickchat feed + custom-text box (multiplayer).
+            if (_qcFeed != null) _qcFeed.Draw();
         }
 
         // Centered power meter shown while the LOCAL player is charging their set-piece shot.

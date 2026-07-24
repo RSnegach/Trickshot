@@ -32,6 +32,10 @@ namespace Trickshot
         // fully committed rather than a stationary block).
         public bool IsCommitting => _state == State.Diving || _state == State.Saving;
 
+        // True while airborne in a HIGH (full lay-out) dive specifically, not a low dash dive.
+        // One of the two EPIC SAVE criteria (the other is ball speed at contact).
+        public bool IsHighDive => _state == State.Diving && _diveIsHigh;
+
         // Dive lifecycle: landing detection.
         float _diveDir;       // -1 left / +1 right (for the leading-leg bend)
         Quaternion _diveOrient;  // held horizontal lay-out target for the current dive
@@ -328,17 +332,18 @@ namespace Trickshot
                 _ragdoll.SetPoseOverride(backThigh, new Vector3(-SimConfig.KeeperDiveBackKnee * 0.5f, 0f, 0f));
                 _ragdoll.SetPoseOverride(backCalf,  new Vector3(SimConfig.KeeperDiveBackKnee, 0f, 0f));
 
-                // High dive only: swing the TOP arm (the one on the up side, opposite the dive
-                // direction) over toward the dive so the two outstretched arms close the gap
-                // between them and cover more space. Local +Z swings a hanging arm toward the
-                // keeper's LEFT, -Z toward his RIGHT: diving left (top = UpperArmR, base -Z) we
-                // add +Z to bring it left/over; diving right (top = UpperArmL, base +Z) we add -Z.
-                // Low dash dives skip this (arms stay wide) so it reads as a distinct move.
+                // High dive only: both arms punched OVERHEAD and close together (near-parallel),
+                // like a streamlined superman reach past the head, instead of the wide star spread.
+                // Overriding both upper arms on +X rotates them up past the head (same axis the
+                // Jump pose uses for its overhead punch); the tiny opposite Z keeps them a hair
+                // apart rather than crossing. The forearms extend straight. No swing. Low dash
+                // dives keep the wide arms (KeeperPose.Dive) so the two moves read differently.
                 if (_diveIsHigh)
                 {
-                    Bone topArm = _diveDir < 0f ? Bone.UpperArmR : Bone.UpperArmL;
-                    float swing = _diveDir < 0f ? SimConfig.KeeperDiveArmSwing : -SimConfig.KeeperDiveArmSwing;
-                    _ragdoll.SetPoseOverride(topArm, new Vector3(0f, 0f, swing));
+                    _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(-165f, 0f, 8f));
+                    _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(-165f, 0f, -8f));
+                    _ragdoll.SetPoseOverride(Bone.ForearmL, new Vector3(-5f, 0f, 0f));
+                    _ragdoll.SetPoseOverride(Bone.ForearmR, new Vector3(-5f, 0f, 0f));
                 }
             }
 

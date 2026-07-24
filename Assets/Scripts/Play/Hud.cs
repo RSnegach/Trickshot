@@ -41,7 +41,7 @@ namespace Trickshot
             _statKey  = new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleLeft, normal = { textColor = Dim } };
             _statVal  = new GUIStyle { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = Ink } };
             _clock    = new GUIStyle { fontSize = 46, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Ink } };
-            _flash    = new GUIStyle { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Ink } };
+            _flash    = new GUIStyle { fontSize = 72, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Ink } };
             _bannerBig = new GUIStyle { fontSize = 46, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink } };
             _bannerSub = new GUIStyle { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Gold } };
             _legend   = new GUIStyle { fontSize = 12, alignment = TextAnchor.MiddleLeft, normal = { textColor = Dim } };
@@ -84,13 +84,59 @@ namespace Trickshot
             _clock.normal.textColor = prev;
         }
 
+        // Callout colours keyed off the text so GOAL / SAVE / MISS etc. read at a glance.
+        // GOAL + EPIC = gold, SAVE/BLOCK = blue accent, MISS = warm red, else white.
+        static Color FlashTint(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return Ink;
+            string t = text.ToUpperInvariant();
+            if (t.Contains("EPIC"))  return new Color(1f, 0.55f, 0.15f);   // fiery orange-gold
+            if (t.Contains("GOAL"))  return new Color(1f, 0.84f, 0.28f);   // gold
+            if (t.Contains("SAVE"))  return new Color(0.35f, 0.72f, 1f);   // keeper blue
+            if (t.Contains("BLOCK")) return new Color(0.55f, 0.80f, 1f);   // lighter blue
+            if (t.Contains("MISS"))  return new Color(1f, 0.42f, 0.38f);   // warm red
+            return Ink;
+        }
+
         // ---- centre callout that fades with alpha (0..1) ----
+        // Big, colour-coded, with a soft backing plate, drop shadow, and a quick pop-in scale as it
+        // appears (alpha runs 1 -> 0 over the flash's life, so 1-alpha drives the settle). One
+        // renderer for every mode's GOAL / SAVE / BLOCKED / MISS callout.
         public static void Flash(string text, float alpha)
         {
             if (alpha <= 0f || string.IsNullOrEmpty(text)) return;
-            var c = Ink; c.a = Mathf.Clamp01(alpha); _flash.normal.textColor = c;
-            GUI.Label(new Rect(0, 92f, Screen.width, 50f), text, _flash);
+            alpha = Mathf.Clamp01(alpha);
+
+            // Pop-in: overshoot to ~1.12x at spawn, settle to 1x within the first ~20% of life.
+            float appear = Mathf.Clamp01((1f - alpha) / 0.2f);
+            float scale = Mathf.Lerp(1.12f, 1f, appear);
+            // Ease the fade so it lingers readable then drops off quickly at the end.
+            float a = alpha * alpha * (3f - 2f * alpha);   // smoothstep
+
+            _flash.fontSize = Mathf.RoundToInt(72f * scale);
+            Color tint = FlashTint(text);
+
+            const float bandTop = 84f, bandH = 96f;
+            // Soft dark plate behind the text for legibility over any pitch/crowd.
+            Fill(new Rect(0f, bandTop, Screen.width, bandH), new Color(0f, 0f, 0f, 0.34f * a));
+            // Thin accent rules top and bottom of the band, in the callout's colour.
+            var rule = tint; rule.a = 0.55f * a;
+            Fill(new Rect(0f, bandTop, Screen.width, 2f), rule);
+            Fill(new Rect(0f, bandTop + bandH - 2f, Screen.width, 2f), rule);
+
+            var rect = new Rect(0, bandTop + 10f, Screen.width, 80f);
+
+            // Drop shadow first (offset, dark), then the coloured text on top.
+            var shadow = new Color(0f, 0f, 0f, 0.55f * a);
+            _flash.normal.textColor = shadow;
+            GUI.Label(new Rect(rect.x + 3f, rect.y + 3f, rect.width, rect.height), text, _flash);
+
+            var c = tint; c.a = a; _flash.normal.textColor = c;
+            GUI.Label(rect, text, _flash);
+
+            // Restore defaults for any other caller.
             _flash.normal.textColor = Ink;
+            _flash.fontSize = 72;
         }
 
         // ---- centre end-of-round card ----

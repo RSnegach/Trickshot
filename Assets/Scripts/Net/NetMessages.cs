@@ -32,6 +32,8 @@ namespace Trickshot.Net
         ShootoutState = 13, // host -> clients: set-pieces active shooter + per-slot scores
         UpdateLoadout = 14, // client -> host: my appearance changed (re-customized in the lobby)
         JerseyChunk = 15,   // client<->host: one chunk of a slot's painted-jersey PNG (too big to inline)
+        BallKick = 16,      // host -> clients: the ball was struck at a world position (3D kick SFX)
+        QuickChat = 17,     // client -> host request, then host -> clients relay: a quickchat message
     }
 
     // One chunk of a slot's painted-jersey PNG. Jerseys are far too big for the roster row (which
@@ -257,6 +259,22 @@ namespace Trickshot.Net
         }
 
         public static byte[] Event(string tag) { var w = new NetWriter(MsgType.MatchEvent); w.Str(tag); return w.ToArray(); }
+
+        // Ball-kick position (host -> clients) for the 3D kick SFX. Unreliable: a dropped one just
+        // means one missed thud, cheaper than reliable for a frequent transient.
+        public static byte[] BallKick(Vector3 pos) { var w = new NetWriter(MsgType.BallKick); w.V3(pos); return w.ToArray(); }
+
+        // Quickchat. Same wire both directions (client->host request, host->clients relay). slot =
+        // sender's player slot (host stamps the authoritative value on relay). presetId 255 = use
+        // the custom string; else it's an index into QuickChat.Phrases and custom is ignored/empty.
+        public static byte[] QuickChat(byte slot, byte presetId, string custom)
+        {
+            var w = new NetWriter(MsgType.QuickChat); w.U8(slot); w.U8(presetId); w.Str(custom ?? ""); return w.ToArray();
+        }
+        public static void ReadQuickChat(NetReader r, out byte slot, out byte presetId, out string custom)
+        {
+            slot = r.U8(); presetId = r.U8(); custom = r.Str();
+        }
 
         // Roster + config (host -> clients).
         public static byte[] Roster(MatchConfig cfg, LobbySlot[] slots)

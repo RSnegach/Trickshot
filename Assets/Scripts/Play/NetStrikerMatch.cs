@@ -74,6 +74,7 @@ namespace Trickshot
         // Emote wheel (B): pick a celebration; it plays on the local body and syncs to everyone.
         bool _wheelOpen;
         int _wheelPage;   // which of Celebration.Pages is showing (arrows cycle it)
+        QuickChatFeed _qcFeed;   // multiplayer quickchat feed + custom-text entry
 
         // Per-machine post-goal replay (each peer replays its own local view).
         ReplaySystem _replay;
@@ -92,6 +93,9 @@ namespace Trickshot
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
             _goalLineZ = SimConfig.GoalCenter.z;
             _s.MatchEvent += OnMatchEvent;
+            _s.BallKicked += OnBallKicked;
+            _qcFeed = gameObject.AddComponent<QuickChatFeed>();
+            _qcFeed.Bind(_s);
 
             // Spawn a body per active slot from the roster (keeper slot 0, crosser slot N-1,
             // shooters between).
@@ -379,13 +383,21 @@ namespace Trickshot
 
         void OnMatchEvent(string tag)
         {
+            // A miss is an audio-only crowd reaction on clients (occasional boos); don't splash a
+            // "MISS" callout across every HUD. The host already booed + skipped the flash locally.
+            if (tag == "MISS") { AudioManager.Instance?.PlayMissBoosMaybe(); return; }
+
             Flash(tag);
             // On a goal, stand the LOCAL striker back up. A trick finish (diving header / bicycle)
             // leaves him prone + limp, and his Tick() is suspended through the goal hold + replay,
             // so without this he'd stay slumped on the deck for the whole celebration. Only the
             // local body has a live Striker to recover (remote bodies are host-driven / puppeted).
-            if (tag == "GOAL!") RecoverLocalStriker();
+            if (tag == "GOAL!") { RecoverLocalStriker(); AudioManager.Instance?.PlayGoalCelebration(); }
         }
+
+        // Client: host reported a ball-body contact at `pos`; play the 3D kick thud there
+        // (attenuated to this player's own position by the 10 m rolloff).
+        void OnBallKicked(Vector3 pos) => AudioManager.Instance?.PlayBallKick(pos);
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
         // Pop the local striker upright out of any trick/limp pose. Safe to call on host or client
@@ -487,6 +499,16 @@ namespace Trickshot
         void Update()
         {
             if (_s == null || PauseMenu.Paused) return;
+
+            // Quickchat (multiplayer): Tab opens/submits the custom text box; while typing, gameplay
+            // input is suspended so keystrokes don't drive the player. Number keys 1-6 send a preset.
+            if (_qcFeed != null)
+            {
+                if (_input.QuickChatTextPressed) _qcFeed.ToggleTextEntry();
+                if (_qcFeed.Typing) return;   // suspend gameplay control while typing
+                int qd = _input.QuickChatDigitPressed();
+                if (qd > 0) _qcFeed.SendPreset(qd);
+            }
 
             // --- Replay: no gameplay control; click to vote-skip; host ends when its own
             //     playback finishes (a natural end for everyone) or all humans have voted. ---
@@ -634,11 +656,19 @@ namespace Trickshot
             if (!_replaying && BallInGoal(c))
             {
                 _goals++; _s.BroadcastEvent("GOAL!"); _goalHold = SimConfig.ReplayHold;
+                _shotLive = false;   // consumed as a goal, not a miss
                 // Host's own goal: BroadcastEvent only fires MatchEvent on CLIENTS, so stand the
                 // host's local striker up here too (a trick finish otherwise stays limp through
                 // the hold + replay). Flash the callout locally to match the clients' HUD.
+                // Cheer here too: BroadcastEvent only fires OnMatchEvent on CLIENTS, so the host
+                // plays its own goal celebration locally (clients get it via OnMatchEvent above).
                 Flash("GOAL!");
                 RecoverLocalStriker();
+                AudioManager.Instance?.PlayGoalCelebration();
+            }
+            else if (!_replaying)
+            {
+                HostTrackMiss(c);
             }
 
             PublishSnapshotIfDue();
@@ -812,11 +842,43 @@ namespace Trickshot
                    && Mathf.Abs(c.x) <= halfW - r && c.y >= r && c.y <= SimConfig.GoalHeight - r;
         }
 
+        // --- Miss detection (host-authoritative), so the crowd can boo an occasional wasted shot.
+        // MP Striker is continuous play, so there's no discrete attempt like the set pieces. We
+        // define a SHOT conservatively: the ball is moving goalward at real pace. A shot MISSES if,
+        // while live, it passes the goal line (wide/high/over the frame) or leaves the field, and
+        // it did NOT score (goal is handled above and clears _shotLive). This never fires on a
+        // dribble, a pass, or a slow loose ball - only on a struck ball that reaches the goal
+        // region and fails. One boo per shot; re-arms only after the ball is calm again.
+        bool _shotLive;
+        void HostTrackMiss(Vector3 c)
+        {
+            float halfW = SimConfig.GoalWidth * 0.5f;
+            bool goalward = _ball.Rb.linearVelocity.z > SimConfig.MissShotSpeed;
+
+            // Arm a shot: fast ball headed at goal, still in front of the line.
+            if (!_shotLive && goalward && c.z < _goalLineZ) { _shotLive = true; return; }
+            if (!_shotLive) return;
+
+            // Resolve the live shot the moment it reaches/leaves the goal line plane without
+            // being in the frame (BallInGoal already handled the score + cleared _shotLive), or
+            // it flies out of the field entirely.
+            bool pastLine  = c.z - SimConfig.BallRadius >= _goalLineZ;                 // crossed the line, not a goal
+            bool wideOrOut = Mathf.Abs(c.x) > halfW || c.y > SimConfig.GoalHeight;     // outside the frame
+            bool offField  = c.y < -3f || Mathf.Abs(c.x) > SimConfig.FieldWidth || Mathf.Abs(c.z) > SimConfig.FieldLength;
+
+            if ((pastLine && wideOrOut) || offField)
+            {
+                _shotLive = false;
+                _s.BroadcastEvent("MISS");                     // clients boo via OnMatchEvent
+                AudioManager.Instance?.PlayMissBoosMaybe();    // host plays locally (BroadcastEvent skips host)
+            }
+        }
+
         static void LockCursor() { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
 
         void OnDestroy()
         {
-            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
@@ -840,6 +902,9 @@ namespace Trickshot
 
             // Emote wheel overlay (B).
             if (_wheelOpen) DrawEmoteWheel();
+
+            // Quickchat feed + custom-text box (multiplayer).
+            if (_qcFeed != null) _qcFeed.Draw();
 
             // Crosser's cross-targeting overlay (aim where deliveries land).
             if (_localIsCrosser && _crossMapOpen)

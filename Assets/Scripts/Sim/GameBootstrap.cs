@@ -61,6 +61,12 @@ namespace Trickshot
 
         void ShowMainMenu()
         {
+            // Menu music loops unbroken across every pregame screen + the host lobby. Idempotent,
+            // so re-entering the menu (or walking hub -> lobby -> customize) never restarts it.
+            // Started here + at launch (Awake -> ShowMainMenu); stopped in BuildMode when a match
+            // begins; resumed in TearDownMatch on the way back.
+            AudioManager.Instance?.PlayMenuMusic();
+
             // Aesthetic backdrop behind the title screen. Built on its own camera + off-pitch
             // stage, torn down the instant a mode or the multiplayer flow is chosen so it never
             // fights the match camera or the customize preview.
@@ -70,7 +76,8 @@ namespace Trickshot
             var menu = menuGo.AddComponent<MenuUI>();
             menu.Init(
                 onChoose: mode => { HideMenuBackground(); Destroy(menuGo); ShowStadiumSelect(mode); },
-                onMultiplayer: () => { HideMenuBackground(); Destroy(menuGo); ShowMultiplayerHub(); });
+                onMultiplayer: () => { HideMenuBackground(); Destroy(menuGo); ShowMultiplayerHub(); },
+                input: GetInput());   // enables the title-screen Options button (Keybindings + Audio)
         }
 
         void ShowMenuBackground()
@@ -217,12 +224,29 @@ namespace Trickshot
             if (gc != null) Destroy(gc);
             Time.timeScale = 1f;
             Time.fixedDeltaTime = 0.02f;
+
+            // Back to menus: stop the crowd bed and resume menu music. Covers BOTH exits (quit to
+            // main menu AND pause -> match setup, which reopens Prematch without ShowMainMenu).
+            AudioManager.Instance?.EndMatch();
+            AudioManager.Instance?.PlayMenuMusic();
         }
 
         void ReturnToMainMenu()
         {
             TearDownMatch();
             Trickshot.Net.Multiplayer.End();   // end any networked session on quit-to-menu
+            ShowMainMenu();
+        }
+
+        // Client-only: leave a networked match without ending it for anyone else. For a CLIENT,
+        // Multiplayer.End() just shuts this peer's transport; the host detects the drop
+        // (NetSession.OnPeerLeft), frees the slot, and the match driver reverts that player to AI
+        // so the host + remaining players keep going. (Host has no leave-without-ending: it owns
+        // the authoritative sim and there's no host migration, so the host uses Main Menu instead.)
+        void LeaveNetworkedMatch()
+        {
+            TearDownMatch();
+            Trickshot.Net.Multiplayer.End();
             ShowMainMenu();
         }
 
@@ -236,6 +260,11 @@ namespace Trickshot
 
         void BuildMode(GameMode mode)
         {
+            // Audio hand-off at the menu -> match boundary: stop menu music and start the crowd
+            // bed for this mode (also arms the lively swell timer / streak system). Done first so
+            // it covers every mode, including the early-return scrimmage branch below.
+            AudioManager.Instance?.BeginMatch(mode);
+
             // Everything for this match lives under _matchRoot so it can be torn down.
             _matchRoot = new GameObject("Match");
             _matchRoot.transform.SetParent(_root, false);
@@ -243,10 +272,13 @@ namespace Trickshot
             var cam = _cam;
             var camGo = _camGo;
 
-            // Pause menu (Esc): Resume / Match Setup / Options / Main Menu.
+            // Pause menu (Esc): Resume / Match Setup / Options / Leave. The leave callback is a
+            // CLIENT clean-leave (drops only this player, host + others play on); it's null in
+            // single-player and for the host, where "Main Menu" ends the session for everyone.
             var pauseGo = new GameObject("PauseMenu");
             pauseGo.transform.SetParent(root, false);
-            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput());
+            System.Action onLeave = Trickshot.Net.Multiplayer.IsClient ? LeaveNetworkedMatch : (System.Action)null;
+            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput(), onLeave);
 
             // Networked match: pump the transport every frame for the match's lifetime.
             if (Trickshot.Net.Multiplayer.IsActive)

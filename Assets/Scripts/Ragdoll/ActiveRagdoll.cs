@@ -113,6 +113,7 @@ namespace Trickshot
         // length) by _gScale, and every bone mass by _massMul. Grounding uses _hScale.
         float _hScale = 1f, _gScale = 1f, _massMul = 1f;
         public float HeightScale => _hScale;
+        public float GirthScale => _gScale;   // multiplier applied to the visible head radius (cosmetics scale by this)
 
         // Keeper-only extra hitbox thickness: the keeper (withGloves) gets fatter arm/leg/foot
         // colliders than the striker so saves connect off any limb. 1 = no boost (striker).

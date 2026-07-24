@@ -19,7 +19,7 @@ namespace Trickshot
         float _liveTime, _restTimer;
         bool _resolved;
         bool _keeperTouched;    // did the ball contact the keeper this attempt
-        bool _touchedCommitting; // was he diving/lunging at the moment of that touch
+        bool _touchedEpic;       // latched at contact: shot fast enough OR a high dive -> EPIC SAVE
 
         int _goals, _saves, _shots;
         string _flash = ""; float _flashTime;
@@ -60,7 +60,7 @@ namespace Trickshot
                 _shots++;
                 _resolved = false;
                 _keeperTouched = false;
-                _touchedCommitting = false;
+                _touchedEpic = false;
                 _liveTime = 0f;
                 _restTimer = 0f;
                 Flash("SHOT!");
@@ -88,7 +88,10 @@ namespace Trickshot
             if (!_keeperTouched && KeeperContactedBall())
             {
                 _keeperTouched = true;
-                _touchedCommitting = _keeper.IsCommitting;   // latch: was he diving at contact
+                // EPIC SAVE criteria, latched at the contact frame (before the ball is slowed by
+                // the touch): the shot was travelling at least KeeperEpicSaveSpeed, OR the save was
+                // made in a HIGH dive. Those are the only two criteria.
+                _touchedEpic = _ball.Speed >= SimConfig.KeeperEpicSaveSpeed || _keeper.IsHighDive;
             }
 
             float r = SimConfig.BallRadius, halfW = SimConfig.GoalWidth * 0.5f;
@@ -119,8 +122,9 @@ namespace Trickshot
         }
 
         void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); }
-        // A save touched while diving/lunging is an EPIC SAVE; a stationary block is a SAVE.
-        void OnSave() { _resolved = true; _saves++; Flash(_touchedCommitting ? "EPIC SAVE!" : "SAVE!"); CrowdCheer.Celebrate(); }
+        // EPIC SAVE when the shot was hit hard enough OR stopped in a high dive (latched at
+        // contact); otherwise a plain SAVE.
+        void OnSave() { _resolved = true; _saves++; Flash(_touchedEpic ? "EPIC SAVE!" : "SAVE!"); CrowdCheer.Celebrate(); }
         void OnMiss() { _resolved = true; Flash("MISS"); }
 
         // R only: full reset of keeper + serve loop (not per-ball, which would yank the

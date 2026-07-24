@@ -119,6 +119,10 @@ namespace Trickshot
             _resolved = false;
             _kickoffTimer = SimConfig.ScrimKickoffFreeze;   // brief set-and-ready freeze
             Flash("KICK OFF");
+            // Whistle at match start AND every post-goal kickoff. Local for SP + host; the host also
+            // broadcasts so clients (who don't run this sim) hear it too.
+            AudioManager.Instance?.PlayWhistle();
+            if (Trickshot.Net.Multiplayer.IsHost) Trickshot.Net.Multiplayer.Session.BroadcastEvent("WHISTLE");
 
             // Cancel any celebration + knockdown still active (nobody starts on the ground).
             if (_controlledCeleb != null) _controlledCeleb.Cancel();
@@ -663,6 +667,9 @@ namespace Trickshot
                 }
             }
             CrowdCheer.Celebrate();
+            // Crowd audio: cheer + applause on every goal; boos if a team is now 2+ down. Host + SP
+            // run here; net clients fire the same off replicated score deltas (NetScrimmageMatch).
+            AudioManager.Instance?.OnScrimmageGoal(_homeScore, _awayScore);
             // Freeze scoring, celebrate, then re-kickoff.
             _kickoffTimer = 3f;
             CancelInvoke(nameof(Kickoff));
@@ -679,6 +686,10 @@ namespace Trickshot
             _ball.Rb.linearVelocity = Vector3.zero;
             _ball.Rb.angularVelocity = Vector3.zero;
             if (_controlledCeleb != null) _controlledCeleb.Cancel();
+            // Three whistles = full time. Local for SP + host; host broadcasts to clients.
+            AudioManager.Instance?.PlayWhistleTriple();
+            if (Trickshot.Net.Multiplayer.IsHost) Trickshot.Net.Multiplayer.Session.BroadcastEvent("WHISTLE3");
+            AudioManager.Instance?.PlayGoalCelebration();   // full-time cheer + applause over the ambient bed
         }
 
         // R at full time: reset scores + clock and kick off again.
@@ -724,8 +735,9 @@ namespace Trickshot
 
             if (_flashTime > 0f)
             {
-                var c = big.normal.textColor; c.a = Mathf.Clamp01(_flashTime / 1.6f); big.normal.textColor = c;
-                GUI.Label(new Rect(0, 60, Screen.width, 44), _flash, big);
+                // Shared styled callout (big, colour-coded, shadowed) - same look as every other mode.
+                Hud.Begin();
+                Hud.Flash(_flash, _flashTime / 1.6f);
             }
 
             if (_wheelOpen) DrawEmoteWheel();

@@ -78,6 +78,11 @@ namespace Trickshot.Net
 
         // Raised on clients when the host sends a tagged match event (goal, kickoff, etc).
         public event Action<string> MatchEvent;
+        // Raised on clients when the host reports the ball was struck at a world position (3D SFX).
+        public event Action<Vector3> BallKicked;
+        // Raised on every peer (host + clients) when a quickchat is delivered: (slot, presetId, custom).
+        // presetId 255 => use the custom string; else it's an index into QuickChat.Phrases.
+        public event Action<int, int, string> QuickChatReceived;
         // Raised when this peer's slot assignment arrives (client) or is set (host).
         public event Action<int, NetRole> SlotAssigned;
         // Raised on any peer when the lobby roster/config changes (redraw the lobby UI).
@@ -315,9 +320,73 @@ namespace Trickshot.Net
             Transport.SendToAll(NetCodec.Snap(s), NetChannel.Unreliable);
         }
 
+        // Host: tell every client the ball was struck at `pos` so they can play the 3D kick SFX
+        // attenuated by distance to their own player. Unreliable (frequent, transient).
+        public void BroadcastBallKick(Vector3 pos)
+        {
+            if (IsHost) Transport.SendToAll(NetCodec.BallKick(pos), NetChannel.Unreliable);
+        }
+
         public void BroadcastEvent(string tag)
         {
             if (IsHost) Transport.SendToAll(NetCodec.Event(tag), NetChannel.Reliable);
+        }
+
+        // ---- quickchat ----
+        // Rocket-League-style anti-spam, host-authoritative + per slot: up to QcBurst messages in a
+        // rolling QcWindow; overflowing mutes that slot for QcMute (extended on repeat offenses).
+        const int   QcBurst = 4;
+        const float QcWindow = 3.5f;
+        const float QcMute = 3f;
+        readonly Queue<float>[] _qcTimes = NewQcTimes();
+        readonly float[] _qcMutedUntil = new float[MaxSlots];
+        static Queue<float>[] NewQcTimes()
+        {
+            var q = new Queue<float>[MaxSlots];
+            for (int i = 0; i < MaxSlots; i++) q[i] = new Queue<float>();
+            return q;
+        }
+
+        // True if `slot` may send right now; records the send and applies the mute if it overflows.
+        bool QcAllow(int slot)
+        {
+            if (slot < 0 || slot >= MaxSlots) return false;
+            float now = Time.unscaledTime;
+            if (now < _qcMutedUntil[slot]) return false;
+            var q = _qcTimes[slot];
+            while (q.Count > 0 && now - q.Peek() > QcWindow) q.Dequeue();
+            if (q.Count >= QcBurst)
+            {
+                // Overflow: mute (longer if they were recently muted -> escalating penalty).
+                _qcMutedUntil[slot] = now + QcMute;
+                q.Clear();
+                return false;
+            }
+            q.Enqueue(now);
+            return true;
+        }
+
+        // Local player wants to send a quickchat. Host applies + relays; a client asks the host.
+        public void SendQuickChat(byte presetId, string custom)
+        {
+            if (!Active) return;
+            if (IsHost)
+            {
+                if (!QcAllow(LocalSlot)) return;
+                DeliverQuickChat(LocalSlot, presetId, custom);                 // host renders locally
+                Transport.SendToAll(NetCodec.QuickChat((byte)LocalSlot, presetId, custom), NetChannel.Reliable);
+            }
+            else
+            {
+                Transport.Send(Transport.HostPeer, NetCodec.QuickChat((byte)LocalSlot, presetId, custom), NetChannel.Reliable);
+            }
+        }
+
+        // Raise the received event on this peer. Custom text is re-censored here (defense in depth).
+        void DeliverQuickChat(int slot, int presetId, string custom)
+        {
+            string safe = presetId == 255 ? ChatCensor.Clean(custom) : custom;
+            QuickChatReceived?.Invoke(slot, presetId, safe);
         }
 
         // Host: push the set-pieces shootout tally to everyone (reliable), and update the
@@ -488,6 +557,30 @@ namespace Trickshot.Net
                 case MsgType.MatchEvent:  // client: a match event
                     MatchEvent?.Invoke(r.Str());
                     break;
+                case MsgType.BallKick:    // client: the ball was struck at a world position
+                    BallKicked?.Invoke(r.V3());
+                    break;
+                case MsgType.QuickChat:
+                {
+                    NetCodec.ReadQuickChat(r, out byte qslot, out byte qpreset, out string qcustom);
+                    if (IsHost)
+                    {
+                        // Authoritative: the sender's slot is who the packet came FROM (not the wire
+                        // field, which a client can't be trusted to set). Anti-spam + re-censor here,
+                        // then relay to everyone and render locally.
+                        int authSlot = SlotOf(from);
+                        if (authSlot < 0 || !QcAllow(authSlot)) break;
+                        string safe = qpreset == 255 ? ChatCensor.Clean(qcustom) : "";
+                        DeliverQuickChat(authSlot, qpreset, safe);
+                        Transport.SendToAll(NetCodec.QuickChat((byte)authSlot, qpreset, safe), NetChannel.Reliable);
+                    }
+                    else
+                    {
+                        // Client: host already stamped the authoritative slot + censored the text.
+                        DeliverQuickChat(qslot, qpreset, qcustom);
+                    }
+                    break;
+                }
                 case MsgType.ShootoutState: // client: latest set-pieces tally
                 {
                     var so = NetCodec.ReadShootout(r);

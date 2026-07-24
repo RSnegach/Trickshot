@@ -225,6 +225,7 @@ namespace Trickshot
             if (trick) _trickGoals++;
             Flash("GOAL!");   // plain callout, no shot-type specification
             CrowdCheer.Celebrate();
+            AudioManager.Instance?.PlayGoalCelebration();   // cheer + applause, cuts any lively swell
             // Stand the striker back up on the goal. A trick finish (diving header / bicycle)
             // leaves him prone + limp (DriveScale low, upright lock off), and his Tick() is
             // suspended through the replay hold + replay, so without this he'd stay slumped on
@@ -265,7 +266,7 @@ namespace Trickshot
                 _saves++;
                 Flash(_keeper.WasDivingSave ? "EPIC SAVE!" : "SAVE!");
             }
-            else Flash("MISS");
+            else { Flash("MISS"); AudioManager.Instance?.PlayMissBoosMaybe(); }   // occasional boos (~1 in 5-6)
         }
 
         void ResetRound()
