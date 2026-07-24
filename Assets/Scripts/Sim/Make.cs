@@ -85,6 +85,23 @@ namespace Trickshot
             return m;
         }
 
+        /// <summary>Hair material for a facial-hair BIB (beards). Same HairCard shader + strand
+        /// atlas as scalp hair, so a UV'd beard mesh shows real strand texture + sheen, but with a
+        /// LOW cutoff (not 0 like the cap): the strand alpha reads at the wispy bib edges without
+        /// punching big holes through the middle. Tinted to the facial colour. Falls back to a flat
+        /// lit material if the shader/atlas is absent.</summary>
+        public static Material HairTuft(Color c)
+        {
+            if (s_Hair == null) s_Hair = Resources.Load<Shader>("Shaders/HairCard");
+            if (s_HairAtlas == null) s_HairAtlas = Resources.Load<Texture2D>("Hair/HairAtlas");
+            if (s_Hair == null) return Mat(c, 0.2f);    // graceful fallback: flat lit bib
+            var m = new Material(s_Hair);
+            m.SetColor("_Color", c);
+            m.SetFloat("_Cutoff", 0.22f);               // strand alpha reads at the edges, solid core
+            if (s_HairAtlas != null) { s_HairAtlas.wrapMode = TextureWrapMode.Clamp; m.SetTexture("_MainTex", s_HairAtlas); }
+            return m;
+        }
+
         /// <summary>
         /// A cylinder visual with a CapsuleCollider (rounded, gives clean bounces).
         /// axis: 0 = X, 1 = Y, 2 = Z. length spans that axis; radius is the tube radius.

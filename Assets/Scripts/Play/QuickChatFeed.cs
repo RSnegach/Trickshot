@@ -35,6 +35,15 @@ namespace Trickshot
 
         // ---- text-entry state ----
         public bool Typing { get; private set; }
+        // True whenever ANY quickchat text field is open.
+        public static bool AnyOpen { get; private set; }
+        // Frame the field last closed. The field consumes Escape via an IMGUI event (in Draw),
+        // but PauseMenu polls the raw Escape key in Update; the two pipelines can be a frame apart,
+        // so the field would close on one frame and pause open on the next. PauseMenu checks
+        // EscapeOwned, which stays true through the frame AFTER a close to swallow that trailing
+        // key read. -100 = never closed yet.
+        static int s_closedFrame = -100;
+        public static bool EscapeOwned => AnyOpen || (Time.frameCount - s_closedFrame) <= 1;
         string _draft = "";
         // ---- local spam guard ----
         readonly Queue<float> _sendTimes = new Queue<float>();
@@ -50,6 +59,7 @@ namespace Trickshot
         void OnDestroy()
         {
             if (_s != null) _s.QuickChatReceived -= OnReceived;
+            if (Typing) AnyOpen = false;   // don't leave the flag stuck if torn down mid-type
         }
 
         // ---------- receiving ----------
@@ -88,6 +98,7 @@ namespace Trickshot
         {
             if (Typing) { SubmitDraft(); return; }
             Typing = true;
+            AnyOpen = true;
             _draft = "";
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -96,6 +107,8 @@ namespace Trickshot
         void CloseTextEntry()
         {
             Typing = false;
+            AnyOpen = false;
+            s_closedFrame = Time.frameCount;   // keep EscapeOwned true one more frame (see field)
             _draft = "";
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -173,18 +186,25 @@ namespace Trickshot
                 GUI.DrawTexture(new Rect(x, by, bw, bh), Texture2D.whiteTexture);
                 GUI.color = prev;
 
+                // Handle Enter/Esc BEFORE the TextField draws: GUI.TextField consumes the Return
+                // and Escape KeyDown internally, so a check after it never sees them (that was why
+                // Enter didn't send). Capture the intent now, act after drawing so we don't mutate
+                // state mid-control. Consume the event so it doesn't fall through (e.g. to pause).
+                bool submit = false, cancel = false;
+                var e = Event.current;
+                if (e.type == EventType.KeyDown)
+                {
+                    if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { submit = true; e.Use(); }
+                    else if (e.keyCode == KeyCode.Escape) { cancel = true; e.Use(); }
+                }
+
                 GUI.SetNextControlName("QCInput");
                 var ts = new GUIStyle(GUI.skin.textField) { fontSize = 15 };
                 _draft = GUI.TextField(new Rect(x + 6f, by + 3f, bw - 12f, bh - 6f), _draft ?? "", MaxCustomLen, ts);
                 GUI.FocusControl("QCInput");
 
-                // Enter submits, Esc cancels (IMGUI keyboard events).
-                var e = Event.current;
-                if (e.type == EventType.KeyDown)
-                {
-                    if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { SubmitDraft(); e.Use(); }
-                    else if (e.keyCode == KeyCode.Escape) { CloseTextEntry(); e.Use(); }
-                }
+                if (submit) SubmitDraft();
+                else if (cancel) CloseTextEntry();
             }
         }
     }

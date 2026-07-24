@@ -630,11 +630,15 @@ namespace Trickshot
                 // Tick whichever controller this body has (shooter / human keeper / human
                 // crosser). The local body's Striker is already ticked in Update(); its human
                 // keeper/crosser controls are ticked here (they run host-side only).
-                // While emoting, suspend the striker so movement doesn't fight the pose.
+                // While emoting, suspend the striker so movement doesn't fight the pose. Also block
+                // the LOCAL keeper while ITS emote wheel is open: the wheel frees the cursor and a
+                // click to pick an emote slice would otherwise be read by KeeperController as an
+                // LMB/RMB reflex save (a phantom dive/lunge). Remote keepers ignore our wheel.
                 bool emoting = b.celeb != null && b.celeb.Playing;
+                bool localWheel = !remote && _wheelOpen;
                 if (remote && b.striker != null && !emoting) b.striker.Tick();
                 if (b.ai != null) b.ai.Tick();
-                if (b.keeper != null && !emoting) b.keeper.Tick();   // suspend keeper control while emoting
+                if (b.keeper != null && !emoting && !localWheel) b.keeper.Tick();
                 if (b.crosserCtl != null)
                 {
                     b.crosserCtl.Tick();

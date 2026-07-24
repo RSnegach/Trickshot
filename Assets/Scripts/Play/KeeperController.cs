@@ -299,8 +299,9 @@ namespace Trickshot
             // Initial roll kick in the same direction so the lay-out snaps in immediately.
             _ragdoll.AddTorqueToPelvis(fwd * (-dir * SimConfig.KeeperDiveRoll));
 
-            _airPose = KeeperPose.Dive;
-            _ragdoll.SetPose(KeeperPose.Dive, 16f);
+            // High dive gets its own arms-overhead base pose; the low dash dive keeps the wide star.
+            _airPose = isHigh ? KeeperPose.DiveHigh : KeeperPose.Dive;
+            _ragdoll.SetPose(_airPose, 16f);
         }
 
         // Landing-gated recovery: hold the dive pose through the flight; only get up
@@ -332,19 +333,9 @@ namespace Trickshot
                 _ragdoll.SetPoseOverride(backThigh, new Vector3(-SimConfig.KeeperDiveBackKnee * 0.5f, 0f, 0f));
                 _ragdoll.SetPoseOverride(backCalf,  new Vector3(SimConfig.KeeperDiveBackKnee, 0f, 0f));
 
-                // High dive only: both arms punched OVERHEAD and close together (near-parallel),
-                // like a streamlined superman reach past the head, instead of the wide star spread.
-                // Overriding both upper arms on +X rotates them up past the head (same axis the
-                // Jump pose uses for its overhead punch); the tiny opposite Z keeps them a hair
-                // apart rather than crossing. The forearms extend straight. No swing. Low dash
-                // dives keep the wide arms (KeeperPose.Dive) so the two moves read differently.
-                if (_diveIsHigh)
-                {
-                    _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(-165f, 0f, 8f));
-                    _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(-165f, 0f, -8f));
-                    _ragdoll.SetPoseOverride(Bone.ForearmL, new Vector3(-5f, 0f, 0f));
-                    _ragdoll.SetPoseOverride(Bone.ForearmR, new Vector3(-5f, 0f, 0f));
-                }
+                // The high dive's arms-overhead shape lives in its BASE pose (KeeperPose.DiveHigh,
+                // set in DoDive), so no additive arm override here - overrides ADD to the base, so
+                // layering onto the wide arms only tilted them instead of lifting them overhead.
             }
 
             _diveAir += Time.deltaTime;

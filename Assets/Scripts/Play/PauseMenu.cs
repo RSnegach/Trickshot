@@ -38,6 +38,11 @@ namespace Trickshot
             var kb = Keyboard.current;
             if (kb == null || !kb.escapeKey.wasPressedThisFrame) return;
 
+            // A quickchat text field owns Escape while open (and for one frame after it closes, to
+            // swallow the raw key read that lands a frame after the IMGUI close). Escape closes the
+            // field and must NOT also open the pause menu.
+            if (QuickChatFeed.EscapeOwned) return;
+
             // While options is open, Esc backs out to the pause buttons instead of
             // unpausing. If a rebind is listening, the rebind op consumes Esc itself, so
             // ignore it here (don't close options mid-listen).

@@ -481,7 +481,7 @@ namespace Trickshot
         // POWER (a weak knuckle barely wobbles, a full-power one snakes hard). These are SEPARATE from
         // SetPieceKnuckleMul (which the open-play strike path also uses) so tuning the wiggle can't
         // touch open play. Amplitude is an ACCELERATION (m/s^2) so it's mass-independent.
-        public const float SetPieceWiggleAmp   = 70f;    // peak lateral wiggle accel (m/s^2) at full power
+        public const float SetPieceWiggleAmp   = 48f;    // peak lateral wiggle accel (m/s^2) at full power (toned down from 70)
         public const float SetPieceWiggleFreq  = 9.0f;   // wiggle oscillations rate (radians/sec); ~1.4 full snakes per second
         public const float SetPieceChipLoft    = 0.95f;  // a bottom-strike chip scoops up high (up-vel fraction of launch)
         public const float SetPieceChipPaceMul = 0.65f;  // ...with softer forward pace than a driven shot

@@ -466,6 +466,11 @@ namespace Trickshot
 
         void OnCollisionEnter(Collision c)
         {
+            // Knuckle (S) wiggle is a flight-only trick: the instant the ball touches ANYTHING
+            // (ground, goal frame, keeper, wall, post), stop snaking and bounce normally. Done
+            // first, before any early-return below, so every contact type kills it.
+            _wiggleRemaining = 0f;
+
             // Net backstop: kill the rebound in code (material combine can't beat the
             // ball's own Maximum bounce). Keep a little velocity so it slides down.
             if (c.collider.GetComponentInParent<NetBackstop>() != null)
