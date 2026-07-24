@@ -1,11 +1,11 @@
 # Graph Report - Trickshot  (2026-07-24)
 
 ## Corpus Check
-- 107 files · ~229,834 words
+- 107 files · ~229,891 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2065 nodes · 4407 edges · 342 communities (73 shown, 269 thin omitted)
+- 2065 nodes · 4407 edges · 343 communities (73 shown, 270 thin omitted)
 - Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 562 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -116,6 +116,7 @@
 - .Build
 - IStrikerInput
 - NetEndpoint
+- .BuildFootballer
 - com.unity.modules.terrain
 - Dictionary
 - float
@@ -393,7 +394,7 @@
 - **Active-ragdoll bicycle-kick mechanic** — readme_activeragdoll, readme_ragdollpose, readme_kickdetector, readme_jointmath, readme_bicycle_kick [INFERRED 0.85]
 - **Host-authoritative frame loop (poll, input, snapshot)** — multiplayer_multiplayer, multiplayer_netsession, multiplayer_netmessages, multiplayer_host_authoritative [INFERRED 0.85]
 
-## Communities (342 total, 269 thin omitted)
+## Communities (343 total, 270 thin omitted)
 
 ### Community 0 - "Ball Physics & Launch"
 Cohesion: 0.12
@@ -408,8 +409,8 @@ Cohesion: 0.05
 Nodes (16): bool, float, HashSet, int, List, Refs, ScrimRole, string (+8 more)
 
 ### Community 3 - "Net Messages & Wire Codec"
-Cohesion: 0.12
-Nodes (10): bool, Collision, float, Rigidbody, Vector3, BallController, SetPieceSpin, Rigidbody (+2 more)
+Cohesion: 0.14
+Nodes (9): bool, Collision, float, Rigidbody, Vector3, BallController, SetPieceSpin, SphereCollider (+1 more)
 
 ### Community 4 - "Input & Keybinds"
 Cohesion: 0.17
@@ -433,10 +434,10 @@ Nodes (15): CrowdCheer, JerseyDesigns, JerseyDesigns, JerseyDesigns, JerseyDesig
 
 ### Community 9 - "Direct IP Transport"
 Cohesion: 0.16
-Nodes (4): GameMode, bool, RuntimeInitializeOnLoadMethod, GameBootstrap
+Nodes (5): GameMode, bool, GameObject, RuntimeInitializeOnLoadMethod, GameBootstrap
 
 ### Community 10 - "Kick Detection / Ragdoll Wiring"
-Cohesion: 0.11
+Cohesion: 0.13
 Nodes (10): bool, float, int, List, string, uint, Vector3, Body (+2 more)
 
 ### Community 11 - "Net Set-Piece Match"
@@ -476,7 +477,7 @@ Cohesion: 0.06
 Nodes (34): AccessoryEntry, bool, float, int, Material, Mesh, Transform, uint (+26 more)
 
 ### Community 23 - "SkillTree"
-Cohesion: 0.15
+Cohesion: 0.12
 Nodes (7): float, int, List, Queue, string, Line, QuickChatFeed
 
 ### Community 24 - "KeeperGame"
@@ -484,8 +485,8 @@ Cohesion: 0.13
 Nodes (11): bool, Camera, float, int, string, Transform, uint, Vector3 (+3 more)
 
 ### Community 26 - "NetStrikerMatch"
-Cohesion: 0.30
-Nodes (5): Camera, GameObject, Material, Refs, Transform
+Cohesion: 0.37
+Nodes (3): Camera, Refs, Transform
 
 ### Community 27 - "NetSetPieceMatch"
 Cohesion: 0.13
@@ -608,8 +609,8 @@ Cohesion: 0.40
 Nodes (5): dependencies, depth, source, version, com.unity.modules.audio
 
 ### Community 65 - "com.unity.modules.imgui"
-Cohesion: 0.40
-Nodes (5): dependencies, depth, source, version, com.unity.modules.particlesystem
+Cohesion: 0.29
+Nodes (6): dependencies, depth, source, version, dependencies, com.unity.modules.particlesystem
 
 ### Community 66 - "com.unity.modules.ui"
 Cohesion: 0.33
@@ -620,8 +621,8 @@ Cohesion: 0.24
 Nodes (10): community structure, god nodes, graphify-out/graph.json, graphify-out/GRAPH_REPORT.md, graphify knowledge graph, graphify explain command, graphify path command, graphify query command (+2 more)
 
 ### Community 71 - ".SkillPresetButtons"
-Cohesion: 0.29
-Nodes (6): dependencies, depth, source, version, dependencies, com.unity.modules.umbra
+Cohesion: 0.40
+Nodes (5): dependencies, depth, source, version, com.unity.modules.umbra
 
 ### Community 72 - ".AdvanceTurn"
 Cohesion: 0.22
@@ -690,7 +691,7 @@ Nodes (3): Goalkeeper, State, State
 ## Knowledge Gaps
 - **134 isolated node(s):** `LobbyInfo`, `Pending`, `SetPieceSpin`, `Emote`, `Stage` (+129 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **269 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **270 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -699,7 +700,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.152) - this node is a cross-community bridge._
 - **Why does `NetSession` connect `.Empty` to `GameCamera`, `NetCodec`, `PitchBuilder`, `Kick Detection / Ragdoll Wiring`, `Crosser`, `.SafeEncode`, `.ResetTo`, `PitchBuilder`, `.Configure`, `com.unity.modules.imageconversion`, `SkillTree`, `KeeperGame`, `Role.cs`, `SimConfig`, `.Configure`?**
   _High betweenness centrality (0.092) - this node is a cross-community bridge._
-- **Why does `ActiveRagdoll` connect `PrematchUI` to `Dribble System`, `Net Messages & Wire Codec`, `Input & Keybinds`, `Kick Detection / Ragdoll Wiring`, `Net Set-Piece Match`, `GameCamera`, `KeeperGame`, `NetStrikerMatch`, `NetSetPieceMatch`, `com.unity.modules.jsonserialize`, `BallController`, `Footballer`, `Footballer`, `NetScrimmageMatch`, `LocalTransport`, `.SafeEncode`, `.Box`, `AccuracyTarget`, `KeeperGame`, `.Poll`, `Sniper`, `.Configure`?**
+- **Why does `ActiveRagdoll` connect `PrematchUI` to `Dribble System`, `Net Messages & Wire Codec`, `Input & Keybinds`, `Kick Detection / Ragdoll Wiring`, `Net Set-Piece Match`, `GameCamera`, `KeeperGame`, `NetStrikerMatch`, `NetSetPieceMatch`, `com.unity.modules.jsonserialize`, `BallController`, `Footballer`, `Footballer`, `NetScrimmageMatch`, `LocalTransport`, `.SafeEncode`, `.Box`, `AccuracyTarget`, `KeeperGame`, `.Poll`, `Sniper`, `.Configure`, `.BuildFootballer`?**
   _High betweenness centrality (0.083) - this node is a cross-community bridge._
 - **What connects `LobbyInfo`, `Pending`, `SetPieceSpin` to the rest of the system?**
   _134 weakly-connected nodes found - possible documentation gaps or missing edges._
