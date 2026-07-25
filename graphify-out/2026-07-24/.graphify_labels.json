@@ -106,5 +106,22 @@
   "104": "Role.cs",
   "105": ".Set",
   "106": "ShotType.cs",
-  "122": "com.unity.modules.terrain"
+  "107": "RuntimeInitializeOnLoadMethod",
+  "108": ".OnGUI",
+  "109": "MenuUI",
+  "110": ".Box",
+  "111": ".Configure",
+  "112": ".ClientUpdate",
+  "113": "JerseyDesigns.Nations2.cs",
+  "114": "uint",
+  "115": "IReadOnlyList",
+  "116": "List",
+  "117": "Mesh",
+  "118": "HashSet",
+  "119": "IEnumerable",
+  "120": "Color",
+  "121": "Color32",
+  "122": "com.unity.modules.terrain",
+  "123": "Dictionary",
+  "124": "PlayerAppearance"
 }
