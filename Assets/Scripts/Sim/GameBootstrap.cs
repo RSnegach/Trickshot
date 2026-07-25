@@ -307,9 +307,12 @@ namespace Trickshot
             PitchLayout.ResetToTraining();
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
-            // Striker mode (single-player + networked) plays on an OPEN field: no boundary
-            // walls around the pitch. Other single-goal modes keep the walls.
-            var arena = Arena.Build(root, boundaryWalls: mode != GameMode.Striker);
+            // All single-goal modes play on the OPEN full pitch: no boundary walls. The old
+            // training-field walls sat at x=+/-12 / z=-17 - mid-pitch on the regulation field,
+            // between the 6- and 18-yard box edges - and bounced set-piece shots at all heights.
+            // Every mode resolves a dead/out-of-play ball in code (rest timer or FieldWidth/Length
+            // bounds), so no physical boundary is needed. Scrimmage builds its own walled arena.
+            var arena = Arena.Build(root, boundaryWalls: false);
             // Full pitch markings + far goal, the stadium bowl, and the animated crowd.
             // All read the shared PitchLayout contract so they line up. Crowd is stored so
             // goal callouts can make it Celebrate().
