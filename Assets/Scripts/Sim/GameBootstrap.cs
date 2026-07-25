@@ -175,6 +175,16 @@ namespace Trickshot
                 SimConfig.GoalHeight = 2.44f * scale;
                 SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
             }
+            else if (mode == GameMode.Accuracy)
+            {
+                // Same dead-ball knobs as set pieces, plus the wall size + target count.
+                float scale = cfg.goalScale <= 0.01f ? 1f : cfg.goalScale;
+                SimConfig.GoalWidth  = 7.32f * scale;
+                SimConfig.GoalHeight = 2.44f * scale;
+                SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
+                SimConfig.WallCount = cfg.accWallCount;
+                SimConfig.AccuracyTargetCount = Mathf.Max(1, cfg.accTargets);
+            }
             BuildMode(mode);
         }
 
@@ -346,13 +356,23 @@ namespace Trickshot
                 BuildNetSetPieces(root, cam, gameCam, ball, arena);
                 return;
             }
+            // Networked accuracy: same free-kick-at-targets gameplay, but shooters take turns and
+            // compete on target points. Single-player Accuracy falls through to its own build below.
+            if (Trickshot.Net.Multiplayer.IsActive && mode == GameMode.Accuracy)
+            {
+                BuildNetAccuracy(root, cam, gameCam, ball, arena);
+                return;
+            }
 
             switch (mode)
             {
                 case GameMode.Goalkeeper: BuildKeeperMode(root, cam, gameCam, ball, arena); break;
                 case GameMode.Freeplay:
-                case GameMode.TimeTrial:
-                case GameMode.Accuracy:   BuildChallengeMode(mode, root, cam, gameCam, ball, arena); break;
+                case GameMode.TimeTrial:  BuildChallengeMode(mode, root, cam, gameCam, ball, arena); break;
+                // Accuracy is now a free-kick shooting gallery (dead ball + SetPieceTaker at
+                // pop-up targets), so it builds like a set piece, not like the crosser-served
+                // challenge modes.
+                case GameMode.Accuracy:   BuildAccuracyMode(root, cam, gameCam, ball, arena); break;
                 case GameMode.FreeKick:
                 case GameMode.SetPieces:  BuildFreeKickMode(root, cam, gameCam, ball, arena); break;
                 default:                  BuildStrikerMode(root, cam, gameCam, ball, arena); break;
@@ -391,6 +411,23 @@ namespace Trickshot
             var go = new GameObject("NetSetPieceMatch");
             go.transform.SetParent(root, true);
             go.AddComponent<NetSetPieceMatch>()
+              .Configure(GetInput(), cam, gameCam, ball, torso, limb, glove, root);
+            LockCursor();
+        }
+
+        // Networked accuracy: the same dead-ball rig as set pieces (keeper slot 0 human/AI/none +
+        // rotating shooters), but the shooters are scored on the pop-up TARGETS they hit rather
+        // than goals, and each turn ends on a host-chosen kick count or timer.
+        void BuildNetAccuracy(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
+        {
+            ball.SetCamera(gameCam);
+            Material torso = JerseyMaterial();
+            Material limb  = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
+            Material glove = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            var go = new GameObject("NetAccuracyMatch");
+            go.transform.SetParent(root, true);
+            go.AddComponent<NetAccuracyMatch>()
               .Configure(GetInput(), cam, gameCam, ball, torso, limb, glove, root);
             LockCursor();
         }
@@ -540,15 +577,46 @@ namespace Trickshot
             return keeper;
         }
 
-        // ------------------------------------------- Freeplay / Time Trial / Accuracy
+        // ------------------------------------------------------- Accuracy (free kicks)
+        // Accuracy is a free-kick shooting gallery: a dead ball struck with the SetPieceTaker at
+        // pop-up targets in the goal. Same rig as the free-kick build, except the wall and the
+        // keeper are OPTIONAL (pre-match: wall players 0 = no wall, keeper ability 0 = no keeper).
+        void BuildAccuracyMode(Transform root, Camera cam, GameCamera gameCam,
+                               BallController ball, Arena.Refs arena)
+        {
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
+            dribble.Enabled = false;
+            dribble.SetPieceActive = true;   // the parked ball is never magnet-captured to the feet
+
+            // Keeper ability 0 = no goalkeeper at all (open goal, pure target practice).
+            Goalkeeper keeper = null; ActiveRagdoll keeperRagdoll = null;
+            if (SimConfig.KeeperAbility > 0.001f)
+                keeper = BuildAiKeeper(root, ball, out keeperRagdoll);
+
+            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
+            gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
+            ball.SetCamera(gameCam);
+            striker.SetCameraYaw(() => gameCam.Yaw);
+
+            // Wall object is always created; AccuracyGame only BUILDS blockers when WallCount > 0.
+            var wall = new DefensiveWall();
+            var go = new GameObject("AccuracyGame");
+            go.transform.SetParent(root, true);
+            go.AddComponent<AccuracyGame>()
+              .Configure(GetInput(), ball, striker, ragdoll, keeper, keeperRagdoll, wall, gameCam);
+
+            LockCursor();
+        }
+
+        // ------------------------------------------------- Freeplay / Time Trial
         void BuildChallengeMode(GameMode mode, Transform root, Camera cam, GameCamera gameCam,
                                 BallController ball, Arena.Refs arena)
         {
             BuildCrosser(root, ball, out var crosser, out var crosserRagdoll, out var launch, out var reticle);
             BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
 
-            // Freeplay is the open sandbox: enable dribbling there. Time Trial / Accuracy are
-            // score-on-goal, so they leave it off (the ball never sticks to the feet).
+            // Freeplay is the open sandbox: enable dribbling there. Time Trial is score-on-goal,
+            // so it leaves it off (the ball never sticks to the feet).
             dribble.Enabled = mode == GameMode.Freeplay;
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
@@ -558,10 +626,8 @@ namespace Trickshot
             go.transform.SetParent(root, true);
             if (mode == GameMode.Freeplay)
                 go.AddComponent<FreeplayGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
-            else if (mode == GameMode.TimeTrial)
-                go.AddComponent<TimeTrialGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
             else
-                go.AddComponent<AccuracyGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
+                go.AddComponent<TimeTrialGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
 
             LockCursor();
             ball.ResetTo(launch.position);

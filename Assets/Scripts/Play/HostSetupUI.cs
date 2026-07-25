@@ -14,8 +14,8 @@ namespace Trickshot
         System.Action _onCreated, _onBack;
 
         // Networkable modes.
-        static readonly GameMode[] Modes = { GameMode.Scrimmage, GameMode.Striker, GameMode.SetPieces };
-        static readonly string[] ModeNames = { "Scrimmage", "Striker", "Set Pieces" };
+        static readonly GameMode[] Modes = { GameMode.Scrimmage, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
+        static readonly string[] ModeNames = { "Scrimmage", "Striker", "Set Pieces", "Accuracy" };
         int _mode;                 // index into Modes
         int _stadium;
         int _perSide = 3;          // scrimmage team size (3/5/11)
@@ -33,6 +33,15 @@ namespace Trickshot
         // each of the 10 rounds (same spot per round for everyone). A seed generated at Create time is
         // carried in MatchConfig so every peer derives the identical 10-spot schedule.
         bool _fkRandom;
+        // Accuracy host settings: an optional wall, how many targets are up, and how each
+        // shooter's turn ENDS - either a fixed number of kicks (1..100) or a per-turn timer
+        // (up to 120 s). Goal size / keeper ability reuse the set-piece pickers above, and the
+        // ball/wall placement reuses the same free-kick map.
+        int _accWall = 0;          // wall players (0 = no wall)
+        int _accTargets = 4;       // targets up at once
+        bool _accByTime;           // false = fixed kicks, true = per-turn timer
+        int _accKicks = 10;        // kicks each (1..100) when !_accByTime
+        int _accSeconds = 60;      // turn seconds (<=120) when _accByTime
 
         public void Init(System.Action onCreated, System.Action onBack)
         {
@@ -43,7 +52,8 @@ namespace Trickshot
 
         void OnGUI()
         {
-            float w = 480f, panelH = 470f;
+            // Accuracy adds four extra option rows (wall / targets / turn format / turn amount).
+            float w = 480f, panelH = Modes[_mode] == GameMode.Accuracy ? 610f : 470f;
             float x = Screen.width * 0.5f - w * 0.5f;
             float y = Screen.height * 0.5f - panelH * 0.5f;
             var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
@@ -66,6 +76,22 @@ namespace Trickshot
                 PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
                 PickerVals(lx, ref row, lw, "Keeper ability", new[] { "None", "Low", "Med", "High" }, new[] { 0, 30, 60, 90 }, ref _keeperPct);
             }
+            else if (Modes[_mode] == GameMode.Accuracy)
+            {
+                // Free kicks at pop-up targets; shooters take turns and compare target points.
+                PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
+                PickerVals(lx, ref row, lw, "Keeper ability", new[] { "None", "Low", "Med", "High" }, new[] { 0, 30, 60, 90 }, ref _keeperPct);
+                PickerVals(lx, ref row, lw, "Wall players", new[] { "None", "2", "3", "4", "5" }, new[] { 0, 2, 3, 4, 5 }, ref _accWall);
+                PickerVals(lx, ref row, lw, "Targets up", new[] { "2", "3", "4", "6", "8" }, new[] { 2, 3, 4, 6, 8 }, ref _accTargets);
+                // Turn format: a fixed kick count, or a timed round each.
+                int fmt = _accByTime ? 1 : 0;
+                PickerVals(lx, ref row, lw, "Turn ends on", new[] { "Kicks", "Timer" }, new[] { 0, 1 }, ref fmt);
+                _accByTime = fmt == 1;
+                if (_accByTime)
+                    PickerVals(lx, ref row, lw, "Turn time", new[] { "30s", "45s", "60s", "90s", "120s" }, new[] { 30, 45, 60, 90, 120 }, ref _accSeconds);
+                else
+                    PickerVals(lx, ref row, lw, "Kicks each", new[] { "1", "3", "5", "10", "25", "50", "100" }, new[] { 1, 3, 5, 10, 25, 50, 100 }, ref _accKicks);
+            }
             Toggle(lx, ref row, lw, "Public (anyone can join)", ref _publicLobby);
             // (Striker AI is chosen per-slot in the lobby now, not here.)
 
@@ -76,7 +102,9 @@ namespace Trickshot
 
             // Free-kick placement map (Set Pieces only): a side panel to the right of the main
             // window where the host drops the ball spot + wall, like the in-match cross map.
-            if (Modes[_mode] == GameMode.SetPieces) DrawFreeKickSetup(x + w + 16f, y);
+            // Accuracy uses the same dead-ball + wall placement, so it shows the same map.
+            if (Modes[_mode] == GameMode.SetPieces || Modes[_mode] == GameMode.Accuracy)
+                DrawFreeKickSetup(x + w + 16f, y);
         }
 
         void DrawFreeKickSetup(float px, float py)
@@ -131,6 +159,8 @@ namespace Trickshot
         {
             var mode = Modes[_mode];
             StadiumStyle.SelectedIndex = _stadium;
+            // Both dead-ball modes (set pieces + accuracy) use the goal/keeper/placement knobs.
+            bool deadBall = mode == GameMode.SetPieces || mode == GameMode.Accuracy;
 
             // Scrimmage is two teams mapped onto the 8 slots (capped 4-a-side incl keepers), so
             // both sides can be human: allow up to 2*perSide (bounded to the 8-slot board).
@@ -143,18 +173,24 @@ namespace Trickshot
                 perSide = (byte)_perSide,
                 matchSec = (ushort)(_matchMin * 60),
                 publicLobby = _publicLobby,
-                // Set-pieces knobs; harmless defaults for other modes (goalScale 1 = regulation).
-                goalScale = mode == GameMode.SetPieces ? _goalPct / 100f : 1f,
-                keeperAbility = mode == GameMode.SetPieces ? _keeperPct / 100f : 0.5f,
+                // Set-pieces + accuracy share these knobs (both are dead-ball modes).
+                goalScale = deadBall ? _goalPct / 100f : 1f,
+                keeperAbility = deadBall ? _keeperPct / 100f : 0.5f,
                 // Host-placed free-kick spot + wall. fkPlaced tells the driver to honour them;
                 // when false (map never opened / other modes) the driver uses its own default.
-                fkPlaced = mode == GameMode.SetPieces && _fkInit,
+                fkPlaced = deadBall && _fkInit,
                 fkBallX = _fkBall.x, fkBallZ = _fkBall.z,
                 fkWallX = _fkWall.x, fkWallZ = _fkWall.z,
                 // Random per-round spots: carry the flag + a fresh seed so every peer derives the
-                // same 10-spot schedule. Only meaningful for SetPieces.
+                // same schedule. The seed also drives the accuracy target layout.
                 fkRandom = mode == GameMode.SetPieces && _fkRandom,
                 fkSeed = (uint)Random.Range(1, int.MaxValue),
+                // Accuracy: optional wall, target count, and the turn-end rule.
+                accWallCount = (byte)(mode == GameMode.Accuracy ? _accWall : 0),
+                accTargets = (byte)(mode == GameMode.Accuracy ? _accTargets : 4),
+                accTurnByTime = mode == GameMode.Accuracy && _accByTime,
+                accTurnKicks = (byte)Mathf.Clamp(_accKicks, 1, 100),
+                accTurnSeconds = (ushort)Mathf.Clamp(_accSeconds, 10, 120),
             });
 
             enabled = false;
