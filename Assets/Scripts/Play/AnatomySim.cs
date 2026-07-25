@@ -20,11 +20,13 @@ namespace Trickshot
         float _scale;                 // girth scale (matches the body)
 
         // Chain: node 0 = pinned root at the pelvis attach point; 1..N = free, hanging.
-        const int Nodes = 3;
+        // Four nodes (root + three free) give a longer, smoother pill so the member reads as an
+        // elongated limb rather than a stub.
+        const int Nodes = 4;
         readonly Vector3[] _pos = new Vector3[Nodes];    // world
         readonly Vector3[] _prev = new Vector3[Nodes];
-        Vector3 _rootLocal;           // member attach: very bottom-front of the pelvis (pelvis-local)
-        Vector3 _berryLocal;          // berry seat: underside of the front, above the member root
+        Vector3 _rootLocal;           // member attach: front underside of the pelvis (pelvis-local)
+        Vector3 _berryLocal;          // berry seat: tucked up under the torso, centred
         float _segLen;                // rest length between nodes
 
         Transform _member;            // the pill (a stretched sphere spanning root -> tip)
@@ -35,15 +37,18 @@ namespace Trickshot
         readonly Collider[] _hits = new Collider[8];
 
         // base dimensions in metres (scaled by girth). Small + tasteful-ish.
-        // Two separate anchors on the FRONT of the pelvis so the pieces don't overlap:
-        //  - member roots at the VERY BOTTOM front and hangs down,
-        //  - berries seat on the UNDERSIDE of the front, a bit higher + further forward.
-        const float MemberDrop = 0.18f;   // member root: how far below pelvis centre (very bottom)
-        const float MemberFwd  = 0.06f;   // member root: forward of centre (front)
-        const float BerryDrop  = 0.12f;   // berries: higher than the member root (underside)
-        const float BerryFwd   = 0.09f;   // berries: further forward, on the front underside
-        const float SegLen   = 0.055f;    // per-segment rest length
-        const float MemberR  = 0.028f;    // pill radius
+        // Two separate anchors so the pieces don't overlap:
+        //  - member roots on the FRONT UNDERSIDE of the pelvis (where the berries used to sit) and
+        //    hangs down as a long, thin, arm-proportioned pendulum,
+        //  - berries seat UP UNDER THE TORSO, centred (above + behind the member root).
+        const float MemberDrop = 0.12f;   // member root: below pelvis centre, front underside
+        const float MemberFwd  = 0.09f;   // member root: forward of centre (front)
+        const float BerryRise  = 0.10f;   // berries: ABOVE pelvis centre, up under the torso bottom
+        const float BerryFwd   = 0.03f;   // berries: near-centred, just off the front
+        // Long + slender to mirror a forearm (~0.60 tall at 0.09 dia ≈ 6.7:1). Three segments at
+        // 0.10 span a ~0.30 chain; the pill ends up ~0.36 long at 0.056 dia ≈ 6.4:1.
+        const float SegLen   = 0.10f;     // per-segment rest length
+        const float MemberR  = 0.028f;    // pill radius (thin, arm-like)
         const float BerryR   = 0.032f;    // berry radius
         const float BerryGap = 0.03f;     // half the spacing between the two berries
 
@@ -61,11 +66,12 @@ namespace Trickshot
             _memberRadius = MemberR * _scale * girthMul;
             _berryRadius = BerryR * _scale * ballMul;
 
-            // Two anchors (pelvis-local, -Y = down). The member roots at the very bottom of the
-            // front; the berries seat on the underside of the front, higher + more forward, so the
-            // two don't overlap.
+            // Two anchors (pelvis-local, -Y = down, +Y = up toward the torso). The member roots on
+            // the front underside (where the berries used to sit) and hangs down; the berries move
+            // UP under the torso, centred and slightly behind the member root, so the two don't
+            // overlap.
             _rootLocal  = new Vector3(0f, -MemberDrop, MemberFwd) * _scale;
-            _berryLocal = new Vector3(0f, -BerryDrop,  BerryFwd)  * _scale;
+            _berryLocal = new Vector3(0f,  BerryRise,  BerryFwd)  * _scale;
 
             // Seed the chain hanging straight down in world space from the attach point.
             Vector3 root = _pelvis.TransformPoint(_rootLocal);
@@ -168,9 +174,9 @@ namespace Trickshot
             PoseMember();
         }
 
-        // The two berries hang on the underside of the front of the pelvis, side by side, at their
-        // own fixed anchor (above + forward of the member root) so they don't overlap the member.
-        // They ride the pelvis rigidly (no sway of their own).
+        // The two berries sit tucked up under the torso, side by side, centred at their own fixed
+        // anchor (above + behind the member root) so they don't overlap the member. They ride the
+        // pelvis rigidly (no sway of their own).
         void PoseBerries()
         {
             if (_berryL == null) return;
