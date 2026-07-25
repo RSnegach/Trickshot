@@ -19,7 +19,7 @@ namespace Trickshot
 
         // Base values the 1.00 multipliers map to.
         const float BaseGoalWidth = 7.32f, BaseGoalHeight = 2.44f, BaseServeInterval = 3.5f;
-        const float BaseStrikerSpeed = 4.8f, BaseKeeperSpeed = 5.5f;
+        const float BaseStrikerSpeed = 3.8f, BaseKeeperSpeed = 5.5f;
         static readonly float BaseKeeperJump = SimConfig.KeeperJumpVelBase;
 
         // ---- Multiplier sliders (value is a multiplier; ranges chosen so every point
@@ -83,7 +83,8 @@ namespace Trickshot
                     if (_delivery == SimConfig.Delivery.AimSpot) n += 3;    // aim map (~154px)
                 }
                 else if (_mode == GameMode.TimeTrial) n += 2;   // cross interval + round time
-                else if (_mode == GameMode.Accuracy)  n += 3;   // cross interval + time + targets
+                // Accuracy: time + targets + distance + keeper + wall count (+2 wall rows when a wall is up)
+                else if (_mode == GameMode.Accuracy)  n += _wallCount >= 1f ? 7 : 5;
                 else if (_mode == GameMode.FreeKick)  n += _penaltyMode ? 1 : 5; // toggle (+4 wall rows)
             }
             return n;
@@ -148,15 +149,28 @@ namespace Trickshot
                     if (_delivery == SimConfig.Delivery.AimSpot)
                         AimMap(lx, ref row, lw);
                 }
-                else if (_mode == GameMode.TimeTrial || _mode == GameMode.Accuracy)
+                // Accuracy has no crosser any more (it's a dead-ball free-kick gallery), so the
+                // cross interval only applies to Time Trial here.
+                else if (_mode == GameMode.TimeTrial)
                     _crossInterval = Slider(lx, ref row, lw, "Cross interval", _crossInterval, 0.4f, 2f, 1f);
 
                 if (_mode == GameMode.TimeTrial)
                     _timeTrialSeconds = RawSlider(lx, ref row, lw, "Round time", _timeTrialSeconds, 30f, 180f, "0", "s");
                 else if (_mode == GameMode.Accuracy)
                 {
+                    // Accuracy is a free-kick shooting gallery, so it carries the free-kick
+                    // furniture too: distance to the spot, an optional wall (0 players = none)
+                    // and an optional keeper (ability 0 = open goal, pure target practice).
                     _accuracySeconds = RawSlider(lx, ref row, lw, "Round time", _accuracySeconds, 30f, 180f, "0", "s");
                     _accuracyTargets = RawSlider(lx, ref row, lw, "Targets up", _accuracyTargets, 1f, 8f, "0", "");
+                    _freeKickDistance = RawSlider(lx, ref row, lw, "Free kick distance", _freeKickDistance, 11f, 35f, "0", "m");
+                    _keeperAbility = Slider(lx, ref row, lw, "Keeper ability (0 = no keeper)", _keeperAbility, 0f, 1f, 0.5f);
+                    _wallCount    = RawSlider(lx, ref row, lw, "Wall players (0 = no wall)", _wallCount, 0f, 6f, "0", "");
+                    if (_wallCount >= 1f)
+                    {
+                        _wallDistance = RawSlider(lx, ref row, lw, "Wall distance", _wallDistance, 5f, 12f, "0.0", "m");
+                        _wallOffset   = RawSlider(lx, ref row, lw, "Wall offset", _wallOffset, -6f, 6f, "0.0", "m");
+                    }
                 }
                 else if (_mode == GameMode.FreeKick)
                 {
@@ -282,6 +296,8 @@ namespace Trickshot
                     SimConfig.FreeplayDelivery = _delivery;
                     SimConfig.FreeplayAimTarget = _aimTarget;
                 }
+                // Accuracy is a free-kick gallery: its keeper slider drives the AI keeper (0 = none).
+                if (_mode == GameMode.Accuracy) SimConfig.KeeperAbility = _keeperAbility;
                 SimConfig.TimeTrialSeconds = _timeTrialSeconds;
                 SimConfig.AccuracySeconds  = _accuracySeconds;
                 SimConfig.AccuracyTargetCount = Mathf.RoundToInt(_accuracyTargets);
