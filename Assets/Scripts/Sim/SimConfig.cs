@@ -600,14 +600,26 @@ namespace Trickshot
         // switch key cycles too. A brief lockout stops rapid flip-flopping.
         public const float SwitchLockout     = 0.6f;  // min seconds on a player before an auto-switch
 
+        // Scrimmage LMB/RMB airborne shot (set-piece-style arc, no controllable spin).
+        public const float ScrimLoftAngleDeg = 26f;    // launch elevation of a scrimmage deliberate shot
+        public const float ScrimLoftMaxVy    = 7.5f;   // cap on the upward component so it can't balloon straight up
+
         // Outfield AI.
         public const float AiOutfieldSpeed    = 5.0f;  // base run speed for AI outfielders (keeps pace with play)
         public const float AiChaseStopDist    = 0.6f;  // stop closing when this near the ball
-        public const float AiShootRange       = 18f;   // shoot when this close to the target goal with the ball
+        public const float AiShootRange       = 20f;   // shoot when this close to the target goal with the ball
         public const float AiSupportSpread    = 7f;    // how far off-ball teammates spread from the carrier
         public const float AiKickBoneImpulse  = 9f;    // forward-drive velocity an AI adds to push the ball up the pitch
         public const float AiKickCooldown     = 0.35f; // min seconds between AI touches (flow without ping-ponging)
         public const float AiSeparationRadius = 3.8f;  // AI teammates keep at least this far apart
+        // Smarter striker AI: dribble-carry toward goal, corner-aware arced shots, lane-checked passing.
+        public const float AiCarrySpeed     = 5.6f;  // run speed while carrying the ball (a touch above base)
+        public const float AiCarryNudge     = 6.5f;  // push speed given to the ball to keep it ahead while dribbling
+        public const float AiDefenderAvoid  = 3.0f;  // steer the carry around an opponent within this range
+        public const float AiShotScatter    = 1.1f;  // metres of aim scatter at the goal (keeps the AI beatable)
+        public const float AiPassLeadTime   = 0.35f; // lead a moving teammate by this much when passing
+        public const float AiLaneCheckRadius = 1.1f; // a pass lane is blocked if an opponent is within this of the line
+        public const float AiShootConeDot   = -0.2f; // only shoot when facing roughly goalward (gdir . attackZ >= this)
 
         // Tackling / ball-winning. A tackle is a short forward lunge; if it reaches the ball
         // it dispossesses the carrier (kills their dribble) and knocks the ball loose.

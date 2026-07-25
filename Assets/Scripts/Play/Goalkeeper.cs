@@ -23,6 +23,7 @@ namespace Trickshot
         State _state = State.Guard;
         float _diveAir, _diveGround, _diveCooldown, _diveDir;
         float _shufflePhase;
+        float _ability;   // cached each Tick so ShuffleGait can scale gait cadence with skill
 
         // Where the keeper actually is (his pelvis), for the save-proximity check.
         public Vector3 PelvisPos => _ragdoll != null && _ragdoll.Pelvis != null
@@ -51,17 +52,21 @@ namespace Trickshot
             _ragdoll.FacingRotation = _facing;
 
             float ability = Mathf.Clamp01(SimConfig.KeeperAbility);
+            _ability = ability;
             Vector3 bpos = _ball.transform.position;
             float dz = bpos.z - _ragdoll.Pelvis.position.z;      // + = ball still out in the pitch
             bool incoming = dz < SimConfig.AiKeeperReactZ && dz > -1.5f && _ball.Rb.linearVelocity.z > 1f;
 
             // Where will the ball cross the line? Lead its x by its velocity so the dive
-            // commits to the right side.
+            // commits to the right side. A sharper keeper reads the shot earlier: the lead time
+            // it extrapolates over scales with ability, so a top keeper locks onto the correct
+            // crossing point while a weak one under-predicts and arrives late/short.
             float predictX = bpos.x;
             float vz = _ball.Rb.linearVelocity.z;
+            float leadCap = SimConfig.AiKeeperDiveLead * Mathf.Lerp(0.75f, 1.35f, ability);
             if (vz > 0.5f)
             {
-                float tToLine = Mathf.Clamp(dz / vz, 0f, SimConfig.AiKeeperDiveLead);
+                float tToLine = Mathf.Clamp(dz / vz, 0f, leadCap);
                 predictX = bpos.x + _ball.Rb.linearVelocity.x * tToLine;
             }
 
@@ -78,6 +83,10 @@ namespace Trickshot
             bool lowBall = predictY < SimConfig.AiKeeperLowBallHeight;
 
             float absOff = Mathf.Abs(offset);
+            // Reach windows widen with ability: a stronger keeper commits to balls a weak one
+            // can't get to. Kept in step with the dive velocity, which also scales with ability.
+            float splayReach   = SimConfig.AiKeeperSplayReach   * Mathf.Lerp(0.85f, 1.2f, ability);
+            float lowDiveReach = SimConfig.AiKeeperLowDiveReach * Mathf.Lerp(0.85f, 1.2f, ability);
             bool canCommit = incoming && _diveCooldown <= 0f && ability > 0.25f
                              && Mathf.Abs(predictX) <= halfGoal + 1.2f;
 
@@ -91,12 +100,12 @@ namespace Trickshot
                     //  - further out (toward a bottom corner) -> a LOW DIVE: drive down and
                     //    across. He steps toward it first (shuffle below), only committing
                     //    the dive once it's within diveable range, so he "takes a step or two".
-                    if (absOff <= SimConfig.AiKeeperSplayReach)
+                    if (absOff <= splayReach)
                     {
                         LaunchLowSave(Mathf.Sign(offset), ability);
                         return;
                     }
-                    if (absOff <= SimConfig.AiKeeperLowDiveReach)
+                    if (absOff <= lowDiveReach)
                     {
                         LaunchLowDive(Mathf.Sign(offset), ability);
                         return;
@@ -115,11 +124,19 @@ namespace Trickshot
             // (which points -X since he faces -Z) sent him the wrong way, off the map.
             // When no shot is incoming, hold the line by returning toward centre instead
             // of chasing the ball's resting x all over the pitch.
-            float targetX = incoming ? Mathf.Clamp(predictX, -halfGoal, halfGoal) : _homeX;
-            float react = incoming ? 1f : 0.3f;
-            float speed = SimConfig.KeeperStrafeSpeed * Mathf.Lerp(0.5f, 1.6f, ability) * react;
+            // When a shot's incoming, sit on the predicted crossing x. Otherwise a stronger keeper
+            // still SHADOWS the ball's x (narrowing the angle) instead of parking dead centre, so
+            // he's already close when the shot comes; a weak keeper just holds the middle.
+            float shadowX = Mathf.Clamp(bpos.x, -halfGoal, halfGoal);
+            float targetX = incoming ? Mathf.Clamp(predictX, -halfGoal, halfGoal)
+                                     : Mathf.Lerp(_homeX, shadowX, ability * 0.7f);
+            float react = incoming ? 1f : Mathf.Lerp(0.25f, 0.6f, ability);
+            float speed = SimConfig.KeeperStrafeSpeed * Mathf.Lerp(0.45f, 2.0f, ability) * react;
             float curX = _ragdoll.Pelvis.position.x;
-            float dx = Mathf.Clamp(targetX - curX, -1f, 1f);
+            // Tighter proportional band at higher ability -> saturates to full speed sooner, so
+            // he corrects x errors more sharply and precisely instead of drifting over.
+            float band = Mathf.Lerp(1.2f, 0.7f, ability);
+            float dx = Mathf.Clamp((targetX - curX) / band, -1f, 1f);
             _ragdoll.MoveInput = new Vector3(dx * speed, 0f, 0f);
 
             _ragdoll.SetPose(KeeperPose.Ready, 8f);
@@ -129,7 +146,9 @@ namespace Trickshot
         void ShuffleGait(float moveAmt)
         {
             if (moveAmt < 0.15f) { _shufflePhase = 0f; return; }
-            _shufflePhase += Time.deltaTime * SimConfig.KeeperShuffleRate * moveAmt;
+            // Legs step faster at higher ability so the gait keeps pace with the quicker glide.
+            _shufflePhase += Time.deltaTime * SimConfig.KeeperShuffleRate * moveAmt
+                             * Mathf.Lerp(0.85f, 1.5f, _ability);
             float s = Mathf.Sin(_shufflePhase);
             float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
             _ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-liftL * SimConfig.KeeperShuffleLift, 0f, 0f));
@@ -144,7 +163,7 @@ namespace Trickshot
             _diveDir = dir;
             _lowPose = null;   // this is a full layout dive, not a low splay
             _diveAir = 0f; _diveGround = 0f;
-            _diveCooldown = SimConfig.AiKeeperDiveCooldown;
+            _diveCooldown = SimConfig.AiKeeperDiveCooldown * Mathf.Lerp(1.25f, 0.7f, ability);
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;
@@ -177,7 +196,7 @@ namespace Trickshot
             _state = State.Diving;
             _diveDir = dir;
             _diveAir = 0f; _diveGround = 0f;
-            _diveCooldown = SimConfig.AiKeeperDiveCooldown;
+            _diveCooldown = SimConfig.AiKeeperDiveCooldown * Mathf.Lerp(1.25f, 0.7f, ability);
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;
@@ -211,7 +230,7 @@ namespace Trickshot
             _diveDir = dir;
             _lowPose = null;   // uses the layout Dive pose, not a splay
             _diveAir = 0f; _diveGround = 0f;
-            _diveCooldown = SimConfig.AiKeeperDiveCooldown;
+            _diveCooldown = SimConfig.AiKeeperDiveCooldown * Mathf.Lerp(1.25f, 0.7f, ability);
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;
