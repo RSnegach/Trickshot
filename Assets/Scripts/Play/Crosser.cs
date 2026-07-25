@@ -87,11 +87,10 @@ namespace Trickshot
             Vector3 aimDir = toAim.normalized;
             if (_ragdoll != null && Cosmetic)
                 _ragdoll.ResetTo(spot, Quaternion.LookRotation(aimDir, Vector3.up));
-            // Launch from ~ball height, pushed forward toward the aim so the ball spawns AHEAD of the
-            // crosser instead of inside his legs. Without this offset the ball starts inside the
-            // ragdoll's own colliders (an AI crosser deflects with plain physics), so it squirts off
-            // along the ground in a random direction instead of solving a clean arc to the target.
-            OriginOverride = spot + aimDir * 0.7f + Vector3.up * 0.4f;
+            // Launch from ~ball height, pushed WELL forward toward the aim so the ball rests clearly
+            // ahead of the crosser, never inside his legs. Combined with IgnoreBody (set at build) the
+            // crosser can never deflect the ball, so every delivery solves a clean arc to the target.
+            OriginOverride = spot + aimDir * 1.4f + Vector3.up * 0.4f;
         }
 
         public void Arm(float firstDelay)
@@ -212,21 +211,32 @@ namespace Trickshot
             Vector3 target = TargetOverride ?? SimConfig.ServeTarget;
             if (GroundCross)
             {
-                // GROUND: a fast, flat, low ball - land at ball height with the short flight time
-                // so LaunchTo solves a shallow, quick trajectory that stays low.
+                // GROUND: a fast, flat, low ball - land at ball height. Distance-scaled time keeps
+                // it quick+flat whether the target is near or across the box.
                 target.y = SimConfig.BallRadius;
                 _pendingTarget = target;
-                _pendingTime = SimConfig.CrossServeGroundTime;
+                _pendingTime = CrossFlightTime(Origin, target, ground: true);
             }
             else
             {
-                // AIR (default): a lofted cross. Same landing spot, but the long flight time
-                // makes LaunchTo solve a high arc that sails up and drops onto the target.
+                // AIR (default): a lofted cross. Distance-scaled time gives a consistent launch angle
+                // so it arcs naturally at ANY range and still drops onto the target.
                 _pendingTarget = target;
-                _pendingTime = SimConfig.CrossServeAirTime;
+                _pendingTime = CrossFlightTime(Origin, target, ground: false);
             }
             _pendingCurl = Vector3.zero;
             _pendingSpin = 0f;
+        }
+
+        // Time of flight scaled by the horizontal origin->target distance so the launch ANGLE is
+        // roughly constant at any range (a near and a far cross arc the same shape). LaunchTo solves
+        // ballistically for this t, so the ball lands EXACTLY on target regardless of the value.
+        static float CrossFlightTime(Vector3 origin, Vector3 target, bool ground)
+        {
+            Vector3 d = target - origin; d.y = 0f;
+            float dist = d.magnitude;
+            float k = ground ? SimConfig.CrossArcKGround : SimConfig.CrossArcKAir;
+            return Mathf.Clamp(k * Mathf.Sqrt(dist), SimConfig.CrossArcMinTime, SimConfig.CrossArcMaxTime);
         }
 
         // A mobile human crosser (ServeFromFeet) launches from its own pelvis position; else the

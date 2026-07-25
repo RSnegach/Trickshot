@@ -296,6 +296,7 @@ namespace Trickshot
         {
             _crossMapOpen = open;
             GameInput.CaptureCursor(!open);
+            if (_cam != null) _cam.FreezeLook = open;   // hold the view still while placing on the map
             if (!open)
             {
                 _crosser.TargetOverride = _crossTarget;   // apply the picked landing spot

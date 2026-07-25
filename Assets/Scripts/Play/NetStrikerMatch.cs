@@ -272,6 +272,11 @@ namespace Trickshot
                 _crosser.AutoServe = false;                              // human decides deliveries
                 _crosser.Cosmetic = false;                               // a Striker owns pose + movement
                 _crosser.ServeFromFeet = true;                           // launch from where they stand
+                // A HUMAN crosser strikes off his own feet and moves freely, so the AI-only ball
+                // shield + protective bubble must NOT apply. Clear them in case this slot was AI before.
+                _ball.IgnoreBody(ragdoll, false);
+                var strayBubble = _crosser.GetComponent<CrosserBubble>();
+                if (strayBubble != null) Destroy(strayBubble);
                 // The crosser was planted at Init (locomotion off); un-plant it so the Striker
                 // can move it like a shooter.
                 ragdoll.LocomotionEnabled = true;
@@ -305,6 +310,12 @@ namespace Trickshot
                     Vector3 toGoal = SimConfig.GoalCenter - SimConfig.CrosserStart; toGoal.y = 0f;
                     ragdoll.ResetTo(SimConfig.CrosserStart,
                                     Quaternion.LookRotation(toGoal.normalized, Vector3.up));
+                    // AI/planted server: the ball must never touch his body, and no other player may
+                    // crowd him. Ignore ball<->crosser collisions and wrap him in a protective bubble
+                    // (ejects other players, lets the ball pass). Host-side only (physics runs here).
+                    _ball.IgnoreBody(ragdoll, true);
+                    if (_crosser.GetComponent<CrosserBubble>() == null)
+                        _crosser.gameObject.AddComponent<CrosserBubble>().Init(ragdoll);
                 }
                 _crosser.Arm(SimConfig.ServeFirstDelay);                  // start the serve countdown now
             }
@@ -414,6 +425,7 @@ namespace Trickshot
         {
             _crossMapOpen = open;
             GameInput.CaptureCursor(!open);
+            if (_cam != null) _cam.FreezeLook = open;   // hold the view still while placing on the map
         }
 
         // Emote wheel open/close: free the cursor so the radial menu is clickable, re-lock on close.
