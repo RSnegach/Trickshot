@@ -61,8 +61,7 @@ namespace Trickshot
             _mode = mode;
             _onStart = onStart;
             _onBack = onBack;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         // How many slider/toggle rows this mode shows, so the panel is sized to fit.

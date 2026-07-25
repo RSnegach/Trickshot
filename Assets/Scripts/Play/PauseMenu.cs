@@ -61,16 +61,14 @@ namespace Trickshot
             Paused = true;
             _savedTimeScale = Time.timeScale;
             Time.timeScale = 0f;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         void Resume()
         {
             Paused = false;
             Time.timeScale = _savedTimeScale <= 0f ? 1f : _savedTimeScale;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            GameInput.CaptureCursor(true);
         }
 
         void OnGUI()

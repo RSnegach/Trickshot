@@ -87,7 +87,11 @@ namespace Trickshot
             _playerInput.actions = _asset;
             _playerInput.defaultActionMap = "Play";
 
-            LockCursor();
+            // Do NOT capture the cursor here. GameInput is created while the title-screen menu is
+            // still up (GetInput() is called to wire the Options button), and the menu is IMGUI,
+            // which needs a free, visible pointer. Capture is switched on only when a match starts,
+            // via CaptureCursor(true). Locking at construction hid the cursor under the live menu
+            // and killed every button.
         }
 
         // Build a single rebindable button action from its Keybinds entry.
@@ -166,26 +170,37 @@ namespace Trickshot
             return ctrlPath;
         }
 
-        static void LockCursor()
+        // ---- Single source of truth for whether the OS pointer is captured for gameplay ----
+        // Every menu/match/pause/chat site routes through CaptureCursor so exactly one place
+        // decides the pointer state, and the focus handler below can restore the INTENDED state
+        // (not blindly re-lock). True = Minecraft-style captured (hidden, centred, camera reads
+        // <Mouse>/delta); false = free visible pointer for IMGUI menus.
+        public static bool CursorCaptured { get; private set; }
+
+        public static void CaptureCursor(bool capture)
         {
-            // Minecraft-style: pointer stays centred and hidden, only mouse delta is
-            // used (the camera reads <Mouse>/delta). In the editor, Esc frees it.
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            CursorCaptured = capture;
+            Cursor.lockState = capture ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !capture;
         }
 
-        // Re-lock when the game window regains focus (Esc / Alt-Tab releases it).
+        // Back-compat shim: existing call sites say LockCursor() to mean "capture for gameplay".
+        static void LockCursor() => CaptureCursor(true);
+
+        // Re-apply the INTENDED capture state when the window regains focus (Esc / Alt-Tab frees
+        // the OS lock). Only re-capture if gameplay actually wants it; if a menu is up
+        // (CursorCaptured == false) leave the pointer free so menu buttons stay clickable. The old
+        // version re-locked unconditionally, which hid the cursor over the title menu on launch.
         void OnApplicationFocus(bool hasFocus)
         {
-            if (hasFocus) LockCursor();
+            if (hasFocus && CursorCaptured) CaptureCursor(true);
         }
 
         void OnDestroy()
         {
             if (_map != null) _map.Disable();
             if (_asset != null) Destroy(_asset);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            CaptureCursor(false);
         }
 
         // --- polled state ---

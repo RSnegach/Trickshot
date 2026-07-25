@@ -16,7 +16,7 @@ namespace Trickshot
         public void Init(System.Action onHost, System.Action onJoin, System.Action onBack)
         {
             _onHost = onHost; _onJoin = onJoin; _onBack = onBack;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         void OnGUI()

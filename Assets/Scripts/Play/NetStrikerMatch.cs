@@ -413,16 +413,14 @@ namespace Trickshot
         void SetCrossMapOpen(bool open)
         {
             _crossMapOpen = open;
-            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = open;
+            GameInput.CaptureCursor(!open);
         }
 
         // Emote wheel open/close: free the cursor so the radial menu is clickable, re-lock on close.
         void SetWheelOpen(bool open)
         {
             _wheelOpen = open;
-            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = open;
+            GameInput.CaptureCursor(!open);
         }
 
         // A clickable radial emote menu (B). Clicking a slice records the pick on the input
@@ -878,7 +876,7 @@ namespace Trickshot
             }
         }
 
-        static void LockCursor() { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+        static void LockCursor() => GameInput.CaptureCursor(true);
 
         void OnDestroy()
         {

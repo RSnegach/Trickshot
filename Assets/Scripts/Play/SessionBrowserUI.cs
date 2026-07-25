@@ -23,7 +23,7 @@ namespace Trickshot
         public void Init(System.Action onJoined, System.Action onBack)
         {
             _onJoined = onJoined; _onBack = onBack;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            GameInput.CaptureCursor(false);
             Refresh();
         }
 

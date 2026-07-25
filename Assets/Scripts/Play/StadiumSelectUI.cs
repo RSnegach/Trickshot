@@ -16,8 +16,7 @@ namespace Trickshot
         {
             _onPicked = onPicked;
             _onBack = onBack;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         void OnGUI()
