@@ -85,7 +85,16 @@ namespace Trickshot
             if (_menuBg != null) return;
             var bgGo = new GameObject("MenuBackground");
             _menuBg = bgGo.AddComponent<MenuBackground>();
-            _menuBg.Setup();
+            // The backdrop is purely cosmetic: NEVER let a failure in it block the menu. If Setup
+            // throws (e.g. a stripped shader in a player build), tear it down and carry on so the
+            // main menu still shows instead of the whole game blanking to the camera clear colour.
+            try { _menuBg.Setup(); }
+            catch (System.Exception e)
+            {
+                Debug.LogError("MenuBackground.Setup failed; continuing without the backdrop. " + e);
+                Destroy(bgGo);
+                _menuBg = null;
+            }
         }
 
         void HideMenuBackground()

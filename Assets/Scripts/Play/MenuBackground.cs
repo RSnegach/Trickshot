@@ -246,6 +246,9 @@ namespace Trickshot
         void Update()
         {
             if (_cam == null) return;
+            // If Setup didn't fully wire the actors (e.g. a build issue aborted it), do nothing
+            // rather than NRE every frame. The backdrop just stays static; the menu is unaffected.
+            if (_crosserRag == null || _ball == null || _keeper == null) return;
             // Use SCALED delta so the whole reel (gait, timers, camera pacing) slows together with
             // the physics under our SlowMo timeScale. Keeper always reads the ball and reacts.
             float dt = Time.deltaTime;
