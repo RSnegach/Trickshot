@@ -51,8 +51,7 @@ namespace Trickshot
         float _committedPowerStat;    // 0..1 power STAT -> scales ONLY the launch-speed ceiling (not height)
         BallController.SetPieceSpin _committedSpin;
         Vector3? _committedAim;   // look-ray aim captured at release (null = built-in auto-aim)
-        bool _committedTap;       // short hold -> universal low dribble toward the look ray
-        float _spaceHeldTime;     // seconds Space has been held this attempt (tap vs full charge)
+        float _spaceHeldTime;     // seconds Space has been held this attempt (gates a genuine charge)
 
         float _phaseTime;      // time in the current Runup/Struck/Settle phase
         float _gaitPhase;
@@ -100,7 +99,7 @@ namespace Trickshot
             // genuine release before charging can begin. Otherwise the first attempt's very first
             // Tick reads Space held, latches _charged, and commits with no real release.
             _awaitingRelease = input != null && input.JumpHeld;
-            _committedAim = null; _committedTap = false;
+            _committedAim = null;
             JustStruck = false;
             SetColliders(true);
             if (_ragdoll != null) _ragdoll.UprightLock = true;
@@ -201,7 +200,7 @@ namespace Trickshot
             {
                 _charged = true;
                 _releaseTime = 0f;   // still held: a phantom 1-frame drop can't accrue enough to commit
-                _spaceHeldTime += Time.deltaTime;   // total hold this attempt (short = tap dribble)
+                _spaceHeldTime += Time.deltaTime;   // total hold this attempt (gates a genuine charge)
                 _meter += _meterDir * SimConfig.SetPieceMeterRate * Time.deltaTime;
                 if (_meter >= 1f) { _meter = 1f; _meterDir = -1f; }
                 else if (_meter <= 0f) { _meter = 0f; _meterDir = 1f; }
@@ -244,6 +243,20 @@ namespace Trickshot
             // so an attempt armed with Space up does not fire on frame one.
             if (!_charged) return;
 
+            // A near-instant TAP is not a shot: require a genuine minimum charge before any commit.
+            // A normal keypress (~0.1s) used to fall in the old tap-pass window and fired the moment
+            // Space came up - "the first set piece fires as soon as I hit space". Now a sub-threshold
+            // press commits NOTHING; reset the charge state so the next real hold charges from scratch.
+            if (_spaceHeldTime < SimConfig.SetPieceMinChargeTime)
+            {
+                _charged = false;
+                _meter = 0f; _meterDir = 1f; _pegTime = 0f;
+                _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
+                _spin = BallController.SetPieceSpin.None;
+                _spaceHeldTime = 0f; _releaseTime = 0f;
+                return;
+            }
+
             // Debounce the release: Space must stay up for a short continuous window before we
             // commit. A genuine release clears this in a blink; a single dropped input frame
             // (focus blip / hitch) that briefly reads Space up gets reset by the held branch next
@@ -259,10 +272,8 @@ namespace Trickshot
             _committedSpin = _spin;
             _committedSpinCharge = _spinCharge;
 
-            // Freeze the aim ray at release (camera can move during the runup) and decide tap vs full.
-            // A tap (short hold) is a universal low dribble toward the look ray, regardless of skill.
+            // Freeze the aim ray at release (the camera can move during the runup).
             _committedAim = _aimPoint != null ? (Vector3?)_aimPoint() : null;
-            _committedTap = _spaceHeldTime < SimConfig.SetPieceTapThreshold;
 
             // Botch from overcharge + spin over-hold, each widened by accuracy. 0 = clean.
             float overWin = SimConfig.SetPieceOverchargeTime * (1f + combined);
@@ -322,7 +333,7 @@ namespace Trickshot
                         _ball.LaunchSetPiece(_committedPower, _committedSpin, _committedSpinCharge,
                                              _committedBotch, _committedCombined, _goalCenter,
                                              _committedOvercharge, _committedPowerStat,
-                                             _committedAim, _committedTap);
+                                             _committedAim);
                     }
                     JustStruck = true;
                     _state = State.Struck;

@@ -164,7 +164,7 @@ namespace Trickshot
         public void LaunchSetPiece(float power01, SetPieceSpin spin, float spinCharge01,
                                    float botch01, float combined, Vector3 goalCenter,
                                    float overcharge01 = 0f, float powerStat01 = 0.5f,
-                                   Vector3? aimPoint = null, bool tapDribble = false)
+                                   Vector3? aimPoint = null)
         {
             power01 = Mathf.Clamp01(power01);
             spinCharge01 = Mathf.Clamp01(spinCharge01);
@@ -261,20 +261,11 @@ namespace Trickshot
                 _assistTarget = aim;
             }
 
-            // Tap dribble: a soft low push for anyone. Force a low aim height so the vertical
-            // solve below stays low; speed and overcharge are overridden further down.
-            if (tapDribble)
-            {
-                aim.y = SimConfig.SetPieceTapAimHeight;
-                _assistTarget = aim;
-            }
-
             // Flat launch DIRECTION toward the aim; keep the power-picked flat SPEED.
             Vector3 toAimFlat = aim - p0; toAimFlat.y = 0f;
             float horizDist = toAimFlat.magnitude;
             Vector3 flatDir = horizDist > 0.01f ? (toAimFlat / horizDist) : shotDir;
-            // Tap dribble is a fixed soft low push, so its pace ignores the power bar.
-            float flatSpeed = tapDribble ? SimConfig.SetPieceTapSpeed : Mathf.Max(1f, launch);
+            float flatSpeed = Mathf.Max(1f, launch);
 
             // Solve vy so the ball is at the aim HEIGHT when it crosses the goal line, then cap the
             // apex so the power STAT / a clean bar can never send it over the bar.
@@ -288,9 +279,8 @@ namespace Trickshot
             // balloon over the crossbar. Driven by shot POWER up and ACCURACY down: a high-power shot
             // with LOW accuracy sails well over the bar; investing accuracy pulls the loft down; at
             // MAX accuracy it is ZERO, so the ball caps right at the crossbar. A small overcharge bonus
-            // adds on top so over-holding the bar still sails a touch higher. Tap dribble stays low.
+            // adds on top so over-holding the bar still sails a touch higher.
             float loft = 0f;
-            if (!tapDribble)
             {
                 // Gate the power-driven loft to the HIGH-RED end of the bar: below SetPieceLoftGate it
                 // is ZERO (the shot just travels slow + low, its pace owned by the speed band above), and

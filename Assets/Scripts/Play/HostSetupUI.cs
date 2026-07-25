@@ -29,6 +29,10 @@ namespace Trickshot
         // Set Pieces map is shown (centre spot at FreeKickDistance, wall at WallDistance toward
         // goal). _fkEdit selects which marker a map click moves: 0 = ball, 1 = wall.
         bool _fkInit; Vector3 _fkBall, _fkWall; int _fkEdit;
+        // RANDOM set-piece spots: when on, all shooters shoot from a fresh random outside-box spot
+        // each of the 10 rounds (same spot per round for everyone). A seed generated at Create time is
+        // carried in MatchConfig so every peer derives the identical 10-spot schedule.
+        bool _fkRandom;
 
         public void Init(System.Action onCreated, System.Action onBack)
         {
@@ -88,22 +92,39 @@ namespace Trickshot
 
             float w = 300f, h = 300f;
             var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
-            GUI.DrawTexture(new Rect(px, py, w, h + 74f), Texture2D.whiteTexture); GUI.color = prev;
+            GUI.DrawTexture(new Rect(px, py, w, h + 108f), Texture2D.whiteTexture); GUI.color = prev;
 
             var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
             GUI.Label(new Rect(px, py + 8f, w, 26f), "FREE KICK SETUP", hdr);
 
-            // Ball / Wall edit selector.
+            // RANDOM toggle (shuffle icon, like the skill-tree RANDOMIZE button). When on, every
+            // shooter shoots from a fresh random outside-box spot each of the 10 rounds; manual
+            // placement is disabled.
+            var randRect = new Rect(px + 16f, py + 36f, w - 32f, 30f);
+            GUI.color = _fkRandom ? new Color(0.30f, 0.24f, 0.42f) : new Color(0.16f, 0.17f, 0.22f);
+            GUI.DrawTexture(randRect, Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(randRect, 1.5f); GUI.color = prev;
+            var shuf = SkillIcons.Get("_shuffle");
+            if (shuf != null) GUI.DrawTexture(new Rect(randRect.x + 8f, randRect.y + 5f, 20f, 20f), shuf, ScaleMode.ScaleToFit, true);
+            var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _fkRandom ? new Color(1f, 0.9f, 0.3f) : Color.white } };
+            GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), _fkRandom ? "RANDOM SPOTS: ON" : "RANDOM SPOTS: OFF", randSt);
+            if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) _fkRandom = !_fkRandom;
+
+            // Ball / Wall edit selector (disabled while Random is on - spots are auto-generated).
             var sel = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
             var selOn = new GUIStyle(sel); selOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
-            if (GUI.Button(new Rect(px + 16f, py + 38f, (w - 40f) * 0.5f, 28f), _fkEdit == 0 ? "● Ball" : "Ball", _fkEdit == 0 ? selOn : sel)) _fkEdit = 0;
-            if (GUI.Button(new Rect(px + 24f + (w - 40f) * 0.5f, py + 38f, (w - 40f) * 0.5f, 28f), _fkEdit == 1 ? "● Wall" : "Wall", _fkEdit == 1 ? selOn : sel)) _fkEdit = 1;
+            GUI.enabled = !_fkRandom;
+            if (GUI.Button(new Rect(px + 16f, py + 72f, (w - 40f) * 0.5f, 28f), _fkEdit == 0 ? "● Ball" : "Ball", _fkEdit == 0 ? selOn : sel)) _fkEdit = 0;
+            if (GUI.Button(new Rect(px + 24f + (w - 40f) * 0.5f, py + 72f, (w - 40f) * 0.5f, 28f), _fkEdit == 1 ? "● Wall" : "Wall", _fkEdit == 1 ? selOn : sel)) _fkEdit = 1;
 
-            var mapRect = new Rect(px + 16f, py + 74f, w - 32f, h - 74f);
+            var mapRect = new Rect(px + 16f, py + 108f, w - 32f, h - 74f);
             SetPieceMap.Draw(mapRect, ref _fkBall, ref _fkWall, _fkEdit);
+            GUI.enabled = true;
 
             var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
-            GUI.Label(new Rect(px, py + h + 44f, w, 20f), "Click the map to place the " + (_fkEdit == 1 ? "wall" : "ball") + ".", tip);
+            GUI.Label(new Rect(px, py + h + 78f, w, 20f), _fkRandom
+                ? "Random spot each round (same for all shooters)."
+                : "Click the map to place the " + (_fkEdit == 1 ? "wall" : "ball") + ".", tip);
         }
 
         void Create()
@@ -130,6 +151,10 @@ namespace Trickshot
                 fkPlaced = mode == GameMode.SetPieces && _fkInit,
                 fkBallX = _fkBall.x, fkBallZ = _fkBall.z,
                 fkWallX = _fkWall.x, fkWallZ = _fkWall.z,
+                // Random per-round spots: carry the flag + a fresh seed so every peer derives the
+                // same 10-spot schedule. Only meaningful for SetPieces.
+                fkRandom = mode == GameMode.SetPieces && _fkRandom,
+                fkSeed = (uint)Random.Range(1, int.MaxValue),
             });
 
             enabled = false;
@@ -180,6 +205,15 @@ namespace Trickshot
             var names = new string[all.Length];
             for (int i = 0; i < all.Length; i++) names[i] = all[i].Name;
             return names;
+        }
+
+        static void DrawRectOutline(Rect r, float th)
+        {
+            var tex = Texture2D.whiteTexture;
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, th), tex);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - th, r.width, th), tex);
+            GUI.DrawTexture(new Rect(r.x, r.y, th, r.height), tex);
+            GUI.DrawTexture(new Rect(r.xMax - th, r.y, th, r.height), tex);
         }
     }
 }

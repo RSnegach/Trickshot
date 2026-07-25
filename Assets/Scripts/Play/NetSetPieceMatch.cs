@@ -54,8 +54,13 @@ namespace Trickshot
         uint _tick; float _snapAccum;
         string _flash = ""; float _flashTime;
         float _goalLineZ;
-        Vector3 _ballSpot;          // dead-ball free-kick spot (host-placed)
-        Vector3 _wallCenter;        // host-placed wall centre
+        Vector3 _ballSpot;          // dead-ball free-kick spot (host-placed, or per-round in Random mode)
+        Vector3 _wallCenter;        // wall centre (host-placed, or derived from the ball in Random mode)
+
+        // RANDOM mode: a fixed schedule of 10 outside-box spots, one per round, derived identically on
+        // every peer from the synced seed. All shooters in round R use _randomSpots[R]; it changes each
+        // round. Null when Random is off (then the single host-placed/default spot is used).
+        Vector3[] _randomSpots;
 
         // ---- shootout state (host-authoritative) ----
         readonly int[] _scored = new int[NetSession.MaxSlots];
@@ -112,6 +117,8 @@ namespace Trickshot
                 _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance);
                 _wallCenter = _ballSpot + (SimConfig.GoalCenter - _ballSpot).normalized * SimConfig.WallDistance;
             }
+            // Random per-round spots: build the identical 10-spot schedule on every peer from the seed.
+            if (cfg.fkRandom) _randomSpots = BuildRandomSpots(cfg.fkSeed, ShotsEach);
             _ball.SetPieceShot = true;   // arcadey loft + curl + stat-scaled assist
             _s.MatchEvent += OnMatchEvent;
             _s.BallKicked += OnBallKicked;
@@ -255,6 +262,36 @@ namespace Trickshot
         Vector3 ShooterWaitSpot(int slot) =>
             _ballSpot + new Vector3((slot - 3) * 2.0f, 0f, -4f);
 
+        // Deterministic 10-spot schedule for Random mode: seeded System.Random so host + every client
+        // derive the identical spots. Each spot is inside the attacking third, OUTSIDE the penalty box,
+        // and within a sensible width so a wall + shot are always playable.
+        static Vector3[] BuildRandomSpots(uint seed, int count)
+        {
+            var rng = new System.Random(unchecked((int)seed));
+            var spots = new Vector3[count];
+            float boxFrontZ = SimConfig.GoalCenter.z - SimConfig.PenaltyBoxDepth;   // must be outside (<=)
+            float thirdBackZ = SimConfig.GoalCenter.z - PitchLayout.PitchLength / 3f;
+            float halfX = Mathf.Min(PitchLayout.HalfWidth - 2f, 24f);               // keep off the touchline
+            for (int i = 0; i < count; i++)
+            {
+                float x = (float)(rng.NextDouble() * 2.0 - 1.0) * halfX;
+                float z = Mathf.Lerp(boxFrontZ, thirdBackZ, (float)rng.NextDouble());   // outside box .. third line
+                spots[i] = new Vector3(x, SimConfig.BallRadius, z);
+            }
+            return spots;
+        }
+
+        // Apply the spot for the given round (0-based) in Random mode: set _ballSpot + a regulation
+        // wall centre on the ball->goal line. No-op when Random is off.
+        void ApplyRoundSpot(int round)
+        {
+            if (_randomSpots == null || _randomSpots.Length == 0) return;
+            _ballSpot = _randomSpots[Mathf.Clamp(round, 0, _randomSpots.Length - 1)];
+            Vector3 toGoal = SimConfig.GoalCenter - _ballSpot; toGoal.y = 0f;
+            Vector3 dir = toGoal.sqrMagnitude > 1e-4f ? toGoal.normalized : Vector3.forward;
+            _wallCenter = _ballSpot + dir * SimConfig.WallDistance;
+        }
+
         void AttachKick(ActiveRagdoll ragdoll, Striker striker)
         {
             AddDet(ragdoll.Rb(Bone.FootR), striker, ragdoll);
@@ -293,6 +330,15 @@ namespace Trickshot
                     _taker.Reset();
                 }
                 _lastLocalTaken = myTaken;
+
+                // Random mode: mirror the host's per-round spot so the client's wall + local
+                // prediction line up with the authoritative ball. Round = the active shooter's taken.
+                if (_randomSpots != null && s.activeShooter != 255 && s.taken != null
+                    && s.activeShooter < s.taken.Length)
+                {
+                    ApplyRoundSpot(s.taken[s.activeShooter]);
+                    if (_wall != null) _wall.Build(_root, _ballSpot, _wallCenter, SimConfig.WallCount);
+                }
             }
             // Crowd streak stingers, driven off the replicated tally so they fire identically on
             // the host AND every client (this handler runs on both). Per shooter: a resolved
@@ -386,6 +432,14 @@ namespace Trickshot
             _phase = Phase.Armed;
             _liveTime = _restTimer = _settle = 0f;
             _keeperTouched = false;
+
+            // Random mode: this shooter's round index = how many they've already taken (0..9). Move
+            // the ball spot + wall to that round's shared spot before placing bodies/ball/wall.
+            if (_randomSpots != null)
+            {
+                ApplyRoundSpot(_taken[_activeShooter]);
+                if (_wall != null) _wall.Build(_root, _ballSpot, _wallCenter, SimConfig.WallCount);
+            }
 
             for (int i = 1; i < NetSession.CrosserSlot; i++)
             {
@@ -868,7 +922,7 @@ namespace Trickshot
 
             Hud.Legend(youAre == "Keeper"
                 ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
-                : "HOLD Space power   Mouse aim   WASD spin   Tap Space dribble   V ball cam");
+                : "HOLD Space power   Mouse aim   WASD spin   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawScoreboard(st);

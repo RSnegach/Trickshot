@@ -63,6 +63,11 @@ namespace Trickshot.Net
         // host actually placed them (else the driver uses its centred defaults).
         public bool fkPlaced;
         public float fkBallX, fkBallZ, fkWallX, fkWallZ;
+        // Set pieces RANDOM mode: when true, every shooter shoots from a NEW random outside-box spot
+        // each of the 10 rounds - the same spot for all shooters in a round, changing 10 times. The
+        // seed is host-chosen and carried here so every peer derives the identical 10-spot schedule.
+        public bool fkRandom;
+        public uint fkSeed;
     }
 
     // Host -> clients: the set-pieces shootout tally. activeShooter = slot currently up;
@@ -290,6 +295,7 @@ namespace Trickshot.Net
             w.F(cfg.goalScale); w.F(cfg.keeperAbility);
             w.B(cfg.fkPlaced);
             w.F(cfg.fkBallX); w.F(cfg.fkBallZ); w.F(cfg.fkWallX); w.F(cfg.fkWallZ);
+            w.B(cfg.fkRandom); w.U32(cfg.fkSeed);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); }
@@ -302,7 +308,8 @@ namespace Trickshot.Net
                                     matchSec = (ushort)r.U32(), publicLobby = r.B(),
                                     goalScale = r.F(), keeperAbility = r.F(),
                                     fkPlaced = r.B(),
-                                    fkBallX = r.F(), fkBallZ = r.F(), fkWallX = r.F(), fkWallZ = r.F() };
+                                    fkBallX = r.F(), fkBallZ = r.F(), fkWallX = r.F(), fkWallZ = r.F(),
+                                    fkRandom = r.B(), fkSeed = r.U32() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
