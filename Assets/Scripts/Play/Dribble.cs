@@ -192,7 +192,6 @@ namespace Trickshot
         // hold off re-capture so the same touch doesn't immediately re-grab the ball.
         void ReleaseShot()
         {
-            Vector3 dir = (_striker.FacingForward + Vector3.up * SimConfig.DribbleShotLift).normalized;
             float speed = SimConfig.DribbleShotSpeed * PlayerProfile.ShotPowerMul;
 
             // Same sight-cone gate as a struck shot: only assist when facing the goal.
@@ -200,12 +199,17 @@ namespace Trickshot
             Vector3 face = _striker.FacingForward;
             float dot = toGoal.sqrMagnitude > 0.01f ? Vector3.Dot(face, toGoal.normalized) : -1f;
             bool facingGoal = dot >= SimConfig.AssistFacingDot;        // tight cone: aim assist
-            // Ball-cam ONLY for a shot facing AWAY from goal (over-shoulder). A dribble shot is
-            // normally forward, so this is almost always false - you can already see the goal.
+            // Ball-cam ONLY for a shot facing AWAY from goal (over-shoulder).
             bool camShouldCut = dot < SimConfig.ShotCamFaceAwayDot;
 
             StopCarry();   // drop the leash BEFORE the shot so DribbleHold doesn't block it
-            _ball.DribbleShot(dir, speed, facingGoal, camShouldCut);
+            // Scrimmage: a deliberate shot leaves the ground and follows set-piece flight (arced, no
+            // controllable spin). Elsewhere it's the usual flat dribble drive.
+            if (_ball.ScrimmageLoftKicks)
+                _ball.LaunchLofted(_striker.FacingForward, speed, facingGoal, camShouldCut);
+            else
+                _ball.DribbleShot((_striker.FacingForward + Vector3.up * SimConfig.DribbleShotLift).normalized,
+                                  speed, facingGoal, camShouldCut);
             _cooldown = SimConfig.DribbleRecaptureCooldown;
         }
 

@@ -81,6 +81,9 @@ namespace Trickshot
                               KeeperController humanKeeper, ActiveRagdoll humanKeeperRagdoll)
         {
             _input = input; _ball = ball; _cam = cam;
+            // Scrimmage: deliberate LMB/RMB shots (human dribble release + AI shots) fly airborne
+            // like a set piece, no controllable spin. Loose-ball trapping stays grounded.
+            if (_ball != null) _ball.ScrimmageLoftKicks = true;
             HalfLength = arena.halfLength; HalfWidth = arena.halfWidth;
             HomeGoal = arena.homeGoalCenter; AwayGoal = arena.awayGoalCenter;
             _role = role;

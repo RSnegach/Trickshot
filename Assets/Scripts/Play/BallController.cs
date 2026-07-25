@@ -82,6 +82,12 @@ namespace Trickshot
         // striker can bend one in. Set by FreeKickGame for the whole session.
         public bool SetPieceShot { get; set; }
 
+        // Scrimmage: while true, a DELIBERATE LMB/RMB shot (dribble release + AI shot) launches
+        // AIRBORNE like a set piece - an arced ballistic shot instead of a flat drive - but with
+        // NO controllable spin (WASD is movement in scrimmage). Set by ScrimmageGame for the
+        // session; loose-ball trapping / open-play contacts are unaffected (they stay grounded).
+        public bool ScrimmageLoftKicks { get; set; }
+
         // Shared, ball-side trick-bonus guard. Each leg bone carries its OWN KickDetector
         // (foot + calf, both legs), and Unity fires each collider's callback independently,
         // so a per-detector cooldown can't stop the calf AND the foot of the same flip from
@@ -959,6 +965,58 @@ namespace Trickshot
                 if (flat.magnitude >= SimConfig.ShotCamMinSpeed) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
             }
 
+            _assistCooldown = 0.4f;
+            SuppressStrike(SimConfig.DribbleRecaptureCooldown);
+        }
+
+        // Scrimmage deliberate LMB/RMB shot: launch AIRBORNE like a set piece (arced, no controllable
+        // spin - WASD is movement in scrimmage) instead of DribbleShot's flat drive. `dir` is the flat
+        // aim direction (the striker's facing); the ball is lofted along it at a fixed launch angle,
+        // scaled by shot power. Same facing-gated goal assist as DribbleShot (horizontal steer only
+        // when facing goal; vertical steer stays off so the loft survives). No curl/wiggle ever.
+        public void LaunchLofted(Vector3 dir, float speed, bool facingGoal, bool camShouldCut)
+        {
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 1e-4f) dir = transform.forward;
+            dir.Normalize();
+
+            // Split the launch speed into a forward run + an upward pop at a fixed elevation, so the
+            // ball actually leaves the ground and arcs. Cap the vertical so a big shot can't balloon
+            // straight up (mirrors the set-piece apex idea without the goal-locked solve).
+            float ang = SimConfig.ScrimLoftAngleDeg * Mathf.Deg2Rad;
+            Vector3 flat = dir * (speed * Mathf.Cos(ang));
+            float vy = Mathf.Min(speed * Mathf.Sin(ang), SimConfig.ScrimLoftMaxVy);
+            Rb.linearVelocity = new Vector3(flat.x, vy, flat.z);
+            Rb.angularVelocity = Vector3.zero;
+
+            // No spin/curl/knuckle: this is a plain arced shot.
+            _curlAccel = Vector3.zero;
+            _curlRemaining = 0f;
+            _wiggleRemaining = 0f;
+            _wiggleAmp = 0f;
+
+            // Same aim-assist gating as DribbleShot, but keep the VERTICAL steer OFF so the launch
+            // loft isn't predicted back down onto goal height (matches the set-piece over-bar rule).
+            if (facingGoal)
+            {
+                _accuracyMul = SimConfig.StrongFootAccuracy + (PlayerProfile.ShotAccuracyMul - 1f);
+                _assistTarget = Vector3.zero;       // centre-goal horizontal steer only (no corner/height aim)
+                _assistFlatOff = false;
+                _assistVertOff = true;              // let the arc fly; don't flatten it back to goal height
+                _assistRemaining = SimConfig.AssistDuration;
+            }
+            else _accuracyMul = 0f;
+
+            if (camShouldCut && _cam != null)
+            {
+                Vector3 f = flat; f.y = 0f;
+                if (f.magnitude >= SimConfig.ShotCamMinSpeed) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
+            }
+
+            LastShotWasTrick = false;
+            LastShotType = ShotType.Normal;
+            _trail.emitting = true;
+            _trail.Clear();
             _assistCooldown = 0.4f;
             SuppressStrike(SimConfig.DribbleRecaptureCooldown);
         }
