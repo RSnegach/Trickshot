@@ -486,7 +486,7 @@ namespace Trickshot
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
-        static void LockCursor() { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+        static void LockCursor() => GameInput.CaptureCursor(true);
 
         void OnGUI()
         {

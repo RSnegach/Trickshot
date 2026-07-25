@@ -37,8 +37,7 @@ namespace Trickshot
             _onMultiplayer = onMultiplayer;
             if (input != null) _options = new OptionsMenu(input);
             // Menu needs a visible, free cursor.
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         void OnGUI()

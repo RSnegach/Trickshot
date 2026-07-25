@@ -112,8 +112,7 @@ namespace Trickshot
         {
             _onDone = onDone;
             _onBack = onBack;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            GameInput.CaptureCursor(false);
 
             _height = PlayerProfile.Height;
             _weight = PlayerProfile.Weight;
@@ -477,7 +476,16 @@ namespace Trickshot
             for (int i = 0; i < 4; i++)
             {
                 var r = new Rect(ax, ay0 + i * (ah + agap), aw, ah);
-                GUI.Button(r, "   " + q.A[i], ansStyle);
+
+                // Use GUI.Button's own return value to detect the click. GUI.Button consumes the
+                // mouse event internally, so a separate Event.current MouseDown check right after it
+                // never fires (the event is already Used) - that was the bug: _quizPick stayed -1
+                // and the quiz never resolved. Freeze the buttons while feedback shows so a second
+                // click can't re-pick mid-flash.
+                bool prev = GUI.enabled;
+                if (feedback) GUI.enabled = false;
+                bool clicked = GUI.Button(r, "   " + q.A[i], ansStyle);
+                GUI.enabled = prev;
 
                 if (feedback)
                 {
@@ -487,11 +495,10 @@ namespace Trickshot
                     else if (i == _quizPick) { GUI.color = new Color(0.95f, 0.3f, 0.3f); DrawRectOutline(r, 3f); }
                     GUI.color = oc;
                 }
-                else if (Event.current.type == EventType.MouseDown && r.Contains(Event.current.mousePosition))
+                else if (clicked)
                 {
                     _quizPick = i;
                     _quizFeedbackUntil = Time.unscaledTime + (i == q.Correct ? 0.6f : 0.9f);
-                    Event.current.Use();
                 }
             }
 

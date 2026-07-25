@@ -34,7 +34,7 @@ namespace Trickshot
         {
             _onCreated = onCreated; _onBack = onBack;
             _stadium = StadiumStyle.SelectedIndex;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         void OnGUI()

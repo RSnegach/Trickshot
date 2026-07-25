@@ -295,8 +295,7 @@ namespace Trickshot
         void SetCrossMapOpen(bool open)
         {
             _crossMapOpen = open;
-            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = open;
+            GameInput.CaptureCursor(!open);
             if (!open)
             {
                 _crosser.TargetOverride = _crossTarget;   // apply the picked landing spot

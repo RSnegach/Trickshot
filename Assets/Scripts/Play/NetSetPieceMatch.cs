@@ -814,7 +814,7 @@ namespace Trickshot
             return false;
         }
 
-        static void LockCursor() { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+        static void LockCursor() => GameInput.CaptureCursor(true);
 
         void OnDestroy()
         {

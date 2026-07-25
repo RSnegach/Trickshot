@@ -100,8 +100,7 @@ namespace Trickshot
             Typing = true;
             AnyOpen = true;
             _draft = "";
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            GameInput.CaptureCursor(false);
         }
 
         void CloseTextEntry()
@@ -110,8 +109,7 @@ namespace Trickshot
             AnyOpen = false;
             s_closedFrame = Time.frameCount;   // keep EscapeOwned true one more frame (see field)
             _draft = "";
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            GameInput.CaptureCursor(true);
         }
 
         void SubmitDraft()

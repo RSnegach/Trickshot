@@ -24,7 +24,7 @@ namespace Trickshot
             _onCustomize = onCustomize; _onStart = onStart; _onLeave = onLeave;
             _s = Multiplayer.Session;
             if (_s != null) _s.MatchStarting += OnMatchStarting;
-            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            GameInput.CaptureCursor(false);
 
             // On the direct-IP path, a host shows its address(es) so friends can type them in.
             // (Steam has its own invite flow, so skip it there.) Cache once - Dns isn't free.

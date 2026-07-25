@@ -369,8 +369,7 @@ namespace Trickshot
         void SetWheelOpen(bool open)
         {
             _wheelOpen = open;
-            Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = open;
+            GameInput.CaptureCursor(!open);
         }
 
         // A real, clickable radial menu. Each emote is a button laid out around a ring;
