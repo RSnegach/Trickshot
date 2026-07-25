@@ -1,7 +1,7 @@
 # Graph Report - Trickshot  (2026-07-25)
 
 ## Corpus Check
-- 111 files · ~243,699 words
+- 111 files · ~243,745 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `12bc0933`
+- Built from commit: `552d1556`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -83,6 +83,7 @@
 - Crowd
 - ChatCensor
 - AimReticle
+- QuickChat
 - .SkillPresetButtons
 - .AdvanceTurn
 - AccuracyGame
@@ -112,7 +113,6 @@
 - IStrikerInput
 - CrosserControl
 - MonoBehaviour
-- .StartRebind
 - Knockdown
 - StadiumStyle
 - Frame
@@ -203,8 +203,8 @@ Cohesion: 0.33
 Nodes (5): int, string, AdultQuiz, Q, Q
 
 ### Community 12 - "SkillIcons"
-Cohesion: 0.22
-Nodes (4): Action, Collision, float, KickDetector
+Cohesion: 0.27
+Nodes (4): Action, bool, Texture2D, MenuUI
 
 ### Community 13 - "SetPieceTaker"
 Cohesion: 0.19
@@ -239,8 +239,8 @@ Cohesion: 0.07
 Nodes (16): bool, List, RuntimeInitializeOnLoadMethod, Multiplayer, int, IPEndPoint, List, NetEndpoint (+8 more)
 
 ### Community 21 - "GameInput"
-Cohesion: 0.33
-Nodes (6): dependencies, depth, source, version, com.unity.modules.jsonserialize, com.unity.modules.jsonserialize
+Cohesion: 0.29
+Nodes (7): dependencies, depth, source, version, dependencies, com.unity.modules.jsonserialize, com.unity.modules.jsonserialize
 
 ### Community 22 - "Celebration"
 Cohesion: 0.06
@@ -311,8 +311,8 @@ Cohesion: 0.20
 Nodes (10): depth, source, version, dependencies, depth, source, version, com.unity.modules.uielements (+2 more)
 
 ### Community 40 - ".PushRoster"
-Cohesion: 0.29
-Nodes (7): dependencies, depth, source, version, dependencies, com.unity.modules.physics, com.unity.modules.physics
+Cohesion: 0.33
+Nodes (6): dependencies, depth, source, version, com.unity.modules.physics, com.unity.modules.physics
 
 ### Community 41 - "FlexNet"
 Cohesion: 0.18
@@ -343,7 +343,7 @@ Cohesion: 0.23
 Nodes (8): Material, PhysicsMaterial, Transform, Vector3, Arena, Refs, PhysicsMaterial, PhysicsMaterialCombine
 
 ### Community 49 - ".Configure"
-Cohesion: 0.20
+Cohesion: 0.16
 Nodes (18): bool, Vector2, NetInputSource, bool, byte, float, string, uint (+10 more)
 
 ### Community 50 - "GameCamera"
@@ -422,6 +422,10 @@ Nodes (9): Func, bool, float, int, string, Transform, Vector3, TimeTrialGame (+1
 Cohesion: 0.24
 Nodes (10): community structure, god nodes, graphify-out/graph.json, graphify-out/GRAPH_REPORT.md, graphify knowledge graph, graphify explain command, graphify path command, graphify query command (+2 more)
 
+### Community 70 - "QuickChat"
+Cohesion: 0.22
+Nodes (4): Action, Collision, float, KickDetector
+
 ### Community 71 - ".SkillPresetButtons"
 Cohesion: 0.40
 Nodes (5): dependencies, depth, source, version, com.unity.modules.umbra
@@ -443,7 +447,7 @@ Cohesion: 0.09
 Nodes (13): bool, Dictionary, float, IEnumerator, int, RuntimeInitializeOnLoadMethod, string, Vector3 (+5 more)
 
 ### Community 76 - "JerseyDesigns.Nations10.cs"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (16): NetRole, bool, byte, Dictionary, float, HashSet, int, PlayerAppearance (+8 more)
 
 ### Community 77 - "com.unity.modules.ai"
@@ -451,8 +455,12 @@ Cohesion: 0.38
 Nodes (7): Hair Strand Texture Atlas, Dense Wavy Strand Card (Tile 3), Flowing Wavy Strand Card (Tile 2), Four-Column Horizontal Tile Layout, White-on-Black Strand Alpha/Luminance Mask, Straight Sleek Strand Card (Tile 4), Wavy Scattered Strand Card (Tile 1)
 
 ### Community 78 - ".ResetTo"
-Cohesion: 0.18
+Cohesion: 0.25
 Nodes (4): Action, bool, string, LobbyUI
+
+### Community 80 - "IStrikerInput"
+Cohesion: 0.38
+Nodes (3): float, Func, CrosserControl
 
 ### Community 81 - "MultiplayerHubUI"
 Cohesion: 0.19
@@ -499,8 +507,8 @@ Cohesion: 0.24
 Nodes (10): bool, byte, Color, float, int, string, Texture2D, PlayerAppearance (+2 more)
 
 ### Community 94 - "MenuUI"
-Cohesion: 0.27
-Nodes (4): Action, bool, Texture2D, MenuUI
+Cohesion: 0.33
+Nodes (4): Action, MultiplayerHubUI, NetBackstop, MonoBehaviour
 
 ### Community 95 - "Role.cs"
 Cohesion: 0.14
@@ -517,14 +525,6 @@ Nodes (3): int, string, QuickChat
 ### Community 98 - "IStrikerInput"
 Cohesion: 0.12
 Nodes (7): Vector2, IStrikerInput, Texture2D, Material, Material, Transform, Texture2D
-
-### Community 99 - "CrosserControl"
-Cohesion: 0.38
-Nodes (3): float, Func, CrosserControl
-
-### Community 100 - "MonoBehaviour"
-Cohesion: 0.33
-Nodes (4): Action, MultiplayerHubUI, NetBackstop, MonoBehaviour
 
 ### Community 102 - "Knockdown"
 Cohesion: 0.28
@@ -550,11 +550,11 @@ Nodes (4): Collider, float, Transform, CrosserBubble
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Trickshot` connect `AccuracyGame` to `Ball Physics & Launch`, `Jersey / Nation Designs`, `Dribble System`, `Goalkeeper AI & Control`, `Net Set-Piece Match`, `SkillIcons`, `SetPieceTaker`, `OptionsMenu`, `Bone`, `.Box`, `CustomizeUI`, `Celebration`, `SkillTree`, `KeeperGame`, `SteamTransport`, `NetStrikerMatch`, `NetSetPieceMatch`, `com.unity.modules.jsonserialize`, `INetTransport`, `StadiumBuilder`, `Footballer`, `.Build`, `CrossMap`, `PlayerPreview`, `SessionBrowserUI`, `Multiplayer`, `OptionsMenu`, `GameCamera`, `MenuBackground`, `Dribble`, `.SetLocalInput`, `INetTransport`, `.Box`, `Crowd`, `ChatCensor`, `AccuracyGame`, `com.unity.modules.adaptiveperformance`, `.HandlePacket`, `IStrikerInput`, `MultiplayerHubUI`, `com.unity.modules.wind`, `OptionsMenu`, `.Set`, `StadiumSelectUI`, `JerseyDesigns.Nations10.cs`, `PauseMenu`, `.Poll`, `MenuUI`, `Role.cs`, `Crowd`, `QuickChat`, `IStrikerInput`, `CrosserControl`, `MonoBehaviour`, `Knockdown`, `StadiumStyle`, `.Set`, `JerseyDesigns.Nations9.cs`, `CrosserBubble`?**
+- **Why does `Trickshot` connect `AccuracyGame` to `Ball Physics & Launch`, `Jersey / Nation Designs`, `Dribble System`, `Goalkeeper AI & Control`, `Net Set-Piece Match`, `SkillIcons`, `SetPieceTaker`, `OptionsMenu`, `Bone`, `.Box`, `CustomizeUI`, `Celebration`, `SkillTree`, `KeeperGame`, `SteamTransport`, `NetStrikerMatch`, `NetSetPieceMatch`, `com.unity.modules.jsonserialize`, `INetTransport`, `StadiumBuilder`, `Footballer`, `.Build`, `CrossMap`, `PlayerPreview`, `SessionBrowserUI`, `Multiplayer`, `OptionsMenu`, `GameCamera`, `MenuBackground`, `Dribble`, `.SetLocalInput`, `INetTransport`, `.Box`, `Crowd`, `ChatCensor`, `QuickChat`, `AccuracyGame`, `com.unity.modules.adaptiveperformance`, `.HandlePacket`, `IStrikerInput`, `MultiplayerHubUI`, `com.unity.modules.wind`, `OptionsMenu`, `.Set`, `StadiumSelectUI`, `JerseyDesigns.Nations10.cs`, `PauseMenu`, `.Poll`, `MenuUI`, `Role.cs`, `Crowd`, `QuickChat`, `IStrikerInput`, `MonoBehaviour`, `Knockdown`, `StadiumStyle`, `.Set`, `JerseyDesigns.Nations9.cs`, `CrosserBubble`?**
   _High betweenness centrality (0.148) - this node is a cross-community bridge._
-- **Why does `CustomizeUI` connect `Ball Physics & Launch` to `Footballer`, `Jersey / Nation Designs`, `MonoBehaviour`, `Goalkeeper AI & Control`, `.AdvanceTurn`, `PauseMenu`, `.Poll`, `BallController`?**
+- **Why does `CustomizeUI` connect `Ball Physics & Launch` to `Footballer`, `Jersey / Nation Designs`, `Goalkeeper AI & Control`, `.AdvanceTurn`, `PauseMenu`, `MenuUI`, `.Poll`, `BallController`?**
   _High betweenness centrality (0.123) - this node is a cross-community bridge._
-- **Why does `ActiveRagdoll` connect `PrematchUI` to `Dribble System`, `AccuracyGame`, `Direct IP Transport`, `Kick Detection / Ragdoll Wiring`, `SkillIcons`, `SkillTree`, `KeeperGame`, `SteamTransport`, `NetSetPieceMatch`, `StadiumBuilder`, `Footballer`, `.Empty`, `.Box`, `GameCamera`, `QuickChat`, `.SetLocalInput`, `INetTransport`, `.Box`, `Crowd`, `GameMode`, `Role.cs`, `IStrikerInput`, `MonoBehaviour`, `Knockdown`, `CrosserBubble`?**
+- **Why does `ActiveRagdoll` connect `PrematchUI` to `Dribble System`, `AccuracyGame`, `Direct IP Transport`, `Kick Detection / Ragdoll Wiring`, `SkillTree`, `KeeperGame`, `SteamTransport`, `NetSetPieceMatch`, `StadiumBuilder`, `Footballer`, `.Empty`, `.Box`, `GameCamera`, `QuickChat`, `.SetLocalInput`, `INetTransport`, `.Box`, `Crowd`, `QuickChat`, `GameMode`, `MenuUI`, `Role.cs`, `IStrikerInput`, `Knockdown`, `CrosserBubble`?**
   _High betweenness centrality (0.122) - this node is a cross-community bridge._
 - **What connects `SetPieceSpin`, `Emote`, `Stage` to the rest of the system?**
   _129 weakly-connected nodes found - possible documentation gaps or missing edges._
