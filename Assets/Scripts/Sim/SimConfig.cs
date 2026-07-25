@@ -279,7 +279,9 @@ namespace Trickshot
         public const float BalanceDamping = 0.85f;
 
         // ---- Striker locomotion ----
-        public static float StrikerMoveSpeed = 4.8f;   // pre-match slider
+        public static float StrikerMoveSpeed = 3.8f;   // pre-match slider. LOW base on purpose: an
+                                                        // uninvested striker is sluggish; Pace nodes
+                                                        // (SkillTree "move"/"sprint") swing this hard.
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
         public const float JumpVelocity = 7.155f;   // m/s upward on a standing jump (base). ~20% lower peak height than 8.0 (h proportional to v^2, so sqrt(0.8)*8). Trait/run/sprint muls stack on top.
@@ -462,10 +464,11 @@ namespace Trickshot
         // modulates within that band, so a low-accuracy striker can't buy a big banana with WASD.
         public const float SetPieceCurlAccFloor  = 0.7f;
         // ---- Look-ray aim (free kicks/penalties + net set pieces) ----
-        // A very short power hold fires a low, fast tap pass instead of a lofted strike.
-        public const float SetPieceTapThreshold  = 0.18f; // power01 at/below this = a tap pass, not a struck shot
-        public const float SetPieceTapSpeed      = 12f;   // launch speed of a tap pass (m/s)
-        public const float SetPieceTapAimHeight  = 0.6f;  // aim height (m) used for a tap pass
+        // Minimum genuine charge before a release can commit the shot. A near-instant tap is below
+        // this and commits NOTHING (the meter just keeps charging), so the FIRST press of a round can
+        // never fire the shot the instant Space is hit. Space is pure hold-to-charge / release-to-shoot
+        // (there is no longer a tap-dribble shot).
+        public const float SetPieceMinChargeTime = 0.12f;
         public const float SetPieceLookScatterMax = 7.0f; // max look-aim scatter (m) a ZERO-accuracy striker sprays; keyed to accuracy ONLY (power does NOT affect it) and shrinks to 0 at full accuracy
         // AIM CONE: the goal-ward look window inside which aim assist applies. If the aim ray lands
         // more than this many degrees off the ball->goal line (looking egregiously to the side), the
@@ -680,7 +683,7 @@ namespace Trickshot
         // ---- Skill-tree capstone perk magnitudes ----
         public const float CannonCapMul     = 1.25f;  // Cannon: raises the shot-speed ceiling
         public const float ImmovableMassMul = 1.6f;   // Immovable: extra effective mass (push resistance)
-        public const float AfterburnerMul   = 1.15f;  // Afterburners: extra sprint speed on top
+        public const float AfterburnerMul   = 1.30f;  // Afterburners: extra sprint speed on top
         public const float AerialPaceKeep   = 0.5f;   // Aerial: header keeps this fraction of vertical (vs HeaderVerticalKeep)
         public const float AerialGoalBias   = 0.95f;  // Aerial: header steers harder to goal (vs HeaderGoalBias)
 

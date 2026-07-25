@@ -49,9 +49,15 @@ namespace Trickshot
         string _flash = ""; float _flashTime;
 
         float _goalLineZ;
-        Vector3 _ballSpot;      // dead-ball spot
-        Vector3 _strikerBase;   // striker feet position behind the ball
+        Vector3 _ballSpot;      // dead-ball spot (= where the shooter stands to strike)
+        Vector3 _wallCenter;    // wall centre (placed on the map)
+        Vector3 _strikerBase;   // striker feet position behind the ball (run-up start)
         bool _wallActive;       // false in penalty mode
+
+        // In-match placement map (M): pick the ball/shooter spot + the wall centre on a top-down
+        // map of the attacking third. While open, the taker is not ticked and the camera is frozen.
+        bool _mapOpen;
+        int _mapEdit;           // 0 = ball, 1 = wall
 
         // Regulation-ish penalty distance (not a pre-match field; free kicks use
         // SimConfig.FreeKickDistance instead).
@@ -80,7 +86,8 @@ namespace Trickshot
             // kick is further out (SimConfig.FreeKickDistance). Ball rests on the ground.
             float dist = SimConfig.PenaltyMode ? PenaltyDistance : SimConfig.FreeKickDistance;
             _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - dist);
-            _strikerBase = new Vector3(_ballSpot.x, 0f, _ballSpot.z - RunUp);
+            _wallCenter = _ballSpot + (SimConfig.GoalCenter - _ballSpot).normalized * SimConfig.WallDistance;
+            RecomputeStrikerBase();
             _wallActive = !SimConfig.PenaltyMode;
 
             // Set pieces get the arcadey loft + curl and stat-scaled (near-zero default) assist.
@@ -93,7 +100,7 @@ namespace Trickshot
             _cam.SetMode(GameCamera.Mode.Follow);
 
             if (_wallActive && _wall != null)
-                _wall.Build(transform, _ballSpot, SimConfig.WallCount, SimConfig.WallDistance, SimConfig.WallLateralOffset);
+                _wall.Build(transform, _ballSpot, _wallCenter, SimConfig.WallCount);
 
             Arm();
         }
@@ -105,6 +112,18 @@ namespace Trickshot
         {
             if (_input == null) return;
             if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
+
+            // Placement map (M): pick the ball/shooter spot + wall on a top-down map. While open,
+            // free the cursor, freeze the camera, and do NOT tick the taker (so it can't charge or
+            // fire under the map). Closing re-applies the placement and re-arms.
+            if (_input.CrossMapPressed) SetMapOpen(!_mapOpen);
+            if (_mapOpen)
+            {
+                if (_keeper != null) _keeper.Tick();
+                if (_wall != null) _wall.Tick();
+                if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
+                return;
+            }
 
             if (_input.ResetPressed) { FullReset(); return; }
             if (_input.BallCamPressed) _cam.ToggleBallCam();
@@ -212,11 +231,38 @@ namespace Trickshot
             AudioManager.Instance?.PlayWhistle();   // whistle as the shooter is set behind the ball (first arm + every reset)
         }
 
+        // Striker run-up start = RunUp metres behind the ball, along the ball->goal line so he
+        // always approaches toward goal regardless of where the ball was placed.
+        void RecomputeStrikerBase()
+        {
+            Vector3 toGoal = SimConfig.GoalCenter - _ballSpot; toGoal.y = 0f;
+            Vector3 dir = toGoal.sqrMagnitude > 1e-4f ? toGoal.normalized : Vector3.forward;
+            _strikerBase = new Vector3(_ballSpot.x, 0f, _ballSpot.z) - dir * RunUp;
+        }
+
+        // Open/close the placement map: free the cursor + freeze the camera while open, and on
+        // close re-derive the ball/striker/wall from the placed markers and re-arm the attempt so
+        // the in-world shooter + ball + wall sit EXACTLY where the reticles were placed.
+        void SetMapOpen(bool open)
+        {
+            _mapOpen = open;
+            GameInput.CaptureCursor(!open);
+            if (_cam != null) _cam.FreezeLook = open;
+            if (!open)
+            {
+                _ballSpot.y = SimConfig.BallRadius;
+                RecomputeStrikerBase();
+                if (_wallActive && _wall != null)
+                    _wall.Build(transform, _ballSpot, _wallCenter, SimConfig.WallCount);
+                Arm();
+            }
+        }
+
         // R: rebuild the wall from current settings and re-arm.
         void FullReset()
         {
             if (_wallActive && _wall != null)
-                _wall.Build(transform, _ballSpot, SimConfig.WallCount, SimConfig.WallDistance, SimConfig.WallLateralOffset);
+                _wall.Build(transform, _ballSpot, _wallCenter, SimConfig.WallCount);
             else if (_wall != null)
                 _wall.Clear();
             Arm();
@@ -280,11 +326,43 @@ namespace Trickshot
             Hud.Stat(ref p, "Distance", $"{dist:0.0} m");
 
             Hud.Legend(SimConfig.PenaltyMode
-                ? "HOLD Space power   Mouse aim   WASD spin   TAP Space dribble   V ball cam   R reset"
-                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    HOLD Space power   Mouse aim   WASD spin   TAP Space dribble   V ball cam   R reset");
+                ? "HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset"
+                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawPowerMeter();
+            if (_mapOpen) DrawPlacementMap();
+        }
+
+        // Placement overlay: a top-down map of the attacking third. Click to place the ball/shooter
+        // spot (gold) or the wall centre (red); the in-world shooter + ball + wall move to match
+        // EXACTLY on close. Mirrors the crossmap overlay in GameManager.
+        void DrawPlacementMap()
+        {
+            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.45f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            float w = 360f, h = 360f;
+            var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(mapRect.x, mapRect.y - 60f, w, 28f), _mapEdit == 1 ? "PLACE THE WALL" : "PLACE THE SHOOTER", hdr);
+
+            // Ball / Wall edit toggle. Penalty mode has no wall, so only the ball is placeable.
+            var seg = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
+            var segOn = new GUIStyle(seg); segOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
+            if (_wallActive)
+            {
+                if (GUI.Button(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), _mapEdit == 0 ? "● Shooter" : "Shooter", _mapEdit == 0 ? segOn : seg)) _mapEdit = 0;
+                if (GUI.Button(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), _mapEdit == 1 ? "● Wall" : "Wall", _mapEdit == 1 ? segOn : seg)) _mapEdit = 1;
+            }
+            else _mapEdit = 0;
+
+            SetPieceMap.Draw(mapRect, ref _ballSpot, ref _wallCenter, _mapEdit);
+
+            var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
+            GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f),
+                      "Click to place the " + (_mapEdit == 1 ? "wall" : "shooter") + ".  M to close.", tip);
         }
 
         // Centered power meter shown while charging: a green -> yellow -> red bar that reflects the
