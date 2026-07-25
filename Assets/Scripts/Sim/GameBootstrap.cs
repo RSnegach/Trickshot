@@ -436,6 +436,12 @@ namespace Trickshot
             ball.SetCamera(gameCam);   // auto ball-cam on a shot
             crosser.Init(reticle, ball, launch, crosserRagdoll);
 
+            // The SP crosser is always an AI/planted server: the ball must NEVER touch his body
+            // (perfect delivery) and no other player may crowd him. Ignore ball<->crosser collisions
+            // and wrap him in a protective bubble that ejects other players but lets the ball pass.
+            ball.IgnoreBody(crosserRagdoll, true);
+            crosserGo.AddComponent<CrosserBubble>().Init(crosserRagdoll);
+
             var gmGo = new GameObject("GameManager");
             gmGo.transform.SetParent(root, true);
             var gm = gmGo.AddComponent<GameManager>();

@@ -26,6 +26,9 @@ namespace Trickshot
         Transform _followTarget;
         System.Func<Vector2> _lookSource;   // mouse delta provider
         System.Func<Quaternion> _facingSource;  // keeper facing provider
+        // While an overlay owns the cursor (e.g. the cross-targeting map), freeze camera LOOK so
+        // moving the mouse to click the map doesn't spin the view. Position smoothing still settles.
+        public bool FreezeLook;
         float _yaw, _pitch = 22f;
         float _ballViewYaw;    // ball-cam camera yaw (frames the ball), separate from _yaw
         Vector3 _velPos;
@@ -155,7 +158,7 @@ namespace Trickshot
             float dt = Time.unscaledDeltaTime;
             Vector3 pivot = _followTarget.position;
 
-            Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
+            Vector2 look = (_lookSource != null && !FreezeLook) ? _lookSource() : Vector2.zero;
             _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
 
             float viewYaw;
@@ -207,7 +210,7 @@ namespace Trickshot
             // BODY reads this same yaw and turns to it, and this camera pivots around a
             // FIXED forward base (facingSource), so the camera ends up directly behind
             // the turned body without the pan and the body turn compounding.
-            Vector2 look = _lookSource != null ? _lookSource() : Vector2.zero;
+            Vector2 look = (_lookSource != null && !FreezeLook) ? _lookSource() : Vector2.zero;
             _keeperLookYaw = Mathf.Clamp(_keeperLookYaw + look.x * SimConfig.KeeperCamLookSpeed,
                                          -SimConfig.KeeperLookYawLimit, SimConfig.KeeperLookYawLimit);
             _keeperLookPitch = Mathf.Clamp(_keeperLookPitch - look.y * SimConfig.KeeperCamLookSpeed,

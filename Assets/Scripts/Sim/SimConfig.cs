@@ -209,6 +209,16 @@ namespace Trickshot
         // kept short so the lofted cross clears heads without ballooning into a moon ball.
         public const float CrossServeAirTime = 1.15f;     // lofted but LOW arc (~3m apex to an 8m target)
         public const float CrossServeGroundTime = 0.7f;   // driven low + fast
+        // Distance-scaled cross flight time: t = k * sqrt(horizontalDistance), clamped. Constant
+        // launch ANGLE at any range, so a near cross and a far cross both arc naturally (and, because
+        // LaunchTo solves ballistically for whatever t, both still land exactly on target). The k's
+        // are calibrated so the legacy fixed times are reproduced at ~8m: air 1.15/sqrt(8)~0.41,
+        // ground 0.70/sqrt(8)~0.25. Clamp keeps a very short cross from being an instant bullet and a
+        // half-field cross from ballooning into a moon ball.
+        public const float CrossArcKAir    = 0.41f;
+        public const float CrossArcKGround = 0.25f;
+        public const float CrossArcMinTime = 0.5f;
+        public const float CrossArcMaxTime = 1.8f;
         // Default landing spot (same every serve): centred, a bit off the goal line.
         public static readonly Vector3 ServeTarget =
             new Vector3(0f, 0.25f, GoalCenter.z - 8f);
