@@ -236,13 +236,13 @@ namespace Trickshot
                                        Icon=icon, GridX=gx, GridY=gy, Perk=perk, Effects=fx });
 
             // ============================ PACE (move, sprint) ============================
-            Node_("p0","Quick Feet","+10% move speed",Category.Pace,2,null,">",0.5f,0,null, E("move",0.10f));
-            Node_("p1a","Acceleration","+14% move speed",Category.Pace,3,"p0","»",0.2f,1,null, E("move",0.14f));
-            Node_("p1c","Agile Feet","+10% move, +6% sprint",Category.Pace,3,"p0","x",0.5f,1,null, E("move",0.10f), E("sprint",0.06f));
-            Node_("p1b","Long Strides","+14% sprint speed",Category.Pace,3,"p0","=",0.8f,1,null, E("sprint",0.14f));
-            Node_("p2a","Sharp Turns","+14% move speed",Category.Pace,4,"p1a","«",0.2f,2,null, E("move",0.14f));
-            Node_("p2c","Explosive","+12% move, +12% sprint",Category.Pace,5,"p1c","!",0.5f,2,null, E("move",0.12f), E("sprint",0.12f));
-            Node_("p2b","Flat Out","+18% sprint speed",Category.Pace,4,"p1b","==",0.8f,2,null, E("sprint",0.18f));
+            Node_("p0","Quick Feet","+20% move speed",Category.Pace,2,null,">",0.5f,0,null, E("move",0.20f));
+            Node_("p1a","Acceleration","+28% move speed",Category.Pace,3,"p0","»",0.2f,1,null, E("move",0.28f));
+            Node_("p1c","Agile Feet","+20% move, +12% sprint",Category.Pace,3,"p0","x",0.5f,1,null, E("move",0.20f), E("sprint",0.12f));
+            Node_("p1b","Long Strides","+28% sprint speed",Category.Pace,3,"p0","=",0.8f,1,null, E("sprint",0.28f));
+            Node_("p2a","Sharp Turns","+28% move speed",Category.Pace,4,"p1a","«",0.2f,2,null, E("move",0.28f));
+            Node_("p2c","Explosive","+24% move, +24% sprint",Category.Pace,5,"p1c","!",0.5f,2,null, E("move",0.24f), E("sprint",0.24f));
+            Node_("p2b","Flat Out","+36% sprint speed",Category.Pace,4,"p1b","==",0.8f,2,null, E("sprint",0.36f));
             Node_("pcap","Afterburners","Holding sprint ramps to a burst top speed",Category.Pace,7,"p2b","A",0.8f,3,"afterburners");
 
             // ========================== SHOOTING (shotpower, shotacc) ====================

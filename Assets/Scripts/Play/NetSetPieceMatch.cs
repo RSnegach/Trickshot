@@ -22,6 +22,21 @@ namespace Trickshot
     {
         const int ShotsEach = 10;
 
+        // ---- ACCURACY mode ----
+        // The networked ACCURACY competition is the same dead-ball rig as the set-piece shootout
+        // (keeper slot 0 human/AI/none + shooters taking turns), with three differences:
+        //   * shooters score the POP-UP TARGETS they hit, not goals (see _board);
+        //   * a turn ends on a host-chosen kick count OR a per-turn timer, not a fixed 10 shots;
+        //   * the ball just re-arms after each attempt (there is no goal/save/miss verdict).
+        // Set by NetAccuracyMatch before Configure, so all the shared netcode below is reused.
+        public bool AccuracyMode;
+        AccuracyBoard _board;          // host: the live target board (authoritative hit detection)
+        int _accKicks = 10;            // kicks per turn when not timed
+        bool _accByTime;
+        float _accTurnSeconds = 60f;
+        float _turnClock;              // host: seconds left in the active shooter's timed turn
+        bool _hitThisKick;             // host: did the live attempt score a target?
+
         class Body
         {
             public ActiveRagdoll ragdoll;
@@ -119,6 +134,20 @@ namespace Trickshot
             }
             // Random per-round spots: build the identical 10-spot schedule on every peer from the seed.
             if (cfg.fkRandom) _randomSpots = BuildRandomSpots(cfg.fkSeed, ShotsEach);
+
+            // Accuracy: read the host's turn rule and build the target board. The board lives on
+            // EVERY peer (so clients see the targets) but only the host's hits count - the host runs
+            // the ball physics, and its board is seeded from the config so layouts match.
+            if (AccuracyMode)
+            {
+                _accByTime = cfg.accTurnByTime;
+                _accKicks = Mathf.Clamp(cfg.accTurnKicks, 1, 100);
+                _accTurnSeconds = Mathf.Clamp(cfg.accTurnSeconds, 10, 120);
+                _board = new AccuracyBoard();
+                if (_s.IsHost) _board.Scored += OnAccuracyScored;
+                _board.Build(transform, Mathf.Max(1, cfg.accTargets), cfg.fkSeed | 1u);
+                _board.SpawnAll();
+            }
             _ball.SetPieceShot = true;   // arcadey loft + curl + stat-scaled assist
             _s.MatchEvent += OnMatchEvent;
             _s.BallKicked += OnBallKicked;
@@ -463,6 +492,14 @@ namespace Trickshot
             _taker.Reset();
             _aiKickDelay = Random.Range(0.6f, 1.4f);
             _armedElapsed = 0f;
+            // Accuracy: fresh turn clock + a full board of targets for the new shooter, so every
+            // player gets the same start conditions.
+            if (AccuracyMode)
+            {
+                _turnClock = _accTurnSeconds;
+                _hitThisKick = false;
+                _board?.SpawnAll();
+            }
 
             // Whistle as the shooter is set behind the ball (first turn + each new turn). Host plays
             // locally and broadcasts so every client hears the same ref call.
@@ -476,7 +513,7 @@ namespace Trickshot
             for (int step = 1; step <= _shooterSlots.Count; step++)
             {
                 int idx = (_turnIdx + step) % _shooterSlots.Count;
-                if (_taken[_shooterSlots[idx]] < ShotsEach) { BeginTurn(idx); BroadcastShootout(); return; }
+                if (!ShooterDone(_shooterSlots[idx])) { BeginTurn(idx); BroadcastShootout(); return; }
             }
             // Everyone finished their 10. Restore the last shooter's ball collision + reset the
             // taker (no more BeginTurn will run to do it), so nothing leaks if the scene is reused.
@@ -488,6 +525,30 @@ namespace Trickshot
             _phase = Phase.Settle; _settle = float.PositiveInfinity;
             BroadcastShootout();
             Flash(WinnerText());
+        }
+
+        // Has this shooter used up their turn? Set pieces: a fixed shot count. Accuracy: either a
+        // fixed kick count, or - when the turn is TIMED - a turn is only "done" once it has been
+        // played (the clock expiring is what ends it, handled in HostUpdate), so a timed shooter is
+        // done when they have taken at least one kick and their clock has run out.
+        bool ShooterDone(int slot)
+        {
+            if (!AccuracyMode) return _taken[slot] >= ShotsEach;
+            if (!_accByTime) return _taken[slot] >= _accKicks;
+            return _turnPlayed[slot];
+        }
+
+        readonly bool[] _turnPlayed = new bool[NetSession.MaxSlots];   // timed accuracy: turn finished
+
+        // A target was struck during the active shooter's live attempt: bank the points to that
+        // shooter and publish the tally. Host only (its board is authoritative).
+        void OnAccuracyScored(int points, int index)
+        {
+            if (_activeShooter >= NetSession.MaxSlots) return;
+            _scored[_activeShooter] += points;
+            _hitThisKick = true;
+            Flash("+" + points);
+            BroadcastShootout();
         }
 
         void BroadcastShootout()
@@ -595,6 +656,19 @@ namespace Trickshot
             if (_wall != null) _wall.Tick();
 
             if (!_over) HostTickAttempt();
+
+            // Accuracy: keep the target board popping, and run the TIMED turn clock. The clock only
+            // ends the turn between kicks (in the Armed phase) so a shot already in flight always
+            // gets to score first.
+            if (AccuracyMode && !_over)
+            {
+                _board?.Tick(Time.deltaTime);
+                if (_accByTime && _activeShooter != 255)
+                {
+                    _turnClock -= Time.deltaTime;
+                    if (_turnClock <= 0f && _phase == Phase.Armed) EndActiveTurn();
+                }
+            }
 
             PublishSnapshotIfDue();
         }
@@ -720,10 +794,13 @@ namespace Trickshot
                         if (kb != null && kb.keeper != null)
                             _saveWasEpic = _ball.Speed >= SimConfig.KeeperEpicSaveSpeed || kb.keeper.IsHighDive;
                     }
-                    if (BallInGoal(c)) { ResolveAttempt(true); break; }
+                    // Accuracy scores TARGETS (banked by OnAccuracyScored as they're struck), so a
+                    // ball entering the goal isn't itself a score - the attempt just runs to rest.
+                    if (!AccuracyMode && BallInGoal(c)) { ResolveAttempt(true); break; }
                     if (_ball.Speed < RestSpeed) _restTimer += Time.deltaTime; else _restTimer = 0f;
                     bool out_ = c.y < -3f || Mathf.Abs(c.x) > SimConfig.FieldWidth || Mathf.Abs(c.z) > SimConfig.FieldLength;
-                    if (out_ || _restTimer > RestHold || _liveTime > MaxLiveTime) ResolveAttempt(false);
+                    if (out_ || _restTimer > RestHold || _liveTime > MaxLiveTime)
+                        ResolveAttempt(AccuracyMode && _hitThisKick);
                     break;
 
                 case Phase.Settle:
@@ -736,12 +813,60 @@ namespace Trickshot
         void ResolveAttempt(bool goal)
         {
             _taken[_activeShooter]++;
+
+            // ---- ACCURACY: no goal/save verdict and no replay between kicks. Points were already
+            // banked per target as they were struck; use the free-kick audio rules (a scored kick
+            // reacts like a goal, a blank kick like a miss), then either re-arm for this shooter's
+            // next kick or hand the turn on.
+            if (AccuracyMode)
+            {
+                if (goal) AudioManager.Instance?.OnSetPieceGoal(_activeShooter);
+                else { _s.BroadcastEvent("MISS"); AudioManager.Instance?.OnSetPieceMiss(_activeShooter); }
+                BroadcastShootout();
+                bool kicksDone = !_accByTime && _taken[_activeShooter] >= _accKicks;
+                if (kicksDone) { EndActiveTurn(); return; }
+                ReArmAccuracyKick();
+                return;
+            }
+
             if (goal) { _scored[_activeShooter]++; _s.BroadcastEvent("GOAL!"); }
             else _s.BroadcastEvent(_keeperTouched ? (_saveWasEpic ? "EPIC SAVE!" : "SAVED!") : "MISS");
             BroadcastShootout();
             _phase = Phase.Settle;
             _advanceAfterReplay = true;
             _goalHold = SimConfig.ReplayHold;   // brief live hold, then replay, then AdvanceTurn
+        }
+
+        // Accuracy: put the ball back on the spot for the SAME shooter's next kick (targets stay up
+        // and keep re-popping), without the turn rotation or the replay hold.
+        void ReArmAccuracyKick()
+        {
+            var b = _activeShooter < NetSession.MaxSlots ? _bodies[_activeShooter] : null;
+            if (b != null && b.ragdoll != null)
+            {
+                _ball.IgnoreBody(b.ragdoll, false);
+                b.ragdoll.ResetTo(_ballSpot + new Vector3(0f, 0f, -3f), Quaternion.identity);
+                b.striker?.ForceRecover();
+            }
+            if (_wall != null) _wall.Ground();
+            foreach (var kb in _bodies) if (kb?.ai != null) kb.ai.ResetTo(SimConfig.KeeperStart);
+            _ball.ResetTo(_ballSpot);
+            _takerArmed = false;
+            _taker.Reset();
+            _aiKickDelay = Random.Range(0.6f, 1.4f);
+            _armedElapsed = 0f;
+            _hitThisKick = false;
+            _phase = Phase.Armed;
+            _liveTime = _restTimer = _settle = 0f;
+            AudioManager.Instance?.PlayWhistle();
+            _s.BroadcastEvent("WHISTLE");
+        }
+
+        // Accuracy: mark the active shooter's turn finished and move on.
+        void EndActiveTurn()
+        {
+            if (_activeShooter < NetSession.MaxSlots) _turnPlayed[_activeShooter] = true;
+            AdvanceTurn();
         }
 
         void PublishSnapshotIfDue()
@@ -760,6 +885,12 @@ namespace Trickshot
 
         void ClientUpdate()
         {
+            // Accuracy: clients pop/animate their own copy of the target board so the goal looks
+            // right locally. Hit detection is HOST-authoritative (it owns the ball physics); a
+            // client board only mirrors the visuals, and its own trigger hits score nothing because
+            // the Scored handler is only subscribed on the host.
+            if (AccuracyMode) _board?.Tick(Time.deltaTime);
+
             // A local keeper sends its cone yaw (KeeperLookYaw); everyone else sends camera yaw.
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
             _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw, _cam.Pitch));
@@ -883,6 +1014,7 @@ namespace Trickshot
                 _s.RosterChanged -= OnRosterChanged;
             }
             if (_ball != null) { _ball.SetPieceShot = false; if (_ball.Rb != null) _ball.Rb.isKinematic = false; }
+            if (_board != null) { _board.Scored -= OnAccuracyScored; _board.Teardown(); _board = null; }
         }
 
         // Winner text from the synced tally (works on host + client via _s.LatestShootout).
@@ -896,6 +1028,8 @@ namespace Trickshot
             for (int i = 0; i < st.scored.Length; i++)
                 if (st.taken[i] > 0 && st.scored[i] == best) { winners++; winSlot = i; }
             if (winners != 1) return "TIE  (" + best + ")";
+            // Accuracy is scored in target POINTS (no per-shot denominator).
+            if (AccuracyMode) return RosterName(winSlot) + " WINS  (" + best + " pts)";
             return RosterName(winSlot) + " WINS  (" + best + "/" + ShotsEach + ")";
         }
 
@@ -912,7 +1046,8 @@ namespace Trickshot
             Hud.Begin();
             var me = _bodies[_localSlot];
             string youAre = me != null && me.isKeeper ? "Keeper" : "Shooter " + _localSlot;
-            var p = Hud.PanelStart(_s.IsHost ? "SET PIECES (HOST)" : "SET PIECES", 2);
+            string modeName = AccuracyMode ? "ACCURACY" : "SET PIECES";
+            var p = Hud.PanelStart(_s.IsHost ? modeName + " (HOST)" : modeName, 2);
             Hud.Stat(ref p, "You are", youAre);
             var st = _s.LatestShootout;
             bool over = st.scored != null && st.over;
@@ -924,6 +1059,11 @@ namespace Trickshot
                 ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
                 : "HOLD Space power   Mouse aim   WASD spin   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);
+
+            // Timed accuracy turns: show the active shooter's clock (host owns it, so only the host
+            // has the live value; clients read the turn from the scoreboard instead).
+            if (AccuracyMode && _accByTime && _s.IsHost && !over && _activeShooter != 255)
+                Hud.Clock(Mathf.Max(0f, _turnClock), urgent: _turnClock <= 10f);
 
             DrawScoreboard(st);
             DrawPowerMeter();
@@ -987,7 +1127,11 @@ namespace Trickshot
             GUI.color = prev;
 
             var hdr = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = cGold } };
-            GUI.Label(new Rect(x, y - pad, w, headH), "  SHOOTOUT   best of " + ShotsEach, hdr);
+            GUI.Label(new Rect(x, y - pad, w, headH),
+                      AccuracyMode
+                          ? (_accByTime ? "  ACCURACY   " + _accTurnSeconds.ToString("0") + "s each"
+                                        : "  ACCURACY   " + _accKicks + " kicks each")
+                          : "  SHOOTOUT   best of " + ShotsEach, hdr);
 
             var nameSt  = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
             var goalsSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = Color.white } };

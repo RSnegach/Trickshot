@@ -37,14 +37,23 @@ namespace Trickshot
         readonly Collider[] _hits = new Collider[8];
 
         // base dimensions in metres (scaled by girth). Small + tasteful-ish.
-        // Two separate anchors so the pieces don't overlap:
-        //  - member roots on the FRONT UNDERSIDE of the pelvis (where the berries used to sit) and
-        //    hangs down as a long, thin, arm-proportioned pendulum,
-        //  - berries seat UP UNDER THE TORSO, centred (above + behind the member root).
-        const float MemberDrop = 0.12f;   // member root: below pelvis centre, front underside
-        const float MemberFwd  = 0.09f;   // member root: forward of centre (front)
-        const float BerryRise  = 0.10f;   // berries: ABOVE pelvis centre, up under the torso bottom
-        const float BerryFwd   = 0.03f;   // berries: near-centred, just off the front
+        //
+        // IMPORTANT: the pelvis is a BOX of full size (0.32, 0.20, 0.20) - so it spans only
+        // +-0.10 in Y and +-0.10 in Z from the bone origin - and the torso box sits directly on
+        // top of it. Anything placed at or above y = -0.10 is INSIDE the pelvis/torso mesh and is
+        // therefore invisible. (That was the bug: the berries were at y = +0.10, buried in the
+        // body.) Both anchors must clear the pelvis BOTTOM face at y = -0.10.
+        //
+        // Layering: the member roots FLUSH with the pelvis and hangs down IN FRONT OF the berries,
+        // so at rest it drapes over them and swinging aside reveals them.
+        //  - berries tuck up under the bottom face (top just kissing y = -0.10) and sit BEHIND the
+        //    member in Z, so the member occludes them at rest,
+        //  - the member root sits just INSIDE the pelvis (above the bottom face) so the pill's top
+        //    cap is buried in the hips - flush, with no floating gap - and further FORWARD in Z.
+        const float BerryDrop  = 0.13f;   // berries: centre below the bottom face (top ~= -0.098)
+        const float BerryFwd   = 0.025f;  // berries: only slightly forward -> tucked BEHIND the member
+        const float MemberDrop = 0.09f;   // member root: just inside the pelvis -> reads as attached
+        const float MemberFwd  = 0.075f;  // member root: further forward, so it hangs OVER the berries
         // Long + slender to mirror a forearm (~0.60 tall at 0.09 dia ≈ 6.7:1). Three segments at
         // 0.10 span a ~0.30 chain; the pill ends up ~0.36 long at 0.056 dia ≈ 6.4:1.
         const float SegLen   = 0.10f;     // per-segment rest length
@@ -66,12 +75,11 @@ namespace Trickshot
             _memberRadius = MemberR * _scale * girthMul;
             _berryRadius = BerryR * _scale * ballMul;
 
-            // Two anchors (pelvis-local, -Y = down, +Y = up toward the torso). The member roots on
-            // the front underside (where the berries used to sit) and hangs down; the berries move
-            // UP under the torso, centred and slightly behind the member root, so the two don't
-            // overlap.
+            // Two anchors (pelvis-local, -Y = down). The berries hang just clear of the pelvis
+            // bottom face and sit BEHIND the member in Z; the member roots flush inside the hips and
+            // further FORWARD, so it drapes over the berries at rest and uncovers them as it swings.
+            _berryLocal = new Vector3(0f, -BerryDrop,  BerryFwd)  * _scale;
             _rootLocal  = new Vector3(0f, -MemberDrop, MemberFwd) * _scale;
-            _berryLocal = new Vector3(0f,  BerryRise,  BerryFwd)  * _scale;
 
             // Seed the chain hanging straight down in world space from the attach point.
             Vector3 root = _pelvis.TransformPoint(_rootLocal);

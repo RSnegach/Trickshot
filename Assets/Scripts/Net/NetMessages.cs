@@ -63,6 +63,13 @@ namespace Trickshot.Net
         // host actually placed them (else the driver uses its centred defaults).
         public bool fkPlaced;
         public float fkBallX, fkBallZ, fkWallX, fkWallZ;
+        // Accuracy mode: optional wall size, how many targets are up, and how a shooter's turn
+        // ends - either a fixed kick count or a per-turn timer.
+        public byte accWallCount;     // 0 = no wall
+        public byte accTargets;       // targets up at once
+        public bool accTurnByTime;    // false = fixed kicks, true = timed turn
+        public byte accTurnKicks;     // kicks each (1..100) when !accTurnByTime
+        public ushort accTurnSeconds; // turn length (<=120) when accTurnByTime
         // Set pieces RANDOM mode: when true, every shooter shoots from a NEW random outside-box spot
         // each of the 10 rounds - the same spot for all shooters in a round, changing 10 times. The
         // seed is host-chosen and carried here so every peer derives the identical 10-spot schedule.
@@ -296,6 +303,9 @@ namespace Trickshot.Net
             w.B(cfg.fkPlaced);
             w.F(cfg.fkBallX); w.F(cfg.fkBallZ); w.F(cfg.fkWallX); w.F(cfg.fkWallZ);
             w.B(cfg.fkRandom); w.U32(cfg.fkSeed);
+            // Accuracy fields appended last so the existing field order stays untouched.
+            w.U8(cfg.accWallCount); w.U8(cfg.accTargets);
+            w.B(cfg.accTurnByTime); w.U8(cfg.accTurnKicks); w.U32(cfg.accTurnSeconds);
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); }
@@ -309,7 +319,11 @@ namespace Trickshot.Net
                                     goalScale = r.F(), keeperAbility = r.F(),
                                     fkPlaced = r.B(),
                                     fkBallX = r.F(), fkBallZ = r.F(), fkWallX = r.F(), fkWallZ = r.F(),
-                                    fkRandom = r.B(), fkSeed = r.U32() };
+                                    fkRandom = r.B(), fkSeed = r.U32(),
+                                    // Accuracy fields, read in the same order they were appended.
+                                    accWallCount = r.U8(), accTargets = r.U8(),
+                                    accTurnByTime = r.B(), accTurnKicks = r.U8(),
+                                    accTurnSeconds = (ushort)r.U32() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
