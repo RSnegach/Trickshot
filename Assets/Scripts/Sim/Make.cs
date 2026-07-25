@@ -14,7 +14,18 @@ namespace Trickshot
         {
             get
             {
-                if (s_Standard == null) s_Standard = Shader.Find("Standard");
+                if (s_Standard != null) return s_Standard;
+                // Standard can be STRIPPED from a player build: nothing references it at build time
+                // (every material here is made at runtime via Shader.Find), so Unity drops it and
+                // Shader.Find returns null in the build -> new Material(null) throws and blanks the
+                // whole game. Fall back to shaders that ship by default (Legacy Diffuse + Sprites/
+                // Default are in the Always Included Shaders list) so it always renders something.
+                s_Standard = Shader.Find("Standard")
+                             ?? Shader.Find("Legacy Shaders/Diffuse")
+                             ?? Shader.Find("Sprites/Default");
+                if (s_Standard == null)
+                    Debug.LogError("Make: no usable shader found (Standard stripped from build?). Add "
+                                   + "'Standard' to Project Settings > Graphics > Always Included Shaders.");
                 return s_Standard;
             }
         }
