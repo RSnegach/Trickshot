@@ -138,7 +138,7 @@ namespace Trickshot
         static int Rate(float mul, float loMul, float hiMul)
             => Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(10f, 99f, Mathf.InverseLerp(loMul, hiMul, mul))), 1, 99);
 
-        public static int PaceStat     => Rate((MoveSpeedMul + SprintSpeedMul) * 0.5f, 0.75f, 1.7f);
+        public static int PaceStat     => Rate((MoveSpeedMul + SprintSpeedMul) * 0.5f, 0.82f, 2.2f);
         public static int ShootingStat => Rate(ShotPowerMul * (0.6f + 0.4f * ShotAccuracyMul), 0.8f, 2.1f);
         public static int PassingStat  => Rate(PassPowerMul * 0.4f + PassAccuracyMul * 0.6f, 0.9f, 1.9f);
         public static int HeadingStat  => Rate(HeaderPowerMul * 0.5f + HeaderAccuracyMul * 0.5f, 0.9f, 2.0f);
