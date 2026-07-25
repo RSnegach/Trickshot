@@ -100,12 +100,12 @@
   "98": "JerseyDesigns.Nations3.cs",
   "99": "JerseyDesigns.Nations5.cs",
   "100": "JerseyDesigns.Nations7.cs",
-  "101": "JerseyDesigns.Nations8.cs",
   "102": "Knockdown",
   "103": "StadiumStyle",
-  "104": "Role.cs",
   "105": ".Set",
-  "106": "ShotType.cs",
-  "107": "RuntimeInitializeOnLoadMethod",
+  "108": ".OnGUI",
+  "109": "MenuUI",
+  "111": ".Configure",
+  "113": "JerseyDesigns.Nations2.cs",
   "122": "com.unity.modules.terrain"
 }
