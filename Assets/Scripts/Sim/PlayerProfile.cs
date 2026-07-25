@@ -183,6 +183,12 @@ namespace Trickshot
         public Color FacialColor;
         public int   Accessory;
         public Color AccessoryColor;
+        public bool  Adult;          // adult-mode extra cosmetic (the pelvis appendage)
+        // Adult "Third Leg" skill multipliers for the appendage (1 = base). Driven by the
+        // SkillTree ThirdLeg nodes; networked so remote bodies show the right size.
+        public float MemberLen;      // member length multiplier
+        public float MemberGirth;    // member thickness multiplier
+        public float BallSize;       // berry radius multiplier
 
         public static PlayerAppearance Default => new PlayerAppearance
         {
@@ -193,6 +199,10 @@ namespace Trickshot
             FacialColor    = new Color(0.15f, 0.10f, 0.08f),
             Accessory      = 0,                                   // none
             AccessoryColor = Color.white,
+            Adult          = false,
+            MemberLen      = 1f,
+            MemberGirth    = 1f,
+            BallSize       = 1f,
         };
     }
 }
