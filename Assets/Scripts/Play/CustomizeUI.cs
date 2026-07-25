@@ -55,6 +55,9 @@ namespace Trickshot
         bool _adultMode;
         bool _adultPrompt;   // stage 1: the "are you 18" popup is showing (modal)
         bool _adultQuiz;     // stage 2: the knowledge-quiz popup is showing (modal)
+        // Confirmation modal shown when leaving the Skill stage with adult mode on AND points spent
+        // in the Third Leg tab: "You have assigned XX% of your Skill Points to your penis. Continue?"
+        bool _thirdLegPrompt;
         int _quizIdx = -1;   // current question index into AdultQuiz.Bank
         int _quizPick = -1;  // the option the user clicked this question (-1 = none yet)
         float _quizFeedbackUntil;   // unscaled time until the red/green feedback clears + next Q
@@ -119,6 +122,7 @@ namespace Trickshot
             _leftFooted = PlayerProfile.LeftFooted;
             _name = PlayerProfile.PlayerName;
             _number = PlayerProfile.Number;
+            _adultMode = PlayerProfile.Appearance.Adult;   // reflect the persisted adult state
 
             BuildCanvas();
             BuildWheel();
@@ -378,7 +382,7 @@ namespace Trickshot
 
             // While an adult-mode popup (age confirm OR quiz) is up, disable + darken the whole
             // menu so it reads as modal; the popup itself re-enables GUI below.
-            bool adultModal = _adultPrompt || _adultQuiz;
+            bool adultModal = _adultPrompt || _adultQuiz || _thirdLegPrompt;
             bool prevEnabled = GUI.enabled;
             if (adultModal) GUI.enabled = false;
 
@@ -395,6 +399,7 @@ namespace Trickshot
             GUI.enabled = prevEnabled;
             if (_adultPrompt) DrawAdultPrompt();
             else if (_adultQuiz) DrawAdultQuiz();
+            else if (_thirdLegPrompt) DrawThirdLegPrompt();
         }
 
         // Modal age-confirmation popup for ADULT MODE. Darkens the whole screen and shows a
@@ -518,6 +523,38 @@ namespace Trickshot
             }
         }
 
+        // Confirmation modal when leaving the Skill stage with points spent in the Third Leg tab.
+        // Reports the share of the whole skill-point pool sunk into it. Back stays on Skill; Continue
+        // advances to Name. Drawn last in OnGUI on top of the dimmed menu (same look as the age gate).
+        void DrawThirdLegPrompt()
+        {
+            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            int pct = Mathf.RoundToInt(SkillTree.ThirdLegSpent / (float)SkillTree.Budget * 100f);
+
+            float w = 460f, h = 200f;
+            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            GUI.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
+                $"You have assigned {pct}% of your Skill Points to your penis. Continue?", msg);
+
+            var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
+            float bw = 150f, bh = 42f, by = py + h - bh - 22f, gap = 24f;
+            if (GUI.Button(new Rect(px + w * 0.5f - bw - gap * 0.5f, by, bw, bh), "Back", btn))
+                _thirdLegPrompt = false;   // stay on the Skill stage
+            if (GUI.Button(new Rect(px + w * 0.5f + gap * 0.5f, by, bw, bh), "Continue", btn))
+            {
+                _thirdLegPrompt = false;
+                _stage += 1;               // Skill -> Name (Skill is never the SkipSkill case here)
+            }
+        }
+
         // Every stage: click-drag anywhere on the preview to turn the model. Only grabs when
         // the press lands inside the preview rect, so control widgets elsewhere are unaffected.
         void HandleModelDrag(Rect previewRect)
@@ -551,6 +588,10 @@ namespace Trickshot
             bool want = GUI.Toggle(new Rect(lx, row, lw, 24f), _adultMode, "  ADULT MODE", togStyle);
             if (want && !_adultMode && !_adultPrompt) _adultPrompt = true;   // arm the confirm popup
             else if (!want && _adultMode) _adultMode = false;                // turn off immediately
+            // Mirror the resolved state into the appearance so it drives the model build + commits +
+            // networks (covers quiz-success, toggle-off, and cancel uniformly). The OnGUI appearance
+            // diff (ApprEquals) then rebuilds the preview when it changes.
+            PlayerProfile.Appearance.Adult = _adultMode;
             row += 34f;
 
             GUI.Label(new Rect(lx, row, lw, 20f), $"Height:  {_height:0.00} m", st); row += 24f;
@@ -604,6 +645,10 @@ namespace Trickshot
 
         static bool ApprEquals(PlayerAppearance a, PlayerAppearance b)
             => a.HairStyle == b.HairStyle && a.FacialStyle == b.FacialStyle && a.Accessory == b.Accessory
+               && a.Adult == b.Adult
+               && Mathf.Approximately(a.MemberLen, b.MemberLen)
+               && Mathf.Approximately(a.MemberGirth, b.MemberGirth)
+               && Mathf.Approximately(a.BallSize, b.BallSize)
                && ApproxColor(a.Skin, b.Skin) && ApproxColor(a.HairColor, b.HairColor)
                && ApproxColor(a.FacialColor, b.FacialColor) && ApproxColor(a.AccessoryColor, b.AccessoryColor);
 
@@ -868,32 +913,43 @@ namespace Trickshot
         {
             float lx = x + 28f, lw = pw - 56f;
 
+            // Keep the appendage size multipliers in the appearance in sync with the tree, so the
+            // live preview grows as Third Leg nodes are bought/refunded (via the ApprEquals diff).
+            SyncAdultDims();
+
             var big = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
             GUI.Label(new Rect(lx, y + 52f, lw, 24f), $"Skill points: {SkillTree.Remaining} / {SkillTree.Budget}", big);
 
-            // Category tabs. Adult mode adds one extra UI-only tab ("Third Leg") at the end.
+            // Category tabs. The football categories are shown as usual; ThirdLeg is NOT one of
+            // them - it rides its own adult-only tab at the end (so it's hidden without adult mode).
             var cats = (SkillTree.Category[])System.Enum.GetValues(typeof(SkillTree.Category));
-            int tabCount = cats.Length + (_adultMode ? 1 : 0);
+            int realCount = 0;
+            foreach (var c in cats) if (c != SkillTree.Category.ThirdLeg) realCount++;
+            int tabCount = realCount + (_adultMode ? 1 : 0);
             float tw = (lw - (tabCount - 1) * 4f) / tabCount;
-            for (int i = 0; i < cats.Length; i++)
+            int ti = 0;
+            foreach (var c in cats)
             {
-                bool sel = _skillCat == cats[i] && !_thirdLegTab;
+                if (c == SkillTree.Category.ThirdLeg) continue;   // shown separately below
+                bool sel = _skillCat == c && !_thirdLegTab;
                 var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
                 if (sel) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (tw + 4f), y + 84f, tw, 26f), cats[i].ToString(), tb))
-                    { _skillCat = cats[i]; _thirdLegTab = false; }
+                if (GUI.Button(new Rect(lx + ti * (tw + 4f), y + 84f, tw, 26f), c.ToString(), tb))
+                    { _skillCat = c; _thirdLegTab = false; }
+                ti++;
             }
             if (_adultMode)
             {
                 var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = _thirdLegTab ? FontStyle.Bold : FontStyle.Normal };
                 if (_thirdLegTab) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + cats.Length * (tw + 4f), y + 84f, tw, 26f), "Third Leg", tb))
+                if (GUI.Button(new Rect(lx + realCount * (tw + 4f), y + 84f, tw, 26f), "Third Leg", tb))
                     _thirdLegTab = true;
             }
             else _thirdLegTab = false;   // adult mode off -> can't be on this tab
 
-            // Third Leg tab is blank for now: skip the node graph + preset column entirely.
-            if (_thirdLegTab) return;
+            // Which category's graph we're drawing: the adult tab shows the ThirdLeg tree, else the
+            // selected football category. Everything below reads `drawCat`.
+            var drawCat = _thirdLegTab ? SkillTree.Category.ThirdLeg : _skillCat;
 
             // Graph area for the selected category.
             var area = new Rect(lx, y + 120f, lw, ph - 120f - 130f);
@@ -909,7 +965,7 @@ namespace Trickshot
                 area.y + nodeSz * 0.5f + n.GridY * rowGap);
 
             // Pass 1: connector lines (node -> its prerequisite), drawn under the badges.
-            foreach (var n in SkillTree.InCategory(_skillCat))
+            foreach (var n in SkillTree.InCategory(drawCat))
             {
                 if (string.IsNullOrEmpty(n.Requires)) continue;
                 var req = SkillTree.ById(n.Requires);
@@ -920,7 +976,7 @@ namespace Trickshot
 
             // Pass 2: node badges.
             var costSt = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.4f) } };
-            foreach (var n in SkillTree.InCategory(_skillCat))
+            foreach (var n in SkillTree.InCategory(drawCat))
             {
                 Vector2 c = Centre(n);
                 bool owned = SkillTree.Owned.Contains(n.Id);
@@ -966,7 +1022,7 @@ namespace Trickshot
 
             // Detail strip for the selected node.
             var selNode = _selNode != null ? SkillTree.ById(_selNode) : null;
-            if (selNode != null && selNode.Cat == _skillCat)
+            if (selNode != null && selNode.Cat == drawCat)
             {
                 float dy = y + ph - 124f;
                 var box = new Rect(lx, dy, lw, 58f);
@@ -1586,6 +1642,12 @@ namespace Trickshot
             if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 44f), nextLabel, btn))
             {
                 if (_stage == Stage.Jersey) { Commit(); enabled = false; _onDone?.Invoke(); }
+                // Leaving Skill with adult mode on + points in Third Leg: gate on the funny
+                // confirmation modal (it advances to Name on Continue) instead of advancing now.
+                else if (_stage == Stage.Skill && _adultMode && SkillTree.ThirdLegSpent > 0)
+                {
+                    _thirdLegPrompt = true;
+                }
                 else
                 {
                     Stage from = _stage;
@@ -1608,8 +1670,19 @@ namespace Trickshot
             }
         }
 
+        // Push the adult appendage size multipliers from the Third Leg skill nodes into the
+        // appearance (1 = base with no nodes). Used live during the Skill stage for the preview and
+        // again at Commit so the committed + networked appearance carries the final sizes.
+        static void SyncAdultDims()
+        {
+            PlayerProfile.Appearance.MemberLen   = SkillTree.Mul("length");
+            PlayerProfile.Appearance.MemberGirth = SkillTree.Mul("girth");
+            PlayerProfile.Appearance.BallSize    = SkillTree.Mul("ballsize");
+        }
+
         void Commit()
         {
+            SyncAdultDims();
             PlayerProfile.Height = _height;
             PlayerProfile.Weight = _weight;
             PlayerProfile.LeftFooted = _leftFooted;

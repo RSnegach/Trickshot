@@ -19,7 +19,10 @@ namespace Trickshot
     /// </summary>
     public static class SkillTree
     {
-        public enum Category { Pace, Shooting, Passing, Heading, Strength, Control, Agility }
+        // ThirdLeg is the adult-mode-only tab (member length/girth + ball size). It spends from the
+        // same point pool but is NOT a real football stat: it's excluded from the attribute heptagon
+        // and from Randomize, and only shown when adult mode is on.
+        public enum Category { Pace, Shooting, Passing, Heading, Strength, Control, Agility, ThirdLeg }
 
         public struct Effect { public string Key; public float Amount; public Effect(string k, float a){ Key=k; Amount=a; } }
 
@@ -49,6 +52,13 @@ namespace Trickshot
             get { int s = 0; foreach (var id in Owned) if (_byId.TryGetValue(id, out var n)) s += n.Cost; return s; }
         }
         public static int Remaining => Budget - Spent;
+
+        // Points sunk into the adult-mode Third Leg tab (drives the "% of your skill points" gag
+        // on Next). Same pool as everything else, so this is a subset of Spent.
+        public static int ThirdLegSpent
+        {
+            get { int s = 0; foreach (var id in Owned) if (_byId.TryGetValue(id, out var n) && n.Cat == Category.ThirdLeg) s += n.Cost; return s; }
+        }
 
         public static float Mul(string key)
         {
@@ -174,10 +184,12 @@ namespace Trickshot
         {
             Clear();
 
-            // Choose how many of the 7 areas to draw from (at least 1), then that many distinct ones.
-            var cats = (Category[])System.Enum.GetValues(typeof(Category));
-            int catCount = Random.Range(1, cats.Length + 1);
-            var pool = new List<Category>(cats);
+            // Choose how many of the football areas to draw from (at least 1), then that many
+            // distinct ones. ThirdLeg is excluded: RANDOMIZE never spends points on the adult tab.
+            var all = (Category[])System.Enum.GetValues(typeof(Category));
+            var pool = new List<Category>();
+            foreach (var c in all) if (c != Category.ThirdLeg) pool.Add(c);
+            int catCount = Random.Range(1, pool.Count + 1);
             var chosen = new List<Category>();
             for (int i = 0; i < catCount && pool.Count > 0; i++)
             {
@@ -294,6 +306,20 @@ namespace Trickshot
             Node_("a2c","Cat-Like","-22% ground recovery time",Category.Agility,4,"a1c","c",0.5f,2,null, E("recovery",-0.22f));
             Node_("a2b","Elevation","+12% jump height",Category.Agility,4,"a1b","^!",0.8f,2,null, E("jump",0.12f));
             Node_("acap","Acrobat","Scroll to flip: full 360° forward/backward air flips, chainable",Category.Agility,7,"a2a","X",0.2f,3,"acrobat");
+
+            // ====================== THIRD LEG (adult mode: length / girth / ballsize) ============
+            // Only reachable via the adult-mode "Third Leg" tab; spends from the shared point pool.
+            // Effects scale the cosmetic pelvis appendage (AnatomySim): "length" = member length,
+            // "girth" = member thickness, "ballsize" = berry radius. Terminates in ANACONDA, a
+            // capstone that (unlike the sport capstones) DOES carry a big stat boost to all three.
+            Node_("tl0","Endowed","+10% length, +10% girth",Category.ThirdLeg,2,null,"|",0.5f,0,null, E("length",0.10f), E("girth",0.10f));
+            Node_("tl1a","Lengthen","+30% member length",Category.ThirdLeg,3,"tl0","L",0.2f,1,null, E("length",0.30f));
+            Node_("tl1b","Thicken","+30% member girth",Category.ThirdLeg,3,"tl0","G",0.5f,1,null, E("girth",0.30f));
+            Node_("tl1c","Heavy Hangers","+30% ball size",Category.ThirdLeg,3,"tl0","O",0.8f,1,null, E("ballsize",0.30f));
+            Node_("tl2a","Grower","+30% member length",Category.ThirdLeg,4,"tl1a","LL",0.2f,2,null, E("length",0.30f));
+            Node_("tl2b","Girthmaxx","+30% member girth",Category.ThirdLeg,4,"tl1b","GG",0.5f,2,null, E("girth",0.30f));
+            Node_("tl2c","Boulders","+30% ball size",Category.ThirdLeg,4,"tl1c","OO",0.8f,2,null, E("ballsize",0.30f));
+            Node_("tlcap","Anaconda","The full package: big length, girth and ball-size boost",Category.ThirdLeg,8,"tl2b","A",0.5f,3,"anaconda", E("length",0.60f), E("girth",0.40f), E("ballsize",0.50f));
 
             All = list.ToArray();
             foreach (var n in All) _byId[n.Id] = n;

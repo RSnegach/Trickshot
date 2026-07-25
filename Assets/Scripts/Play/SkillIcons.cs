@@ -404,6 +404,26 @@ namespace Trickshot
                 case "pacap": // Maestro - ball + radiating pinpoint lines
                     Ball(32f, 32f, 9f); Burst(32f, 32f, 13f, 20f); break;
 
+                // ---------------- THIRD LEG (adult) ----------------
+                // Abstract: a vertical shaft (length), a ringed circle (girth), paired dots (balls).
+                case "tl0": // Endowed - shaft + two
+                    Stroke(32f, 16f, 32f, 44f, 3.2f); Dot(27f, 47f, 3.4f); Dot(37f, 47f, 3.4f); break;
+                case "tl1a": // Lengthen - up arrow
+                    ArrowSeg(32f, 42f, 32f, 16f, 2.8f, 8f); Stroke(24f, 46f, 40f, 46f, 2.4f); break;
+                case "tl2a": // Grower - taller up arrow
+                    ArrowSeg(32f, 46f, 32f, 12f, 3f, 9f); Stroke(24f, 48f, 40f, 48f, 2.4f); break;
+                case "tl1b": // Thicken - circle + outward arrows
+                    Ring(32f, 32f, 10f, 2.6f); ArrowSeg(20f, 32f, 13f, 32f, 2f, 5f); ArrowSeg(44f, 32f, 51f, 32f, 2f, 5f); break;
+                case "tl2b": // Girthmaxx - bigger circle + outward arrows
+                    Ring(32f, 32f, 14f, 2.8f); ArrowSeg(16f, 32f, 10f, 32f, 2f, 5f); ArrowSeg(48f, 32f, 54f, 32f, 2f, 5f); break;
+                case "tl1c": // Heavy Hangers - two balls
+                    Dot(25f, 34f, 8f); Dot(41f, 34f, 8f); break;
+                case "tl2c": // Boulders - two bigger balls
+                    Dot(23f, 36f, 10f); Dot(43f, 36f, 10f); break;
+                case "tlcap": // Anaconda - a snake S-curve
+                    PolyLine(3.2f, false, 14f, 46f, 24f, 34f, 40f, 42f, 50f, 28f, 40f, 16f, 26f, 22f);
+                    Dot(50f, 28f, 2.6f); break;
+
                 // ---------------- UI GLYPHS ----------------
                 case "_shuffle": // two crossing arrows (classic shuffle icon)
                     // Upper strand: enters low-left, bows up over the middle, exits high-right w/ head.
