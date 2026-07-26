@@ -482,9 +482,13 @@ namespace Trickshot
                 b.ragdoll.ResetTo(active ? _ballSpot + new Vector3(0f, 0f, -3f) : ShooterWaitSpot(i),
                                   Quaternion.identity);
                 b.striker.ForceRecover();
-                // Restore ball<->body collision for every shooter, clearing any ignore left by the
-                // previous turn's taker/auto launch. The active shooter re-ignores when it strikes.
-                _ball.IgnoreBody(b.ragdoll, false);
+                // Restore ball<->body collision for the PARKED shooters (clearing any ignore left by
+                // the previous turn's taker/auto launch), but keep the ACTIVE shooter ignored: the
+                // taker owns the ball for the whole attempt and arms on a later frame, so leaving the
+                // active body collidable here opens a window where its foot can physically graze the
+                // dead ball - and because SetPieceShot skips the swing gate that fires a full-power
+                // contact-point strike into a corner, ignoring the player's aim entirely.
+                _ball.IgnoreBody(b.ragdoll, active);
             }
             if (_wall != null) _wall.Ground();
             foreach (var b in _bodies) if (b?.ai != null) b.ai.ResetTo(SimConfig.KeeperStart);
@@ -711,14 +715,18 @@ namespace Trickshot
                     // shooter uses its real profile.
                     IStrikerInput src = (_activeShooter == _localSlot) ? (IStrikerInput)_input : b.netInput;
                     float combined = (_activeShooter == _localSlot) ? -1f : 0.6f;
-                    // Remote shooter aim comes from its networked look. A host-local shooter is
-                    // not a NetInputSource, so aim stays null and the corner auto-aim is used.
+                    // Aim ALWAYS comes from a look ray, exactly as in single-player free kicks:
+                    //  - a REMOTE shooter's ray is rebuilt from its networked look yaw/pitch;
+                    //  - the HOST-LOCAL shooter uses its own camera.
+                    // Previously the host-local case passed null, which fell back to
+                    // BallController's built-in CORNER auto-aim - so the host's own set pieces
+                    // ignored where they were looking and flew to a corner regardless.
                     var nsrc = src as NetInputSource;
-                    System.Func<Vector3> remoteAim = nsrc != null
+                    System.Func<Vector3> aim = nsrc != null
                         ? () => SetPieceTaker.LookAimPoint(_ballSpot, nsrc.LookYaw, nsrc.LookPitch, SimConfig.AttackGoalCenter.z)
-                        : null;
+                        : () => SetPieceTaker.LookAimPoint(_ballSpot, _cam.Yaw, _cam.Pitch, SimConfig.AttackGoalCenter.z);
                     _taker.Begin(src, b.ragdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter,
-                                 displayOnly: false, combinedOverride: combined, aimPoint: remoteAim);
+                                 displayOnly: false, combinedOverride: combined, aimPoint: aim);
                     _takerArmed = true;
                 }
                 _taker.Tick();
@@ -862,7 +870,10 @@ namespace Trickshot
             var b = _activeShooter < NetSession.MaxSlots ? _bodies[_activeShooter] : null;
             if (b != null && b.ragdoll != null)
             {
-                _ball.IgnoreBody(b.ragdoll, false);
+                // Keep the ACTIVE shooter's body ignored: the taker re-arms on a later frame and owns
+                // the ball for the whole attempt, so restoring collision here would let its foot graze
+                // the dead ball and fire a camera-blind contact-point strike (see BeginTurn).
+                _ball.IgnoreBody(b.ragdoll, true);
                 b.ragdoll.ResetTo(_ballSpot + new Vector3(0f, 0f, -3f), Quaternion.identity);
                 b.striker?.ForceRecover();
             }
