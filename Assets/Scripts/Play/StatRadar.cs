@@ -98,7 +98,13 @@ namespace Trickshot
             if (len < 0.01f) return;
             float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
             var m = GUI.matrix;
-            GUIUtility.RotateAroundPivot(ang, a);
+            // Compose the rotation ON TOP of whatever matrix is already active (MenuScale scales the
+            // whole menu). GUIUtility.RotateAroundPivot rotates about a pivot expressed in SCREEN
+            // space, so under a scaled matrix its pivot lands in the wrong place and the radar web
+            // sprays stray lines across the screen. Building `existing * rotate-about-a` keeps the
+            // pivot in the CURRENT (scaled) coordinate space.
+            GUI.matrix = m * Matrix4x4.TRS(a, Quaternion.Euler(0f, 0f, ang), Vector3.one)
+                           * Matrix4x4.TRS(-a, Quaternion.identity, Vector3.one);
             GUI.DrawTexture(new Rect(a.x, a.y - w * 0.5f, len, w), Texture2D.whiteTexture);
             GUI.matrix = m;
         }

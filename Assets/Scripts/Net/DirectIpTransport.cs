@@ -279,9 +279,16 @@ namespace Trickshot.Net
 
             foreach (var pv in gone)
             {
+                bool wasHost = !IsHost && pv == HostPeer.Value;
                 DropPeer(pv);
-                if (IsHost) PeerLeft?.Invoke(new PeerId(pv));
-                else Disconnected?.Invoke();        // lost the host
+                if (IsHost) { PeerLeft?.Invoke(new PeerId(pv)); continue; }
+                // A CLIENT that lost the host is finished: DropPeer forgets the host endpoint, and
+                // HandlePacket discards packets from unknown senders on a client, so no later host
+                // packet could ever be processed anyway - the session could never recover but kept
+                // reporting itself Active, which is what left drivers running a dead match. Mark the
+                // transport not-running so Session.Active is honest, THEN raise Disconnected.
+                if (wasHost) IsRunning = false;
+                Disconnected?.Invoke();
             }
         }
 
@@ -292,6 +299,13 @@ namespace Trickshot.Net
             if (epKey != 0) _peerByEp[epKey] = peer;
             _epByPeer[peer.Value] = ep;
             _lastRecv[peer.Value] = _now;
+            // Start this peer's reliable channel FRESH. Channels are keyed by peer id, and a peer id
+            // is minted per endpoint - so a client that left and rejoined quickly (same ephemeral
+            // port, before the 5s timeout reaped the old entry) used to inherit the previous
+            // session's sequence state. Its brand-new Hello at seq 1 then looked like a duplicate and
+            // was silently dropped, leaving the joiner stuck at "Connecting..." while the host showed
+            // a ghost occupant.
+            _relByPeer.Remove(peer.Value);
         }
 
         void DropPeer(ulong pv)

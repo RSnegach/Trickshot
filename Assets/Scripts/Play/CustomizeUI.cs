@@ -1182,7 +1182,11 @@ namespace Trickshot
             float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
             var prev = GUI.color; var m = GUI.matrix;
             GUI.color = col;
-            GUIUtility.RotateAroundPivot(ang, a);
+            // Compose onto the CURRENT matrix rather than using GUIUtility.RotateAroundPivot, whose
+            // pivot is screen-space: under MenuScale's scaled matrix that pivot is wrong and the
+            // skill-tree connector lines fly off across the panel. (Same fix as StatRadar.Line.)
+            GUI.matrix = m * Matrix4x4.TRS(a, Quaternion.Euler(0f, 0f, ang), Vector3.one)
+                           * Matrix4x4.TRS(-a, Quaternion.identity, Vector3.one);
             GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, len, width), Texture2D.whiteTexture);
             GUI.matrix = m; GUI.color = prev;
         }
