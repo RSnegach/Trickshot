@@ -192,6 +192,13 @@ namespace Trickshot
             _ambient[1].Stop();
             _lively[0].Stop();
             _lively[1].Stop();
+            // The crowd REACTION source (cheer / applause / boos, fired as one-shots) has to be cut
+            // too, or a boo that was mid-play carries on over the menu after you quit the match.
+            _event.Stop();
+            // 3D kick thuds are one-shots on their own pooled sources; kill any still sounding so a
+            // late thud can't follow you out of the match either.
+            for (int i = 0; i < _kick.Length; i++)
+                if (_kick[i] != null) _kick[i].Stop();
             _fadeOld = null;
         }
 
