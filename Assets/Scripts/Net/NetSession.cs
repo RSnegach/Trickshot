@@ -516,10 +516,15 @@ namespace Trickshot.Net
         void RouteMessage(PeerId from, byte[] data)
         {
             var r = new NetReader(data);
-            // Host-authored message types are only ever legitimate FROM the host. On a client,
-            // reject them from anyone else so a stray/spoofed packet can't rewrite the roster,
-            // reassign our slot, or start the match.
-            if (!IsHost && IsHostOnly(r.Type) && !from.Equals(Transport.HostPeer)) return;
+            // Host-authored message types are only ever legitimate FROM the host:
+            //  - on a CLIENT, accept them only from the host peer (a stray/spoofed packet must not
+            //    rewrite the roster, reassign our slot, or start the match);
+            //  - on the HOST, reject them outright. The host authors these; a client sending one is
+            //    always illegitimate. Without this a client could send StartMatch to force the host
+            //    to start (ignoring ready state), or RosterSync to overwrite the host's own
+            //    authoritative roster + config, or AssignSlot to push the host's LocalSlot to 255.
+            //    The client-only handlers below are individually IsHost-gated, but these were not.
+            if (IsHostOnly(r.Type) && (IsHost || !from.Equals(Transport.HostPeer))) return;
             switch (r.Type)
             {
                 case MsgType.Hello:      // host: a client announced itself -> give it a slot

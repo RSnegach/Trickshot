@@ -42,6 +42,7 @@ namespace Trickshot
         bool _accByTime;           // false = fixed kicks, true = per-turn timer
         int _accKicks = 10;        // kicks each (1..100) when !_accByTime
         int _accSeconds = 60;      // turn seconds (<=120) when _accByTime
+        string _hostError = "";    // shown when Create couldn't open the host port
 
         public void Init(System.Action onCreated, System.Action onBack)
         {
@@ -107,6 +108,14 @@ namespace Trickshot
                                  Mathf.Max(MenuScale.Height - 100f, y + panelH + 14f));
             if (GUI.Button(new Rect(x + 30f, by, 160f, 44f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(x + w - 190f, by, 160f, 44f), "Create", btn)) Create();
+
+            // Why Create failed (port already in use), instead of silently hosting nothing.
+            if (!string.IsNullOrEmpty(_hostError))
+            {
+                var err = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true, alignment = TextAnchor.UpperCenter,
+                                                        normal = { textColor = new Color(1f, 0.5f, 0.45f) } };
+                GUI.Label(new Rect(x + 24f, by - 46f, w - 48f, 40f), _hostError, err);
+            }
 
             // Free-kick placement map (Set Pieces only): a side panel to the right of the main
             // window where the host drops the ball spot + wall, like the in-match cross map.
@@ -176,6 +185,19 @@ namespace Trickshot
             // both sides can be human: allow up to 2*perSide (bounded to the 8-slot board).
             int maxPlayers = mode == GameMode.Scrimmage ? Mathf.Clamp(_perSide * 2, 2, 8) : 8;
             Multiplayer.Host(maxPlayers);
+            // Hosting can FAIL to bind UDP 7777 (another copy of the game still holding it, or an
+            // orphaned session from earlier in this run). The transport logs and carries on with
+            // IsRunning=false, which used to sail straight into a normal-looking lobby: nobody could
+            // ever join, START MATCH built the SINGLE-PLAYER mode, and the host played alone without
+            // ever being told. Detect it here and stay on this screen with the reason.
+            if (Multiplayer.Session == null || !Multiplayer.Session.Active)
+            {
+                Multiplayer.End();
+                _hostError = "Couldn't open port " + NetEndpoint.DefaultPort + ". Another copy of the "
+                           + "game may still be hosting - close it (or restart) and try again.";
+                return;
+            }
+            _hostError = "";
             Multiplayer.Session.SetConfig(new MatchConfig
             {
                 mode = (byte)mode,

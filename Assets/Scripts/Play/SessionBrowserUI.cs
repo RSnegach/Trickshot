@@ -110,12 +110,22 @@ namespace Trickshot
             if (_autoRefresh <= 0f) { _autoRefresh = 1.5f; Refresh(); }
         }
 
+        // Scaled up on big displays like the other pre-match menus (see MenuScale); the fixed sizes
+        // below are unchanged, they just cover more of the screen. Wrapped so any early return
+        // inside DrawBrowser can't leak the scaled GUI matrix.
         void OnGUI()
+        {
+            MenuScale.Begin();
+            DrawBrowser();
+            MenuScale.End();
+        }
+
+        void DrawBrowser()
         {
             float w = 560f, rowH = 46f, gap = 8f;
             float panelH = 150f + 6 * (rowH + gap) + 60f + 78f;   // +78: direct-IP join row
-            float x = Screen.width * 0.5f - w * 0.5f;
-            float y = Screen.height * 0.5f - panelH * 0.5f;
+            float x = MenuScale.Width * 0.5f - w * 0.5f;
+            float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
             GUI.DrawTexture(new Rect(x, y, w, panelH), Texture2D.whiteTexture); GUI.color = prev;
 
@@ -161,7 +171,10 @@ namespace Trickshot
             }
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
-            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
+            // Sit low, near the screen bottom, but never overlap the panel: on a short window the
+            // panel can reach past that line, so push below it and clamp so the row always fits.
+            float by = Mathf.Min(MenuScale.Height - 52f,
+                                 Mathf.Max(MenuScale.Height - 64f, y + panelH + 16f));
             if (GUI.Button(new Rect(x + 24f, by, 130f, 40f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(x + w * 0.5f - 65f, by, 130f, 40f), "Refresh", btn)) Refresh();
 
@@ -178,11 +191,11 @@ namespace Trickshot
         void DrawConnecting()
         {
             var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
             GUI.color = pc;
 
             float w = 420f, h = 150f;
-            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
             GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
             GUI.color = new Color(0.16f, 0.55f, 0.95f); GUI.DrawTexture(new Rect(px, py, w, 3f), Texture2D.whiteTexture);
             GUI.color = pc;
