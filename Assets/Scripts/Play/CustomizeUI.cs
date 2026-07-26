@@ -301,15 +301,24 @@ namespace Trickshot
             }
         }
 
+        // Scale the whole customize screen up on big displays (see MenuScale). Wrapped so the
+        // early returns inside DrawCustomize() can't leak the scaled GUI matrix.
         void OnGUI()
+        {
+            MenuScale.Begin();
+            DrawCustomize();
+            MenuScale.End();
+        }
+
+        void DrawCustomize()
         {
             // Preview column on the left + a control panel on the right.
             const float previewW = 300f, gap = 16f;
             float contentW = 560f;
             float totalW = previewW + gap + contentW;
             float panelH = 600f;
-            float ox = Screen.width * 0.5f - totalW * 0.5f;
-            float y = Screen.height * 0.5f - panelH * 0.5f;
+            float ox = MenuScale.Width * 0.5f - totalW * 0.5f;
+            float y = MenuScale.Height * 0.5f - panelH * 0.5f;
 
             // Live 3D preview viewport (the camera renders into this rect).
             var previewRect = new Rect(ox, y, previewW, panelH);
@@ -337,7 +346,9 @@ namespace Trickshot
                     _lastPreviewH = _height; _lastPreviewW = _weight;
                     _previewDirty = false;
                 }
-                _preview.ViewportPx = previewRect;
+                // The preview camera wants REAL device pixels, but previewRect is in the scaled GUI
+                // space - convert, or the 3D model renders in the wrong place/size on a big screen.
+                _preview.ViewportPx = MenuScale.ToScreen(previewRect);
                 _preview.AutoRotate = false;          // every stage: the player turns the model by dragging it
                 HandleModelDrag(previewRect);
             }
@@ -409,11 +420,11 @@ namespace Trickshot
         {
             // Full-screen dim.
             var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
             GUI.color = pc;
 
             float w = 460f, h = 200f;
-            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
             // Panel + gold top accent (matches the options/menu look).
             GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
             GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
@@ -458,14 +469,14 @@ namespace Trickshot
         void DrawAdultQuiz()
         {
             var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
             GUI.color = pc;
 
             if (_quizIdx < 0 || _quizIdx >= AdultQuiz.Bank.Length) { NextQuizQuestion(); return; }
             var q = AdultQuiz.Bank[_quizIdx];
 
             float w = 560f, h = 380f;
-            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
             GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
             GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
             GUI.color = pc;
@@ -529,13 +540,13 @@ namespace Trickshot
         void DrawThirdLegPrompt()
         {
             var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
             GUI.color = pc;
 
             int pct = Mathf.RoundToInt(SkillTree.ThirdLegSpent / (float)SkillTree.Budget * 100f);
 
             float w = 460f, h = 200f;
-            float px = Screen.width * 0.5f - w * 0.5f, py = Screen.height * 0.5f - h * 0.5f;
+            float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
             GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
             GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
             GUI.color = pc;
@@ -1068,7 +1079,8 @@ namespace Trickshot
 
             float bh = 32f, bgap = 6f;
             float randBh = 30f, randGap = 14f;   // RANDOMIZE button sits above the QUICK BUILDS header
-            float contentH = randBh + randGap + 26f + presets.Length * (bh + bgap) + 34f;
+            // + 32 for the CLEAR ALL button below the preset list.
+            float contentH = randBh + randGap + 26f + presets.Length * (bh + bgap) + 32f + 34f;
             float colY = previewRect.y + Mathf.Max(0f, (previewRect.height - contentH) * 0.5f);
 
             // Backing panel.
@@ -1099,30 +1111,58 @@ namespace Trickshot
             for (int i = 0; i < presets.Length; i++)
             {
                 var p = presets[i];
-                bool active = PresetMatches(p);
+                bool active = PresetMatches(p);       // fully owned
+                bool canAdd = !active && PresetCanAdd(p);
                 var prev = GUI.color;
-                GUI.color = active ? new Color(0.22f, 0.55f, 0.3f) : new Color(0.2f, 0.21f, 0.26f);
+                // Green = applied, normal = clickable, dark = nothing left it can afford.
+                GUI.color = active ? new Color(0.22f, 0.55f, 0.3f)
+                          : canAdd ? new Color(0.2f, 0.21f, 0.26f)
+                          : new Color(0.14f, 0.14f, 0.17f);
                 var r = new Rect(colX, row, bw, bh);
                 GUI.DrawTexture(r, Texture2D.whiteTexture);
                 if (active) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
                 GUI.color = prev;
 
-                var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+                var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+                                                        normal = { textColor = (active || canAdd) ? Color.white : new Color(1f, 1f, 1f, 0.4f) } };
                 GUI.Label(r, p.Name, lbl);
-                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { SkillTree.ApplyPreset(p); _selNode = null; }
+                // Presets STACK now: clicking adds this build on top of the current spend (skipping
+                // anything unaffordable), so several can be combined to max out multiple areas.
+                if (canAdd && GUI.Button(r, GUIContent.none, GUIStyle.none)) { SkillTree.ApplyPreset(p); _selNode = null; }
                 row += bh + bgap;
             }
 
+            // CLEAR: presets no longer wipe the tree, so there has to be an explicit way to start over.
+            var clearRect = new Rect(colX, row + 2f, bw, 26f);
+            var prevCl = GUI.color; GUI.color = new Color(0.34f, 0.18f, 0.18f); GUI.DrawTexture(clearRect, Texture2D.whiteTexture); GUI.color = prevCl;
+            var clearSt = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.85f, 0.85f) } };
+            GUI.Label(clearRect, "CLEAR ALL", clearSt);
+            if (GUI.Button(clearRect, GUIContent.none, GUIStyle.none)) { SkillTree.Clear(); _selNode = null; }
+            row += 30f;
+
             var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
-            GUI.Label(new Rect(colX, row + 2f, bw, 34f), "Presets replace your spend. Tweak nodes after.", note);
+            GUI.Label(new Rect(colX, row + 2f, bw, 34f), "Builds STACK - click several to max out multiple areas.", note);
         }
 
-        // A preset "matches" when the owned set is exactly its node list.
+        // A preset counts as APPLIED when every one of its nodes is owned. Presets now stack
+        // additively (several can be active at once), so this is containment, not set equality.
         static bool PresetMatches(SkillTree.Preset p)
         {
-            if (SkillTree.Owned.Count != p.Ids.Length) return false;
             foreach (var id in p.Ids) if (!SkillTree.Owned.Contains(id)) return false;
             return true;
+        }
+
+        // Would clicking this preset grant anything? False when it's already fully applied, or when
+        // nothing it wants can still be afforded (so the button can be shown as spent/unaffordable).
+        static bool PresetCanAdd(SkillTree.Preset p)
+        {
+            foreach (var id in p.Ids)
+            {
+                var n = SkillTree.ById(id);
+                if (n == null || SkillTree.Owned.Contains(id)) continue;
+                if (SkillTree.ChainCost(n) <= SkillTree.Remaining) return true;
+            }
+            return false;
         }
 
         // Draw a straight line between two screen points using a rotated 1px texture.
@@ -1252,8 +1292,11 @@ namespace Trickshot
         {
             _picking = true;
             yield return new WaitForEndOfFrame();
-            int sx = Mathf.Clamp(Mathf.RoundToInt(guiPos.x), 0, Screen.width - 1);
-            int sy = Mathf.Clamp(Mathf.RoundToInt(Screen.height - 1 - guiPos.y), 0, Screen.height - 1); // GUI y-down -> screen y-up
+            // guiPos is in the SCALED GUI space (see MenuScale); ReadPixels needs real device
+            // pixels, so convert before sampling or the picked colour comes from the wrong pixel.
+            Vector2 devPos = MenuScale.ToScreen(guiPos);
+            int sx = Mathf.Clamp(Mathf.RoundToInt(devPos.x), 0, Screen.width - 1);
+            int sy = Mathf.Clamp(Mathf.RoundToInt(Screen.height - 1 - devPos.y), 0, Screen.height - 1); // GUI y-down -> screen y-up
             var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
             tex.ReadPixels(new Rect(sx, sy, 1, 1), 0, 0);
             tex.Apply();
@@ -1624,7 +1667,7 @@ namespace Trickshot
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
             // Anchor Back/Next to the far LEFT and RIGHT of the screen (not the panel), so
             // they clear the panel content and sit at the window edges.
-            float by = Screen.height - 72f;    // sit a little lower, closer to the screen bottom
+            float by = MenuScale.Height - 72f;    // sit a little lower, closer to the screen bottom
             float bw = 150f, edge = 24f;
 
             if (GUI.Button(new Rect(edge, by, bw, 44f), "Back", btn))
@@ -1639,7 +1682,7 @@ namespace Trickshot
 
             // Flow is Body -> Skill -> Name -> Jersey; Jersey is last so it carries Confirm.
             string nextLabel = _stage == Stage.Jersey ? "Confirm" : "Next";
-            if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 44f), nextLabel, btn))
+            if (GUI.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 44f), nextLabel, btn))
             {
                 if (_stage == Stage.Jersey) { Commit(); enabled = false; _onDone?.Invoke(); }
                 // Leaving Skill with adult mode on + points in Third Leg: gate on the funny
