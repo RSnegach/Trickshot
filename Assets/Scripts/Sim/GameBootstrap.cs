@@ -80,11 +80,13 @@ namespace Trickshot
         // main menu isn't drawn underneath a stale panel after a disconnect.
         void DestroyNetworkedUI()
         {
-            foreach (var ui in FindObjectsByType<LobbyUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<SessionBrowserUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<HostSetupUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<MultiplayerHubUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<CustomizeUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
+            // No sort mode: the FindObjectsSortMode overloads are deprecated, and order is
+            // irrelevant here (we destroy every match).
+            foreach (var ui in FindObjectsByType<LobbyUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<SessionBrowserUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<HostSetupUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<MultiplayerHubUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<CustomizeUI>()) Destroy(ui.gameObject);
         }
 
         // ---- Screen flow: main menu -> pre-match settings -> match (+ pause menu) ----
