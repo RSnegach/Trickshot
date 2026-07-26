@@ -90,22 +90,35 @@ namespace Trickshot
             return n;
         }
 
+        // Scale the whole setup screen up on big displays (see MenuScale): the fixed sizes below
+        // are unchanged, they just cover more of the screen and stop the header being cramped.
+        // Wrapped so the early returns inside DrawSetup() can't leak the scaled GUI matrix.
         void OnGUI()
         {
+            MenuScale.Begin();
+            DrawSetup();
+            MenuScale.End();
+        }
+
+        void DrawSetup()
+        {
             float panelH = HeadH + RowCount() * RowH + FootH;
-            float x = Screen.width * 0.5f - PanelW * 0.5f;
-            float y = Screen.height * 0.5f - panelH * 0.5f;
+            float x = MenuScale.Width * 0.5f - PanelW * 0.5f;
+            float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             GUI.Box(new Rect(x, y, PanelW, panelH), GUIContent.none);
 
             // Attribute card to the LEFT of the settings panel (custom-player modes only;
             // keeper mode uses a fixed keeper, so no card).
             if (_mode != GameMode.Goalkeeper) DrawStatCard(x - 300f, y);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x + 30f, y + 16f, PanelW - 200f, 40f), _mode.ToString().ToUpper() + " - SETUP", title);
+            // Title on ONE line: the old rect (PanelW - 200) was too narrow for the longer mode
+            // names ("SETPIECES - SETUP" wrapped and clipped), so give it the full width left of
+            // the Reset All button and stop it wrapping.
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white }, wordWrap = false, clipping = TextClipping.Overflow };
+            GUI.Label(new Rect(x + 30f, y + 14f, PanelW - 160f, 44f), _mode.ToString().ToUpper() + " - SETUP", title);
 
             var smallBtn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            if (GUI.Button(new Rect(x + PanelW - 150f, y + 20f, 120f, 30f), "Reset All", smallBtn))
+            if (GUI.Button(new Rect(x + PanelW - 130f, y + 20f, 110f, 30f), "Reset All", smallBtn))
                 ResetAll();
 
             float row = y + HeadH;
@@ -208,10 +221,10 @@ namespace Trickshot
         void DrawNav(float x, float y, float panelH)
         {
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
-            float by = Screen.height - 72f;    // sit a little lower, closer to the screen bottom
+            float by = MenuScale.Height - 72f;    // sit a little lower, closer to the screen bottom
             float bw = 170f, edge = 24f;
             if (GUI.Button(new Rect(edge, by, bw, 48f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
-            if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
+            if (GUI.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
         }
 
         // Scrimmage pickers: team size (per side) and the human's role.

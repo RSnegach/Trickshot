@@ -354,11 +354,22 @@ namespace Trickshot
             // (it would flatten the banana); the vertical steer still pulls the height onto target.
             // CURVE and KNUCKLE both own their horizontal path (the banana returns to aim x; the
             // knuckle intentionally snakes), so skip the HORIZONTAL steer for both or it flattens them.
-            _assistFlatOff = spin == SetPieceSpin.CurveLeft || spin == SetPieceSpin.CurveRight
+            // NO SPIN = an honest straight shot: it flies exactly along the aim ray with NO goal-ward
+            // help at all. Previously a plain shot still got the horizontal steer, so looking off to
+            // the side and shooting "straight" was dragged back onto the goal - the ball never went
+            // where you actually aimed. Now only a curve/knuckle (which own their own path) and a
+            // plain shot skip the flat steer; the difference is that a plain shot ALSO skips the
+            // vertical steer below, so nothing bends it off the ray you picked.
+            bool noSpin = spin == SetPieceSpin.None;
+            _assistFlatOff = noSpin
+                             || spin == SetPieceSpin.CurveLeft || spin == SetPieceSpin.CurveRight
                              || spin == SetPieceSpin.Knuckle;
             // Any real over-bar loft: turn OFF the vertical steer so the loft survives the flight
             // (otherwise ApplyGoalAssist predicts the lofted ball straight back down onto aim height).
-            _assistVertOff = loft > 0.2f;
+            // A no-spin shot also drops the VERTICAL steer, so the whole flight is pure ballistics
+            // along the aim ray (the launch solve already puts it at the aimed height on the goal
+            // plane; steering after that would just re-target it).
+            _assistVertOff = loft > 0.2f || noSpin;
             // Forced off target (aim outside the cone): cut BOTH steers so no goal-ward help can pull
             // the shot back onto the frame. The ball follows its ballistic path to the shoved-wide aim.
             if (forceOffTarget) { _assistFlatOff = true; _assistVertOff = true; }
