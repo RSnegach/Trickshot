@@ -122,7 +122,8 @@ namespace Trickshot.Net
             // on per-slot in the lobby. (The crosser still feeds balls on the host regardless of
             // its AI toggle - see NetStrikerMatch - so crosses come even with crosser AI off.)
             for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; }
-            Transport.StartHost(Mathf.Clamp(maxPlayers, 1, MaxSlots));
+            _maxPlayers = Mathf.Clamp(maxPlayers, 1, MaxSlots);   // enforced in GrantSlot
+            Transport.StartHost(_maxPlayers);
             // The host takes a slot immediately. Default: host is a shooter (slot 1) so the
             // keeper (slot 0) can be a joining human or AI; a striker-only host with no
             // joiners still works (AI keeper + host shooter).
@@ -631,6 +632,45 @@ namespace Trickshot.Net
             }
         }
 
+        // ---- host-side slot policy ----
+        // The player cap the host chose (Host(maxPlayers)). It used to be passed to the transport
+        // and silently discarded, so GrantSlot only checked occupancy and 8 humans could join a
+        // 2v2 lobby. Defaults to the full board until Host() sets it.
+        int _maxPlayers = MaxSlots;
+
+        // Name + appearance last seen for a peer, even if it holds no slot. Lets a slot-less
+        // (spectator) peer claim a free slot later and arrive as THEMSELVES; without it
+        // ApplySlotRequest fell back to the local PlayerProfile, which on the host is the host's.
+        readonly Dictionary<ulong, (string name, PlayerAppearance appr)> _peerIdentity
+            = new Dictionary<ulong, (string, PlayerAppearance)>();
+
+        /// <summary>
+        /// Clear a slot's buffered input + its highest-applied tick. MUST be called whenever a slot
+        /// changes hands: the host drops any input whose tick isn't newer than _slotInputTick[slot]
+        /// (reorder protection), while every client's driver starts its own tick counter at 0. So a
+        /// slot inheriting the previous occupant's high tick silently swallowed ALL of the new
+        /// player's input - they were simply unresponsive, with no error anywhere.
+        /// </summary>
+        void ResetSlotInput(int slot)
+        {
+            if (slot < 0 || slot >= MaxSlots) return;
+            _slotInput[slot] = default;
+            _slotInputTick[slot] = 0;
+        }
+
+        /// <summary>
+        /// Is this slot a real playable role in the CURRENT mode? The crosser slot only gets a body
+        /// in Striker mode - the set-piece / accuracy drivers skip it entirely (no body, no camera,
+        /// excluded from the shooter rotation), so a player granted it there is stranded. Scrimmage
+        /// doesn't use the crosser concept at all, so every slot is playable there.
+        /// </summary>
+        bool SlotAllowed(int slot)
+        {
+            if (slot != CrosserSlot) return true;
+            var mode = (GameMode)Config.mode;
+            return mode == GameMode.Striker || mode == GameMode.Scrimmage;
+        }
+
         // Message types only the HOST ever authors. A client accepts these from the host peer only
         // (see RouteMessage); the host itself ignores them (its own handlers are IsHost-gated).
         static bool IsHostOnly(MsgType t)
@@ -654,9 +694,12 @@ namespace Trickshot.Net
             int slot = SlotOf(p);
             if (slot >= 0)
             {
-                _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false;   // reverts to AI
+                // Slot becomes OPEN (or AI, if the host left AI on for it - see RebuildRoster).
+                _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false;
                 _slotJerseyPng[slot] = null; _slotJerseyTex[slot] = null; _jerseyRx.Remove(slot);   // drop their kit
+                ResetSlotInput(slot);
             }
+            _peerIdentity.Remove(p.Value);
             if (IsHost) PushRoster();
         }
 
@@ -665,24 +708,48 @@ namespace Trickshot.Net
         // the full roster (+ config) so everyone, including the new joiner, is in sync.
         void GrantSlot(PeerId peer, string name, PlayerAppearance appearance)
         {
+            // Remember who this peer is even if they end up slot-less, so that if they later claim a
+            // free slot in the lobby they arrive under THEIR OWN name + look. Without this,
+            // ApplySlotRequest's fallback reads PlayerProfile, which on the host is the HOST's
+            // profile - a slot-less joiner would appear in the roster as a copy of the host.
+            _peerIdentity[peer.Value] = (string.IsNullOrEmpty(name) ? "PLAYER" : name, appearance);
+
             // Match already running: lock it. The joiner gets no slot (spectator/255) - the match
             // drivers build their body set once at Configure, so there is nothing to slot into.
             // They can join the next lobby. (Full join-in-progress is a separate, larger feature.)
             if (MatchStarted)
             {
                 Transport.Send(peer, NetCodec.AssignSlot(255, NetRole.Spectator), NetChannel.Reliable);
+                // ALSO send them the roster/config. This used to return early, so a joiner who
+                // arrived mid-match never received a RosterSync and sat in a blank lobby forever
+                // with a default MatchConfig and no way out but Leave. With the roster in hand the
+                // browser can see it was refused and report why.
+                RebuildRoster();
+                Transport.Send(peer, NetCodec.Roster(Config, Roster), NetChannel.Reliable);
                 return;
             }
             int granted = -1;
             // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
             // (MaxSlots-1). Players re-pick any free role in the lobby afterward.
             for (int s = 1; s < CrosserSlot; s++)
-                if (!_slotOwner[s].IsValid) { granted = s; break; }
-            if (granted < 0 && !_slotOwner[0].IsValid) granted = 0;
-            if (granted < 0 && !_slotOwner[CrosserSlot].IsValid) granted = CrosserSlot;
+                if (!_slotOwner[s].IsValid && SlotAllowed(s)) { granted = s; break; }
+            if (granted < 0 && !_slotOwner[0].IsValid && SlotAllowed(0)) granted = 0;
+            // The crosser is only a real playable role in STRIKER mode; the set-piece/accuracy
+            // drivers skip that slot entirely (no body, no camera, never in the shooter rotation),
+            // so handing it out there stranded the player. SlotAllowed gates it by mode.
+            if (granted < 0 && !_slotOwner[CrosserSlot].IsValid && SlotAllowed(CrosserSlot)) granted = CrosserSlot;
+            // Respect the host's player cap (Host(maxPlayers)); it used to be accepted and dropped,
+            // so 8 humans could pile into a 2v2 lobby.
+            if (granted >= 0 && HumanCount() >= _maxPlayers) granted = -1;
 
             NetRole role = granted < 0 ? NetRole.Spectator : RoleOfSlot(granted);
-            if (granted >= 0) { _slotOwner[granted] = peer; _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name; _slotAppearance[granted] = appearance; }
+            if (granted >= 0)
+            {
+                _slotOwner[granted] = peer;
+                _slotName[granted] = string.IsNullOrEmpty(name) ? "PLAYER" : name;
+                _slotAppearance[granted] = appearance;
+                ResetSlotInput(granted);   // a reused slot must not keep the old occupant's tick
+            }
             Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role), NetChannel.Reliable);
             PushRoster();
             // Send the new peer every ALREADY-KNOWN slot jersey. Appearance rides the roster row so
@@ -710,20 +777,30 @@ namespace Trickshot.Net
         {
             if (target < 0 || target >= MaxSlots) return;
             if (_slotOwner[target].IsValid) return;          // taken (incl. by the requester's own slot)
+            if (!SlotAllowed(target)) return;                // e.g. crosser in a mode with no crosser body
             int cur = SlotOf(peer);
-            string name = cur >= 0 ? _slotName[cur] : PlayerProfile.PlayerName;
-            PlayerAppearance appr = cur >= 0 ? _slotAppearance[cur] : PlayerProfile.Appearance;
+            // Identity comes from the slot they're moving FROM; a slot-less (spectator) requester
+            // falls back to what their Hello told us, and only then to the local profile. Reading
+            // PlayerProfile directly used to make a slot-less claimer show up as a copy of the HOST.
+            bool known = _peerIdentity.TryGetValue(peer.Value, out var ident);
+            string name = cur >= 0 ? _slotName[cur] : (known ? ident.name : PlayerProfile.PlayerName);
+            PlayerAppearance appr = cur >= 0 ? _slotAppearance[cur]
+                                             : (known ? ident.appr : PlayerProfile.Appearance);
             byte[] jersey = cur >= 0 ? _slotJerseyPng[cur] : null;   // move the kit with the player
             if (cur >= 0)
             {
                 _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false;
                 _slotJerseyPng[cur] = null; _slotJerseyTex[cur] = null;
+                ResetSlotInput(cur);          // the slot they left must not keep their tick history
             }
             _slotOwner[target] = peer;
             _slotName[target] = string.IsNullOrEmpty(name) ? "PLAYER" : name;
             _slotAppearance[target] = appr;   // move the player's look with them
             _slotJerseyPng[target] = jersey; _slotJerseyTex[target] = null;
             _slotReady[target] = false;
+            // ...and the slot they moved INTO must not keep the previous occupant's tick, or the
+            // host would drop every input this player sends (see ResetSlotInput).
+            ResetSlotInput(target);
             // Tell the mover their new slot/role (host updates its own LocalSlot directly).
             if (peer.Equals(Transport.LocalPeer)) AssignLocal(target, RoleOfSlot(target));
             else Transport.Send(peer, NetCodec.AssignSlot((byte)target, RoleOfSlot(target)), NetChannel.Reliable);
