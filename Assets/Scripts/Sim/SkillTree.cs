@@ -208,6 +208,30 @@ namespace Trickshot
                 if (_byId.TryGetValue(id, out var n)) TryGrantChain(n);
         }
 
+        // The distinct skill AREAS a preset spends into (its headline category plus whatever second
+        // area it spills into). Used to undo a preset by area rather than node-by-node.
+        public static List<Category> PresetCategories(Preset p)
+        {
+            var cats = new List<Category>();
+            if (p == null) return cats;
+            foreach (var id in p.Ids)
+                if (_byId.TryGetValue(id, out var n) && !cats.Contains(n.Cat)) cats.Add(n.Cat);
+            return cats;
+        }
+
+        // Undo a preset: drop EVERY owned node in each area that preset covers, refunding those
+        // points. Clicking an applied quick build therefore deselects it and empties that area's
+        // branch in the tree (not just the preset's own node list), so the area is left clean rather
+        // than holding orphaned leftovers. Areas are wiped wholesale, so no prereq can be left
+        // dangling above a still-owned child.
+        public static void RemovePreset(Preset p)
+        {
+            if (p == null) return;
+            foreach (var cat in PresetCategories(p))
+                foreach (var n in InCategory(cat))
+                    Owned.Remove(n.Id);
+        }
+
         public static void Clear() => Owned.Clear();
 
         // Wipe the tree and roll a fresh, always-LEGAL random build: pick a random subset of the

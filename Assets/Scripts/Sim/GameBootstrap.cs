@@ -52,7 +52,39 @@ namespace Trickshot
             _cam.farClipPlane = 400f;
             _camGo.AddComponent<AudioListener>();
 
+            // A client losing the host (host quit / timed out) can happen on ANY screen, including
+            // mid-match where nothing used to notice - clients were left in a dead match with frozen
+            // puppets. Unwind to the main menu from one place.
+            Trickshot.Net.Multiplayer.HostConnectionLost -= OnHostConnectionLost;
+            Trickshot.Net.Multiplayer.HostConnectionLost += OnHostConnectionLost;
+
             ShowMainMenu();
+        }
+
+        void OnDestroy()
+        {
+            Trickshot.Net.Multiplayer.HostConnectionLost -= OnHostConnectionLost;
+        }
+
+        // The host is gone: drop whatever networked screen/match we were in and go back to the menu.
+        // Multiplayer.End() has already run, so this is pure local cleanup.
+        void OnHostConnectionLost()
+        {
+            Debug.Log("Lost connection to the host; returning to the main menu.");
+            TearDownMatch();
+            DestroyNetworkedUI();
+            ShowMainMenu();
+        }
+
+        // Remove any pregame networked UI (lobby / browser / host setup / lobby-customize) so the
+        // main menu isn't drawn underneath a stale panel after a disconnect.
+        void DestroyNetworkedUI()
+        {
+            foreach (var ui in FindObjectsByType<LobbyUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<SessionBrowserUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<HostSetupUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<MultiplayerHubUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<CustomizeUI>(FindObjectsSortMode.None)) Destroy(ui.gameObject);
         }
 
         // ---- Screen flow: main menu -> pre-match settings -> match (+ pause menu) ----
