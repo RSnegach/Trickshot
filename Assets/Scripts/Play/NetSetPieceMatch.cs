@@ -182,6 +182,7 @@ namespace Trickshot
                 else
                 {
                     _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
+                    _camTarget = me.ragdoll.Pelvis.transform;   // FollowActiveShooter tracks this
                     if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw);
                 }
             }
@@ -585,6 +586,9 @@ namespace Trickshot
             if (_replay == null || _replaying) return;
             _replaying = true;
             _cam.SetMode(GameCamera.Mode.Broadcast);
+            // The replay takes the camera over, so forget who we were orbiting: FollowActiveShooter
+            // must re-apply SetFollow (not skip it as "unchanged") once the replay hands the camera back.
+            _camTarget = null;
             _replay.Play(SimConfig.ReplaySlowMul);
             Flash("REPLAY  (click to skip)");
         }
@@ -607,7 +611,9 @@ namespace Trickshot
             if (_qcFeed != null)
             {
                 if (_input.QuickChatTextPressed) _qcFeed.ToggleTextEntry();
-                if (_qcFeed.Typing) return;
+                // Keep the spectating camera on the right shooter even while typing (a turn can
+                // change mid-message), then suspend the rest of gameplay input.
+                if (_qcFeed.Typing) { FollowActiveShooter(); return; }
                 int qd = _input.QuickChatDigitPressed();
                 if (qd > 0) _qcFeed.SendPreset(qd);
             }
@@ -631,8 +637,40 @@ namespace Trickshot
             if (_s.IsHost) HostUpdate();
             else ClientUpdate();
 
+            FollowActiveShooter();
+
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
         }
+
+        // A waiting SHOOTER watches the action from the ACTIVE shooter's camera instead of staring
+        // at their own parked body off to the side. It is the same third-person follow the taker
+        // themselves gets, so everyone sees the kick from the same view; the HUD (scoreboard,
+        // status, quickchat, flashes) is untouched and keeps drawing locally as normal.
+        //
+        // The keeper is never retargeted - they are live every kick and need their own keeper-cone
+        // view. Skipped while replaying (the replay owns the camera in Broadcast mode) and once the
+        // shootout is over. Re-evaluated each frame but only applied on a CHANGE, so it self-corrects
+        // for host-side BeginTurn and client-side ShootoutState alike without fighting the camera.
+        void FollowActiveShooter()
+        {
+            if (_localIsKeeper || _replaying || _over) return;
+
+            int watch = (_activeShooter != 255 && _activeShooter < _bodies.Length) ? _activeShooter : _localSlot;
+            var body = (watch >= 0 && watch < _bodies.Length) ? _bodies[watch] : null;
+            // Fall back to our own body if the active shooter has no spawned body on this peer.
+            if (body == null || body.ragdoll == null || body.ragdoll.Pelvis == null)
+            {
+                body = (_localSlot >= 0 && _localSlot < _bodies.Length) ? _bodies[_localSlot] : null;
+                if (body == null || body.ragdoll == null || body.ragdoll.Pelvis == null) return;
+            }
+
+            var target = body.ragdoll.Pelvis.transform;
+            if (target == _camTarget) return;   // already watching them
+            _camTarget = target;
+            _cam.SetFollow(target, () => _input.Look);
+        }
+
+        Transform _camTarget;   // whose pelvis the camera is currently orbiting
 
         bool LocalIsActiveShooter() => _localSlot == _activeShooter;
 
