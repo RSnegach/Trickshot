@@ -306,6 +306,12 @@ namespace Trickshot
         void ReturnToMatchSetup(GameMode mode)
         {
             TearDownMatch();
+            // End any networked session too. TearDownMatch destroys the match root - and with it the
+            // NetPump - so a surviving session would sit here unpolled: its socket stays bound (the
+            // next Host() then fails to bind 7777 and silently falls back to single-player), every
+            // client times out, and the rx inbox grows unboundedly. The pre-match screen is a
+            // single-player flow, so there is nothing left for the session to do.
+            Trickshot.Net.Multiplayer.End();
             ShowPrematch(mode);
         }
 
