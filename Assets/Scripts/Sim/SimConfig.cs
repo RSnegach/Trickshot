@@ -469,7 +469,13 @@ namespace Trickshot
         // never fire the shot the instant Space is hit. Space is pure hold-to-charge / release-to-shoot
         // (there is no longer a tap-dribble shot).
         public const float SetPieceMinChargeTime = 0.12f;
-        public const float SetPieceLookScatterMax = 7.0f; // max look-aim scatter (m) a ZERO-accuracy striker sprays; keyed to accuracy ONLY (power does NOT affect it) and shrinks to 0 at full accuracy
+        // Max look-aim scatter (m) a ZERO-accuracy striker sprays, keyed to accuracy ONLY (power does
+        // NOT affect it) and shrinking to 0 at full accuracy. Kept WELL under the goal half-width
+        // (3.66 m): at 7 m the random offset was ~2x the half-width in every direction, so the aim
+        // landed anywhere in a 14x14 m box and the player's look ray was completely swamped - shots
+        // appeared to ignore where you aimed and only spin visibly bent the path. 1.5 m still makes a
+        // raw striker spray noticeably without overriding the aim.
+        public const float SetPieceLookScatterMax = 1.5f;
         // AIM CONE: the goal-ward look window inside which aim assist applies. If the aim ray lands
         // more than this many degrees off the ball->goal line (looking egregiously to the side), the
         // shot is FORCED off target regardless of accuracy: the goal-ward steer, the curl-return, and
