@@ -60,7 +60,7 @@ namespace Trickshot
         const float RestSpeed   = 0.7f;   // ball considered stopped below this
         const float RestHold    = 0.5f;   // seconds at rest before resolving
         const float MaxLiveTime = 5f;     // safety cap so an attempt always resolves
-        const float ResetDelay  = 1.0f;   // callout time before re-arming (snappier than free kicks)
+        const float ResetDelay  = 0.25f;  // ball is back at the shooter's feet a beat after each attempt
 
         public void Configure(GameInput input, BallController ball, Striker striker, ActiveRagdoll strikerRagdoll,
                               Goalkeeper keeper, ActiveRagdoll keeperRagdoll, DefensiveWall wall, GameCamera cam)
@@ -219,9 +219,13 @@ namespace Trickshot
         }
 
         // A target was struck: bank the points (the board re-pops it itself).
+        // ONE target per kick: once this attempt has scored, further target triggers are ignored, so
+        // a ball rolling/bouncing around the goal mouth can't rack up extra targets off one shot.
+        // The latch clears on the next Arm().
         void OnTargetScored(int points, int index)
         {
             if (_finished) return;
+            if (_hitThisKick) return;   // already scored on this attempt
             _score += points;
             _hitThisKick = true;
             Flash("+" + points);

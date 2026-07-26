@@ -76,13 +76,21 @@ namespace Trickshot
             }
         }
 
+        // Scale the lobby up on big displays (see MenuScale). Wrapped so the early return can't
+        // leak the scaled GUI matrix.
         void OnGUI()
         {
             if (_s == null) { _onLeave?.Invoke(); return; }
+            MenuScale.Begin();
+            DrawLobby();
+            MenuScale.End();
+        }
 
+        void DrawLobby()
+        {
             float w = 560f, panelH = 480f;
-            float x = Screen.width * 0.5f - w * 0.5f;
-            float y = Screen.height * 0.5f - panelH * 0.5f;
+            float x = MenuScale.Width * 0.5f - w * 0.5f;
+            float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.94f);
             GUI.DrawTexture(new Rect(x, y, w, panelH), Texture2D.whiteTexture);
             GUI.color = new Color(0.16f, 0.55f, 0.95f, 0.9f); GUI.DrawTexture(new Rect(x, y, w, 3f), Texture2D.whiteTexture);

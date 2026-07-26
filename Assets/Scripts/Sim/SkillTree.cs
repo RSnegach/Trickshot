@@ -163,14 +163,49 @@ namespace Trickshot
                              "p1c","s1c","h1c" } },
         };
 
-        // Wipe the tree and grant exactly the preset's nodes (they are self-consistent, so
-        // add directly rather than routing through CanBuy).
+        // What a node costs to reach from the CURRENT spend: the node itself plus every
+        // prerequisite above it that isn't owned yet. Already-owned nodes cost 0.
+        public static int ChainCost(Node n)
+        {
+            int sum = 0;
+            for (var cur = n; cur != null; cur = string.IsNullOrEmpty(cur.Requires) ? null : ById(cur.Requires))
+            {
+                if (Owned.Contains(cur.Id)) break;   // this node and everything above it is paid for
+                sum += cur.Cost;
+            }
+            return sum;
+        }
+
+        // Grant a node AND any unowned prerequisites above it - but ONLY if the whole chain fits in
+        // the remaining points. This is the all-or-nothing rule capstones need: if you can't afford
+        // the complete capstone (plus the path to it) nothing is spent and it simply stays unset,
+        // rather than dribbling points into a half-finished branch. Returns true if granted.
+        public static bool TryGrantChain(Node n)
+        {
+            if (n == null || Owned.Contains(n.Id)) return false;
+            if (ChainCost(n) > Remaining) return false;
+            // Affordable: walk up collecting the unowned chain, then add it root-first.
+            var chain = new List<Node>();
+            for (var cur = n; cur != null && !Owned.Contains(cur.Id);
+                 cur = string.IsNullOrEmpty(cur.Requires) ? null : ById(cur.Requires))
+                chain.Add(cur);
+            for (int i = chain.Count - 1; i >= 0; i--) Owned.Add(chain[i].Id);
+            return true;
+        }
+
+        // Apply a preset ADDITIVELY on top of whatever is already bought, so several presets can be
+        // stacked to max out multiple areas with single clicks (it used to wipe the tree, which
+        // capped you at one capstone). Each of the preset's nodes is granted only if its full
+        // unowned prereq chain fits the remaining points; anything that doesn't fit - a capstone
+        // included - is skipped and left unset. Capstones are taken FIRST so a preset's headline
+        // perk isn't lost to the cheap filler nodes eating the budget.
         public static void ApplyPreset(Preset p)
         {
-            Owned.Clear();
             if (p == null) return;
             foreach (var id in p.Ids)
-                if (_byId.ContainsKey(id)) Owned.Add(id);
+                if (_byId.TryGetValue(id, out var n) && n.Perk != null) TryGrantChain(n);
+            foreach (var id in p.Ids)
+                if (_byId.TryGetValue(id, out var n)) TryGrantChain(n);
         }
 
         public static void Clear() => Owned.Clear();

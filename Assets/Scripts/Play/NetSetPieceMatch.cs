@@ -35,7 +35,10 @@ namespace Trickshot
         bool _accByTime;
         float _accTurnSeconds = 60f;
         float _turnClock;              // host: seconds left in the active shooter's timed turn
-        bool _hitThisKick;             // host: did the live attempt score a target?
+        bool _hitThisKick;             // host: did the live attempt score a target? (also the
+                                       // one-target-per-kick latch - see OnAccuracyScored)
+        float _accReturnTimer;         // host: >0 while waiting to put the ball back at the shooter
+        const float AccuracyReturnDelay = 0.25f;   // ball is back at the feet this long after a kick
 
         class Body
         {
@@ -498,6 +501,7 @@ namespace Trickshot
             {
                 _turnClock = _accTurnSeconds;
                 _hitThisKick = false;
+                _accReturnTimer = 0f;   // drop any pending ball-return from the previous turn
                 _board?.SpawnAll();
             }
 
@@ -545,6 +549,9 @@ namespace Trickshot
         void OnAccuracyScored(int points, int index)
         {
             if (_activeShooter >= NetSession.MaxSlots) return;
+            // ONE target per kick: ignore further triggers once this attempt has scored, so a ball
+            // rolling around the goal mouth can't collect extra targets off a single shot.
+            if (_hitThisKick) return;
             _scored[_activeShooter] += points;
             _hitThisKick = true;
             Flash("+" + points);
@@ -663,6 +670,13 @@ namespace Trickshot
             if (AccuracyMode && !_over)
             {
                 _board?.Tick(Time.deltaTime);
+                // Post-attempt ball return: hold briefly, then put the ball + shooter back on the
+                // spot for the next kick.
+                if (_accReturnTimer > 0f)
+                {
+                    _accReturnTimer -= Time.deltaTime;
+                    if (_accReturnTimer <= 0f) ReArmAccuracyKick();
+                }
                 if (_accByTime && _activeShooter != 255)
                 {
                     _turnClock -= Time.deltaTime;
@@ -777,6 +791,7 @@ namespace Trickshot
                     {
                         _phase = Phase.Live; _liveTime = _restTimer = 0f; _keeperTouched = false;
                         _saveWasEpic = false;
+                        _hitThisKick = false;   // fresh attempt: re-arm the one-target-per-kick latch
                         if (_wall != null) _wall.TriggerJump();
                         Flash("STRIKE!");
                     }
@@ -825,7 +840,10 @@ namespace Trickshot
                 BroadcastShootout();
                 bool kicksDone = !_accByTime && _taken[_activeShooter] >= _accKicks;
                 if (kicksDone) { EndActiveTurn(); return; }
-                ReArmAccuracyKick();
+                // Ball returns to the shooter's feet a beat (AccuracyReturnDelay) after the attempt
+                // resolves, rather than snapping back instantly. Settle holds until the timer fires.
+                _phase = Phase.Settle;
+                _accReturnTimer = AccuracyReturnDelay;
                 return;
             }
 
@@ -856,6 +874,7 @@ namespace Trickshot
             _aiKickDelay = Random.Range(0.6f, 1.4f);
             _armedElapsed = 0f;
             _hitThisKick = false;
+            _accReturnTimer = 0f;   // the return has happened; don't let the timer fire again
             _phase = Phase.Armed;
             _liveTime = _restTimer = _settle = 0f;
             AudioManager.Instance?.PlayWhistle();
