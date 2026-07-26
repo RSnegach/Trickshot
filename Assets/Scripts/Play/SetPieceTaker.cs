@@ -101,7 +101,15 @@ namespace Trickshot
             _awaitingRelease = input != null && input.JumpHeld;
             _committedAim = null;
             JustStruck = false;
-            SetColliders(true);
+            // The taker OWNS the ball for the whole attempt, so the shooter's body must not be able
+            // to touch it from the moment we arm - not just from release. Re-enabling collision here
+            // let the runup/plant foot physically graze the dead ball, and because SetPieceShot skips
+            // the swing-speed gate, even a gentle brush fired a full-power PHYSICAL set-piece strike
+            // whose target is derived from the CONTACT POINT (a top/bottom corner) and completely
+            // ignores the camera. That is why shots flew to the top of the net no matter where the
+            // player looked. The ball is launched by code (LaunchSetPiece) with the look-ray aim, so
+            // physical contact is never wanted while a taker is live.
+            SetColliders(false);
             if (_ragdoll != null) _ragdoll.UprightLock = true;
         }
 

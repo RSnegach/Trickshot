@@ -1126,9 +1126,16 @@ namespace Trickshot
                 var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
                                                         normal = { textColor = (active || canAdd) ? Color.white : new Color(1f, 1f, 1f, 0.4f) } };
                 GUI.Label(r, p.Name, lbl);
-                // Presets STACK now: clicking adds this build on top of the current spend (skipping
-                // anything unaffordable), so several can be combined to max out multiple areas.
-                if (canAdd && GUI.Button(r, GUIContent.none, GUIStyle.none)) { SkillTree.ApplyPreset(p); _selNode = null; }
+                // Presets TOGGLE and STACK: clicking an unapplied build adds it on top of the current
+                // spend (skipping anything unaffordable), so several can be combined; clicking an
+                // APPLIED (green) one deselects it and clears every node in the areas it covers,
+                // refunding those points.
+                if ((active || canAdd) && GUI.Button(r, GUIContent.none, GUIStyle.none))
+                {
+                    if (active) SkillTree.RemovePreset(p);
+                    else SkillTree.ApplyPreset(p);
+                    _selNode = null;
+                }
                 row += bh + bgap;
             }
 
@@ -1141,7 +1148,8 @@ namespace Trickshot
             row += 30f;
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
-            GUI.Label(new Rect(colX, row + 2f, bw, 34f), "Builds STACK - click several to max out multiple areas.", note);
+            GUI.Label(new Rect(colX, row + 2f, bw, 34f),
+                      "Builds STACK - click several to combine. Click a green one to remove it.", note);
         }
 
         // A preset counts as APPLIED when every one of its nodes is owned. Presets now stack

@@ -66,7 +66,8 @@ namespace Trickshot.Net
 
         ulong _nextPeer = 1;             // host = 1; clients get 2,3,...
         bool _pendingConnected;
-        float _now;                      // main-thread clock, advanced in Poll
+        float _now;                      // main-thread clock, advanced once per frame in Poll
+        int _lastPollFrame = -1;         // guards _now against multiple Poll calls in one frame
 
         // ---- lifecycle ----
         public void StartHost(int maxPlayers)
@@ -175,7 +176,17 @@ namespace Trickshot.Net
         public void Poll()
         {
             if (!_running) { DrainErrors(); return; }
-            _now += Time.unscaledDeltaTime;
+            // Advance the transport clock ONCE PER FRAME, not once per call. Poll is intentionally
+            // called from more than one place (the session-lifetime pump, the match NetPump, the
+            // lobby UI), and a naive `_now += deltaTime` ran the clock at 2x when two of them
+            // overlapped in a frame - which halves the effective PeerTimeout and causes spurious
+            // disconnects. Keying off frameCount makes extra calls idempotent for timing purposes
+            // while still draining the inbox every time.
+            if (_lastPollFrame != Time.frameCount)
+            {
+                _lastPollFrame = Time.frameCount;
+                _now += Time.unscaledDeltaTime;
+            }
 
             if (_pendingConnected) { _pendingConnected = false; Connected?.Invoke(); }
 

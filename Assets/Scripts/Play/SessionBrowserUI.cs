@@ -21,7 +21,7 @@ namespace Trickshot
         string _ipError = "";       // shown when the typed address won't parse OR a join fails
 
         // Join is a two-step handshake, not instant: after Multiplayer.Join we WAIT for the host to
-        // assign us a slot (LocalSlot >= 0) before showing the lobby. Without this the client used to
+        // assign us a real player slot (see NetSession.SlotRefused) before showing the lobby. Without this the client used to
         // pop straight into its own empty local lobby whether or not the host was ever reached (the
         // "joined an empty lobby that wasn't mine" bug). If no slot arrives before the deadline the
         // host is unreachable (firewall / wrong IP / Tailscale down): tear down + show why.
@@ -77,8 +77,19 @@ namespace Trickshot
                 // Pump the transport so the connect + Hello/AssignSlot handshake progresses.
                 Multiplayer.Poll();
                 var s = Multiplayer.Session;
-                // Success: the host assigned us a slot -> we're really in their lobby.
-                if (s != null && s.LocalSlot >= 0)
+                // REFUSED: the host answered, but with no player slot (255/spectator) - the lobby is
+                // full or a match is already in progress. Spectating isn't implemented and the match
+                // drivers clamp the slot into range, which would silently put us on slot 0's body,
+                // so bail out with the reason instead of entering the lobby.
+                if (s != null && s.LocalRole == NetRole.Spectator && s.SlotRefused)
+                {
+                    CancelConnect();
+                    _ipError = _connectLabel + " has no free slot (session full, or the match "
+                             + "already started). Try again when a slot opens.";
+                    return;
+                }
+                // Success: the host assigned us a real player slot -> we're in their lobby.
+                if (s != null && !s.SlotRefused)
                 {
                     _connecting = false;
                     enabled = false; _onJoined?.Invoke();

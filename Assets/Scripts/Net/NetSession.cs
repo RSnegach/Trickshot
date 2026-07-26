@@ -65,6 +65,10 @@ namespace Trickshot.Net
         // In-flight jersey reassembly buffers, keyed by slot (a slot only transfers one at a time).
         readonly Dictionary<int, JerseyRx> _jerseyRx = new Dictionary<int, JerseyRx>();
         const int JerseyChunkBytes = 1000;   // payload bytes per chunk (under the ~1.2KB UDP MTU)
+        // Hard ceiling on a networked jersey. The atlas is 256x520 RGBA = ~520 KB RAW and PNG
+        // compresses well below that, so 2 MB is generous; anything claiming more is a corrupt or
+        // hostile packet and is dropped rather than allocated (see OnJerseyChunk).
+        const uint MaxJerseyBytes = 2u * 1024u * 1024u;
         class JerseyRx { public byte[] buf; public uint total; public int have; public bool[] got; }
         readonly bool[] _slotReady = new bool[MaxSlots];
         // Host-only: per-slot AI enable. A non-human slot with _slotAi[i] true is an AI
@@ -409,13 +413,24 @@ namespace Trickshot.Net
             if (slot < 0 || slot >= MaxSlots) return;
             if (m.total == 0 || m.totalBytes == 0) return;
 
+            // SANITY-CHECK THE SIZES BEFORE ALLOCATING. total/totalBytes/index arrive as raw uints
+            // from an untrusted UDP packet; allocating straight from them (as this used to) let a
+            // corrupt or malicious packet ask for a ~4 GB byte[] and bool[], and
+            // `(int)index * JerseyChunkBytes` overflowed NEGATIVE for a large index, throwing inside
+            // Array.Copy. A real jersey is the 256x520 atlas encoded as PNG, so MaxJerseyBytes is a
+            // generous ceiling and the chunk count must agree with it.
+            if (m.totalBytes > MaxJerseyBytes) return;
+            uint expectChunks = (m.totalBytes + JerseyChunkBytes - 1) / JerseyChunkBytes;
+            if (m.total != expectChunks) return;      // count must match the declared byte length
+            if (m.index >= m.total || m.chunk == null) return;
+            if (m.chunk.Length > JerseyChunkBytes) return;
+
             if (!_jerseyRx.TryGetValue(slot, out var rx) || rx.total != m.total || rx.buf == null
                 || rx.buf.Length != m.totalBytes)
             {
                 rx = new JerseyRx { buf = new byte[m.totalBytes], total = m.total, have = 0, got = new bool[m.total] };
                 _jerseyRx[slot] = rx;
             }
-            if (m.index >= m.total || m.chunk == null) return;
             if (!rx.got[m.index])
             {
                 rx.got[m.index] = true;
@@ -482,9 +497,29 @@ namespace Trickshot.Net
         public void ClearSnapshotBuffer() { _snapCount = 0; HasSnapshot = false; }
 
         // ---- message routing ----
+        // Every packet here is UNTRUSTED (raw UDP): it can be truncated, corrupt, or carry a bogus
+        // type. NetReader throws (EndOfStreamException) the moment a field reads past the end, and
+        // that used to escape all the way out through Transport.Poll() into whatever called
+        // Multiplayer.Poll() - aborting the inbox drain and stopping keepalives, so a SINGLE bad
+        // packet could kill the session. Decode inside a guard instead: log it once and drop just
+        // that packet, then carry on draining.
         void OnMessage(PeerId from, byte[] data)
         {
+            try { RouteMessage(from, data); }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("NetSession: dropped a malformed packet ("
+                                 + (data != null ? data.Length : 0) + " bytes): " + e.Message);
+            }
+        }
+
+        void RouteMessage(PeerId from, byte[] data)
+        {
             var r = new NetReader(data);
+            // Host-authored message types are only ever legitimate FROM the host. On a client,
+            // reject them from anyone else so a stray/spoofed packet can't rewrite the roster,
+            // reassign our slot, or start the match.
+            if (!IsHost && IsHostOnly(r.Type) && !from.Equals(Transport.HostPeer)) return;
             switch (r.Type)
             {
                 case MsgType.Hello:      // host: a client announced itself -> give it a slot
@@ -591,6 +626,13 @@ namespace Trickshot.Net
             }
         }
 
+        // Message types only the HOST ever authors. A client accepts these from the host peer only
+        // (see RouteMessage); the host itself ignores them (its own handlers are IsHost-gated).
+        static bool IsHostOnly(MsgType t)
+            => t == MsgType.AssignSlot || t == MsgType.RosterSync || t == MsgType.StartMatch
+               || t == MsgType.Snapshot || t == MsgType.MatchEvent || t == MsgType.BallKick
+               || t == MsgType.ReplayStart || t == MsgType.ReplayEnd || t == MsgType.ShootoutState;
+
         void OnConnectedToHost()
         {
             // Announce ourselves to the HOST (the transport resolves the host peer on
@@ -686,8 +728,20 @@ namespace Trickshot.Net
             if (jersey != null && jersey.Length > 0) BroadcastJersey((byte)target, jersey);
         }
 
+        /// <summary>
+        /// True when the host refused us a player slot: the lobby was full, or a match was already
+        /// running when we joined (GrantSlot sends AssignSlot(255, Spectator) for both). There is no
+        /// spectator implementation, and the match drivers CLAMP LocalSlot into 0..MaxSlots-1 - so
+        /// without checking this a refused joiner silently ends up sharing slot 0's body and camera.
+        /// The UI reads this and bounces them out with a reason instead.
+        /// </summary>
+        public bool SlotRefused => LocalSlot < 0 || LocalSlot >= MaxSlots;
+
         void AssignLocal(int slot, NetRole role)
         {
+            // Keep the raw value (255 = refused/spectator) rather than clamping it here: callers
+            // need to be able to tell "no slot" apart from "slot 0". Anything outside the table is
+            // surfaced through SlotRefused above.
             LocalSlot = slot; LocalRole = role;
             SlotAssigned?.Invoke(slot, role);
         }
