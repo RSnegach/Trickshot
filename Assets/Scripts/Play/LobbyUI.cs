@@ -17,20 +17,15 @@ namespace Trickshot
         System.Action _onCustomize, _onStart, _onLeave;
         NetSession _s;
         bool _started;
-        volatile bool _hostLost;   // set from the transport Disconnected event; handled in Update
         string _hostAddrLine;   // host + direct-IP only: the IPs to share with friends
 
         public void Init(System.Action onCustomize, System.Action onStart, System.Action onLeave)
         {
             _onCustomize = onCustomize; _onStart = onStart; _onLeave = onLeave;
             _s = Multiplayer.Session;
-            if (_s != null)
-            {
-                _s.MatchStarting += OnMatchStarting;
-                // A client losing the host (timeout / host quit) fires Disconnected on the transport;
-                // flag it and bounce out of the lobby next Update (Disconnected can fire off the pump).
-                if (!_s.IsHost && _s.Transport != null) _s.Transport.Disconnected += OnHostLost;
-            }
+            // Losing the host is handled centrally (Multiplayer.HostConnectionLost -> GameBootstrap),
+            // so the lobby only needs the match-start hand-off.
+            if (_s != null) _s.MatchStarting += OnMatchStarting;
             GameInput.CaptureCursor(false);
 
             // On the direct-IP path, a host shows its address(es) so friends can type them in.
@@ -46,14 +41,8 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            if (_s != null)
-            {
-                _s.MatchStarting -= OnMatchStarting;
-                if (_s.Transport != null) _s.Transport.Disconnected -= OnHostLost;
-            }
+            if (_s != null) _s.MatchStarting -= OnMatchStarting;
         }
-
-        void OnHostLost() { _hostLost = true; }
 
         void OnMatchStarting()
         {
@@ -65,15 +54,12 @@ namespace Trickshot
 
         void Update()
         {
-            Multiplayer.Poll();   // pump the transport so roster/ready/start messages flow
-            // A client whose host vanished (timeout / host quit) shouldn't sit in a dead lobby.
-            // Once the match is starting we're handing off anyway, so only bounce before that.
-            if (!_started && _hostLost)
-            {
-                enabled = false;
-                Multiplayer.End();
-                _onLeave?.Invoke();
-            }
+            // NOTE: the session-lifetime pump in Multiplayer polls every frame now, so this call is
+            // belt-and-braces (Poll is idempotent within a frame). Losing the host is likewise no
+            // longer handled here: Multiplayer.HostConnectionLost fires on EVERY screen (including
+            // mid-match, which nothing used to cover) and GameBootstrap unwinds to the main menu, so
+            // handling it locally too would tear down twice.
+            Multiplayer.Poll();
         }
 
         // Scale the lobby up on big displays (see MenuScale). Wrapped so the early return can't
