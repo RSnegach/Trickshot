@@ -21,11 +21,15 @@ namespace Trickshot
 
         void OnGUI()
         {
+            // Scale the whole menu up on big displays (see MenuScale): all sizes below stay the
+            // same numbers, they just cover more of the screen. Use MenuScale.Width/Height instead
+            // of Screen.* while scaled.
+            MenuScale.Begin();
             var all = StadiumStyle.All;
             float panelW = 560f, rowH = 74f, gap = 14f;
             float panelH = 150f + all.Length * (rowH + gap);
-            float x = Screen.width * 0.5f - panelW * 0.5f;
-            float y = Screen.height * 0.5f - panelH * 0.5f;
+            float x = MenuScale.Width * 0.5f - panelW * 0.5f;
+            float y = MenuScale.Height * 0.5f - panelH * 0.5f;
 
             GUI.Box(new Rect(x, y, panelW, panelH), GUIContent.none);
 
@@ -57,17 +61,22 @@ namespace Trickshot
 
             // Back/Next anchored to the far left/right screen edges.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
-            float bw = 150f, edge = 24f, by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
+            float bw = 150f, edge = 24f, by = MenuScale.Height - 100f;   // 100px above the bottom, clear of panel content
             if (GUI.Button(new Rect(edge, by, bw, 42f), "Back", btn))
             {
                 enabled = false;
                 _onBack?.Invoke();
+                MenuScale.End();
+                return;
             }
-            if (GUI.Button(new Rect(Screen.width - edge - bw, by, bw, 42f), "Next", btn))
+            if (GUI.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 42f), "Next", btn))
             {
                 enabled = false;
                 _onPicked?.Invoke();
+                MenuScale.End();
+                return;
             }
+            MenuScale.End();
         }
     }
 }

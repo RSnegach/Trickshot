@@ -52,10 +52,13 @@ namespace Trickshot
 
         void OnGUI()
         {
+            // Scale the whole setup panel up on big displays (see MenuScale); sizes below are
+            // unchanged, they just fill more of the screen.
+            MenuScale.Begin();
             // Accuracy adds four extra option rows (wall / targets / turn format / turn amount).
             float w = 480f, panelH = Modes[_mode] == GameMode.Accuracy ? 610f : 470f;
-            float x = Screen.width * 0.5f - w * 0.5f;
-            float y = Screen.height * 0.5f - panelH * 0.5f;
+            float x = MenuScale.Width * 0.5f - w * 0.5f;
+            float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
             GUI.DrawTexture(new Rect(x, y, w, panelH), Texture2D.whiteTexture); GUI.color = prev;
 
@@ -96,7 +99,12 @@ namespace Trickshot
             // (Striker AI is chosen per-slot in the lobby now, not here.)
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
-            float by = Screen.height - 100f;   // fixed 100px from the screen bottom, clear of panel content
+            // Back/Create normally sit 100px above the screen bottom, but the Accuracy panel is
+            // much taller (610 vs 470) and its bottom edge reaches past that row, so the buttons
+            // overlapped its content. Push the row BELOW the panel whenever the panel extends
+            // lower, clamped so it can never run off the bottom of the screen.
+            float by = Mathf.Min(MenuScale.Height - 52f,
+                                 Mathf.Max(MenuScale.Height - 100f, y + panelH + 14f));
             if (GUI.Button(new Rect(x + 30f, by, 160f, 44f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
             if (GUI.Button(new Rect(x + w - 190f, by, 160f, 44f), "Create", btn)) Create();
 
@@ -105,6 +113,8 @@ namespace Trickshot
             // Accuracy uses the same dead-ball + wall placement, so it shows the same map.
             if (Modes[_mode] == GameMode.SetPieces || Modes[_mode] == GameMode.Accuracy)
                 DrawFreeKickSetup(x + w + 16f, y);
+
+            MenuScale.End();
         }
 
         void DrawFreeKickSetup(float px, float py)
