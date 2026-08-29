@@ -718,6 +718,20 @@ namespace Trickshot
         // the hips to their authored standing height and assign the SAME vertical velocity to every
         // bone, which lifts the assembly rigidly instead of stretching it against its own joints.
         // Gated on grounded + upright, so a jump, dive, trick, keeper lay-out or tumble never sees it.
+        // ---- absolute floor guard ----
+        // Every play surface in the game is a slab whose TOP face is y = 0 (PitchBuilder's "Ground"
+        // and ScrimmageArena's "ScrimGround" both centre themselves so the top lands there), so a
+        // single world constant is a valid floor for every mode.
+        //
+        // This is a LAST-RESORT invariant, not a positioning system. It exists because bodies were
+        // getting stuck in the ground and every softer mechanism had already failed: the grounding
+        // probe cannot see a floor it is already beneath, the carry servo is gated off exactly then,
+        // and the eight direct rb.position writes in ActiveRagdoll bypass continuous collision so
+        // nothing sweeps them. The tolerance is deliberately generous - a bone CENTRE legitimately
+        // sits below zero when a limb is flat on the turf and its collider radius carries it - so
+        // this only fires when a body is unambiguously wrong, and then it moves the WHOLE body as one
+        // rather than dragging a single bone through its joints.
+        public const float BodyFloorClampY = -0.30f;   // lowest a bone centre may be before a rescue
         public const float CarryHeightGain     = 10f;   // vertical velocity per metre of height error
         public const float CarryHeightMaxSpeed = 2.4f;  // m/s cap, so a big correction is still a glide
         public const float CarryErrUp          = 0.60f; // max height error it will lift out of (m)

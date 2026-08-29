@@ -5988,8 +5988,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_net_tailnetdiscovery",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 78,
+      "community_name": ".Tick",
       "norm_label": "tailnetdiscovery.cs"
     },
     {
@@ -6038,8 +6038,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_tailnetdiscovery_cs_int",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 78,
+      "community_name": ".Tick",
       "norm_label": "int"
     },
     {
@@ -10439,8 +10439,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_handlemodeldrag",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".handlemodeldrag()"
     },
     {
@@ -13676,8 +13676,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamecamera_trickshot_gamecamera_toggleballcam",
-      "community": 79,
-      "community_name": ".Heavy",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".toggleballcam()"
     },
     {
@@ -23201,8 +23201,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_addyaw",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".addyaw()"
     },
     {
@@ -30744,7 +30744,7 @@
       "label": ".IsOwn()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1200",
+      "source_location": "L1182",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30761,7 +30761,7 @@
       "label": ".AddImpulseToPelvis()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1208",
+      "source_location": "L1190",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30778,7 +30778,7 @@
       "label": ".AddTorqueToPelvis()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1209",
+      "source_location": "L1191",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30795,7 +30795,7 @@
       "label": ".SpinWholeBody()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1218",
+      "source_location": "L1200",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30812,7 +30812,7 @@
       "label": ".StopBodySpin()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1231",
+      "source_location": "L1213",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30829,7 +30829,7 @@
       "label": ".SetBodyAngularVelocity()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1248",
+      "source_location": "L1230",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30846,7 +30846,7 @@
       "label": ".CenterOfMass()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1275",
+      "source_location": "L1257",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30863,7 +30863,7 @@
       "label": ".AddVelocityToAll()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1287",
+      "source_location": "L1269",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30880,7 +30880,7 @@
       "label": ".ShiftAll()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1296",
+      "source_location": "L1278",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30897,7 +30897,7 @@
       "label": ".ScaleHorizontalVelocity()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1309",
+      "source_location": "L1291",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30914,7 +30914,7 @@
       "label": ".LaunchVerticalAll()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1321",
+      "source_location": "L1303",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30931,7 +30931,7 @@
       "label": ".SetPoseOverride()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1328",
+      "source_location": "L1310",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30948,7 +30948,7 @@
       "label": ".AddPoseOverride()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1334",
+      "source_location": "L1316",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30965,7 +30965,7 @@
       "label": ".ClearPoseOverrides()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1345",
+      "source_location": "L1327",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -30982,7 +30982,7 @@
       "label": ".ApproxBounds()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1352",
+      "source_location": "L1334",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31010,7 +31010,7 @@
       "label": ".ResetTo()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1361",
+      "source_location": "L1343",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31027,7 +31027,7 @@
       "label": ".BecomeDisplayBody()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1386",
+      "source_location": "L1368",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31044,7 +31044,7 @@
       "label": ".DisplaySnap()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1397",
+      "source_location": "L1379",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31061,7 +31061,7 @@
       "label": ".SnapLayout()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1412",
+      "source_location": "L1394",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31078,7 +31078,7 @@
       "label": ".SnapBone()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1423",
+      "source_location": "L1405",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31095,7 +31095,7 @@
       "label": ".DisplayEmote()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1441",
+      "source_location": "L1423",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31112,7 +31112,7 @@
       "label": ".DisplayAnim()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1476",
+      "source_location": "L1458",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -31129,7 +31129,7 @@
       "label": ".DisplayPose()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1576",
+      "source_location": "L1558",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -36920,7 +36920,7 @@
       "label": ".BuildGoal()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L123",
+      "source_location": "L111",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -36948,7 +36948,7 @@
       "label": ".EndMarkings()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L178",
+      "source_location": "L166",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -36976,7 +36976,7 @@
       "label": ".Line()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L213",
+      "source_location": "L201",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -36993,7 +36993,7 @@
       "label": ".MakeBackstop()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L218",
+      "source_location": "L206",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37021,7 +37021,7 @@
       "label": ".MakeWall()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L226",
+      "source_location": "L214",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37139,7 +37139,7 @@
       "label": "ScrimRole",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1151",
+      "source_location": "L1137",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -37157,7 +37157,7 @@
       "label": "ScrimPos",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1166",
+      "source_location": "L1152",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -37175,7 +37175,7 @@
       "label": ".Formation()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1200",
+      "source_location": "L1186",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37192,7 +37192,7 @@
       "label": ".PositionOf()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1209",
+      "source_location": "L1195",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37209,7 +37209,7 @@
       "label": ".PositionName()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1215",
+      "source_location": "L1201",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37226,7 +37226,7 @@
       "label": ".ShirtForPosition()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1221",
+      "source_location": "L1207",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37243,7 +37243,7 @@
       "label": ".KeeperShirt()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1230",
+      "source_location": "L1216",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37260,7 +37260,7 @@
       "label": ".PositionAnchorBase()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1241",
+      "source_location": "L1227",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37288,7 +37288,7 @@
       "label": ".PositionAnchor()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1260",
+      "source_location": "L1246",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37305,7 +37305,7 @@
       "label": "AiDifficulty",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1295",
+      "source_location": "L1281",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -37323,7 +37323,7 @@
       "label": "AiTuning",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1307",
+      "source_location": "L1293",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -37352,7 +37352,7 @@
       "label": ".NearestAiLevel()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1345",
+      "source_location": "L1331",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37369,7 +37369,7 @@
       "label": ".ApplyScrimmageStatics()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1391",
+      "source_location": "L1377",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37386,7 +37386,7 @@
       "label": ".ScrimHalfLength()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1436",
+      "source_location": "L1422",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37403,7 +37403,7 @@
       "label": ".ScrimHalfWidth()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1437",
+      "source_location": "L1423",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -37420,7 +37420,7 @@
       "label": ".AiPace()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1602",
+      "source_location": "L1588",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -53417,7 +53417,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1476",
+      "source_location": "L1458",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -66313,7 +66313,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1449",
+      "source_location": "L1431",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayemote",
@@ -66441,7 +66441,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1451",
+      "source_location": "L1433",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayemote",
@@ -75830,7 +75830,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1179",
+      "source_location": "L1165",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -75845,7 +75845,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1200",
+      "source_location": "L1186",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -75860,7 +75860,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1241",
+      "source_location": "L1227",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75875,7 +75875,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1209",
+      "source_location": "L1195",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -75890,7 +75890,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1221",
+      "source_location": "L1207",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76169,7 +76169,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1327",
+      "source_location": "L1313",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -103164,7 +103164,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1325",
+      "source_location": "L1311",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -106097,7 +106097,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1152",
+      "source_location": "L1138",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -115930,7 +115930,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1562",
+      "source_location": "L1544",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -115975,7 +115975,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1561",
+      "source_location": "L1543",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -116012,7 +116012,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1208",
+      "source_location": "L1190",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116034,7 +116034,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1334",
+      "source_location": "L1316",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116045,7 +116045,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1209",
+      "source_location": "L1191",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116056,7 +116056,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1287",
+      "source_location": "L1269",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116111,7 +116111,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1352",
+      "source_location": "L1334",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116133,7 +116133,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1386",
+      "source_location": "L1368",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116177,7 +116177,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1275",
+      "source_location": "L1257",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116188,7 +116188,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1345",
+      "source_location": "L1327",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116232,7 +116232,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1476",
+      "source_location": "L1458",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116243,7 +116243,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1441",
+      "source_location": "L1423",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116254,7 +116254,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1576",
+      "source_location": "L1558",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116265,7 +116265,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1397",
+      "source_location": "L1379",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116331,7 +116331,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1200",
+      "source_location": "L1182",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116342,7 +116342,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1321",
+      "source_location": "L1303",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116452,7 +116452,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1361",
+      "source_location": "L1343",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116474,7 +116474,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1309",
+      "source_location": "L1291",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116485,7 +116485,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1248",
+      "source_location": "L1230",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116507,7 +116507,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1328",
+      "source_location": "L1310",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116540,7 +116540,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1296",
+      "source_location": "L1278",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116551,7 +116551,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1423",
+      "source_location": "L1405",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116573,7 +116573,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1412",
+      "source_location": "L1394",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116584,7 +116584,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1218",
+      "source_location": "L1200",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116595,7 +116595,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1231",
+      "source_location": "L1213",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll",
@@ -116662,7 +116662,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1198",
+      "source_location": "L1180",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -116962,7 +116962,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1476",
+      "source_location": "L1458",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -116977,7 +116977,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1441",
+      "source_location": "L1423",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -116992,7 +116992,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1576",
+      "source_location": "L1558",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117007,7 +117007,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1397",
+      "source_location": "L1379",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117067,7 +117067,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1361",
+      "source_location": "L1343",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117082,7 +117082,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1423",
+      "source_location": "L1405",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117112,7 +117112,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1412",
+      "source_location": "L1394",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117256,7 +117256,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1208",
+      "source_location": "L1190",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117286,7 +117286,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1334",
+      "source_location": "L1316",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117301,7 +117301,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1209",
+      "source_location": "L1191",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117316,7 +117316,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1287",
+      "source_location": "L1269",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117376,7 +117376,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1275",
+      "source_location": "L1257",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -117406,7 +117406,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1476",
+      "source_location": "L1458",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117421,7 +117421,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1441",
+      "source_location": "L1423",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117436,7 +117436,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1576",
+      "source_location": "L1558",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117451,7 +117451,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1397",
+      "source_location": "L1379",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117511,7 +117511,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1361",
+      "source_location": "L1343",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117541,7 +117541,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1248",
+      "source_location": "L1230",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117571,7 +117571,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1328",
+      "source_location": "L1310",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117586,7 +117586,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1296",
+      "source_location": "L1278",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117601,7 +117601,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1423",
+      "source_location": "L1405",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117616,7 +117616,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1412",
+      "source_location": "L1394",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117631,7 +117631,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1218",
+      "source_location": "L1200",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -117751,7 +117751,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1200",
+      "source_location": "L1182",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -118364,7 +118364,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1546",
+      "source_location": "L1528",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayanim",
@@ -118376,7 +118376,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1460",
+      "source_location": "L1442",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayemote",
@@ -118388,7 +118388,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1591",
+      "source_location": "L1573",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displaypose",
@@ -118412,7 +118412,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1418",
+      "source_location": "L1400",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_snaplayout",
@@ -118724,7 +118724,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1220",
+      "source_location": "L1202",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_spinwholebody",
@@ -118736,7 +118736,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1255",
+      "source_location": "L1237",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_setbodyangularvelocity",
@@ -118759,7 +118759,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1328",
+      "source_location": "L1310",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -118786,7 +118786,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1334",
+      "source_location": "L1316",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -118802,7 +118802,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1373",
+      "source_location": "L1355",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_resetto",
@@ -118813,7 +118813,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1352",
+      "source_location": "L1334",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -118829,7 +118829,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1379",
+      "source_location": "L1361",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_resetto",
@@ -118841,7 +118841,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1400",
+      "source_location": "L1382",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displaysnap",
@@ -118853,7 +118853,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1418",
+      "source_location": "L1400",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_snaplayout",
@@ -118864,7 +118864,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1423",
+      "source_location": "L1405",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -118881,7 +118881,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1494",
+      "source_location": "L1476",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayanim",
@@ -118893,7 +118893,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Ragdoll/ActiveRagdoll.cs",
-      "source_location": "L1494",
+      "source_location": "L1476",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayanim",
@@ -127107,7 +127107,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L55",
+      "source_location": "L43",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -127119,7 +127119,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L128",
+      "source_location": "L116",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
@@ -127530,7 +127530,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L138",
+      "source_location": "L126",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
@@ -127650,7 +127650,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L132",
+      "source_location": "L120",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
@@ -128082,7 +128082,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L49",
+      "source_location": "L37",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -128094,7 +128094,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L215",
+      "source_location": "L203",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_line",
@@ -128106,7 +128106,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L220",
+      "source_location": "L208",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_makebackstop",
@@ -128118,7 +128118,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L228",
+      "source_location": "L216",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_makewall",
@@ -128370,7 +128370,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L130",
+      "source_location": "L118",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
@@ -128469,7 +128469,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L51",
+      "source_location": "L39",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -128481,7 +128481,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L129",
+      "source_location": "L117",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
@@ -130128,7 +130128,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L209",
+      "source_location": "L197",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_endmarkings",
@@ -130140,7 +130140,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L72",
+      "source_location": "L60",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -131296,7 +131296,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L170",
+      "source_location": "L158",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131311,7 +131311,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L171",
+      "source_location": "L159",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131348,7 +131348,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L123",
+      "source_location": "L111",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena",
@@ -131359,7 +131359,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L178",
+      "source_location": "L166",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena",
@@ -131370,7 +131370,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L213",
+      "source_location": "L201",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena",
@@ -131381,7 +131381,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L218",
+      "source_location": "L206",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena",
@@ -131392,7 +131392,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L226",
+      "source_location": "L214",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena",
@@ -131433,7 +131433,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L123",
+      "source_location": "L111",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131448,7 +131448,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L213",
+      "source_location": "L201",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131463,7 +131463,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L218",
+      "source_location": "L206",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131478,7 +131478,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L226",
+      "source_location": "L214",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131509,7 +131509,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L81",
+      "source_location": "L69",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -131521,7 +131521,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L77",
+      "source_location": "L65",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -131533,7 +131533,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L65",
+      "source_location": "L53",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -131545,7 +131545,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L91",
+      "source_location": "L79",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_build",
@@ -131592,7 +131592,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L123",
+      "source_location": "L111",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131607,7 +131607,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L178",
+      "source_location": "L166",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131622,7 +131622,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L213",
+      "source_location": "L201",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131637,7 +131637,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L218",
+      "source_location": "L206",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131652,7 +131652,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L226",
+      "source_location": "L214",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131668,7 +131668,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L152",
+      "source_location": "L140",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_buildgoal",
@@ -131679,7 +131679,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L178",
+      "source_location": "L166",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131695,7 +131695,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L187",
+      "source_location": "L175",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_scrimmagearena_trickshot_scrimmagearena_endmarkings",
@@ -131706,7 +131706,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L213",
+      "source_location": "L201",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131721,7 +131721,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L218",
+      "source_location": "L206",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131736,7 +131736,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/ScrimmageArena.cs",
-      "source_location": "L226",
+      "source_location": "L214",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -131762,7 +131762,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1480",
+      "source_location": "L1466",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131792,7 +131792,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1723",
+      "source_location": "L1709",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131807,7 +131807,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1172",
+      "source_location": "L1158",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131822,7 +131822,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1340",
+      "source_location": "L1326",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131837,7 +131837,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L759",
+      "source_location": "L745",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -131852,7 +131852,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1295",
+      "source_location": "L1281",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131863,7 +131863,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1307",
+      "source_location": "L1293",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131885,7 +131885,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1166",
+      "source_location": "L1152",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131896,7 +131896,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1151",
+      "source_location": "L1137",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131907,7 +131907,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1602",
+      "source_location": "L1588",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131918,7 +131918,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1391",
+      "source_location": "L1377",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131929,7 +131929,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1200",
+      "source_location": "L1186",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131940,7 +131940,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1230",
+      "source_location": "L1216",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131951,7 +131951,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1345",
+      "source_location": "L1331",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131962,7 +131962,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1260",
+      "source_location": "L1246",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131973,7 +131973,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1241",
+      "source_location": "L1227",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131984,7 +131984,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1215",
+      "source_location": "L1201",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -131995,7 +131995,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1209",
+      "source_location": "L1195",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -132006,7 +132006,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1436",
+      "source_location": "L1422",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -132017,7 +132017,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1437",
+      "source_location": "L1423",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -132028,7 +132028,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1221",
+      "source_location": "L1207",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -132039,7 +132039,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1309",
+      "source_location": "L1295",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -132055,7 +132055,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1262",
+      "source_location": "L1248",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionanchor",
@@ -132067,7 +132067,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1211",
+      "source_location": "L1197",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionof",
@@ -132079,7 +132079,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1223",
+      "source_location": "L1209",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_shirtforposition",
@@ -132091,7 +132091,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1215",
+      "source_location": "L1201",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionname",
@@ -132103,7 +132103,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1408",
+      "source_location": "L1394",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_applyscrimmagestatics",
@@ -132115,7 +132115,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1265",
+      "source_location": "L1251",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionanchor",
@@ -132126,7 +132126,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1241",
+      "source_location": "L1227",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -132141,7 +132141,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1260",
+      "source_location": "L1246",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -140618,5 +140618,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "b332fe9b032e1b910414d8fc85de5a7dd75668d5"
+  "built_at_commit": "5421cda06be61c59851bfd4f6089b3b6296837d9"
 }

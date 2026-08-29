@@ -1,7 +1,7 @@
-# Graph Report - Trickshot  (2026-08-29)
+# Graph Report - Trickshot  (2026-08-28)
 
 ## Corpus Check
-- 139 files · ~652,681 words
+- 139 files · ~652,145 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b332fe9b`
+- Built from commit: `5421cda0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -194,7 +194,7 @@
 ## Communities (142 total, 12 thin omitted)
 
 ### Community 0 - "Ball Physics & Launch"
-Cohesion: 0.07
+Cohesion: 0.06
 Nodes (18): Action, bool, Color, Color32, Dictionary, float, Func, GUIStyle (+10 more)
 
 ### Community 1 - "Jersey / Nation Designs"
@@ -282,7 +282,7 @@ Cohesion: 0.15
 Nodes (7): bool, float, int, string, Vector3, AccuracyGame, Phase
 
 ### Community 23 - "SkillTree"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (10): bool, float, int, Random, string, Vector3, FreeKickGame, Outcome (+2 more)
 
 ### Community 24 - "Footballer"
@@ -470,8 +470,8 @@ Cohesion: 0.17
 Nodes (12): com.unity.ext.nunit, com.unity.test-framework, dependencies, depth, source, version, dependencies, depth (+4 more)
 
 ### Community 72 - ".AdvanceTurn"
-Cohesion: 0.15
-Nodes (13): Action, bool, ConcurrentQueue, float, int, IPAddress, IPEndPoint, List (+5 more)
+Cohesion: 0.18
+Nodes (12): Action, bool, ConcurrentQueue, float, IPAddress, IPEndPoint, List, string (+4 more)
 
 ### Community 73 - ".Build"
 Cohesion: 0.17
@@ -494,11 +494,11 @@ Cohesion: 0.38
 Nodes (7): Hair Strand Texture Atlas, Dense Wavy Strand Card (Tile 3), Flowing Wavy Strand Card (Tile 2), Four-Column Horizontal Tile Layout, White-on-Black Strand Alpha/Luminance Mask, Straight Sleek Strand Card (Tile 4), Wavy Scattered Strand Card (Tile 1)
 
 ### Community 78 - ".Tick"
-Cohesion: 0.29
-Nodes (3): byte, uint, LobbyProbe
+Cohesion: 0.23
+Nodes (4): byte, int, uint, LobbyProbe
 
 ### Community 79 - ".Heavy"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (8): bool, Delivery, float, int, string, Transform, Vector3, FreeplayGame
 
 ### Community 80 - "MenuUI"
@@ -722,7 +722,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `Reason`, `Phase`, `SetPieceSpin` to the rest of the system?**
   _172 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Ball Physics & Launch` be split into smaller, more focused modules?**
-  _Cohesion score 0.06519114688128773 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06316590563165905 - nodes in this community are weakly interconnected._
 - **Should `Jersey / Nation Designs` be split into smaller, more focused modules?**
   _Cohesion score 0.11901263590949163 - nodes in this community are weakly interconnected._
 - **Should `Dribble System` be split into smaller, more focused modules?**

@@ -806,6 +806,8 @@ namespace Trickshot
         {
             if (Pelvis == null) return;
 
+            FloorRescue();
+
             _poseT = Mathf.Min(1f, _poseT + Time.fixedDeltaTime * _poseSpeed);
 
             // Keep the whole target skeleton oriented to the current facing, so when the
@@ -1172,12 +1174,83 @@ namespace Trickshot
                     IsGrounded = true;
                 }
             }
+
+            // AND IF BOTH PROBES FAILED WHILE THE PELVIS IS BELOW THE WORLD FLOOR, assume the world
+            // floor. This is the hole the earlier fix left, and it made the earlier fix WORSE than what
+            // it replaced for this one case: both probes cast DOWNWARD, so a body already beneath the
+            // turf sees nothing, _floorValid goes false, and gating the carry servo on _floorValid then
+            // switched off the only thing that could have lifted it. Measured at a pelvis of -0.02:
+            // zero downward hits, recovery ray fails, servo disabled, body abandoned. Before the gate
+            // existed the servo at least ran - on a fabricated ground height that drove it further
+            // down, so it was broken either way, just differently.
+            //
+            // Assuming y = 0 is safe because every play surface's top face IS y = 0 (see
+            // SimConfig.BodyFloorClampY). Worst case on a venue that ever changes that, the servo lifts
+            // toward a slightly wrong height for the few frames until a real probe succeeds.
+            if (!_floorValid && Pelvis.position.y < 0f)
+            {
+                _groundY = 0f;
+                _floorValid = true;
+            }
         }
 
         // Reused probe buffer. 8 is generous: the query is a short cast straight down from one pelvis,
         // and the loop takes the HIGHEST valid hit rather than the first, so a truncated result set
         // degrades to a slightly lower floor estimate rather than to a wrong one.
         readonly RaycastHit[] _probeHits = new RaycastHit[8];
+
+        /// <summary>
+        /// LAST-RESORT INVARIANT: no bone may sit below the world floor. Runs first thing every
+        /// physics tick, before anything else can read a broken position.
+        ///
+        /// This exists because "players get stuck in the ground" survived three softer fixes, and each
+        /// one failed for its own reason:
+        ///   - the grounding probe casts DOWNWARD, so it cannot see a floor it is already beneath;
+        ///   - the carry servo is gated on that probe succeeding, so it switches off in exactly the
+        ///     situation where lifting is needed;
+        ///   - continuous collision protects against fast MOTION, but ActiveRagdoll has eight direct
+        ///     rb.position writes (SnapBone, SnapLayout, the two display-puppet paths, the free-kick
+        ///     restore) and a position write is a teleport, with no sweep to stop it.
+        /// So the guarantee cannot come from sensing or from physics. It has to be an assertion.
+        ///
+        /// MOVES THE WHOLE BODY, NOT ONE BONE. Lifting a single sunk bone drags it against its joints
+        /// and can tear the ragdoll into a shape the drives then fight; translating every bone by the
+        /// same deficit preserves the pose exactly and leaves the joints untouched.
+        ///
+        /// Kinematic bodies are skipped. A networked display puppet is positioned wholesale by the
+        /// host every frame, so clamping it here would just fight the host and hide a desync.
+        ///
+        /// Cost: one compare per bone (13) plus, only when it fires, one write per bone. Nothing
+        /// allocates. At 22 bodies that is 286 float compares a tick, which is noise.
+        /// </summary>
+        void FloorRescue()
+        {
+            if (Pelvis.isKinematic) return;
+
+            float floor = SimConfig.BodyFloorClampY;
+            float lowest = float.MaxValue;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                float y = _rb[i].position.y;
+                if (y < lowest) lowest = y;
+            }
+            if (lowest >= floor || lowest == float.MaxValue) return;
+
+            // Lift so the lowest bone lands ON the tolerance line rather than at the surface: dumping a
+            // body at stand height would look like a teleport, and the carry servo will take it the rest
+            // of the way now that _groundY resolves again.
+            float lift = floor - lowest;
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                _rb[i].position += new Vector3(0f, lift, 0f);
+                // Kill DOWNWARD velocity only. Preserving the horizontal keeps a running body running,
+                // and preserving an upward component keeps a legitimate jump or dive intact.
+                var v = _rb[i].linearVelocity;
+                if (v.y < 0f) { v.y = 0f; _rb[i].linearVelocity = v; }
+            }
+        }
 
         bool IsOwn(Collider c)
         {

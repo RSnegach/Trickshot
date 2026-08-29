@@ -34,8 +34,20 @@ namespace Trickshot
 
             // Ground plane (own, so it doesn't rely on the training PitchBuilder).
             var grassMat = Turf.Ground(new Color(0.20f, 0.42f, 0.20f), hw * 2f + 8f, hl * 2f + 8f);
-            var ground = Make.Box("ScrimGround", new Vector3(hw * 2f + 8f, 0.4f, hl * 2f + 8f),
-                                  new Vector3(0f, -0.2f, 0f), grassMat, root, collider: true);
+            // 4 m THICK, not 0.4. The top face stays at y = 0; all of the extra goes downward.
+            //
+            // Depth is what makes a body that ends up under the surface RECOVERABLE. Measured: a body
+            // pushed 0.02 m down still overlaps the slab and Unity's depenetration ejects it within a
+            // frame, but once it is past the bottom face nothing touches it again and it is gone for
+            // good. At 0.4 m that margin was tiny, and ActiveRagdoll has eight direct rb.position
+            // writes (SnapBone, SnapLayout, the display-puppet paths, the free-kick restore) which
+            // bypass continuous collision entirely - so a write of half a metre put a bone straight
+            // through the floor with no sweep to stop it.
+            //
+            // Costs nothing: it is one box, static-batched with the rest of the arena, and the extra
+            // volume is never rendered because only the top face is ever visible.
+            var ground = Make.Box("ScrimGround", new Vector3(hw * 2f + 8f, 4f, hl * 2f + 8f),
+                                  new Vector3(0f, -2f, 0f), grassMat, root, collider: true);
             ground.GetComponent<Collider>().material = Make.PhysMat("Turf", 0.1f, 0.6f, 0.6f);
 
             // Painted markings. Thin bright boxes, no colliders. NOT static-batched: these hang
