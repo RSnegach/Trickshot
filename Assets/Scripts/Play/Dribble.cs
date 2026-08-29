@@ -80,10 +80,185 @@ namespace Trickshot
         /// <summary>Whoever is carrying the ball right now, or null.</summary>
         public static Dribble Holder => _holder;
 
-        /// <summary>Drop the ball from whoever is carrying it (tackle, whistle, reset).</summary>
+        /// <summary>Drop the ball from whoever is carrying it. FORCED, no contest - whistles, resets,
+        /// kickoffs and teleports are not challenges, they are the ball leaving play. A TACKLE must go
+        /// through ContestTackle below instead.</summary>
         public static void ReleaseHolder()
         {
             if (_holder != null) _holder.ForceRelease();
+        }
+
+        // ---------------------------------------------------------------------------------------
+        // THE TACKLE CONTEST
+        //
+        // MEASURED BEFORE THIS EXISTED, in a live 5-a-side (Normal, keeper 0.5, gravity -19.60,
+        // fdt 0.0200), by invoking Footballer.TryTackle at a swept distance over 10 approach angles,
+        // 20 trials each, and reading ScrimmageGame._flash for the win:
+        //
+        //     0.20 m 20/20   1.00 m 20/20   1.55 m 20/20   1.65 m 0/20   2.20 m 0/20
+        //     0.60 m 20/20   1.40 m 20/20   1.60 m 19/20   1.80 m 0/20   3.00 m 0/20
+        //
+        // 200 trials, ZERO variance, no dependence on angle, on the carrier, or on anything else.
+        // (1.60 read 19/20 only from float error on the sample circle's radius.) The tackle was a
+        // STEP FUNCTION on |ball - tackler| <= SimConfig.TackleReach 1.6, and that is the whole of
+        // the "tackles always steal the ball" complaint.
+        //
+        // AND 1.6 m WAS FREE BY CONSTRUCTION. A carrier at a sprint knocks the ball
+        // DribbleSprintDistance 2.35 m AHEAD of himself, and AiChaseStopDist 0.6 means a presser
+        // closes to 0.6 m of the BALL - so the presser sits inside the reach on every approach,
+        // permanently. The only stochastic element in the whole system was whether the bot bothered:
+        // Random.value < Lerp(0.35, 1, Decision), which at Normal (0.60) is 0.74. With
+        // TackleCooldown 0.9 s a pressed carrier lost the ball in 0.9/0.74 = 1.2 s of a defender
+        // arriving.
+        //
+        // WHAT REPLACES IT. A challenge must first be IN POSITION (a hard gate, because "you were
+        // behind him" is something a player can see and fix), then wins on a product of four terms.
+        // The numbers are set against real tackle success, which sits near half of attempts:
+        //
+        //     square challenge, average carrier                       0.34  <- TackleBaseWin
+        //     head-on, on the ball, closing hard, into a sprinter
+        //       who has just knocked it out in front                   0.80  <- TackleWinMax
+        //     from behind, at full stretch, flat-footed, against
+        //       close control                                          0.05  <- TackleWinMin
+        //
+        // At 0.34 behind the same 0.74 attempt roll a carrier survives 1/(0.74*0.34) = 4.0 attempts,
+        // about 3.6 s of sustained pressure against the measured 1.2 s. THAT is the target: three or
+        // four goes, not one.
+        //
+        // LIMITS, plainly. (1) The tuning constants live here rather than in SimConfig because
+        // SimConfig is owned elsewhere this round; they belong next to TackleReach. (2) Close control
+        // and the Control stat can only be read for a HUMAN carry - a bot carries the ball through
+        // Footballer, not through this component - so those two terms drop out of a bot-vs-bot
+        // challenge. Everything else, including the whole vulnerability window, is geometry and
+        // applies to both. (3) "Foul" here only means the carrier goes down and the tackler is
+        // punished for longer; scrimmage has no free kick to award yet.
+        // ---------------------------------------------------------------------------------------
+
+        public enum TackleResult
+        {
+            NoCarrier,   // nobody was carrying: this was never a tackle, do NOT knock the ball
+            WrongSide,   // trailing the carrier, or out of reach: not a position to challenge from
+            Won,         // ball won; the carry is ALREADY released, caller may knock it loose
+            Beaten,      // lost the contest - tackler is off balance
+            Foul         // lost a COMMITTED (slide) challenge - carrier goes down, tackler punished
+        }
+
+        public const float TackleBaseWin       = 0.34f;  // square challenge, average carrier
+        public const float TackleWinMin        = 0.05f;
+        public const float TackleWinMax        = 0.80f;
+        // How much FURTHER from the ball than the carrier a challenger may still be. 1.10 m lets a
+        // defender who has drawn roughly level poke it away (the angle term then docks him to
+        // TackleBehindMul); it denies one still trailing by two metres, which was the case that read
+        // as the ball teleporting backwards out of your feet.
+        public const float TackleBallSideSlack = 1.10f;
+        public const float TackleBehindMul     = 0.45f;  // arriving from directly behind the carrier
+        public const float TackleFrontMul      = 1.15f;  // meeting him head-on
+        public const float TackleCleanDist     = 0.55f;  // AiChaseStopDist 0.6 minus a hair: right on it
+        public const float TackleOnItMul       = 1.35f;
+        public const float TackleStretchMul    = 0.30f;  // at the very edge of SimConfig.TackleReach
+        public const float TackleFlatMul       = 0.75f;  // challenger not closing on the ball at all
+        public const float TackleChargeMul     = 1.30f;
+        public const float TackleChargeSpeed   = 4f;     // m/s of closing speed that earns the full bonus
+        // Carrier terms. The GAP is the real vulnerability window: the touch model itself puts the
+        // ball DribbleNearDistance 0.72 m out at a walk and 2.35 m out at a sprint, so "he has pushed
+        // it too far in front" is already simulated and the contest only has to read it. Pace is kept
+        // as a SEPARATE term because a sprinter also cannot change direction - which is what finally
+        // makes the pace/control trade this class comment claims real actually cost something.
+        public const float TackleGapBonus      = 0.50f;
+        public const float TackleSprintBonus   = 0.40f;
+        public const float TackleCloseCtrlCut  = 0.40f;
+        public const float TackleTightnessCut  = 0.30f;
+
+        /// <summary>
+        /// Contest a tackle against whoever is carrying. On Won the carry is ALREADY released and the
+        /// caller may knock the ball loose; on ANY other result the caller must leave the ball alone.
+        /// `flash` is a curt reason for the HUD, because a player who cannot see why he lost the ball
+        /// reads every loss as broken - which is exactly how we got here.
+        /// </summary>
+        public static TackleResult ContestTackle(ActiveRagdoll tackler, ActiveRagdoll carrier,
+                                                Vector3 ballPos, bool committed, out string flash)
+        {
+            flash = null;
+            if (tackler == null || tackler.Pelvis == null) return TackleResult.NoCarrier;
+
+            // Prefer the caller's carrier, fall back to the human holder. NO CARRIER MEANS A LOOSE
+            // BALL, AND A LOOSE BALL IS NOT A TACKLE. The old path still knocked it away and felled
+            // the nearest opponent for it (the AI gate is _acting != Phase.Attack, which includes
+            // Phase.Loose), which was a second way possession changed for free.
+            Dribble hold = _holder;
+            if (carrier == null && hold != null) carrier = hold._ragdoll;
+            if (carrier == null || carrier.Pelvis == null || carrier == tackler) return TackleResult.NoCarrier;
+            if (hold != null && hold._ragdoll != carrier) hold = null;   // the holder is somebody else
+
+            Vector3 ball = ballPos; ball.y = 0f;
+            Vector3 me = tackler.Pelvis.position; me.y = 0f;
+            Vector3 him = carrier.Pelvis.position; him.y = 0f;
+            float myBall = Vector3.Distance(me, ball);
+            float hisBall = Vector3.Distance(him, ball);
+
+            // HARD GATE. A rule, not a multiplier, on purpose: it is the most legible kind of loss.
+            if (myBall > SimConfig.TackleReach) { flash = "TOO FAR"; return TackleResult.WrongSide; }
+            if (myBall > hisBall + TackleBallSideSlack) { flash = "WRONG SIDE"; return TackleResult.WrongSide; }
+
+            // 1. ANGLE. Compare the two approach vectors INTO the ball: +1 means we arrive on the same
+            //    line (from behind him), -1 head-on. From behind is where fouls come from, not tackles.
+            Vector3 mine = ball - me, his = ball - him;
+            float sameLine = (mine.sqrMagnitude > 1e-4f && his.sqrMagnitude > 1e-4f)
+                           ? Vector3.Dot(mine.normalized, his.normalized) : 0f;
+            float angleMul = Mathf.Lerp(TackleFrontMul, TackleBehindMul,
+                                        Mathf.InverseLerp(-1f, 1f, sameLine));
+
+            // 2. TIMING, as distance from the ball at the instant of the challenge. The sweep above
+            //    proves 0.20 m and 1.59 m used to be identical; this is the term that separates them,
+            //    and it is the one a player learns first - get closer, win more.
+            float timeMul = Mathf.Lerp(TackleOnItMul, TackleStretchMul,
+                                       Mathf.InverseLerp(TackleCleanDist, SimConfig.TackleReach, myBall));
+
+            // 3. MOMENTUM: closing speed RELATIVE to the carrier, along the line to the ball. A
+            //    flat-footed defender standing beside a runner should not take it off him.
+            Vector3 rel = tackler.MoveInput - carrier.MoveInput; rel.y = 0f;
+            Vector3 toBall = mine.sqrMagnitude > 1e-4f ? mine.normalized : Vector3.forward;
+            float closing = Mathf.Max(0f, Vector3.Dot(rel, toBall));
+            float moMul = Mathf.Lerp(TackleFlatMul, TackleChargeMul,
+                                     Mathf.Clamp01(closing / TackleChargeSpeed));
+
+            // 4. CARRIER STATE. The gap is pure geometry so it works for a bot carrier too; the two
+            //    Dribble-only terms simply drop out for one (see LIMITS above).
+            float gap01 = Mathf.Clamp01(Mathf.InverseLerp(SimConfig.DribbleNearDistance,
+                                                         SimConfig.DribbleLoseRadius, hisBall));
+            float carrierMul = 1f + TackleGapBonus * gap01
+                                  + TackleSprintBonus * Sprint01(carrier.GroundSpeed);
+            if (hold != null)
+            {
+                if (hold.CloseControl) carrierMul -= TackleCloseCtrlCut;
+                carrierMul -= TackleTightnessCut * Mathf.Clamp01(hold.Tightness);
+            }
+            carrierMul = Mathf.Clamp(carrierMul, 0.35f, 1.9f);
+
+            float p = Mathf.Clamp(TackleBaseWin * angleMul * timeMul * moMul * carrierMul,
+                                  TackleWinMin, TackleWinMax);
+
+            if (Random.value < p)
+            {
+                if (hold != null) hold.ForceRelease();
+                flash = "TACKLE!";
+                return TackleResult.Won;
+            }
+
+            // MISSING HAS TO COST. Without this the contest is only a SLOWER steal - a defender would
+            // hold the button until a roll landed, and at 0.74 attempts a second that is four seconds.
+            // Beaten 0.55 s against TackleCooldown 0.9 s is about 60% of his next attempt window: a
+            // real cost he recovers from. A committed slide that misses is a foul and costs double.
+            var mine_kd = tackler.GetComponentInParent<Knockdown>();
+            if (mine_kd != null)
+                mine_kd.Stumble(committed ? Knockdown.BeatenSlideTime : Knockdown.BeatenTime);
+
+            if (!committed) { flash = "BEATEN"; return TackleResult.Beaten; }
+
+            var his_kd = carrier.GetComponentInParent<Knockdown>();
+            if (his_kd != null) his_kd.Fell(him - me);
+            flash = "FOUL";
+            return TackleResult.Foul;
         }
 
         // Master switch: dribbling is only ENABLED in modes where the ball is live. Dead-ball

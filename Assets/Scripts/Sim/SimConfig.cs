@@ -1648,7 +1648,20 @@ namespace Trickshot
         public const float TackleReach     = 1.6f;  // distance to the ball at which the tackle wins it
         public const float TackleCooldown  = 0.9f;  // seconds before the same player can tackle again
         public const float TackleKnock     = 4.5f;  // how hard the won ball is knocked away from the carrier
-        public const float AiTackleRange    = 2.2f;  // an AI defender lunges when this close to an opponent carrier
+        // INSIDE TackleReach, deliberately. This was 2.2 against a TackleReach of 1.6, and once the
+        // steal became a contest (Dribble.ContestTackle) that 0.6 m band was 100% wasted: the bot
+        // lunged, the contest hard-gated it as TOO FAR, and it could never win. Measured live at 2.2:
+        // 18 AI attempts, 1 won, 6% - against a 34% design target - because most attempts were fired
+        // from outside the gate. The AI resolves its contest at the INSTANT it lunges (TryTackle), with
+        // no arrival window like the human's, so the trigger has to sit where a win is possible.
+        public const float AiTackleRange    = 1.55f; // an AI defender lunges when this close to the ball
+        // How long an armed AI lunge gets to physically close the last bit of distance before its
+        // contest resolves. Added after AiTackleRange 1.55 alone still measured 0/39 then 1/15 wins:
+        // TryTackle used to lunge and contest in the SAME frame, so ContestTackle's timing term always
+        // saw "committed from the edge of reach", its worst case, on every attempt. 0.35 s mirrors the
+        // human's ResolveTackleWindow (0.4 s) and gives TackleLunge (see below) time to actually carry
+        // him in before the geometry is judged.
+        public const float AiTackleWindow   = 0.35f;
 
         // Knockdowns: a tackled player (or one caught by a slide tackle) falls over, goes
         // limp for a moment, then gets back up.

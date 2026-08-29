@@ -308,7 +308,10 @@ namespace Trickshot
 
             Vector3 me = _controlled.Pos; me.y = 0f;
             Footballer victim = null; float best = SimConfig.SlideTackleRange;
-            foreach (var f in _away)   // Home human -> opponents are Away
+            // Opponents OF THE SLIDING PLAYER, not a hardcoded _away. The old scan assumed the human is
+            // always Home, so an Away human slide-tackled his own team - fine in single player where he
+            // always is Home, wrong the moment a net client is seated on the other side.
+            foreach (var f in TeamList(_controlled.Team == 0 ? 1 : 0))
             {
                 if (f == null) continue;
                 Vector3 fp = f.Pos; fp.y = 0f;
@@ -322,19 +325,31 @@ namespace Trickshot
             if (victim.Knock != null) victim.Knock.Fell(dir);          // they go down
             if (_controlled.Knock != null) _controlled.Knock.Fell(dir); // and so do you (a slide)
 
-            // If the felled opponent had the ball, knock it loose toward our attack.
-            Vector3 b = _ball.transform.position; b.y = 0f;
-            if (Vector3.Distance(victim.Pos, b) <= SimConfig.BallRadius + 1.3f)
+            // CONTEST THE STEAL. This was `if (Distance(victim, ball) <= 1.52f)` and nothing else: a
+            // slide that reached anybody near the ball took it, every time, with no reference to the
+            // carrier. committed:true buys a real slide a better shot at it and makes a MISS cost
+            // double (Knockdown.BeatenSlideTime), which is what a mistimed slide should cost.
+            //
+            // The mutual fell above stays unconditional and happens either way - a slide connects
+            // whether or not it wins the ball. Knockdown's re-entry guard makes the Foul path's second
+            // Fell refresh the timer instead of restacking the impulse, and Stumble self-cancels on a
+            // body whose Striker IsBusy, so the slider is not limped on top of his own slide.
+            var carrier = _ball != null ? _ball.DribbleCarrier : null;
+            var res = Dribble.ContestTackle(_controlled.Ragdoll, carrier,
+                                            _ball != null ? _ball.transform.position : Vector3.zero,
+                                            true, out string why);
+            if (res == Dribble.TackleResult.Won)
             {
-                Dribble.ReleaseHolder();
+                // Credit it properly. This path never called WinBall, so NoteTackle never saw a slide
+                // and the post-match TKL column was silently missing every slide steal.
+                NoteTackle(_controlled.Ragdoll, carrier);
                 _ball.SetDribbleCarrier(null);
                 Vector3 fwd = new Vector3(0f, 0f, _controlled.AttackZ);
                 _ball.KickTo(fwd * SimConfig.TackleKnock + Vector3.up * 0.4f, _controlled.Ragdoll);
-                // Explicit, because this path NEVER calls WinBall, so NoteTackle never sees it. That is
-                // also a live bug in the post-match board: slide steals are missing from the TKL column.
                 MatchProbe.SlideWin();
+                Flash("SLIDE TACKLE!");
             }
-            Flash("SLIDE TACKLE!");
+            else Flash(why ?? "SLIDE");
         }
 
         // Diving header contact: a body in MID-FLIGHT of a diving header that reaches an opponent
@@ -405,8 +420,14 @@ namespace Trickshot
             Vector3 b = _ball.transform.position; b.y = 0f;
             if (Vector3.Distance(me, b) <= SimConfig.TackleReach)
             {
-                WinBall(_controlled);
+                // END THE WINDOW WHETHER OR NOT HE WINS. This is the whole reason the window exists as
+                // a window: it gives the lunge time to ARRIVE in reach, and the instant it arrives the
+                // challenge happens and is over. Leaving it armed on a loss re-contested every frame -
+                // measured at ~24 rolls across a 0.4 s window, which converts a 34% chance into a
+                // certainty and would have reproduced "tackles always steal the ball" through the new
+                // contest instead of through the old step function.
                 _tackleWindow = 0f;
+                WinBall(_controlled);
             }
         }
 
@@ -417,15 +438,27 @@ namespace Trickshot
         // tackler's forward, and fell the player who was on the ball. Cancels dribble hold.
         void WinBall(Footballer tackler)
         {
-            // Credit the tackle against whoever was ACTUALLY carrying, read before the release below
-            // clears it. NoteTackle rejects a win with no carrier, which is what stops the column being
-            // farmed off loose balls (see NoteTackle).
-            NoteTackle(tackler != null ? tackler.Ragdoll : null, _ball != null ? _ball.DribbleCarrier : null);
-            // Drop the ball from whoever is ACTUALLY carrying it. Releasing the TACKLER'S own
-            // Dribble (the old behaviour) released the wrong body and only worked by accident,
-            // because clearing the hold used to kill the leash globally. The second call covers an
-            // AI carrier, which claims the ball directly instead of through a Dribble component.
-            Dribble.ReleaseHolder();
+            // Read the carrier FIRST. A won contest releases the hold, and Dribble.StopCarry clears
+            // BallController.DribbleCarrier on its way out, so reading it afterwards would credit the
+            // tackle against nobody. Both a human carry (Dribble) and an AI carry (Footballer) set
+            // this same field, so one read covers both.
+            var carrier = _ball != null ? _ball.DribbleCarrier : null;
+
+            // CONTEST IT. Until this line the steal was `if (distance <= 1.6f) win`, with no reference
+            // to the carrier at all - a 1-rated defender took the ball off a 99-rated dribbler 100% of
+            // the time, from any angle, flat-footed, and the human path re-tested it every frame for
+            // 0.4 s so one press got ~24 free attempts. That is the whole of "tackles and slide
+            // tackles always steal the ball". Dribble.ContestTackle owns the odds (0.34 for a square
+            // challenge) and the cost of missing, so spamming no longer converts a roll into a
+            // certainty. It also rejects a LOOSE ball, which this path used to treat as a tackle.
+            var res = Dribble.ContestTackle(tackler != null ? tackler.Ragdoll : null, carrier,
+                                            _ball != null ? _ball.transform.position : Vector3.zero,
+                                            false, out string why);
+            if (res != Dribble.TackleResult.Won) { if (why != null) Flash(why); return; }
+
+            NoteTackle(tackler != null ? tackler.Ragdoll : null, carrier);
+            // ContestTackle already released the human hold on its way to Won. This still has to run
+            // for an AI carrier, which claims the ball directly instead of through a Dribble.
             _ball.SetDribbleCarrier(null);
 
             Vector3 dir = tackler != null ? (tackler.Ragdoll.FacingRotation * Vector3.forward) : Vector3.forward;
@@ -434,8 +467,14 @@ namespace Trickshot
             _ball.KickTo(dir.normalized * SimConfig.TackleKnock + Vector3.up * 0.5f,
                          tackler != null ? tackler.Ragdoll : null);
 
-            // Fell the opponent who was on the ball (nearest opponent of the tackler's team).
-            var victim = NearestOpponentToBall(tackler != null ? tackler.Team : 0);
+            // Fell the man who was ACTUALLY carrying. This used to fell NearestOpponentToBall, which
+            // is a guess, and on a crowded ball it fells a bystander while the carrier stays upright -
+            // one of the ways a lost ball read as broken rather than as a tackle. The nearest-opponent
+            // path stays as the fallback for the case where the carrier body has no Footballer.
+            Footballer victim = null;
+            if (carrier != null)
+                foreach (var f in _all) { if (f != null && f.Ragdoll == carrier) { victim = f; break; } }
+            if (victim == null) victim = NearestOpponentToBall(tackler != null ? tackler.Team : 0);
             if (victim != null && victim.Knock != null)
                 victim.Knock.Fell(victim.Pos - (tackler != null ? tackler.Pos : victim.Pos));
             Flash("TACKLE!");

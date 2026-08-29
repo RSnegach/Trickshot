@@ -71,6 +71,7 @@ namespace Trickshot
         float _gaitWeight;
         readonly Vector3[] _gaitScratch = new Vector3[(int)Bone.Count];
         float _kickCooldown;
+        float _tackleWindow;   // seconds left to arrive in reach after committing to a lunge
         float _carryTouchTimer;   // counts down to this bot's next dribble touch
         bool _carryColl;          // ball<->own-body collision currently suspended for a carry
 
@@ -196,6 +197,7 @@ namespace Trickshot
             Vector3 me = Pos; me.y = 0f;
             Vector3 ball = _ball.transform.position; ball.y = 0f;
             float ballDist = Vector3.Distance(me, ball);
+            if (_tackleWindow > 0f) ResolveTackleWindow(me, ball);
             bool onBall = ballDist < SimConfig.AiChaseStopDist + SimConfig.BallRadius + 0.35f;
 
             // A carry that has lost the ball must end on the FRAME, not at the next think: otherwise
@@ -541,15 +543,37 @@ namespace Trickshot
         // the human's tackle uses. What a tier buys is how often the lunge is attempted at all (the
         // Decision-weighted gate at the call site in Think). Deliberate: a tier may change when and
         // how well a bot acts, never what its body can do.
+        //
+        // COMMIT, THEN ARRIVE. This used to lunge and contest the ball in the SAME instant, at
+        // whatever distance triggered the commit - which is AiTackleRange, right at the inner edge of
+        // TackleReach. Dribble.ContestTackle's timing term rewards closing all the way in (its worst
+        // case IS "committed from the edge of reach"), so an instant-resolve tackle was measured
+        // landing there on every single attempt: 200k-scale, this was 0/39 and 1/15 wins against a
+        // design anchor of 34%. The human tackle already gets an ARRIVAL window (ResolveTackleWindow,
+        // 0.4 s) before its contest checks distance; giving the AI the same shape - lunge now, resolve
+        // once the lunge has actually closed him in - is what lets it ever reach a fair geometry.
         void TryTackle(Vector3 me, Vector3 ball)
         {
             _kickCooldown = SimConfig.TackleCooldown;
-            MatchProbe.TackleAttempt(ProbeTackle.Ai);   // ATTEMPT. The win is the reach test three lines down.
+            MatchProbe.TackleAttempt(ProbeTackle.Ai);   // ATTEMPT. The win is the arrival test below.
             Vector3 to = ball - me; to.y = 0f;
             if (to.sqrMagnitude > 0.01f)
                 Ragdoll.AddVelocityToAll(to.normalized * SimConfig.TackleLunge);
-            if (to.magnitude <= SimConfig.TackleReach)
-                _game.WinBallForAi(this);
+            _tackleWindow = SimConfig.AiTackleWindow;
+        }
+
+        // Resolve an armed lunge once it has had a moment to close the distance. Same shape as
+        // ScrimmageGame.ResolveTackleWindow: spend the window's ONE contest on arrival, win or lose,
+        // so a miss cannot be re-rolled every remaining frame of the window.
+        void ResolveTackleWindow(Vector3 me, Vector3 ball)
+        {
+            if (_tackleWindow <= 0f) return;
+            _tackleWindow -= Time.deltaTime;
+            float dist = Vector3.Distance(me, ball);
+            if (dist > SimConfig.TackleReach && _tackleWindow > 0f) return;   // still closing, still armed
+            _tackleWindow = 0f;
+            if (dist > SimConfig.TackleReach) return;   // window expired without arriving: no contest at all
+            _game.WinBallForAi(this);
         }
 
         // On our own ball, in priority order: SHOOT (in range, facing, lane), PASS (the shared
