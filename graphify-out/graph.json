@@ -1011,8 +1011,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_sampleframe",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".sampleframe()"
     },
     {
@@ -1022,8 +1022,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_inputframe",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "inputframe"
     },
     {
@@ -3326,8 +3326,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_joinrefusal",
-      "community": 68,
-      "community_name": ".ResetTo",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "joinrefusal"
     },
     {
@@ -3354,8 +3354,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_cs_vector2",
-      "community": 70,
-      "community_name": "QuickChat",
+      "community": 68,
+      "community_name": ".ResetTo",
       "norm_label": "vector2"
     },
     {
@@ -3371,8 +3371,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_animstate",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": "animstate"
     },
     {
@@ -3416,8 +3416,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_snapshot",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 68,
+      "community_name": ".ResetTo",
       "norm_label": "snapshot"
     },
     {
@@ -3902,8 +3902,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_assignslot",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".assignslot()"
     },
     {
@@ -3987,8 +3987,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_matchstats",
-      "community": 68,
-      "community_name": ".ResetTo",
+      "community": 52,
+      "community_name": "com.unity.modules.imageconversion",
       "norm_label": ".matchstats()"
     },
     {
@@ -4580,8 +4580,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_setconfig",
-      "community": 68,
-      "community_name": ".ResetTo",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".setconfig()"
     },
     {
@@ -4988,8 +4988,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_inputforslot",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".inputforslot()"
     },
     {
@@ -5005,8 +5005,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_inputtickforslot",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".inputtickforslot()"
     },
     {
@@ -5022,8 +5022,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_setlocalinput",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".setlocalinput()"
     },
     {
@@ -5039,8 +5039,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastsnapshot",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -5197,8 +5197,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_clearmatchstats",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".clearmatchstats()"
     },
     {
@@ -5214,8 +5214,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastmatchstats",
-      "community": 68,
-      "community_name": ".ResetTo",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".broadcastmatchstats()"
     },
     {
@@ -5231,8 +5231,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastshootout",
-      "community": 68,
-      "community_name": ".ResetTo",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".broadcastshootout()"
     },
     {
@@ -6866,8 +6866,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracygame_trickshot_accuracygame_tickarmed",
-      "community": 23,
-      "community_name": "SkillTree",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".tickarmed()"
     },
     {
@@ -7019,8 +7019,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracygame_trickshot_accuracygame_drawpowermeter",
-      "community": 95,
-      "community_name": "Role.cs",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".drawpowermeter()"
     },
     {
@@ -9712,8 +9712,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowd_trickshot_crowd_celebrate",
-      "community": 99,
-      "community_name": ".TabBtn",
+      "community": 96,
+      "community_name": ".StartRebind",
       "norm_label": ".celebrate()"
     },
     {
@@ -9802,8 +9802,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_crowdcheer",
-      "community": 99,
-      "community_name": ".TabBtn",
+      "community": 96,
+      "community_name": ".StartRebind",
       "norm_label": "crowdcheer.cs"
     },
     {
@@ -9819,8 +9819,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowdcheer_trickshot_crowdcheer",
-      "community": 99,
-      "community_name": ".TabBtn",
+      "community": 96,
+      "community_name": ".StartRebind",
       "norm_label": "crowdcheer"
     },
     {
@@ -9853,8 +9853,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowdcheer_trickshot_crowdcheer_celebrate",
-      "community": 99,
-      "community_name": ".TabBtn",
+      "community": 96,
+      "community_name": ".StartRebind",
       "norm_label": ".celebrate()"
     },
     {
@@ -11212,8 +11212,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_build",
-      "community": 16,
-      "community_name": "Bone",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".build()"
     },
     {
@@ -11341,8 +11341,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_triggerjump",
-      "community": 23,
-      "community_name": "SkillTree",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".triggerjump()"
     },
     {
@@ -12830,8 +12830,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_freekickgame_trickshot_freekickgame_fullreset",
-      "community": 16,
-      "community_name": "Bone",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".fullreset()"
     },
     {
@@ -13855,8 +13855,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_ongoal",
-      "community": 99,
-      "community_name": ".TabBtn",
+      "community": 96,
+      "community_name": ".StartRebind",
       "norm_label": ".ongoal()"
     },
     {
@@ -15428,8 +15428,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_hud_trickshot_hud_worldtogui",
-      "community": 95,
-      "community_name": "Role.cs",
+      "community": 113,
+      "community_name": ".Update",
       "norm_label": ".worldtogui()"
     },
     {
@@ -15439,8 +15439,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_hud_cs_vector3",
-      "community": 95,
-      "community_name": "Role.cs",
+      "community": 113,
+      "community_name": ".Update",
       "norm_label": "vector3"
     },
     {
@@ -15450,8 +15450,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_hud_cs_vector2",
-      "community": 95,
-      "community_name": "Role.cs",
+      "community": 113,
+      "community_name": ".Update",
       "norm_label": "vector2"
     },
     {
@@ -15569,8 +15569,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_hud_trickshot_hud_card",
-      "community": 27,
-      "community_name": "NetSetPieceMatch",
+      "community": 95,
+      "community_name": "Role.cs",
       "norm_label": ".card()"
     },
     {
@@ -18583,8 +18583,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": "lobbyui"
     },
     {
@@ -18605,8 +18605,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_cs_bool",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": "bool"
     },
     {
@@ -18616,8 +18616,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_cs_string",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": "string"
     },
     {
@@ -18627,8 +18627,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_cs_float",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": "float"
     },
     {
@@ -18661,8 +18661,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_ondestroy",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": ".ondestroy()"
     },
     {
@@ -18678,8 +18678,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_onmatchstarting",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": ".onmatchstarting()"
     },
     {
@@ -18746,8 +18746,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_rolename",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": ".rolename()"
     },
     {
@@ -18763,8 +18763,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_visibilityline",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": ".visibilityline()"
     },
     {
@@ -18774,8 +18774,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_cs_color",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": "color"
     },
     {
@@ -18791,8 +18791,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_configline",
-      "community": 58,
-      "community_name": "IStrikerInput",
+      "community": 90,
+      "community_name": "MenuUI",
       "norm_label": ".configline()"
     },
     {
@@ -19402,8 +19402,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_trickshot_menuui_ongui",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".ongui()"
     },
     {
@@ -19520,8 +19520,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_netaccuracymatch",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": "netaccuracymatch.cs"
     },
     {
@@ -19537,8 +19537,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netaccuracymatch_trickshot_netaccuracymatch",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": "netaccuracymatch"
     },
     {
@@ -19554,8 +19554,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netaccuracymatch_trickshot_netaccuracymatch_configure",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": ".configure()"
     },
     {
@@ -19565,8 +19565,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netaccuracymatch_cs_camera",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": "camera"
     },
     {
@@ -19576,8 +19576,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netaccuracymatch_cs_material",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": "material"
     },
     {
@@ -19587,8 +19587,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netaccuracymatch_cs_transform",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": "transform"
     },
     {
@@ -19727,8 +19727,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_cs_transform",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": "transform"
     },
     {
@@ -19811,8 +19811,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_configure",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".configure()"
     },
     {
@@ -19822,8 +19822,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_cs_camera",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": "camera"
     },
     {
@@ -19833,8 +19833,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_cs_material",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": "material"
     },
     {
@@ -19997,8 +19997,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_update",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".update()"
     },
     {
@@ -20014,8 +20014,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_hostupdate",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".hostupdate()"
     },
     {
@@ -20031,8 +20031,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_publishsnapshotifdue",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".publishsnapshotifdue()"
     },
     {
@@ -20048,8 +20048,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_broadcastsnapshot",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -20065,8 +20065,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_animstateof",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".animstateof()"
     },
     {
@@ -20116,8 +20116,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_clientupdate",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".clientupdate()"
     },
     {
@@ -20133,8 +20133,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_rostername",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".rostername()"
     },
     {
@@ -20150,8 +20150,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_applyauthoritativedown",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".applyauthoritativedown()"
     },
     {
@@ -20167,8 +20167,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_reconcilelocalbody",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".reconcilelocalbody()"
     },
     {
@@ -20184,8 +20184,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_findbody",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".findbody()"
     },
     {
@@ -21015,8 +21015,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_publishsnapshotifdue",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".publishsnapshotifdue()"
     },
     {
@@ -21083,8 +21083,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_animstateof",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".animstateof()"
     },
     {
@@ -21100,8 +21100,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_broadcastsnapshot",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -21851,8 +21851,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_publishsnapshotifdue",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".publishsnapshotifdue()"
     },
     {
@@ -21868,8 +21868,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_clientupdate",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".clientupdate()"
     },
     {
@@ -21885,8 +21885,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_reconcilelocalbody",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".reconcilelocalbody()"
     },
     {
@@ -21902,8 +21902,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_findbody",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".findbody()"
     },
     {
@@ -21919,8 +21919,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_animstateof",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".animstateof()"
     },
     {
@@ -21936,8 +21936,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_broadcastsnapshot",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -22179,8 +22179,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_draw",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".draw()"
     },
     {
@@ -22190,8 +22190,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_cs_action",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": "action"
     },
     {
@@ -22207,8 +22207,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_tabbtn",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 126,
+      "community_name": "SimConfig",
       "norm_label": ".tabbtn()"
     },
     {
@@ -22218,8 +22218,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_cs_rect",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 126,
+      "community_name": "SimConfig",
       "norm_label": "rect"
     },
     {
@@ -22229,8 +22229,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_cs_guistyle",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 126,
+      "community_name": "SimConfig",
       "norm_label": "guistyle"
     },
     {
@@ -22263,8 +22263,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_drawaudio",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".drawaudio()"
     },
     {
@@ -23191,8 +23191,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_ongui",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".ongui()"
     },
     {
@@ -23772,8 +23772,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchatfeed_trickshot_quickchatfeed_bind",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".bind()"
     },
     {
@@ -23988,8 +23988,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_replaysystem_trickshot_frame",
-      "community": 113,
-      "community_name": ".Update",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "frame"
     },
     {
@@ -23999,8 +23999,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_replaysystem_cs_vector3",
-      "community": 113,
-      "community_name": ".Update",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "vector3"
     },
     {
@@ -24010,8 +24010,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_replaysystem_cs_quaternion",
-      "community": 113,
-      "community_name": ".Update",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "quaternion"
     },
     {
@@ -24234,8 +24234,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_savewatch",
-      "community": 96,
-      "community_name": ".StartRebind",
+      "community": 99,
+      "community_name": ".TabBtn",
       "norm_label": "savewatch.cs"
     },
     {
@@ -24251,8 +24251,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_savewatch_trickshot_savewatch",
-      "community": 96,
-      "community_name": ".StartRebind",
+      "community": 99,
+      "community_name": ".TabBtn",
       "norm_label": "savewatch"
     },
     {
@@ -24262,8 +24262,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_savewatch_cs_float",
-      "community": 96,
-      "community_name": ".StartRebind",
+      "community": 99,
+      "community_name": ".TabBtn",
       "norm_label": "float"
     },
     {
@@ -24296,8 +24296,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_savewatch_trickshot_savewatch_disarm",
-      "community": 96,
-      "community_name": ".StartRebind",
+      "community": 99,
+      "community_name": ".TabBtn",
       "norm_label": ".disarm()"
     },
     {
@@ -24330,8 +24330,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_savewatch_trickshot_savewatch_settledaftertouch",
-      "community": 96,
-      "community_name": ".StartRebind",
+      "community": 99,
+      "community_name": ".TabBtn",
       "norm_label": ".settledaftertouch()"
     },
     {
@@ -24386,8 +24386,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_float",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "float"
     },
     {
@@ -24408,8 +24408,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_list",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "list"
     },
     {
@@ -24430,8 +24430,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_bool",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "bool"
     },
     {
@@ -24441,8 +24441,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_int",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "int"
     },
     {
@@ -24469,8 +24469,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_marknetcontrolled",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".marknetcontrolled()"
     },
     {
@@ -24503,8 +24503,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_configurenethost",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".configurenethost()"
     },
     {
@@ -24514,8 +24514,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_string",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "string"
     },
     {
@@ -24866,8 +24866,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_playerstat",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "playerstat"
     },
     {
@@ -24895,8 +24895,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_touchrec",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "touchrec"
     },
     {
@@ -24964,8 +24964,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_markstatslot",
-      "community": 67,
-      "community_name": "CrosserBubble",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".markstatslot()"
     },
     {
@@ -24981,8 +24981,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_wirestats",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".wirestats()"
     },
     {
@@ -24998,8 +24998,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_fromwire",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": ".fromwire()"
     },
     {
@@ -25009,8 +25009,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_func",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "func"
     },
     {
@@ -25309,8 +25309,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_drawpostmatch",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": ".drawpostmatch()"
     },
     {
@@ -25326,8 +25326,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_drawstatsboard",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": ".drawstatsboard()"
     },
     {
@@ -25343,8 +25343,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_drawteamcard",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": ".drawteamcard()"
     },
     {
@@ -26673,8 +26673,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": "shotserver.cs"
     },
     {
@@ -26690,8 +26690,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": "shotserver"
     },
     {
@@ -26701,8 +26701,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_cs_float",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": "float"
     },
     {
@@ -26712,8 +26712,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_cs_int",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": "int"
     },
     {
@@ -26723,8 +26723,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_cs_vector3",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": "vector3"
     },
     {
@@ -26740,8 +26740,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_init",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": ".init()"
     },
     {
@@ -26757,8 +26757,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_arm",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": ".arm()"
     },
     {
@@ -26774,8 +26774,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_tick",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": ".tick()"
     },
     {
@@ -26791,8 +26791,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_randomtakepoint",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": ".randomtakepoint()"
     },
     {
@@ -26808,8 +26808,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_fire",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": ".fire()"
     },
     {
@@ -26825,8 +26825,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_rand",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 91,
+      "community_name": "PlayerAppearance",
       "norm_label": ".rand()"
     },
     {
@@ -27664,8 +27664,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "speciesselectui.cs"
     },
     {
@@ -27681,8 +27681,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "speciesselectui"
     },
     {
@@ -27692,8 +27692,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_action",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "action"
     },
     {
@@ -27703,8 +27703,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_bool",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "bool"
     },
     {
@@ -27714,8 +27714,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_float",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "float"
     },
     {
@@ -27725,8 +27725,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_byte",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": "byte"
     },
     {
@@ -27742,8 +27742,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_init",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".init()"
     },
     {
@@ -27776,8 +27776,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_ongui",
-      "community": 90,
-      "community_name": "MenuUI",
+      "community": 36,
+      "community_name": "NetCodec",
       "norm_label": ".ongui()"
     },
     {
@@ -28521,8 +28521,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_striker_trickshot_striker_startslidelimp",
-      "community": 33,
-      "community_name": ".Configure",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".startslidelimp()"
     },
     {
@@ -28555,8 +28555,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_striker_trickshot_striker_updatesit",
-      "community": 33,
-      "community_name": ".Configure",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".updatesit()"
     },
     {
@@ -28572,8 +28572,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_striker_trickshot_striker_standup",
-      "community": 33,
-      "community_name": ".Configure",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".standup()"
     },
     {
@@ -28864,8 +28864,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_uifont",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": "uifont.cs"
     },
     {
@@ -28881,8 +28881,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_uifont_trickshot_uifont",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": "uifont"
     },
     {
@@ -28892,8 +28892,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "font",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": "font"
     },
     {
@@ -28903,8 +28903,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_uifont_cs_bool",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": "bool"
     },
     {
@@ -28920,8 +28920,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_uifont_trickshot_uifont_load",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": ".load()"
     },
     {
@@ -28937,8 +28937,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_uifont_trickshot_uifont_heavy",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": ".heavy()"
     },
     {
@@ -28948,8 +28948,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_uifont_cs_guistyle",
-      "community": 134,
-      "community_name": "UIFont",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": "guistyle"
     },
     {
@@ -29308,8 +29308,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_uitheme_trickshot_uitheme_divider",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".divider()"
     },
     {
@@ -41657,8 +41657,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "body",
-      "community": 91,
-      "community_name": "PlayerAppearance",
+      "community": 67,
+      "community_name": "CrosserBubble",
       "norm_label": "body"
     },
     {
@@ -41701,8 +41701,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "playerstat",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "playerstat"
     },
     {
@@ -138311,5 +138311,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "c9d222b6b6d978836654849e6bae141afaaa3d89"
+  "built_at_commit": "89aaa45f769e87bae0f29e9d591b9768b3297465"
 }

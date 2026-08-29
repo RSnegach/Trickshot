@@ -11,18 +11,76 @@ namespace Trickshot.Net
     /// the per-slot inputs (host side), and publishes snapshots (host) / consumes them
     /// (client). This keeps the netcode decoupled from the physics loop.
     ///
-    /// Slot model (per the design): slot 0 is the KEEPER, slots 1..N are SHOOTERS. Joining
-    /// players fill the lowest free shooter slot; AI fills any slot no human holds. Works
-    /// for both scrimmage and striker mode (striker = 1 keeper + however many shooters).
+    /// Slot model, SINGLE-GOAL modes (striker / set pieces / accuracy): slot 0 is the KEEPER,
+    /// slots 1..N are SHOOTERS, slot 7 is the crosser. Joining players fill the lowest free
+    /// shooter slot; AI fills any slot no human holds.
+    ///
+    /// Slot model, SCRIMMAGE: the same eight slots carry TWO teams - 0-3 Home, 4-7 Away - so a
+    /// slot decomposes into (team, shirt) with shirt 0 = keeper and 1..perSide-1 = outfield on
+    /// each side. Shirt, not slot, is the identity everything downstream keys on (AI pace, the
+    /// stat rows, the formation table), and nothing about it crosses the wire: every peer derives
+    /// it from the slot with ScrimTeamOfSlot / ScrimShirtOfSlot, which is exactly why the derived
+    /// values agree. That also means slot 4 is a KEEPER in scrimmage even though RoleOfSlot, which
+    /// describes the single-goal layout, calls it a shooter - see RoleForSlot.
     /// </summary>
     public class NetSession
     {
         public const int MaxSlots = 8;      // slot 0 keeper, 1..6 shooters, 7 crosser
         public const int CrosserSlot = MaxSlots - 1;   // slot 7 = the crosser role
 
-        // Role a given slot represents: 0 = keeper, MaxSlots-1 = crosser, else shooter.
+        // Role a given slot represents in a SINGLE-GOAL mode: 0 = keeper, MaxSlots-1 = crosser,
+        // else shooter. This is what the wire's NetRole byte means. Scrimmage overlays a different
+        // layout on the same slots - use RoleForSlot for anything the player reads.
         public static NetRole RoleOfSlot(int slot)
             => slot == 0 ? NetRole.Keeper : slot == CrosserSlot ? NetRole.Crosser : NetRole.Shooter;
+
+        // ---- scrimmage slot layout: slot -> (team, shirt) ----
+        // Slots 0-3 are Home, 4-7 are Away, and within a team the in-team index IS the shirt:
+        // 0 = keeper, 1..perSide-1 = outfield. Both halves are the same size, so shirt is just the
+        // slot modulo the half. Derived on every peer rather than synced, which is what makes
+        // SimConfig.AiPace(team, shirt, keeper) produce the same pace host-side and client-side.
+        public const int ScrimSlotsPerTeam = MaxSlots / 2;   // 4
+        public static int ScrimTeamOfSlot(int slot) => slot < ScrimSlotsPerTeam ? 0 : 1;
+
+        /// <summary>
+        /// This slot's scrimmage shirt: 0 = keeper, 1.. = outfield. Returns -1 for anything that is
+        /// not a slot, which matters because a refused joiner carries LocalSlot 255: without the
+        /// guard 255 folds to 251 and any "shirt == 0 means keeper" test still answers sensibly,
+        /// but 255 - ScrimSlotsPerTeam is a number nothing else in the codebase would recognise.
+        /// </summary>
+        public static int ScrimShirtOfSlot(int slot)
+            => (slot < 0 || slot >= MaxSlots) ? -1
+             : (slot < ScrimSlotsPerTeam ? slot : slot - ScrimSlotsPerTeam);
+
+        /// <summary>
+        /// The scrimmage team size the SEATING enforces: the host's chosen perSide, clamped to what
+        /// the eight-slot board can hold. NetScrimmageMatch clamps its own copy to the identical
+        /// range, and the two have to agree - a session that seats a player the match driver then
+        /// refuses a body is worse than a refused join, because the refusal only shows up as a
+        /// missing camera after the match has already started.
+        ///
+        /// 0 reads as the full board, not as "refuse everyone": Host() seats the host and installs
+        /// the advert provider BEFORE HostSetupUI calls SetConfig, and cfg.perSide is an untrusted
+        /// wire byte, so a config that has not been authored yet must not lock the lobby.
+        /// </summary>
+        int ScrimPerSide
+        {
+            get
+            {
+                int n = Config.perSide;
+                return n <= 0 ? ScrimSlotsPerTeam : Mathf.Clamp(n, 2, ScrimSlotsPerTeam);
+            }
+        }
+
+        /// <summary>
+        /// What the lobby should CALL this slot in the mode that is actually configured. Scrimmage
+        /// carries two keepers (slots 0 and 4) and RoleOfSlot only ever names slot 0, so the away
+        /// keeper used to be published, labelled and read back as a shooter.
+        /// </summary>
+        NetRole RoleForSlot(int slot)
+            => (GameMode)Config.mode == GameMode.Scrimmage
+             ? (ScrimShirtOfSlot(slot) == 0 ? NetRole.Keeper : NetRole.Shooter)
+             : RoleOfSlot(slot);
 
         public INetTransport Transport { get; private set; }
         public bool IsHost => Transport != null && Transport.IsHost;
@@ -323,9 +381,12 @@ namespace Trickshot.Net
 
         /// <summary>
         /// True while an arriving human would actually be given a player slot. Deliberately mirrors
-        /// GrantSlot rather than approximating it, because the cap is not the only limit: the MODE
-        /// also decides which slots exist (SlotAllowed gates the crosser), so a lobby can be full
-        /// while sitting under its cap.
+        /// GrantSlot rather than approximating it, because _maxPlayers is not the only limit: the
+        /// MODE also decides which slots exist (SlotAllowed gates the crosser outside striker, and
+        /// caps scrimmage at perSide shirts per team), so a lobby can be full while sitting under
+        /// its cap. For scrimmage the two limits coincide exactly at every reachable team size -
+        /// HostSetupUI sets maxPlayers = Clamp(perSide*2, 2, 8) and SlotAllowed admits
+        /// 2*min(perSide, 4) slots: 3 -> 6 and 6, 5 -> 8 and 8, 11 -> 8 and 8, 2 -> 4 and 4.
         /// </summary>
         public bool HasFreeSlot
         {
@@ -825,16 +886,33 @@ namespace Trickshot.Net
         }
 
         /// <summary>
-        /// Is this slot a real playable role in the CURRENT mode? The crosser slot only gets a body
-        /// in Striker mode - the set-piece / accuracy drivers skip it entirely (no body, no camera,
-        /// excluded from the shooter rotation), so a player granted it there is stranded. Scrimmage
-        /// doesn't use the crosser concept at all, so every slot is playable there.
+        /// Is this slot a real playable role in the CURRENT mode? This is the ONE gate: GrantSlot,
+        /// ApplySlotRequest, HasFreeSlot and RebuildRoster all route through it, so a rule added
+        /// here cannot be honoured by the join path and missed by the lobby's role picker.
+        ///
+        /// Two rules live here.
+        ///
+        /// CROSSER: slot 7 only gets a body in Striker mode. The set-piece / accuracy drivers skip
+        /// it outright (NetSetPieceMatch.SpawnBody: `if (crosser) return;`), so a player granted it
+        /// there is stranded with no body and no camera.
+        ///
+        /// SCRIMMAGE PER-SIDE CAP: the eight slots are two teams of four, and a shirt at or above
+        /// perSide is not a player in this match. Nothing spawned a body for it
+        /// (NetScrimmageMatch.SpawnBody already refused shirt >= perSide) and no formation row
+        /// exists for it, yet nothing stopped a human being SEATED there: GrantSlot handed out the
+        /// lowest free slot 1..6 with no per-side notion at all, so a default 3-a-side lobby
+        /// admitted six humans and the fourth arrival took slot 3 - shirt 3 with perSide 3. Note
+        /// that the crosser clause above no longer needs to name Scrimmage: slot 7 is Away shirt 3
+        /// there, so the shirt rule already answers for it, and it answers BETTER (allowed at 4 a
+        /// side, refused at 3, which is what the driver does).
         /// </summary>
         bool SlotAllowed(int slot)
         {
-            if (slot != CrosserSlot) return true;
+            if (slot < 0 || slot >= MaxSlots) return false;
             var mode = (GameMode)Config.mode;
-            return mode == GameMode.Striker || mode == GameMode.Scrimmage;
+            if (mode == GameMode.Scrimmage) return ScrimShirtOfSlot(slot) < ScrimPerSide;
+            if (slot != CrosserSlot) return true;
+            return mode == GameMode.Striker;
         }
 
         // Message types only the HOST ever authors. A client accepts these from the host peer only
@@ -915,6 +993,13 @@ namespace Trickshot.Net
             int granted = -1;
             // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
             // (MaxSlots-1). Players re-pick any free role in the lobby afterward.
+            //
+            // Every branch below is SlotAllowed-gated, so the scrimmage per-side cap is enforced by
+            // the same search that already skipped the crosser. In a 3-a-side lobby that leaves the
+            // allowed set {0,1,2,4,5,6} and this walk fills 1, 2, 4, 5, 6, then 0 - six seats
+            // against a maxPlayers of six, so the two limits bite together instead of one silently
+            // over-admitting. The order is unchanged and is still lopsided (Away's keeper fills
+            // before Home's), which the lobby's role picker exists to fix.
             for (int s = 1; s < CrosserSlot; s++)
                 if (!_slotOwner[s].IsValid && SlotAllowed(s)) { granted = s; break; }
             if (granted < 0 && !_slotOwner[0].IsValid && SlotAllowed(0)) granted = 0;
@@ -926,7 +1011,7 @@ namespace Trickshot.Net
             // so 8 humans could pile into a 2v2 lobby.
             if (granted >= 0 && HumanCount() >= _maxPlayers) granted = -1;
 
-            NetRole role = granted < 0 ? NetRole.Spectator : RoleOfSlot(granted);
+            NetRole role = granted < 0 ? NetRole.Spectator : RoleForSlot(granted);
             if (granted >= 0)
             {
                 _slotOwner[granted] = peer;
@@ -988,8 +1073,8 @@ namespace Trickshot.Net
             // host would drop every input this player sends (see ResetSlotInput).
             ResetSlotInput(target);
             // Tell the mover their new slot/role (host updates its own LocalSlot directly).
-            if (peer.Equals(Transport.LocalPeer)) AssignLocal(target, RoleOfSlot(target));
-            else Transport.Send(peer, NetCodec.AssignSlot((byte)target, RoleOfSlot(target)), NetChannel.Reliable);
+            if (peer.Equals(Transport.LocalPeer)) AssignLocal(target, RoleForSlot(target));
+            else Transport.Send(peer, NetCodec.AssignSlot((byte)target, RoleForSlot(target)), NetChannel.Reliable);
             PushRoster();
             // Re-broadcast the moved kit at its new slot so every peer re-keys it (the roster row
             // only carries the small appearance struct, not the jersey).
@@ -1066,6 +1151,17 @@ namespace Trickshot.Net
             for (int i = 0; i < MaxSlots; i++)
             {
                 bool human = _slotOwner[i].IsValid;
+                // A slot this MODE has no seat for is left OUT of the roster, not published as
+                // "Open". Publishing it drew a row with a Claim button that ApplySlotRequest then
+                // refused in silence, which is the worst of the three possible behaviours: the
+                // player clicks and nothing whatsoever happens. Omission is safe because every
+                // consumer already copes with a missing row - RosterSlot returns default (no human,
+                // no AI, so no body is spawned) and the drivers iterate what is actually there -
+                // and it retires the same defect for the crosser row in set pieces and accuracy,
+                // which was already unclaimable before the scrimmage cap added five more of them
+                // to a 3-a-side lobby. A slot a human still holds is ALWAYS published, so no
+                // config change can make a seated player invisible.
+                if (!human && !SlotAllowed(i)) continue;
                 bool ai = !human && _slotAi[i];  // a non-human slot the host left AI-on
                 string name;
                 if (human) name = _slotName[i] ?? "PLAYER";
@@ -1074,7 +1170,7 @@ namespace Trickshot.Net
                 // Humans carry their synced look; AI/open slots get default appearance.
                 var appr = human ? _slotAppearance[i] : PlayerAppearance.Default;
                 list.Add(new LobbySlot { slot = (byte)i, human = human, ai = ai, ready = _slotReady[i],
-                                         role = (byte)RoleOfSlot(i), name = name, appearance = appr });
+                                         role = (byte)RoleForSlot(i), name = name, appearance = appr });
             }
             Roster = list.ToArray();
         }

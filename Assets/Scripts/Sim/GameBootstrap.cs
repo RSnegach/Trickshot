@@ -252,10 +252,20 @@ namespace Trickshot
             var mode = (GameMode)cfg.mode;
             if (mode == GameMode.Scrimmage)
             {
-                SimConfig.ScrimmagePerSide = cfg.perSide;
+                // cfg.perSide is an untrusted wire byte and this is a mutable static every later
+                // consumer reads, so clamp at the boundary. The floor of 2 is the shirt invariant:
+                // shirts are 0 = keeper and 1..perSide-1 = outfield, so a side of 1 has no legal
+                // outfield shirt at all.
+                SimConfig.ScrimmagePerSide = Mathf.Clamp(cfg.perSide, 2, Trickshot.Net.NetSession.ScrimSlotsPerTeam);
                 SimConfig.ScrimmageMatchSeconds = cfg.matchSec;
-                // This peer plays whatever slot the host assigned it (keeper slot 0 -> keeper).
-                SimConfig.ScrimmageRole = s.LocalRole == Trickshot.Net.NetRole.Keeper
+                // Keeper-ness comes from the SHIRT, not from NetRole. Scrimmage puts two teams on
+                // the eight slots, so the away keeper is slot 4, and RoleOfSlot - which describes
+                // the single-goal layout - calls slot 4 a shooter. Reading LocalRole therefore
+                // brought an away keeper into the match flagged as an outfielder. Harmless today
+                // (the net path returns before ScrimmageRole is used for anything but a nominal
+                // argument) and a trap the moment it is not.
+                SimConfig.ScrimmageRole =
+                    Trickshot.Net.NetSession.ScrimShirtOfSlot(s.LocalSlot) == 0
                     ? SimConfig.ScrimRole.Keeper : SimConfig.ScrimRole.Outfield;
                 // Canonical goal size, written on EVERY peer. This branch used to leave GoalWidth and
                 // GoalHeight alone while the set-piece and accuracy branches below assign them, and
@@ -836,7 +846,14 @@ namespace Trickshot
             // Networked scrimmage is capped to fit the 8-slot model: 4-a-side incl keepers max
             // (slots 0-3 Home, 4-7 Away). Single-player keeps the full 3/5/11 options.
             bool net = Trickshot.Net.Multiplayer.IsActive;
-            int perSide = net ? Mathf.Clamp(SimConfig.ScrimmagePerSide, 2, 4) : SimConfig.ScrimmagePerSide;
+            // The floor of 2 is the D6 shirt invariant, not defensive habit: shirt 0 is the keeper
+            // and outfielders are 1..perSide-1, so perSide must be at least 2 for one outfielder to
+            // have a legal shirt. Below that the old Max(1, perSide-1) below manufactured a shirt 1
+            // in a squad of size 1, which is exactly the out-of-range a formation table indexed by
+            // shirt would take. Net also clamps to the eight-slot board; NetSession.ScrimPerSide
+            // clamps identically so the seating and the bodies cannot disagree.
+            int perSide = net ? Mathf.Clamp(SimConfig.ScrimmagePerSide, 2, Trickshot.Net.NetSession.ScrimSlotsPerTeam)
+                              : Mathf.Max(2, SimConfig.ScrimmagePerSide);
             var arena = ScrimmageArena.Build(root, perSide);
             // The human (Home) attacks the +Z goal; aim assist / dribble / ball-cam target it.
             SimConfig.AttackGoalCenter = arena.homeGoalCenter;
@@ -889,17 +906,25 @@ namespace Trickshot
             var away = new System.Collections.Generic.List<Footballer>();
 
             // Team size is TOTAL players per side INCLUDING the keeper, so outfield = perSide-1
-            // (e.g. 11v11 = 10 outfield + 1 GK). At least one outfielder regardless.
-            int outfield = Mathf.Max(1, perSide - 1);
+            // (e.g. 11v11 = 10 outfield + 1 GK). perSide is clamped >= 2 above, so this is >= 1
+            // with no Max() guard - and the guard had to go, because Max(1, perSide-1) was the thing
+            // that let a perSide of 1 produce an outfielder wearing shirt 1.
+            int outfield = perSide - 1;
 
-            // Spawn outfielders for both teams.
+            // SHIRT, not list index. Shirt 0 is ALWAYS the keeper and outfielders are 1..perSide-1,
+            // the same convention the networked board derives from the slot
+            // (NetSession.ScrimShirtOfSlot). This used to pass i, so shirt 0 named two different
+            // bodies on the same team - the keeper AND the first outfielder - and the two ends of
+            // that already disagreed: SimConfig.AiPace(team, 0, false) gave the first outfielder
+            // the keeper's hash bucket while ScrimmageGame.BuildStatRows had already called him
+            // shirt 1, so his pace and his row on the post-match board came from different numbers.
             for (int t = 0; t < 2; t++)
             {
                 var list = t == 0 ? home : away;
                 Material torso = t == 0 ? homeTorso : awayTorso;
                 Material limb  = t == 0 ? homeLimb  : awayLimb;
                 for (int i = 0; i < outfield; i++)
-                    list.Add(BuildFootballer(root, ball, game, t, keeper: false, torso, limb, gloveMat: null, index: i));
+                    list.Add(BuildFootballer(root, ball, game, t, keeper: false, torso, limb, gloveMat: null, shirt: i + 1));
             }
 
             // Keepers (both AI unless the player picks the keeper role for Home).
@@ -907,7 +932,7 @@ namespace Trickshot
             Footballer homeKeeper = null, awayKeeper = null;
             KeeperController humanKeeperCtrl = null; ActiveRagdoll humanKeeperRag = null;
 
-            awayKeeper = BuildFootballer(root, ball, game, team: 1, keeper: true, awayTorso, awayLimb, gloveMat, index: 0);
+            awayKeeper = BuildFootballer(root, ball, game, team: 1, keeper: true, awayTorso, awayLimb, gloveMat, shirt: 0);
 
             if (humanKeeper)
             {
@@ -939,7 +964,7 @@ namespace Trickshot
             }
             else
             {
-                homeKeeper = BuildFootballer(root, ball, game, team: 0, keeper: true, homeTorso, homeLimb, gloveMat, index: 0);
+                homeKeeper = BuildFootballer(root, ball, game, team: 0, keeper: true, homeTorso, homeLimb, gloveMat, shirt: 0);
                 // Outfield role: the driver assigns control to a fixed Home player and sets
                 // the camera follow. Init with a valid transform; 5th arg (goal) unused -> null.
                 gameCam.Init(_cam, ball.transform, home[0].Ragdoll.Pelvis.transform, null, null);
@@ -961,11 +986,13 @@ namespace Trickshot
         // Builds one scrimmage footballer: an active ragdoll + Striker + Dribble + kick
         // detectors + a Footballer AI component. Striker/Dribble are DISABLED (AI/idle)
         // until the driver hands this body control.
+        // `shirt` is the D6 identity: 0 = keeper, 1..perSide-1 = outfield, per team. It was named
+        // `index` and every caller passed a list position, which is what made shirt 0 ambiguous.
         Footballer BuildFootballer(Transform root, BallController ball, ScrimmageGame game,
                                    int team, bool keeper, Material torso, Material limb,
-                                   Material gloveMat, int index)
+                                   Material gloveMat, int shirt)
         {
-            var go = new GameObject((team == 0 ? "Home" : "Away") + (keeper ? "GK" : "P" + index));
+            var go = new GameObject((team == 0 ? "Home" : "Away") + (keeper ? "GK" : "P" + shirt));
             go.transform.SetParent(root, true);
             var ragdoll = go.AddComponent<ActiveRagdoll>();
             var facing = Quaternion.LookRotation(new Vector3(0f, 0f, team == 0 ? 1f : -1f), Vector3.up);
@@ -989,7 +1016,7 @@ namespace Trickshot
             var f = go.AddComponent<Footballer>();
             // Home (team 0) attacks +Z (HomeGoal), Away attacks -Z, in every role.
             float attackZ = team == 0 ? 1f : -1f;
-            f.Init(game, ball, ragdoll, team, keeper, attackZ, Vector3.zero, index);
+            f.Init(game, ball, ragdoll, team, keeper, attackZ, Vector3.zero, shirt);
             return f;
         }
 

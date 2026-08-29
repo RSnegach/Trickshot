@@ -10,6 +10,12 @@ namespace Trickshot
     /// Team is a pure function of slot (slot &lt; 4 = Home), so nothing on the wire carries a team bit.
     /// That is up to 4-a-side incl. keepers (3v3 + keepers); larger scrimmages stay single-player.
     ///
+    /// SHIRT is the per-team identity: shirt 0 is the keeper and 1..perSide-1 are outfield on BOTH
+    /// sides, so the Away keeper wears shirt 0 exactly as the Home keeper does. Every peer derives
+    /// it from the slot through NetSession.ScrimShirtOfSlot rather than reading it off the wire,
+    /// which is what makes SimConfig.AiPace(team, shirt, keeper) agree host-side and client-side,
+    /// and it is the same convention single player now uses (GameBootstrap.BuildFootballer).
+    ///
     /// The HOST reuses a real ScrimmageGame to run the whole sim (ball, AI, possession, passing,
     /// tackles, goals, clock, kickoff) - it just marks the networked human slots so ScrimmageGame
     /// leaves them to net-driven control instead of AI, and it does not own the camera/HUD/local
@@ -68,19 +74,22 @@ namespace Trickshot
         string _flash = ""; float _flashTime;
         QuickChatFeed _qcFeed;   // multiplayer quickchat feed + custom-text entry
 
-        // Slot conventions for the capped two-team board.
-        const int HomeKeeper = 0, AwayKeeper = 4, TeamSplit = 4;
-        static int TeamOfSlot(int slot) => slot < TeamSplit ? 0 : 1;
-        static bool KeeperSlot(int slot) => slot == HomeKeeper || slot == AwayKeeper;
+        // Slot conventions for the capped two-team board. Delegated to NetSession rather than
+        // restated here, because NetSession.SlotAllowed now REFUSES a seat whose shirt is past
+        // perSide - so the split it uses and the split this driver builds bodies from have to be
+        // the same one, or the session seats a player the driver then gives no body.
+        static int TeamOfSlot(int slot) => NetSession.ScrimTeamOfSlot(slot);
+        static bool KeeperSlot(int slot) => NetSession.ScrimShirtOfSlot(slot) == 0;
 
-        int _perSide = 4;   // players per side incl keeper (capped 2..4 to fit the 8-slot board)
+        int _perSide = NetSession.ScrimSlotsPerTeam;   // per side incl keeper, capped to the board
 
         public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball,
                               Material homeTorso, Material homeLimb, Material awayTorso, Material awayLimb,
                               Material glove, Transform root, ScrimmageArena.Refs arena, int perSide)
         {
             _input = input; _cam = gameCam; _ball = ball; _root = root; _arena = arena;
-            _perSide = Mathf.Clamp(perSide, 2, 4);
+            // Same clamp NetSession.ScrimPerSide applies to the seating. Keep them identical.
+            _perSide = Mathf.Clamp(perSide, 2, NetSession.ScrimSlotsPerTeam);
             _s = Multiplayer.Session;
             // NetSession OUTLIVES a match - created once, dropped only on Leave - so a second match in
             // the same session would open still holding the previous one's post-match board.
@@ -175,19 +184,26 @@ namespace Trickshot
             bool ai = rosterSlot.ai;
             bool isLocal = slot == _localSlot;
             if (!human && !ai && !isLocal) return;   // empty slot: no body
-            // Respect the per-side cap: a slot whose in-team index is beyond perSide only spawns if
-            // a human actually holds it (so AI-default fill doesn't put 4v4 on a 3v3-sized pitch).
-            int teamIndex = slot < TeamSplit ? slot : slot - TeamSplit;   // 0 = keeper, 1.. = outfield
-            if (teamIndex >= _perSide && !human && !isLocal) return;
+            // Respect the per-side cap. NetSession.SlotAllowed now refuses to SEAT a human past it,
+            // so the !human escape is belt over braces rather than the only guard it used to be.
+            // The !isLocal escape stays and is not redundant: a peer the host refused carries
+            // LocalSlot 255, Configure clamps that to 7, and shirt 3 on a 3-a-side board would then
+            // leave the local player with no body and no camera at all. A stray body is the better
+            // failure, and SessionBrowserUI bounces a refused joiner before the lobby anyway.
+            int shirt = NetSession.ScrimShirtOfSlot(slot);   // 0 = keeper, 1.. = outfield
+            if (shirt >= _perSide && !human && !isLocal) return;
 
             int team = TeamOfSlot(slot);
             bool keeper = KeeperSlot(slot);
             bool hostSim = _s.IsHost;
             float attackZ = team == 0 ? 1f : -1f;
             var facing = Quaternion.LookRotation(new Vector3(0f, 0f, attackZ), Vector3.up);
-            Vector3 start = new Vector3((slot % 4 - 1.5f) * 2f, 0f, attackZ * -_arena.halfLength * 0.3f);
+            // Spread by SHIRT, so Home 1 and Away 1 start on the same lane of their own half. This
+            // was slot % 4, which is arithmetically the same number - written as the shirt so the
+            // coupling is visible instead of coincidental.
+            Vector3 start = new Vector3((shirt - 1.5f) * 2f, 0f, attackZ * -_arena.halfLength * 0.3f);
 
-            var go = new GameObject((team == 0 ? "Home" : "Away") + (keeper ? "GK" : "P" + slot));
+            var go = new GameObject((team == 0 ? "Home" : "Away") + (keeper ? "GK" : "P" + shirt));
             go.transform.SetParent(_root, true);
             var ragdoll = go.AddComponent<ActiveRagdoll>();
 
@@ -221,9 +237,9 @@ namespace Trickshot
             {
                 AttachKickDetectors(ragdoll, striker);
                 var f = go.AddComponent<Footballer>();
-                // teamIndex is the shirt number, and it is the SAME on every peer - which is what makes
-                // the derived pace agree host-side and client-side (see SimConfig.AiPace).
-                f.Init(_game, _ball, ragdoll, team, keeper, attackZ, Vector3.zero, teamIndex);
+                // The shirt is derived from the slot, so it is the SAME on every peer - which is what
+                // makes the derived pace agree host-side and client-side (see SimConfig.AiPace).
+                f.Init(_game, _ball, ragdoll, team, keeper, attackZ, Vector3.zero, shirt);
                 b.footballer = f;
 
                 if (human)
@@ -270,7 +286,7 @@ namespace Trickshot
                 if (isLocal)
                 {
                     var f = go.AddComponent<Footballer>();
-                    f.Init(null, _ball, ragdoll, team, keeper, attackZ, Vector3.zero, teamIndex);
+                    f.Init(null, _ball, ragdoll, team, keeper, attackZ, Vector3.zero, shirt);
                     b.footballer = f;
                     if (keeper)
                     {

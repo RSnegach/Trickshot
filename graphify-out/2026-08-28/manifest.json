@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Ragdoll/ActiveRagdoll.cs": {
-    "mtime": 1787960558.4519925,
-    "ast_hash": "78a8fa6e6ba10831378ae01457a8ec5f",
+    "mtime": 1787960604.6373363,
+    "ast_hash": "68cf899966174a2972050833aa07ff0c",
     "semantic_hash": ""
   },
   "Assets/Scripts/Ragdoll/JointMath.cs": {
@@ -819,11 +819,6 @@
     "ast_hash": "52924b4dad361f6607818aea257000a5",
     "semantic_hash": ""
   },
-  "Assets/Screenshots/orbit_zoom_keeper.png": {
-    "mtime": 1787950106.4477506,
-    "ast_hash": "d1248a669c7c172c6758999d9b8f7d9d",
-    "semantic_hash": ""
-  },
   "Assets/Resources/Props/Textures/checkers.png": {
     "mtime": 1787951251.4963722,
     "ast_hash": "de0088e0cab855d7426e93554180927f",
@@ -854,21 +849,6 @@
     "ast_hash": "15a42a8f8cbdbbf06811a3b79fbaf703",
     "semantic_hash": ""
   },
-  "Assets/Screenshots/sightline_worstcase.png": {
-    "mtime": 1787951048.4511335,
-    "ast_hash": "4e860c0e0173f811eb6ac18fe958e9d4",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/trees_models.png": {
-    "mtime": 1787951021.100345,
-    "ast_hash": "56da483f00a00313d0e4aabdbe82a3d3",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/beauty_sightline.png": {
-    "mtime": 1787951544.2530172,
-    "ast_hash": "4330ba09d158af060bdce2bc4a4de0eb",
-    "semantic_hash": ""
-  },
   "Tools/skyfetch.py": {
     "mtime": 1787952365.3053808,
     "ast_hash": "160d97ad1aed42c97e593c1b827bb3c4",
@@ -884,69 +864,14 @@
     "ast_hash": "fb872200eeb96ddbfe664798f2981723",
     "semantic_hash": ""
   },
-  "Assets/Screenshots/sky_A_noon.png": {
-    "mtime": 1787952452.080568,
-    "ast_hash": "fb4a16666b70d4d1bad1d0f4d49444ab",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/sky_B_midmorning.png": {
-    "mtime": 1787952469.4275212,
-    "ast_hash": "0e0c3331606aa0324a4bad53a035c86c",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/sky_C_lateafternoon.png": {
-    "mtime": 1787952572.4307175,
-    "ast_hash": "55ac1c511a328fb4ff93eb90efa5cecf",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/final_menu.png": {
-    "mtime": 1787953129.8070474,
-    "ast_hash": "8564dd8895533780ed492e5a44d84a68",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/final_sightline.png": {
-    "mtime": 1787953142.48293,
-    "ast_hash": "5f40d486409179f83675cbcc7f2238c9",
-    "semantic_hash": ""
-  },
   "Assets/Resources/Sky/qwantani_puresky.jpg": {
     "mtime": 1787953811.59517,
     "ast_hash": "26a12f43e6ccdf3f633b19bc3577d0b7",
     "semantic_hash": ""
   },
-  "Assets/Screenshots/blue_sky_skyline.png": {
-    "mtime": 1787954090.777817,
-    "ast_hash": "0cdbb1601372db7c1e69e2a7c8169a6c",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/bluecloud_final.png": {
-    "mtime": 1787954361.0973127,
-    "ast_hash": "1737a2671f54006505ee44c97b0a677a",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/menu_live.png": {
-    "mtime": 1787954379.5629437,
-    "ast_hash": "f4e3c01d9162217fa64f9fcc1cc57a49",
-    "semantic_hash": ""
-  },
   "Assets/Scripts/Sim/Landform.cs": {
     "mtime": 1787956257.6732156,
     "ast_hash": "01d4bca24de811ba1d05b7c52a1d3b13",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/terrain.png": {
-    "mtime": 1787955426.1548584,
-    "ast_hash": "797868f4823eff6f2103b2363821d159",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/terrain2.png": {
-    "mtime": 1787955569.2794733,
-    "ast_hash": "9ee065e50aa3a8bc3edfcb770a04e5cd",
-    "semantic_hash": ""
-  },
-  "Assets/Screenshots/no_mountains.png": {
-    "mtime": 1787956468.5057244,
-    "ast_hash": "0fb4c22033296a954e2efff5ca58c3ff",
     "semantic_hash": ""
   }
 }

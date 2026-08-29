@@ -17,9 +17,13 @@ namespace Trickshot
         System.Action<GameMode> _onStart;
         System.Action _onBack;
 
-        // Base values the 1.00 multipliers map to.
-        const float BaseGoalWidth = 7.32f, BaseGoalHeight = 2.44f, BaseServeInterval = 3.5f;
-        const float BaseStrikerSpeed = 3.8f, BaseKeeperSpeed = 5.5f;
+        // Base values the 1.00 multipliers map to. Sourced from SimConfig rather than retyped: these
+        // are the same numbers SimConfig.ApplyScrimmageStatics resets to, and two hand-copied lists of
+        // one set of defaults is how the goal-size leak survived as long as it did.
+        const float BaseGoalWidth = SimConfig.GoalWidthBase, BaseGoalHeight = SimConfig.GoalHeightBase;
+        const float BaseServeInterval = 3.5f;
+        const float BaseStrikerSpeed = SimConfig.StrikerMoveSpeedBase;
+        const float BaseKeeperSpeed = SimConfig.KeeperStrafeSpeedBase;
         static readonly float BaseKeeperJump = SimConfig.KeeperJumpVelBase;
 
         // ---- Multiplier sliders (value is a multiplier; ranges chosen so every point
@@ -54,7 +58,14 @@ namespace Trickshot
 
         // Scrimmage
         static int _scrimPerSide = 3;                                  // 3 / 5 / 11
-        static SimConfig.ScrimRole _scrimRole = SimConfig.ScrimRole.Outfield;
+        // POSITION, not role. Shirt 0 is the keeper, so "GK" is one button on the position picker
+        // rather than a separate two-button role row that could disagree with it. Both are kept
+        // because they answer different questions: _scrimShirt is what the sim needs (identity), and
+        // _scrimPos is what the PLAYER picked, which is what survives a team-size change - pick CB at
+        // 11-a-side, drop to 5, and you are still CB (shirt 1) instead of whoever wears 3 now.
+        static int _scrimShirt = 2;
+        static SimConfig.ScrimPos _scrimPos = SimConfig.ScrimPos.ST;
+        static SimConfig.AiDifficulty _scrimAi = SimConfig.AiDifficulty.Normal;
         static float _scrimMatchMin = 3f;                              // match length, minutes
 
         // ---- Layout ----
@@ -74,8 +85,11 @@ namespace Trickshot
         // How many slider/toggle rows this mode shows, so the panel is sized to fit.
         int RowCount()
         {
-            // Scrimmage: team size + role + match length picker rows, no goal/ball sliders.
-            if (_mode == GameMode.Scrimmage) return 3;
+            // Scrimmage: team size + position + difficulty + match length picker rows, no goal/ball
+            // sliders. The position grid wraps at PosPerRow shirts and every extra button row costs
+            // exactly one RowH, so this stays an exact count rather than an estimate.
+            if (_mode == GameMode.Scrimmage)
+                return 3 + GridRows(Mathf.Max(1, _scrimPerSide), PosPerRow);
 
             int n = 3; // goal width, goal height, ball velocity (all modes)
             if (_mode == GameMode.Striker) n += 3;
@@ -256,43 +270,103 @@ namespace Trickshot
         }
 
         // Scrimmage pickers: team size (per side) and the human's role.
+        // Scrimmage pickers: team size, the POSITION the human plays, AI difficulty, match length.
+        // All four are the one LadderPicker the keeper ladder uses. They were four hand-rolled copies
+        // of the same button loop, which is also how they came to disagree about button gaps (8 px
+        // here, 6 px on the keeper row).
+        static readonly int[]    ScrimSizes     = { 3, 5, 11 };
+        static readonly string[] ScrimSizeNames = { "3 v 3", "5 v 5", "11 v 11" };
+        static readonly float[]  ScrimMins      = { 2f, 3f, 5f, 10f };
+        static readonly string[] ScrimMinNames  = { "2 min", "3 min", "5 min", "10 min" };
+
         void ScrimmagePickers(float lx, ref float row, float lw)
         {
-            GUI.Label(new Rect(lx, row, lw, 20f), "Team size:", RowLabel());
-            int[] sizes = { 3, 5, 11 };
-            string[] sizeNames = { "3 v 3", "5 v 5", "11 v 11" };
-            float bw = (lw - 8f * (sizes.Length - 1)) / sizes.Length;
-            for (int i = 0; i < sizes.Length; i++)
-            {
-                bool sel = _scrimPerSide == sizes[i];
-                if (UITheme.Toggle(new Rect(lx + i * (bw + 8f), row + 22f, bw, 28f), sizeNames[i], sel, PickStyle(sel)))
-                    _scrimPerSide = sizes[i];
-            }
-            EndRow(lx, ref row, lw);
+            int before = _scrimPerSide;
+            _scrimPerSide = ScrimSizes[LadderPicker(lx, ref row, lw, "Team size:", ScrimSizeNames,
+                                                    Mathf.Max(0, System.Array.IndexOf(ScrimSizes, _scrimPerSide)))];
 
-            GUI.Label(new Rect(lx, row, lw, 20f), "You play as:", RowLabel());
-            string[] roleNames = { "Outfielder", "Goalkeeper" };
-            var roles = new[] { SimConfig.ScrimRole.Outfield, SimConfig.ScrimRole.Keeper };
-            float rbw = (lw - 8f) * 0.5f;
-            for (int i = 0; i < roles.Length; i++)
+            // Team size changed: keep the POSITION and re-derive the shirt from the new formation. A
+            // position the smaller shape does not carry (LW at 3-a-side) falls back to the striker,
+            // which is the highest shirt by construction.
+            if (_scrimPerSide != before)
             {
-                bool sel = _scrimRole == roles[i];
-                if (UITheme.Toggle(new Rect(lx + i * (rbw + 8f), row + 22f, rbw, 28f), roleNames[i], sel, PickStyle(sel)))
-                    _scrimRole = roles[i];
+                int s = SimConfig.ShirtForPosition(_scrimPerSide, _scrimPos);
+                _scrimShirt = s >= 0 ? s : _scrimPerSide - 1;
             }
-            EndRow(lx, ref row, lw);
+            _scrimShirt = Mathf.Clamp(_scrimShirt, 0, Mathf.Max(0, _scrimPerSide - 1));
 
-            GUI.Label(new Rect(lx, row, lw, 20f), "Match length:", RowLabel());
-            float[] mins = { 2f, 3f, 5f, 10f };
-            string[] minNames = { "2 min", "3 min", "5 min", "10 min" };
-            float mbw = (lw - 8f * (mins.Length - 1)) / mins.Length;
-            for (int i = 0; i < mins.Length; i++)
+            _scrimShirt = PositionPicker(lx, ref row, lw, _scrimPerSide, _scrimShirt);
+            _scrimPos   = SimConfig.PositionOf(_scrimPerSide, _scrimShirt);
+
+            // Single player picks the tier. Multiplayer never reaches this screen and is forced to
+            // Normal inside SimConfig.ApplyScrimmageStatics, on every peer.
+            _scrimAi = (SimConfig.AiDifficulty)LadderPicker(lx, ref row, lw, "Difficulty:",
+                                                           SimConfig.AiLevelNames, (int)_scrimAi);
+
+            int mi = 1;
+            for (int i = 0; i < ScrimMins.Length; i++)
+                if (Mathf.Approximately(_scrimMatchMin, ScrimMins[i])) mi = i;
+            _scrimMatchMin = ScrimMins[LadderPicker(lx, ref row, lw, "Match length:", ScrimMinNames, mi)];
+        }
+
+        // ---- Position picker (Pro Clubs style) ----
+        // One button per SHIRT, labelled with the position that shirt plays in this formation, wrapped
+        // at PosPerRow. Buttons are shirts and NOT position names because a formation can carry the
+        // same position twice (11-a-side has two CBs and two CMs) and the sim identifies a body by its
+        // shirt, never by its label. Shirt 0 is the keeper, so picking GK is picking the keeper role -
+        // there is no second role control that could contradict it.
+        //
+        // Static so the multiplayer lobby can draw the identical grid, where a click is a SLOT REQUEST
+        // through the host's existing slot table rather than a local write: first come first served, a
+        // taken shirt is refused, and nothing new goes on the wire.
+        const int PosPerRow = 6;
+        static int _posNamesFor = -1;
+        static string[] _posNames;
+
+        public static int PositionPicker(float lx, ref float row, float lw, int perSide, int shirt)
+        {
+            var form = SimConfig.Formation(perSide);
+            if (_posNamesFor != perSide || _posNames == null || _posNames.Length != form.Length)
             {
-                bool sel = Mathf.Approximately(_scrimMatchMin, mins[i]);
-                if (UITheme.Toggle(new Rect(lx + i * (mbw + 8f), row + 22f, mbw, 28f), minNames[i], sel, PickStyle(sel)))
-                    _scrimMatchMin = mins[i];
+                _posNames = new string[form.Length];
+                for (int i = 0; i < form.Length; i++) _posNames[i] = i + " " + form[i];
+                _posNamesFor = perSide;   // cached: enum ToString per shirt per frame is pure garbage
             }
+            // Nobody has to pick anything for a match to start - every shirt the humans do not take is
+            // already filled by an AI body, so this only ever moves WHICH body you are.
+            GUI.Label(new Rect(lx, row, lw, 20f), "Rest are AI.", RowValue());
+            return LadderPicker(lx, ref row, lw, "You play:", _posNames,
+                                Mathf.Clamp(shirt, 0, form.Length - 1), PosPerRow, 12);
+        }
+
+        // ---- ONE discrete-button picker for every ladder on this screen ----
+        // `cur` is the selected index and the picked index comes back, so the caller keeps the mapping
+        // from index to value and this method never learns what a row means. Wide sets wrap at perRow,
+        // and each extra button row costs exactly one RowH so RowCount() stays an exact count.
+        public static int GridRows(int n, int perRow)
+            => perRow <= 0 ? 1 : Mathf.Max(1, (n + perRow - 1) / perRow);
+
+        public static int LadderPicker(float lx, ref float row, float lw, string label,
+                                       string[] names, int cur, int perRow = 0, int fontSize = 13)
+        {
+            if (names == null || names.Length == 0) { EndRow(lx, ref row, lw); return 0; }
+            GUI.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
+            int per = perRow <= 0 ? names.Length : Mathf.Min(perRow, names.Length);
+            int rows = GridRows(names.Length, per);
+            const float gap = 6f;
+            float bw = (lw - gap * (per - 1)) / per;
+            cur = Mathf.Clamp(cur, 0, names.Length - 1);
+            for (int i = 0; i < names.Length; i++)
+            {
+                int r = i / per, c = i % per;
+                bool sel = i == cur;
+                var s = PickStyle(sel); s.fontSize = fontSize;
+                var rect = new Rect(lx + c * (bw + gap), row + 22f + r * RowH, bw, 28f);
+                if (UITheme.Toggle(rect, names[i], sel, s)) cur = i;
+            }
+            row += RowH * (rows - 1);   // EndRow adds the last one, and puts the divider under it
             EndRow(lx, ref row, lw);
+            return cur;
         }
 
         // Which modes place their own dead ball. Accuracy joined Free Kick here so both dead-ball
@@ -317,11 +391,17 @@ namespace Trickshot
             if (_mode == GameMode.Scrimmage)
             {
                 SimConfig.ScrimmagePerSide = _scrimPerSide;
-                SimConfig.ScrimmageRole = _scrimRole;
                 SimConfig.ScrimmageMatchSeconds = _scrimMatchMin * 60f;
-                SimConfig.GoalWidth  = BaseGoalWidth;
-                SimConfig.GoalHeight = BaseGoalHeight;
-                SimConfig.BallSpeedMul = 1f;
+                // Shirt, not role: ScrimmageRole is derived from it inside the reset below, so a
+                // position and a role cannot disagree about whether you are the keeper.
+                SimConfig.ScrimmageShirt = _scrimShirt;
+                SimConfig.AiLevel = _scrimAi;
+                // The three goal/ball lines that used to sit here were only three of the SEVEN statics
+                // that leak in from a previously played mode - keeper ability, striker speed, keeper
+                // strafe speed and keeper jump leak the same way and were not being written. They are
+                // now reset in one place shared with the networked branch, because a second copy of
+                // the list is what let the goal size drift in the first place.
+                SimConfig.ApplyScrimmageStatics(networked: false);
                 return;
             }
 
@@ -408,30 +488,14 @@ namespace Trickshot
         // open. The values are the same 0..1 SimConfig.KeeperAbility the slider fed, so nothing
         // downstream changes. Snapped to the nearest step on entry, so a value left over from the
         // old slider (or from a future retune of these steps) still lands on a named button.
-        static readonly string[] KeeperNames = { "None", "Easy", "Normal", "Hard", "Insane" };
-        static readonly float[]  KeeperVals  = { 0f, 0.25f, 0.5f, 0.75f, 1f };
-
+        // The names and the five values MOVED to SimConfig.AiLevelNames / AiLevelAbility, because the
+        // AI difficulty ladder is the same five steps and a second local copy of them is a guarantee
+        // that one day they disagree about what "Hard" means. The picker itself is now the shared
+        // LadderPicker, so this row and the difficulty row are the same widget rather than two.
         float KeeperPicker(float lx, ref float row, float lw, string label, float val)
-        {
-            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
-            int cur = 0;
-            float best = float.MaxValue;
-            for (int i = 0; i < KeeperVals.Length; i++)
-            {
-                float d = Mathf.Abs(KeeperVals[i] - val);
-                if (d < best) { best = d; cur = i; }
-            }
-            float bw = (lw - 6f * (KeeperNames.Length - 1)) / KeeperNames.Length;
-            for (int i = 0; i < KeeperNames.Length; i++)
-            {
-                bool sel = i == cur;
-                var s = PickStyle(sel); s.fontSize = 13;
-                if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), KeeperNames[i], sel, s))
-                    cur = i;
-            }
-            EndRow(lx, ref row, lw);
-            return KeeperVals[cur];
-        }
+            => SimConfig.AiLevelAbility[
+                   LadderPicker(lx, ref row, lw, label + ":", SimConfig.AiLevelNames,
+                                SimConfig.NearestAiLevel(val))];
 
         // Multiplier slider (min..max, shown as "x") with a per-row reset to its default.
         float Slider(float lx, ref float row, float lw, string label, float val,
@@ -553,6 +617,10 @@ namespace Trickshot
             _wallCount = 4f; _wallDistance = 9.15f; _wallOffset = 0f;
             _fkInit = false; _fkEdit = 0; _fkRandom = false;
             _delivery = SimConfig.Delivery.AutoCross; _aimTarget = SimConfig.ServeTarget;
+            // These are static and survived Reset All, so a scrimmage kept whatever was last dialled
+            // in even after the button said everything was back to default.
+            _scrimPerSide = 3; _scrimShirt = 2; _scrimPos = SimConfig.ScrimPos.ST;
+            _scrimAi = SimConfig.AiDifficulty.Normal; _scrimMatchMin = 3f;
         }
     }
 }

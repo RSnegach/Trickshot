@@ -19,8 +19,8 @@ namespace Trickshot
         public const float FieldLength = 34f;   // along Z, toward goal
         public const float FieldWidth  = 24f;   // along X
         // Goal size is set from the pre-match screen, so these are mutable (not const).
-        public static float GoalWidth  = 7.32f;  // regulation-ish
-        public static float GoalHeight = 2.44f;
+        public static float GoalWidth  = GoalWidthBase;   // regulation-ish
+        public static float GoalHeight = GoalHeightBase;
         public static float GoalDepth  = 3.0f;    // deeper goal box
 
         // ---- Net (position-based-dynamics cloth) ----
@@ -72,7 +72,7 @@ namespace Trickshot
         // ---- Goalkeeper (player-controlled keeper mode) ----
         // Keeper stands on the line facing OUT toward the pitch (-Z).
         public static readonly Vector3 KeeperFaceDir = new Vector3(0f, 0f, -1f);
-        public static float KeeperStrafeSpeed = 5.5f;  // A/D strafe + W/S move speed (pre-match slider)
+        public static float KeeperStrafeSpeed = KeeperStrafeSpeedBase;  // A/D strafe + W/S move speed (pre-match slider)
         public const float KeeperStrafeXLimit = 4.2f;  // how far off centre he can shuffle
 
         // Keeper look cone: the camera pans within this yaw and the body turns to match,
@@ -133,7 +133,7 @@ namespace Trickshot
         public const float KeeperHumanHandsRaw     = 0.25f; // hands at zero Control
         public const float KeeperHumanHandsSkilled = 1.00f; // hands at full Control
         public const float KeeperHumanHoldMax      = 4.0f;  // held this long -> he punts it himself
-        public static float KeeperJumpVel = 6.5f;        // straight-up jump (Space); pre-match slider
+        public static float KeeperJumpVel = KeeperJumpVelBase;  // straight-up jump (Space); pre-match slider
         public const float KeeperJumpVelBase = 6.5f;     // 1.0x reference for jump/dive-height scaling
         // Keeper camera slight mouse look (clamped, stays a behind-view). Yaw is carried
         // by the keeper's body facing now, so the camera only pitches.
@@ -570,7 +570,7 @@ namespace Trickshot
         public static readonly Color ScrimReticleTint = new Color(0.35f, 0.85f, 1f, 1f);
 
         // ---- Striker locomotion ----
-        public static float StrikerMoveSpeed = 3.8f;   // pre-match slider. LOW base on purpose: an
+        public static float StrikerMoveSpeed = StrikerMoveSpeedBase;  // pre-match slider. LOW base on purpose: an
                                                         // uninvested striker is sluggish; Pace nodes
                                                         // (SkillTree "move"/"sprint") swing this hard.
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
@@ -1139,6 +1139,261 @@ namespace Trickshot
         public static int ScrimmagePerSide = 3;   // TOTAL players per side incl. keeper (3/5/11 => outfield = this-1)
         public static float ScrimmageMatchSeconds = 180f;   // match length (pre-match option); counts down to full time
 
+        // ==================== SCRIMMAGE POSITIONS ====================
+        // OWNER: menus/config. Read by PrematchUI's position picker and available to the multiplayer
+        // lobby (PrematchUI.PositionPicker is static so both draw the identical grid). Adding a
+        // position or reshaping a formation is a change HERE and nowhere else.
+        //
+        // SHIRT 0 IS ALWAYS THE KEEPER. That is already the multiplayer convention - the net match
+        // derives a shirt as (slot < 4 ? slot : slot - 4) and calls shirt 0 the keeper on BOTH teams -
+        // so single player is being brought onto it rather than the reverse. Nothing about a position
+        // goes on the wire: a body's role is a pure function of (perSide, shirt), so every peer
+        // computes the same answer from the slot it already holds.
+        public enum ScrimPos { GK, LB, CB, RB, CM, CAM, LM, RM, LW, RW, ST }
+
+        // The human's own shirt. Written by the pre-match position picker in single player, and from
+        // the host-assigned slot in multiplayer. ScrimmageRole is DERIVED from it (see
+        // ApplyScrimmageStatics) rather than being a second, independently-picked source of truth for
+        // "am I the keeper" - which is what let a position and a role disagree.
+        public static int ScrimmageShirt = 2;
+
+        // One authored formation per roster size, indexed by shirt. Authored rather than generated
+        // from a fill order, because a fill order puts the odd sizes somewhere silly: single player
+        // offers 3/5/11 and multiplayer needs 2..4 (the 8-slot board caps it), so all of 1..11 are
+        // written out. They grow into a 4-3-3: a centre back first, then width, then a second bank of
+        // midfield, then wingers.
+        static readonly ScrimPos[][] ScrimFormations =
+        {
+            new[] { ScrimPos.GK },                                                                     // 1
+            new[] { ScrimPos.GK, ScrimPos.ST },                                                        // 2
+            new[] { ScrimPos.GK, ScrimPos.CB, ScrimPos.ST },                                           // 3
+            new[] { ScrimPos.GK, ScrimPos.CB, ScrimPos.CM, ScrimPos.ST },                              // 4
+            new[] { ScrimPos.GK, ScrimPos.CB, ScrimPos.LM, ScrimPos.RM, ScrimPos.ST },                 // 5
+            new[] { ScrimPos.GK, ScrimPos.LB, ScrimPos.CB, ScrimPos.RB, ScrimPos.CM, ScrimPos.ST },    // 6
+            new[] { ScrimPos.GK, ScrimPos.LB, ScrimPos.CB, ScrimPos.RB, ScrimPos.CM, ScrimPos.CM,
+                    ScrimPos.ST },                                                                     // 7
+            new[] { ScrimPos.GK, ScrimPos.LB, ScrimPos.CB, ScrimPos.CB, ScrimPos.RB, ScrimPos.CM,
+                    ScrimPos.CM, ScrimPos.ST },                                                        // 8
+            new[] { ScrimPos.GK, ScrimPos.LB, ScrimPos.CB, ScrimPos.CB, ScrimPos.RB, ScrimPos.CM,
+                    ScrimPos.CM, ScrimPos.LW, ScrimPos.ST },                                           // 9
+            new[] { ScrimPos.GK, ScrimPos.LB, ScrimPos.CB, ScrimPos.CB, ScrimPos.RB, ScrimPos.CM,
+                    ScrimPos.CM, ScrimPos.CAM, ScrimPos.LW, ScrimPos.ST },                             // 10
+            new[] { ScrimPos.GK, ScrimPos.LB, ScrimPos.CB, ScrimPos.CB, ScrimPos.RB, ScrimPos.CM,
+                    ScrimPos.CM, ScrimPos.CAM, ScrimPos.LW, ScrimPos.ST, ScrimPos.RW },                // 11
+        };
+
+        /// <summary>Formation for a roster size, indexed by shirt (0 = keeper). Sizes outside 1..11 clamp.</summary>
+        public static ScrimPos[] Formation(int perSide)
+            => ScrimFormations[Mathf.Clamp(perSide, 1, ScrimFormations.Length) - 1];
+
+        /// <summary>
+        /// What a shirt plays in this shape. An out-of-range shirt CLAMPS rather than throwing: a
+        /// lobby can still hand out a shirt past the roster today (nothing gates shirt against
+        /// perSide - that is the per-side cap owed to NetSession.SlotAllowed), and a UI label is not
+        /// the place to crash over it. Clamping here hides nothing: the spawn path still throws.
+        /// </summary>
+        public static ScrimPos PositionOf(int perSide, int shirt)
+        {
+            var f = Formation(perSide);
+            return f[Mathf.Clamp(shirt, 0, f.Length - 1)];
+        }
+
+        public static string PositionName(int perSide, int shirt) => PositionOf(perSide, shirt).ToString();
+
+        /// <summary>
+        /// Lowest shirt playing a position in this shape, or -1 when the shape has none (there is no
+        /// LW at 3-a-side). Callers fall back to the striker, which is always the LAST shirt.
+        /// </summary>
+        public static int ShirtForPosition(int perSide, ScrimPos pos)
+        {
+            var f = Formation(perSide);
+            for (int i = 0; i < f.Length; i++) if (f[i] == pos) return i;
+            return -1;
+        }
+
+        /// <summary>The convention in one line, so no caller re-derives it as "index 0" and no other
+        /// caller re-derives it as "the last one".</summary>
+        public static bool KeeperShirt(int shirt) => shirt == 0;
+
+        // Where a position lines up, as fractions: x of half-width (-1 = own left touchline), z of
+        // half-length measured from the halfway line INTO OWN HALF (1 = own goal line). Team sign and
+        // which end is "own" stay the caller's business.
+        //
+        // NOTHING READS THIS YET, stated plainly: the scrimmage spawn code lays players out by list
+        // index and by parity into a back line and a forward line, which is why an 11-a-side kickoff
+        // has depth but no shape. This is offered so the AI area adopts one table instead of
+        // authoring a second one. Every z is strictly inside own half, so the whole table is legal at
+        // a kickoff.
+        static Vector2 PositionAnchorBase(ScrimPos pos) => pos switch
+        {
+            ScrimPos.GK  => new Vector2( 0.00f, 0.96f),
+            ScrimPos.LB  => new Vector2(-0.74f, 0.62f),
+            ScrimPos.CB  => new Vector2( 0.00f, 0.66f),
+            ScrimPos.RB  => new Vector2( 0.74f, 0.62f),
+            ScrimPos.CM  => new Vector2( 0.00f, 0.38f),
+            ScrimPos.CAM => new Vector2( 0.00f, 0.22f),
+            ScrimPos.LM  => new Vector2(-0.68f, 0.40f),
+            ScrimPos.RM  => new Vector2( 0.68f, 0.40f),
+            ScrimPos.LW  => new Vector2(-0.72f, 0.14f),
+            ScrimPos.RW  => new Vector2( 0.72f, 0.14f),
+            _            => new Vector2( 0.00f, 0.08f),   // ST
+        };
+        // Fraction of half-width two players sharing a position are splayed apart by.
+        const float PositionSplay = 0.22f;
+
+        /// <summary>Anchor for a specific shirt, with duplicated positions splayed so the two centre
+        /// backs (and the two centre mids) do not stand on each other.</summary>
+        public static Vector2 PositionAnchor(int perSide, int shirt)
+        {
+            var f = Formation(perSide);
+            shirt = Mathf.Clamp(shirt, 0, f.Length - 1);
+            var pos = f[shirt];
+            Vector2 a = PositionAnchorBase(pos);
+            int n = 0, k = 0;
+            for (int i = 0; i < f.Length; i++) { if (f[i] != pos) continue; if (i == shirt) k = n; n++; }
+            if (n > 1) a.x += Mathf.Lerp(-PositionSplay, PositionSplay, k / (float)(n - 1));
+            return a;
+        }
+
+        // ==================== AI DIFFICULTY ====================
+        // OWNER: menus/config. Single player picks a tier on the pre-match screen; MULTIPLAYER IS
+        // FIXED AT NORMAL and is written on every peer by ApplyScrimmageStatics, so it cannot desync.
+        // Difficulty is not on the wire and nothing about it can be - a client that disagreed would
+        // be running a different sim behind the same snapshots.
+        //
+        // A tier may change WHEN and HOW WELL an AI acts. It may NOT hand one extra top speed, extra
+        // reach, or knowledge it could not have. PaceUse is a FRACTION of the pace the body already
+        // owns (see AiPace, 0.80x - 1.24x), never a multiplier above it, which is that rule written
+        // into the units rather than left as an intention.
+        //
+        // NORMAL IS THE BALANCE ANCHOR: the scrimmage keeper is tuned to save 60-70% of shots that are
+        // on target and not deflected AT THIS TIER, and the shooting work is tuned to the same number,
+        // so a later change to one cannot silently undo the other.
+        //
+        // HOW TO MEASURE IT IN-ENGINE, with no new instrumentation: set the match clock to 10 min,
+        // play out a scrimmage, and read the per-player stat table the match-rating code already
+        // keeps. StatSaveShotWindow (2.5 s) plus StatSaveMinBallSpeed (6 m/s) already gate a keeper
+        // touch into a SAVE, and a shot is banked whether it is saved or not. Take
+        // saves / (saves + goals conceded) for BOTH keepers. Off-target shots never reach either
+        // counter, so that ratio is already the on-target one. Two 10-minute 3-a-side matches is
+        // roughly 40-60 on-target shots, which is about +/-6 points of confidence - enough to tell
+        // 55% from 70% and not enough to chase a single point.
+        public enum AiDifficulty { None = 0, Easy = 1, Normal = 2, Hard = 3, Insane = 4 }
+
+        /// <summary>
+        /// One row of the difficulty table. All 0..1 except the delay, which is seconds.
+        ///   ReactionDelay  s an AI waits before responding to something it can see (ball struck,
+        ///                  carrier turned). The biggest lever and the fairest one - it costs an AI
+        ///                  time, not capability.
+        ///   Decision       quality of the choice made: 1 takes the best option, 0 takes an also-ran.
+        ///   ErrorRate      scale on the scatter a shot, pass, clearance or touch carries.
+        ///   FirstTouch     how cleanly an arriving ball is brought under control.
+        ///   PaceUse        fraction of the body's OWN top speed it actually uses.
+        /// </summary>
+        public readonly struct AiTuning
+        {
+            public readonly float ReactionDelay, Decision, ErrorRate, FirstTouch, PaceUse;
+            public AiTuning(float react, float decision, float error, float touch, float pace)
+            { ReactionDelay = react; Decision = decision; ErrorRate = error; FirstTouch = touch; PaceUse = pace; }
+        }
+
+        // Same shape as the keeper ladder below, indexed by AiDifficulty.
+        //                            react  decide  error  touch   pace
+        static readonly AiTuning[] AiTable =
+        {
+            new AiTuning(9.99f, 0.00f, 1.00f, 0.00f, 0.00f),   // None   - built, takes no decisions
+            new AiTuning(0.55f, 0.35f, 0.65f, 0.35f, 0.75f),   // Easy
+            new AiTuning(0.32f, 0.60f, 0.40f, 0.60f, 0.88f),   // Normal - the balance anchor
+            new AiTuning(0.18f, 0.80f, 0.22f, 0.80f, 0.96f),   // Hard
+            new AiTuning(0.09f, 0.95f, 0.10f, 0.95f, 1.00f),   // Insane
+        };
+
+        public static AiDifficulty AiLevel = AiDifficulty.Normal;
+        /// <summary>The resolved row for the current tier. Read this; never index AiTable.</summary>
+        public static AiTuning Ai => AiTable[Mathf.Clamp((int)AiLevel, 0, AiTable.Length - 1)];
+        /// <summary>False only at None. None's 9.99 s reaction delay already stops anything that
+        /// honours the delay; this is the explicit gate for anything that does not.</summary>
+        public static bool AiActive => AiLevel != AiDifficulty.None;
+
+        // The five named steps, shared by the AI ladder AND the keeper ladder, because they ARE the
+        // same five steps. PrematchUI's local KeeperNames/KeeperVals copies were deleted in favour of
+        // these; HostSetupUI still carries its own copy of the names.
+        //
+        // Easy is deliberately left at 0.25 and NOT nudged up. It trips three keeper gates as they
+        // stand ("ability > 0.25", "ability <= 0.3", and KeeperClaimMinAbility 0.30), which is why
+        // Easy currently never dives, never rushes and never claims - two of five tiers are statues.
+        // Moving this to 0.31 would tiptoe past that instead of fixing it. The gates are the bug.
+        public static readonly string[] AiLevelNames   = { "None", "Easy", "Normal", "Hard", "Insane" };
+        public static readonly float[]  AiLevelAbility = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+
+        /// <summary>Nearest ladder index to a raw 0..1 ability, so a value left over from the old
+        /// slider (or from a future retune of these steps) still lands on a named button.</summary>
+        public static int NearestAiLevel(float ability01)
+        {
+            int best = 0; float bd = float.MaxValue;
+            for (int i = 0; i < AiLevelAbility.Length; i++)
+            {
+                float d = Mathf.Abs(AiLevelAbility[i] - ability01);
+                if (d < bd) { bd = d; best = i; }
+            }
+            return best;
+        }
+
+        // ==================== SCRIMMAGE STATIC RESET ====================
+        // Base values the mutable pre-match statics reset to, named once so the menu's "1.00x" and
+        // the reset below cannot drift apart the way GoalWidth already did.
+        public const float GoalWidthBase = 7.32f, GoalHeightBase = 2.44f;
+        public const float StrikerMoveSpeedBase = 3.8f, KeeperStrafeSpeedBase = 5.5f;
+
+        /// <summary>
+        /// Writes EVERY mutable static a scrimmage reads, so nothing is inherited from the mode played
+        /// before it. Called from PrematchUI.Apply (single player) and from the networked scrimmage
+        /// branch in GameBootstrap. It lives HERE, and not inlined at both sites, because the
+        /// goal-size leak was caused by exactly that duplication - fixing it by adding four more lines
+        /// to each of two copies reproduces the cause.
+        ///
+        /// The leaks this closes, measured against the sliders that write them:
+        ///   GoalWidth/GoalHeight  set-piece + accuracy prematch write up to 1.5x, i.e. a 10.98 m goal
+        ///                         in a scrimmage - read by goal detection, keeper positioning and AI aim.
+        ///   BallSpeedMul          0.5x - 2x, read by every ballistic launch.
+        ///   KeeperAbility         0 - 1 from four other modes' keeper ladder. Scrimmage has no picker
+        ///                         of its own, so a "None" free kick left BOTH scrimmage keepers as
+        ///                         statues, and the net branch never wrote it at all.
+        ///   StrikerMoveSpeed      0.5x - 1.8x, i.e. 1.9 - 6.84 m/s: locomotion, gait and dribble.
+        ///   KeeperStrafeSpeed     0.5x - 1.8x, and KeeperJumpVel 0.6x - 1.6x. Keeper-mode-only
+        ///                         sliders that the scrimmage AI keeper's track speed, dive speed and
+        ///                         dive height all read.
+        ///
+        /// NOT written, because no scrimmage code path reads them: ShotDifficulty, ServeInterval, the
+        /// wall / set-piece placement statics, the challenge-mode timers, FreeplayDelivery. GoalDepth
+        /// is left alone too - it is mutable but nothing anywhere assigns it, and resetting statics
+        /// nobody mutates is noise that hides the ones that matter.
+        ///
+        /// localShirt: pass the host-assigned shirt in multiplayer (slot % 4 on the capped two-team
+        /// board), or leave it at -1 in single player, where the position picker has already written
+        /// ScrimmageShirt. At -1 in a networked match the role is left exactly as the caller set it,
+        /// which is the spectator case.
+        /// </summary>
+        public static void ApplyScrimmageStatics(bool networked, int localShirt = -1)
+        {
+            GoalWidth  = GoalWidthBase;
+            GoalHeight = GoalHeightBase;
+            BallSpeedMul = 1f;
+            StrikerMoveSpeed  = StrikerMoveSpeedBase;
+            KeeperStrafeSpeed = KeeperStrafeSpeedBase;
+            KeeperJumpVel     = KeeperJumpVelBase;
+
+            // MULTIPLAYER IS FIXED AT NORMAL, written on every peer so it cannot desync.
+            if (networked) AiLevel = AiDifficulty.Normal;
+            KeeperAbility = AiLevelAbility[Mathf.Clamp((int)AiLevel, 0, AiLevelAbility.Length - 1)];
+
+            // Role is DERIVED from the shirt, so a position and a role can never disagree.
+            if (localShirt >= 0) ScrimmageShirt = localShirt;
+            ScrimmageShirt = Mathf.Clamp(ScrimmageShirt, 0, Mathf.Max(0, ScrimmagePerSide - 1));
+            if (localShirt >= 0 || !networked)
+                ScrimmageRole = KeeperShirt(ScrimmageShirt) ? ScrimRole.Keeper : ScrimRole.Outfield;
+        }
+
         // The scrimmage pitch is its OWN square-ish field centred on origin, sized to the
         // team count, with a goal at each end (+Z and -Z) and walls all round. Independent
         // of the single-goal training arena so nothing else has to change.
@@ -1304,9 +1559,10 @@ namespace Trickshot
         public const float PassThroughSpaceMin = 4f;    // that space must be this clear of defenders
         public const float PassThroughBonus    = 1.1f;  // preference for a ball into space over one to feet
 
-        // Auto-switch: control the teammate nearest the ball (outfield role). A manual
-        // switch key cycles too. A brief lockout stops rapid flip-flopping.
-        public const float SwitchLockout     = 0.6f;  // min seconds on a player before an auto-switch
+        // Auto-switch: control the teammate nearest the ball (outfield role). A manual switch key
+        // cycles too. SwitchLockout (0.6 s) was deleted with the rest of the dead constants - nothing
+        // read it, so the "brief lockout stops rapid flip-flopping" it documented never existed. If
+        // flip-flopping shows up, it needs writing, not restoring.
 
         // Scrimmage LMB/RMB airborne shot (set-piece-style arc, no controllable spin).
         public const float ScrimLoftAngleDeg = 26f;    // launch elevation of a scrimmage deliberate shot
@@ -1340,7 +1596,11 @@ namespace Trickshot
         public const float AiChaseStopDist    = 0.6f;  // stop closing when this near the ball
         public const float AiShootRange       = 20f;   // shoot when this close to the target goal with the ball
         public const float AiSupportSpread    = 7f;    // how far off-ball teammates spread from the carrier
-        public const float AiKickBoneImpulse  = 9f;    // forward-drive velocity an AI adds to push the ball up the pitch
+        // NOT dead, despite being removed alongside three that were: Footballer.LaneClear forwards
+        // this to Passing.LaneClear, so it has exactly one live caller. Deleting it broke the build.
+        // Verified by grep at restore time: AiKickBoneImpulse / AiCarryNudge / AiPassLeadTime had zero
+        // callers and are correctly gone; this one had one.
+        public const float AiLaneCheckRadius = 1.1f; // a pass lane is blocked if an opponent is within this of the line
         public const float AiKickCooldown     = 0.35f; // min seconds between AI touches (flow without ping-ponging)
         public const float AiSeparationRadius = 3.8f;  // AI teammates keep at least this far apart
         // Smarter striker AI: dribble-carry toward goal, corner-aware arced shots, lane-checked passing.
@@ -1351,11 +1611,12 @@ namespace Trickshot
         // scatter of their own, since a Footballer has no PlayerProfile behind it.
         public const float AiDribbleTightness = 0.55f;  // bots' effective Control level, 0..1
         public const float AiTouchErrorDeg    = 7f;     // bots' per-touch aim scatter (deg)
-        public const float AiCarryNudge     = 6.5f;  // push speed given to the ball to keep it ahead while dribbling
         public const float AiDefenderAvoid  = 3.0f;  // steer the carry around an opponent within this range
         public const float AiShotScatter    = 1.1f;  // metres of aim scatter at the goal (keeps the AI beatable)
-        public const float AiPassLeadTime   = 0.35f; // lead a moving teammate by this much when passing
-        public const float AiLaneCheckRadius = 1.1f; // a pass lane is blocked if an opponent is within this of the line
+        // AiPassLeadTime and AiLaneCheckRadius are gone. Nothing read the lead time at all, and the
+        // radius was read only by Footballer.LaneClear - itself a one-line wrapper nothing called.
+        // Live pass-lane checks go through Passing.LaneClear with PassLaneRadius (1.1, the same
+        // number) instead, so there is one radius rather than two that happened to agree.
         public const float AiPassAccuracy   = 0.62f; // bots' effective Passing stat, 0..1 (they misplace passes too)
         // (A networked player's passing stats used to be substituted here with a neutral 1.5 accuracy
         // and 1.0 power, because nothing carried skill data. They are on the wire now as a Passing node
