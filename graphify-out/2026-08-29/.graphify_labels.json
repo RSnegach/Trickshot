@@ -140,5 +140,13 @@
   "138": "StadiumSelectUI",
   "139": "HashSet",
   "140": "PlayerAppearance",
-  "141": "Queue"
+  "141": "Queue",
+  "142": "Dictionary",
+  "143": "IReadOnlyList",
+  "144": "List",
+  "145": "Quaternion",
+  "146": "Rigidbody",
+  "147": "Color",
+  "148": "string",
+  "149": "Vector2"
 }

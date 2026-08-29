@@ -544,6 +544,7 @@ namespace Trickshot
         void TryTackle(Vector3 me, Vector3 ball)
         {
             _kickCooldown = SimConfig.TackleCooldown;
+            MatchProbe.TackleAttempt(ProbeTackle.Ai);   // ATTEMPT. The win is the reach test three lines down.
             Vector3 to = ball - me; to.y = 0f;
             if (to.sqrMagnitude > 0.01f)
                 Ragdoll.AddVelocityToAll(to.normalized * SimConfig.TackleLunge);

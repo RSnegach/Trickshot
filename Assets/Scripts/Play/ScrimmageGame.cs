@@ -282,6 +282,11 @@ namespace Trickshot
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
 
             TrackGoals();
+
+            // Dev measurement harness (F9). LAST on purpose: the AI brains above have already run, so a
+            // shot struck this frame still carries its launch velocity and the on-target verdict is read
+            // off the real strike. One bool test when off; compiles to nothing in a shipped player.
+            MatchProbe.Tick(this, _ball, _all);
         }
 
         // --- Tackling ---
@@ -294,6 +299,9 @@ namespace Trickshot
         void TrySlideTackle()
         {
             if (_slideCooldown > 0f || _controlled == null || _controlled.Ragdoll == null) return;
+            // Counted here, past the cooldown gate, because THIS is the frame the slide commits. Counting
+            // it at the call site would have counted every frame of one slide.
+            MatchProbe.TackleAttempt(ProbeTackle.Slide);
             // No speed test any more. Striker.IsSliding already decided he is committed to a slide,
             // and SlideFriction bleeds his velocity off as he skids - so re-checking speed here would
             // have made the back half of every slide unable to fell anybody.
@@ -322,6 +330,9 @@ namespace Trickshot
                 _ball.SetDribbleCarrier(null);
                 Vector3 fwd = new Vector3(0f, 0f, _controlled.AttackZ);
                 _ball.KickTo(fwd * SimConfig.TackleKnock + Vector3.up * 0.4f, _controlled.Ragdoll);
+                // Explicit, because this path NEVER calls WinBall, so NoteTackle never sees it. That is
+                // also a live bug in the post-match board: slide steals are missing from the TKL column.
+                MatchProbe.SlideWin();
             }
             Flash("SLIDE TACKLE!");
         }
@@ -377,6 +388,7 @@ namespace Trickshot
             _controlled.Ragdoll.AddVelocityToAll(fwd.normalized * SimConfig.TackleLunge);
             _tackleWindow = 0.4f;
             _tackleCooldown = SimConfig.TackleCooldown;
+            MatchProbe.TackleAttempt(ProbeTackle.Human);   // the WIN is counted off the stat delta
         }
 
         void ResolveTackleWindow()
