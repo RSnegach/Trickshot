@@ -434,7 +434,27 @@ namespace Trickshot
         // a pure carry and you shoot on purpose.
         bool WantsKick()
         {
-            return _input != null && (_input.LeftClickPressed || _input.RightClickPressed);
+            if (_input == null) return false;
+            if (!(_input.LeftClickPressed || _input.RightClickPressed)) return false;
+            // A charge in progress owns the ball: do not take the press as a flat release. Suppressing
+            // it HERE rather than inside the launcher matters, and two separate defects say why.
+            //
+            //  1. ReleaseShot has already run StopCarry() by the time a launcher could bail, so the
+            //     ball is live at the feet with ball-vs-own-limb collision restored and NOT covered by
+            //     SuppressStrikeFor - which is the only thing that stops the launching boot re-hitting
+            //     it. The leg then rises through a ball sitting 0.72-2.35 m ahead for up to
+            //     PassMaxCharge, and a leg-bone contact is an unconditional strike with no speed floor.
+            //     The overwhelmingly likely outcome was a full uncharged punt a frame or two after the
+            //     press, which killed the charged shot in its main use case.
+            //  2. ReleaseShot fires Dribble.ShotFired before it launches, so bailing later still banked
+            //     the stat. ScrimmageGame counts that into shots-on-goal, and the keeper save-rate
+            //     target is measured as saves / (saves + conceded) over exactly that counter - so the
+            //     denominator doubled for every human shot.
+            //
+            // Order-safe across the Update/FixedUpdate split: Dribble runs in FixedUpdate and
+            // Striker.Tick from Update, but WantsChargedShot is a LIVE property over the held-button
+            // flags with no cached Update state, so it reads correctly from either clock.
+            return !(_striker != null && _striker.WantsChargedShot);
         }
 
         // End the carry and launch the ball as a shot along the facing/aim direction, scaled by

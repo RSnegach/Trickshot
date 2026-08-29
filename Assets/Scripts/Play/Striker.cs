@@ -278,6 +278,11 @@ namespace Trickshot
             // --- sit gesture (LMB+RMB together, grounded only) ---
             UpdateSit(grounded);
 
+            // --- charged shot (ONE leg button, grounded, ball in range) ---
+            // AFTER UpdateSit deliberately: the sit/slide gesture claims the both-buttons case and
+            // sets _sitting/_sliding on this same frame, and the charge gate reads both.
+            UpdateShotCharge(grounded);
+
             // --- trigger tricks / jump ---
             // Blocked while seated AND through the stand-up ramp: he gets to his feet first, so a
             // jump press that ends the sit cannot also launch him on the same frame.
@@ -443,16 +448,222 @@ namespace Trickshot
             _airborneLock = 0.35f;
         }
 
+        // --------------------------------------------------- charged shot
+        // HOLD a leg button, grounded, with the ball in range, to CHARGE a shot with that foot.
+        // RELEASE fires; holding to FULL fires itself. LMB is the left boot, RMB the right.
+        //
+        // THERE IS NO NEW WINDUP ANIMATION. The existing _legRaiseL/_legRaiseR easing IS the charge
+        // visual: the leg comes up as the charge builds, at LegRaiseEase 8/sec, and it already eases
+        // back down with no snap-back on release. The only change ApplyLegRaises needed was to bring
+        // a leg down after an AUTO-fire, where the button is still held.
+        //
+        // WHY GROUNDED-GATED. Airborne, ONE held leg button already means "raise that leg for a
+        // bicycle kick" and BOTH mean "header pose" (the airborne branch of ApplyLegRaises), so a
+        // charge that ran in the air would fight those poses for the same two buttons. Verified,
+        // and it is the one hard input constraint on this system.
+        //
+        // WHAT DOES NOT CONFLICT, checked against the real code rather than assumed:
+        //  - THE DIVING HEADER IS SPACE, not a leg button. Tick reads _input.JumpHeld/JumpReleased/
+        //    JumpPressed for the jump-vs-dive split and _spaceHeld accumulates only on Space. An
+        //    earlier review claimed the dive shared the leg buttons; it was wrong.
+        //  - LMB+RMB grounded is sit (pulled back) or slide (pushed forward), and UpdateSit's
+        //    `uncommitted` test refuses both while either _legRaise exceeds SitRaiseMax 0.5. At
+        //    LegRaiseEase 8/sec a raise crosses 0.5 in 0.5/8 = 62 ms, so the interlock DOES hold -
+        //    but only past that. Answering the question directly: yes, a part-charged shot can still
+        //    become a slide, for the first 62 ms of the charge, which is 10% of PassMaxCharge 0.6 s.
+        //    That is a feature and not a hole: a 62 ms twitch is a mis-click, not a shot you had
+        //    committed to. Past it, the raised boot vetoes the slide, and the charge is disarmed by
+        //    the both-held test below instead - so the second button is a deliberate CANCEL.
+        BallController _ball;
+        /// <summary>Wire the match ball. Preferred over the lazy find in UpdateShotCharge.</summary>
+        public void SetBall(BallController b) => _ball = b;
+
+        float _shotChargeL, _shotChargeR;
+        bool _shotArmedL, _shotArmedR, _shotFiredL, _shotFiredR;
+        bool _prevLegL, _prevLegR;   // for the press/release edges (IStrikerInput has no leg Released)
+
+        /// <summary>0..1 charge of whichever foot is charging, for a HUD power bar.</summary>
+        public float ShotCharge01 => Passing.Charge01(Mathf.Max(_shotChargeL, _shotChargeR));
+
+        /// <summary>
+        /// Live test: is this body holding exactly one leg button, grounded and free to strike?
+        /// Read by BallController.ChargeOwnsShot to stop Dribble's press-edge flat release firing out
+        /// from under a charge. Deliberately does NOT test ball range - the only caller already has
+        /// the ball at the feet - so this stays free of the ball reference and cannot be stale.
+        /// </summary>
+        public bool WantsChargedShot
+        {
+            get
+            {
+                if (!ControlEnabled || _input == null || _ragdoll == null || _ragdoll.Pelvis == null) return false;
+                if (!_ragdoll.IsGrounded || _sitting || _sliding || _mode != Trick.None) return false;
+                return _input.LeftLegHeld != _input.RightLegHeld;   // exactly one: two is the gesture
+            }
+        }
+
+        // A full bend needs him this far to the side of the ball-to-aim line at contact. 0.9 m is
+        // most of the 1.32 m the possession gate allows (Passing.CanPlay: BallRadius + 1.1), so
+        // curling hard means approaching from a real angle - which costs time and telegraphs.
+        const float ShotCurlOffsetFull = 0.9f;
+
+        // Shared probe buffer. Only touched from FireChargedShot, once per shot, synchronously.
+        static readonly Collider[] _pressureHits = new Collider[24];
+
+        void UpdateShotCharge(bool grounded)
+        {
+            // Edges from the HELD bits rather than IStrikerInput.LeftClickPressed: the interface has
+            // no leg-button Released at all, and the network path already derives LeftClickPressed
+            // from the same legL bit, so this is the identical edge by a shorter route and the local
+            // and remote paths cannot drift apart.
+            bool legL = _input.LeftLegHeld, legR = _input.RightLegHeld;
+            bool pressL = legL && !_prevLegL, relL = !legL && _prevLegL;
+            bool pressR = legR && !_prevLegR, relR = !legR && _prevLegR;
+            _prevLegL = legL; _prevLegR = legR;
+
+            // SetBall is the wiring a mode builder should use; the find is a backstop so this works
+            // in every mode today without teaching each builder about it. Re-resolved while null,
+            // which also covers a mode that swaps the ball object between rounds.
+            if (_ball == null) _ball = FindAnyObjectByType<BallController>();
+
+            bool gesture = legL && legR;                                 // sit / slide / header
+            bool busy = _sitting || _sliding || _mode != Trick.None;
+            bool inRange = _ball != null && _ragdoll.Pelvis != null
+                           && Passing.CanPlay(_ball, _ragdoll.Pelvis.position,
+                                              _dribble != null && _dribble.Carrying, busy, out _);
+            bool canPlay = grounded && !gesture && !busy && inRange;
+
+            // Reuse Passing.StepCharge rather than writing a second charger. It already owns the
+            // arming (a hold that began without the ball never arms), the cap, the release
+            // bookkeeping, and the `fresh` gate - and that gate is what makes fire-at-full safe over
+            // a network: the host re-feeds the last received InputFrame every tick, so a client that
+            // goes quiet leaves a held bit pinned true forever, and without freshness a dropped
+            // connection would charge and fire a shot nobody asked for.
+            bool fireL = Passing.StepCharge(legL, pressL, relL, canPlay, _input.Fresh,
+                                            ref _shotChargeL, ref _shotArmedL, ref _shotFiredL, out float cL);
+            bool fireR = Passing.StepCharge(legR, pressR, relR, canPlay, _input.Fresh,
+                                            ref _shotChargeR, ref _shotArmedR, ref _shotFiredR, out float cR);
+
+            // AUTO-FIRE AT FULL. StepCharge has this, behind SimConfig.PassAutoFireAtFull - a
+            // compile-time const, and false, because PASSING is deliberately cap-and-wait. Flipping
+            // it would change every pass in the game, so the shot's auto-release sits out here and
+            // reuses everything else. The asymmetry is the point: a pass lets you hold at full and
+            // pick your moment, a shot does not, so committing to max power costs you the timing.
+            // The three writes match StepCharge's own fire-at-full branch exactly, so its release
+            // branch still clears `fired` when the button comes up.
+            if (!fireL && _shotArmedL && !_shotFiredL && _shotChargeL >= SimConfig.PassMaxCharge)
+            { fireL = true; cL = 1f; _shotFiredL = true; _shotArmedL = false; _shotChargeL = 0f; }
+            if (!fireR && _shotArmedR && !_shotFiredR && _shotChargeR >= SimConfig.PassMaxCharge)
+            { fireR = true; cR = 1f; _shotFiredR = true; _shotArmedR = false; _shotChargeR = 0f; }
+
+            // One boot per frame. Left wins a tie, which needs both pressed inside a frame of each
+            // other - and that is the sit/slide gesture, which has already disarmed both above.
+            if (fireL) FireChargedShot(true, cL);
+            else if (fireR) FireChargedShot(false, cR);
+        }
+
+        void FireChargedShot(bool leftFoot, float charge01)
+        {
+            if (_ball == null || _ragdoll.Pelvis == null) return;
+
+            // End the carry BEFORE the launch, the order Dribble.ReleaseShot uses, so our own carry
+            // claim - which makes the carrier's own contacts non-strikes - cannot swallow the shot.
+            if (_dribble != null && _dribble.Carrying) _dribble.ForceRelease();
+
+            Vector3 bp = _ball.Rb.position;
+            Vector3 me = _ragdoll.Pelvis.position;
+
+            // AIM IS YAW ONLY. See LaunchChargedShot for why pitch is not read: CamPitchMin -6 deg
+            // caps look-aim height at 0.105 * distance.
+            float yaw = _camYaw != null ? _camYaw() : _facingYaw;
+            Vector3 aimDir = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+
+            // CURL FROM WHICH SIDE OF THE BALL HE STRIKES. His flat offset from the ball along the
+            // aim-right axis: standing right of the ball-to-aim line means the boot arrives on the
+            // ball's right side. Sign follows the convention the strike path in BallController
+            // already committed to ("bends the SAME way it was struck"). No button, no modifier -
+            // the only way to curl hard is to come in at an angle.
+            Vector3 right = Vector3.Cross(Vector3.up, aimDir);
+            Vector3 off = me - bp; off.y = 0f;
+            float curl01 = Mathf.Clamp(Vector3.Dot(off, right) / ShotCurlOffsetFull, -1f, 1f);
+
+            Vector3 toGoal = SimConfig.AttackGoalCenter - bp; toGoal.y = 0f;
+            float dist = toGoal.magnitude;
+            float dot = toGoal.sqrMagnitude > 0.01f ? Vector3.Dot(aimDir, toGoal.normalized) : -1f;
+            bool facingGoal = dot >= SimConfig.AssistFacingDot;
+            bool camShouldCut = dot < SimConfig.ShotCamFaceAwayDot;
+
+            // OFF-BALANCE: 8 m/s of ground speed and up reads as fully off balance. Planted is ~0.
+            float offBalance = Mathf.Clamp01(_ragdoll.GroundSpeed / 8f);
+
+            // OFF-FACING, the LARGER of two angles, because either alone misses a real case. While
+            // grounded and not dribbling the body is pinned to the camera yaw, so body-vs-aim is ~0
+            // and only MOMENTUM-vs-aim catches a shot struck across a sprint or a strafe. While
+            // DRIBBLING the facing slews at a Control-scaled rate, so body-vs-aim is the one that
+            // catches a whipped mouse followed straight by a strike.
+            Vector3 mv = _ragdoll.MoveInput; mv.y = 0f;
+            float momentumDeg = mv.sqrMagnitude > 0.25f ? Vector3.Angle(mv.normalized, aimDir) : 0f;
+            float offFacingDeg = Mathf.Max(momentumDeg, Mathf.Abs(Mathf.DeltaAngle(_facingYaw, yaw)));
+
+            bool weakFoot = !((leftFoot == PlayerProfile.LeftFooted) || PlayerProfile.PerkSilky);
+
+            float scatter = BallController.ShotScatterDeg(
+                charge01, dist, offBalance, offFacingDeg, ShotPressure01(me, aimDir), weakFoot,
+                Passing.Accuracy01(PlayerProfile.ShotAccuracyMul, false));
+
+            // Counted as a shot only when it is goal-directed, same rule Dribble.ReleaseShot uses,
+            // so a backward tap-out is not filed as a shot on goal.
+            if (facingGoal) Dribble.ShotFired?.Invoke(_ragdoll);
+            _ball.LaunchChargedShot(aimDir, charge01, curl01, scatter, _ragdoll, facingGoal, camShouldCut);
+        }
+
+        // Defensive pressure on the strike, 0..1 over PassPressureRadius 3.5 m.
+        //
+        // A PROXIMITY PROBE, not a roster read, because Striker holds no team lists and should not
+        // gain one for an error term - Passing.Pressure01 needs a List<Footballer> that nothing here
+        // can supply. Two candid limits: ActiveRagdoll carries no team, so a TEAM-MATE standing on
+        // top of him counts as pressure; and the buffer is 24 colliders, so a genuine scrum could
+        // truncate. The forward-hemisphere test below cuts most of the first (a body behind you is
+        // not pressuring your shot), and truncation only ever under-reports, which is the safe
+        // direction. Handing Striker an opponent list would fix both properly - see the contract note.
+        float ShotPressure01(Vector3 at, Vector3 aimDir)
+        {
+            int n = Physics.OverlapSphereNonAlloc(at, SimConfig.PassPressureRadius, _pressureHits,
+                                                  ~0, QueryTriggerInteraction.Ignore);
+            float best = SimConfig.PassPressureRadius;
+            for (int i = 0; i < n; i++)
+            {
+                var c = _pressureHits[i];
+                if (c == null) continue;
+                var rag = c.GetComponentInParent<ActiveRagdoll>();
+                if (rag == null || rag == _ragdoll || rag.Pelvis == null) continue;
+                Vector3 d = rag.Pelvis.position - at; d.y = 0f;
+                float m = d.magnitude;
+                if (m < 1e-3f || m >= best) continue;
+                if (Vector3.Dot(d / m, aimDir) < -0.2f) continue;   // behind him: not pressure
+                best = m;
+            }
+            return 1f - Mathf.Clamp01(best / SimConfig.PassPressureRadius);
+        }
+
         void ApplyLegRaises(bool grounded)
         {
             float k = SimConfig.LegRaiseEase * Time.deltaTime;
 
             if (grounded)
             {
-                // On the ground: LMB/RMB raise the legs individually (kick setup), full lift.
+                // On the ground: LMB/RMB raise the legs individually (kick setup), full lift. That
+                // raise IS the shot charge visual - see UpdateShotCharge.
+                //
+                // A leg whose shot has already FIRED comes down even though the button is still
+                // held. That case exists only because a full charge AUTO-FIRES: on a release-fire
+                // the button is up and the raise falls out on its own, but after an auto-fire he
+                // would otherwise stand with his boot in the air and the ball long gone.
+                // _shotFired* stays true until the button comes up, which is exactly that window,
+                // and it is false whenever the charge system is not engaged (no ball in range), so
+                // holding a leg up for a volley or a bicycle is untouched.
                 _headerBend = Mathf.MoveTowards(_headerBend, 0f, k);
-                _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? 1f : 0f, k);
-                _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? 1f : 0f, k);
+                _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  && !_shotFiredL ? 1f : 0f, k);
+                _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld && !_shotFiredR ? 1f : 0f, k);
             }
             else
             {

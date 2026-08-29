@@ -126,12 +126,19 @@
   "124": "ChatCensor",
   "125": "grassprep.py",
   "126": "SimConfig",
+  "127": "ChatCensor",
   "128": ".LateUpdate",
   "129": "AssetImportRules",
   "130": "skyfetch.py",
   "131": "QuickChat",
+  "132": "CrosserBubble",
   "133": "MenuUI",
   "134": "IPlayerController",
   "135": "postprep.py",
-  "138": "StadiumSelectUI"
+  "136": ".Set",
+  "137": "byte",
+  "138": "StadiumSelectUI",
+  "139": "HashSet",
+  "140": "PlayerAppearance",
+  "141": "Queue"
 }

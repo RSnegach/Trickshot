@@ -1450,6 +1450,240 @@ namespace Trickshot
             }
         }
 
+        // ------------------------------------------------------------------ charged shot
+        // The player's deliberate shot. HOLD a leg button with the ball in range to charge, RELEASE
+        // to fire, hold to FULL and it fires itself. Striker.UpdateShotCharge owns the timing; this
+        // owns the flight.
+        //
+        // ONE EXPRESSIVE AXIS. The charge picks elevation AND power together, so the shot you can
+        // aim is the shot you can't hit hard:
+        //     light -> scooped, high, soft   (the chip over a keeper who has come out)
+        //     mid   -> placed, mid height, bends most
+        //     full  -> flattest, hardest, driven, and it commits you (auto-fire)
+        //
+        // ELEVATION IS NOT CAMERA PITCH, deliberately. SimConfig.CamPitchMin is -6 deg, so look
+        // pitch can only ever point tan(6) = 0.105 * distance above the ball: 20.8 m of range to
+        // aim at a 2.19 m crossbar, while every scrimmage shot is taken inside 20 m. Look supplies
+        // yaw. Height supplies itself.
+        //
+        // Numbers, solved in the project's 2x gravity (SimConfig.Gravity -19.6), ball starting at
+        // BallRadius 0.22 and no drag, at PlayerProfile.ShotPowerMul 1.0:
+        //   light 13 m/s @ 44deg -> apex 2.08 m at 4.3 m, 1.98 m high at 6 m, lands at 8.6 m.
+        //                           Clears a 1.8 m keeper who has rushed 6 m off his line, and
+        //                           dies short of the net from any real range - which is the point.
+        //   mid  19.5 m/s @ 27deg -> apex 2.00 m at 7.9 m, arrives 1.67 m at 12 m, 0.07 m at 16 m.
+        //   full   26 m/s @ 17deg -> arrives 1.06 m at 16 m, grazes the line at 20 m.
+        //
+        // WHAT THE KEEPER GETS. At Normal his reaction is SimConfig.AiTable Normal.react = 0.32 s,
+        // so the flight time minus 0.32 is what he has to actually move:
+        //   full drive from 12 m: 0.48 s flight -> 0.16 s. He saves what is already near him.
+        //   mid shot  from 12 m: 0.69 s flight -> 0.37 s. He reaches a fair way.
+        //   light chip from  8 m: 0.86 s flight -> 0.54 s, but it is over his head, so it is his
+        //                        High band / Jump that has to be right, not his feet.
+        // That spread is what the 60-70% save target at Normal rests on. It is arithmetic from the
+        // launch numbers plus his published reaction time, NOT a measured save rate - the save also
+        // depends on his reach and dive bands, which live in Goalkeeper.cs. Treat it as the intent
+        // and re-measure before calling it tuned.
+        const float ShotElevLightDeg = 44f;
+        const float ShotElevMidDeg   = 27f;
+        const float ShotElevFullDeg  = 17f;
+        const float ShotSpeedLight   = 13f;
+        const float ShotSpeedFull    = 26f;   // == SimConfig.StrikeHorizMax, the open-play strike ceiling
+        // Curl: 4 m/s^2 for 0.9 s. Over a 0.69 s mid-range flight that is 0.5*4*0.69^2 = 0.95 m of
+        // bend, and 1.69 m over a 0.92 s one - about a quarter of a 7.32 m goal. Enough to beat a
+        // keeper who has committed, nowhere near enough to be a homing missile. A twelfth of
+        // SetPieceCurl's 12 m/s^2, which is a dead-ball number and far too much for open play.
+        const float ShotCurlAccMax  = 4.0f;
+        const float ShotCurlSeconds = 0.9f;
+
+        // Placement error, as a half-angle cone in DEGREES, summed per term. Every term is
+        // something the player did, so a wild shot is always traceable to a choice:
+        //   base       1.0  a planted, square, unpressured strike is nearly true but never exact
+        //   power    + 2.0  at full charge, 0 at light: hitting through it costs placement
+        //   range    + 0.08 per metre to the goal (1.28 deg at 16 m)
+        //   balance  + 2.2  at 8 m/s of ground speed and up (a sprint), 0 planted
+        //   facing   + 3.0  at 90deg between his momentum/body and the shot, 0 square
+        //   pressure + 1.6  with an opponent on top of him inside PassPressureRadius 3.5 m
+        //   weakfoot + 2.5  off the wrong boot, divided by the Control weak-foot node
+        // Then the whole cone is scaled by (1 - 0.7 * shooting accuracy), so a maxed shooter keeps
+        // 30% of it. Worst case sums to 13.6 deg = +-3.8 m at 16 m (over half the goal width);
+        // a planted square full-power 10 m shot on a maxed build is 1.14 deg = +-0.20 m.
+        const float ShotScatterBaseDeg     = 1.0f;
+        const float ShotScatterPowerDeg    = 2.0f;
+        const float ShotScatterPerMetreDeg = 0.08f;
+        const float ShotScatterBalanceDeg  = 2.2f;
+        const float ShotScatterFacingDeg   = 3.0f;
+        const float ShotScatterPressureDeg = 1.6f;
+        const float ShotScatterWeakFootDeg = 2.5f;
+        const float ShotScatterWorstDeg    = 13.6f;   // the sum, used only to normalise the weight wobble
+
+        /// <summary>
+        /// The shot error cone, in degrees of half-angle. One function so a human shot and an AI shot
+        /// are wrong in the same way and are beatable in the same way - the AI's difficulty tier only
+        /// changes `accuracy01`, it does not get a different error model.
+        ///
+        /// `offBalance01` is ground speed / 8 m/s clamped. `offFacingDeg` is the angle between where
+        /// he is going (or pointing) and where he is shooting. `pressure01` is 0..1 closeness of the
+        /// nearest opponent. `weakFoot` reads PlayerProfile's weak-foot node, so an AI body should
+        /// pass false (PlayerProfile is the local human's build, not the bot's).
+        /// </summary>
+        public static float ShotScatterDeg(float charge01, float dist, float offBalance01,
+                                           float offFacingDeg, float pressure01, bool weakFoot,
+                                           float accuracy01)
+        {
+            float deg = ShotScatterBaseDeg;
+            deg += ShotScatterPowerDeg * Mathf.Clamp01(charge01);
+            deg += ShotScatterPerMetreDeg * Mathf.Max(0f, dist);
+            deg += ShotScatterBalanceDeg * Mathf.Clamp01(offBalance01);
+            deg += ShotScatterFacingDeg * Mathf.Clamp01(offFacingDeg / 90f);
+            deg += ShotScatterPressureDeg * Mathf.Clamp01(pressure01);
+            if (weakFoot) deg += ShotScatterWeakFootDeg / Mathf.Max(1f, PlayerProfile.WeakFootMul);
+            return deg * (1f - 0.7f * Mathf.Clamp01(accuracy01));
+        }
+
+        /// <summary>
+        /// Launch a charged shot. THE entry point for both the human (Striker.FireChargedShot) and
+        /// the AI, so an AI shot flies, bends, mis-places and is saved by exactly the same rules.
+        ///
+        /// `flatDir` is the flat aim direction and is the ONLY thing aim supplies - height comes off
+        /// `charge01`. `curl01` is -1..+1 for which side of the ball the boot came in on (+ = struck
+        /// on the right, bends right, matching the sign convention the strike path in this file
+        /// already uses). `scatterDeg` comes from ShotScatterDeg.
+        /// </summary>
+        public void LaunchChargedShot(Vector3 flatDir, float charge01, float curl01, float scatterDeg,
+                                      ActiveRagdoll shooter, bool facingGoal, bool camShouldCut = false)
+        {
+            flatDir.y = 0f;
+            if (flatDir.sqrMagnitude < 1e-4f) flatDir = transform.forward;
+            flatDir.Normalize();
+            charge01 = Mathf.Clamp01(charge01);
+            curl01 = Mathf.Clamp(curl01, -1f, 1f);
+            scatterDeg = Mathf.Max(0f, scatterDeg);
+
+            // Error goes on the AIM, before anything is derived from it. Yaw takes the full cone;
+            // elevation takes half. Both, not just yaw: a pass that misses goes to the wrong player
+            // (which is why Passing.Launch is yaw-only), but a shot that misses goes over the bar,
+            // and that is half of what a bad shot looks like.
+            if (scatterDeg > 0.01f)
+                flatDir = Quaternion.AngleAxis(Random.Range(-scatterDeg, scatterDeg), Vector3.up) * flatDir;
+
+            // Elevation off the charge, through the mid point rather than straight from light to
+            // full - a plain lerp would put "placed, mid height" at the average of a chip and a
+            // drive, which is neither.
+            float elev = charge01 < 0.5f
+                       ? Mathf.Lerp(ShotElevLightDeg, ShotElevMidDeg, charge01 * 2f)
+                       : Mathf.Lerp(ShotElevMidDeg, ShotElevFullDeg, (charge01 - 0.5f) * 2f);
+            if (scatterDeg > 0.01f) elev += Random.Range(-scatterDeg, scatterDeg) * 0.5f;
+            elev = Mathf.Clamp(elev, 2f, 60f);
+
+            float speed = Mathf.Lerp(ShotSpeedLight, ShotSpeedFull, charge01) * PlayerProfile.ShotPowerMul;
+            // Mis-hit weight, scaled by the same cone: up to +-10% on a shot sprayed at the worst
+            // case, near nothing on a clean one. A shanked shot should also be badly struck.
+            if (scatterDeg > 0.01f)
+                speed *= 1f + Random.Range(-1f, 1f) * 0.10f * Mathf.Clamp01(scatterDeg / ShotScatterWorstDeg);
+            speed = Mathf.Clamp(speed, 4f, StrikeSpeedCeiling);
+
+            // Scuff the ball clear of the striking boot. Only when it is genuinely inside his legs:
+            // a carried ball sits ~0.72 m ahead of the body, so a shot aimed anywhere but forward
+            // would otherwise launch through his own shin. Cheaper and less destructive than
+            // ResetTo (which drops carry claims and every timer) - this only moves it.
+            if (shooter != null && shooter.Pelvis != null)
+            {
+                Vector3 pp = shooter.Pelvis.position;
+                Vector3 d = Rb.position - pp; d.y = 0f;
+                if (d.magnitude < 0.55f)
+                {
+                    Vector3 spawn = new Vector3(pp.x, Mathf.Max(SimConfig.BallRadius, Rb.position.y), pp.z)
+                                    + flatDir * 0.55f;
+                    Rb.position = spawn;
+                    transform.position = spawn;
+                }
+            }
+
+            float a = elev * Mathf.Deg2Rad;
+            Vector3 flat = flatDir * (speed * Mathf.Cos(a));
+            Rb.linearVelocity = new Vector3(flat.x, speed * Mathf.Sin(a), flat.z);
+
+            // Curl peaks at MID charge and falls off both ways, so the bend is on the same axis as
+            // everything else rather than a separate button. A full drive is struck through the ball
+            // and is in the air too briefly to bend; a soft chip has too little pace to. Sin gives
+            // that shape in one call; the 0.25 floor keeps a deliberately angled chip from being
+            // dead straight.
+            float shape = 0.25f + 0.75f * Mathf.Sin(charge01 * Mathf.PI);
+            float mag = ShotCurlAccMax * Mathf.Abs(curl01) * shape;
+            bool bends = mag > 0.05f;
+            if (bends)
+            {
+                float s = Mathf.Sign(curl01);
+                _curlAccel = Vector3.Cross(Vector3.up, flatDir) * (s * mag);
+                _curlRemaining = ShotCurlSeconds;
+                // Cosmetic roll only. There is no Magnus force in this project - angularVelocity is
+                // never read back (see PredictLanding) - so the bend is _curlAccel and this is paint.
+                Rb.angularVelocity = Vector3.up * (s * mag * 3f);
+            }
+            else
+            {
+                _curlAccel = Vector3.zero;
+                _curlRemaining = 0f;
+                Rb.angularVelocity = Vector3.zero;
+            }
+            _wiggleRemaining = 0f;
+            _wiggleAmp = 0f;
+
+            if (facingGoal)
+            {
+                _accuracyMul = SimConfig.StrongFootAccuracy + (PlayerProfile.ShotAccuracyMul - 1f);
+                _assistTarget = Vector3.zero;   // centre-goal horizontal nudge, no corner/height aim
+                // A curler gets NO horizontal steer: the steer flattens the bend it was aimed with,
+                // which is the same reason the set-piece curve shot sets this. And no vertical steer
+                // ever, or the assist would predict a deliberate chip back down to goal height.
+                _assistFlatOff = bends;
+                _assistVertOff = true;
+                _assistRemaining = SimConfig.AssistDuration;
+            }
+            else
+            {
+                _accuracyMul = 0f;
+                _assistRemaining = 0f;
+                _assistFlatOff = false;
+                _assistVertOff = false;
+            }
+
+            if (camShouldCut && _cam != null && flat.magnitude >= SimConfig.ShotCamMinSpeed)
+                _cam.PulseBallCam(SimConfig.ShotCamSeconds);
+
+            LastShotWasTrick = false;
+            LastShotType = ShotType.Normal;
+            _trail.emitting = true;
+            _trail.Clear();
+            // Shooter-scoped, same reasoning as DribbleShot: the striking boot must not re-hit its
+            // own shot, and nobody else's volley on the rebound should be blanked.
+            SuppressStrikeFor(shooter, SimConfig.DribbleRecaptureCooldown);
+        }
+
+        // Is the body about to launch a flat shot actually mid-charge on a real one?
+        //
+        // Dribble.FixedUpdate releases a carried ball as an INSTANT flat shot on the leg button's
+        // press edge, which is the same edge that starts a charge - so without this the charge could
+        // never build on a carried ball, the old shot would fire first every time. Testing it HERE,
+        // at the moment of the call, rather than pre-arming a suppression window from Striker, is
+        // what closes the ordering race: Dribble runs in FixedUpdate and Striker.Tick in Update, so
+        // a physics step can see the press before Striker ever does.
+        //
+        // Striker is on the ragdoll's own GameObject (the strike path in this file already does this
+        // exact lookup), and WantsChargedShot reads the live input, so this is never stale.
+        //
+        // Consequence worth stating: on a carried ball the press now ALWAYS ends the carry and
+        // always yields to the charge, so a charge that is then cancelled (he leaves the ground, the
+        // ball rolls out of range) produces no shot at all. That reads as a shank, and Dribble's own
+        // 0.45 s recapture cooldown lets him pick the ball back up. A double shot would be worse.
+        static bool ChargeOwnsShot(ActiveRagdoll shooter)
+        {
+            if (shooter == null) return false;
+            var st = shooter.GetComponent<Striker>();
+            return st != null && st.WantsChargedShot;
+        }
+
         // A shot launched by the Dribble component (release-on-kick). Sets the shot
         // velocity, then folds into the SAME systems a normal strike uses: the facing-
         // gated goal assist and the 2s ball-cam pulse. Suppresses re-strike/re-capture so
@@ -1457,6 +1691,13 @@ namespace Trickshot
         public void DribbleShot(Vector3 dir, float speed, bool facingGoal, bool camShouldCut,
                                 ActiveRagdoll shooter = null)
         {
+            // Yield to a charge in progress (see ChargeOwnsShot). Dribble.WantsKick now refuses the
+            // press outright so this should be unreachable from that path, but the suppression below is
+            // kept because reaching here at all means the ball is live at the feet with collision
+            // restored: without it the charging boot strikes its own ball. LaunchChargedShot will fire this
+            // shot properly on release or at full.
+            if (ChargeOwnsShot(shooter)) { SuppressStrikeFor(shooter, SimConfig.PassMaxCharge + 0.1f); return; }
+
             Rb.linearVelocity = dir * speed;
             Rb.angularVelocity = Vector3.zero;
             _curlAccel = Vector3.zero;
@@ -1492,6 +1733,10 @@ namespace Trickshot
         public void LaunchLofted(Vector3 dir, float speed, bool facingGoal, bool camShouldCut,
                                  ActiveRagdoll shooter = null)
         {
+            // Same yield as DribbleShot. Scoped to the SHOOTER, so an AI footballer's lofted shot
+            // (Footballer launches through here too) is never swallowed by a human's charge.
+            if (ChargeOwnsShot(shooter)) { SuppressStrikeFor(shooter, SimConfig.PassMaxCharge + 0.1f); return; }
+
             dir.y = 0f;
             if (dir.sqrMagnitude < 1e-4f) dir = transform.forward;
             dir.Normalize();
