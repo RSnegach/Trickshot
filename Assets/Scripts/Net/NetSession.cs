@@ -912,7 +912,18 @@ namespace Trickshot.Net
             var mode = (GameMode)Config.mode;
             if (mode == GameMode.Scrimmage) return ScrimShirtOfSlot(slot) < ScrimPerSide;
             if (slot != CrosserSlot) return true;
-            return mode == GameMode.Striker;
+            // A human may take the crosser seat in every mode whose net driver actually BUILDS a
+            // crosser body, and that is Striker AND SetPieces - NetStrikerMatch.cs:150 and
+            // NetSetPieceMatch.cs:221 both spawn one. This used to read "mode == GameMode.Striker",
+            // so a set-piece lobby refused the claim even though the body it would have driven exists,
+            // and RebuildRoster then omitted the row entirely: the seat was unreachable by design
+            // accident rather than by decision.
+            //
+            // Accuracy is deliberately still excluded. It runs NetAccuracyMatch, which has zero
+            // crosser references (verified by grep), so there is no body for a claimer to become and
+            // publishing the row would put back the click-and-nothing-happens this gate exists to
+            // prevent.
+            return mode == GameMode.Striker || mode == GameMode.SetPieces;
         }
 
         // Message types only the HOST ever authors. A client accepts these from the host peer only

@@ -40,7 +40,11 @@ namespace Trickshot
         // agreement that rots. It lives here now, next to the camera that has to frame whatever
         // width comes out.
         public const float ColumnGap = 16f;    // between the preview column and the panel
-        public const float PanelW    = 560f;   // the control panel
+        // 500, down from 560. The preview column is whatever is LEFT after the panel and the margins
+        // (see ColumnWidth), and on a 1080p display that formula resolves well below the cap, so the
+        // cap is not what limits it there - the panel is. Sixty pixels off the panel is sixty onto the
+        // model at every resolution, which is the only lever that widens the common case.
+        public const float PanelW    = 500f;   // the control panel
         public const float PanelH    = 600f;   // both are this tall
 
         // The column was a flat 300 px, which is an 0.5 aspect against PanelH. At fov 42 that gives
@@ -56,7 +60,12 @@ namespace Trickshot
         // 1080p and 1440p, 560 at 4K. Never below the old 300, so nothing regresses on a small
         // display; capped at 560 because past that the animal is framed by its vertical fit anyway
         // and the extra width is empty turf.
-        const float MinColumnW = 300f, MaxColumnW = 560f, SideMargin = 166f;
+        // Cap raised 560 -> 720. The old note said past 560 "the extra width is empty turf", which is
+        // true only while the column is framed by its VERTICAL fit - and a quadruped side-on is framed
+        // by its width, which is the case the widening exists for. Raising the cap changes nothing
+        // below 4K (the subtraction above still binds), so it cannot regress a small display; it only
+        // stops a large one from leaving the space unused.
+        const float MinColumnW = 300f, MaxColumnW = 720f, SideMargin = 166f;
 
         public static float ColumnWidth => Mathf.Clamp(
             MenuScale.Width - 2f * SideMargin - ColumnGap - PanelW, MinColumnW, MaxColumnW);
@@ -131,7 +140,36 @@ namespace Trickshot
             _floor.transform.localScale = new Vector3(4f, 1f, 4f);
             // Brighter than the old 0.18/0.30/0.18: the pad is most of what is behind the legs, so a
             // dark one made the lower half of every model look unlit.
-            _floor.GetComponent<Renderer>().sharedMaterial = Make.Mat(new Color(0.28f, 0.44f, 0.28f), 0.05f);
+            // DARKER THAN IT LOOKS, on purpose, and this is a fix for something I caused. The albedo
+            // used to be (0.28, 0.44, 0.28), a sensible grass green - but PreviewAmbient was later
+            // raised to 1.95 to lift the shadow side of the BODY, and RenderSettings.ambientIntensity
+            // scales the whole scene, so the turf came out at roughly (0.55, 0.86, 0.55): a pale,
+            // washed, faintly minty green that read as anything but grass.
+            //
+            // Fixing it on the floor's own albedo rather than by lowering the ambient, because the
+            // ambient is doing a job on the body that still needs doing.
+            //
+            // SOLVED FROM A MEASUREMENT, not guessed, because guessing missed twice. With an albedo of
+            // (0.14, 0.23, 0.14) the floor SAMPLED off a screenshot at (0.478, 0.604, 0.506) - an
+            // effective gain of (3.42, 2.63, 3.61), nowhere near the 1.95 the ambient intensity
+            // suggests. Two things make it that: the ambient source is the SKYBOX, so its own
+            // brightness multiplies in on top of the intensity, and it is sky-TINTED, so it lifts red
+            // and blue harder than green. That uneven lift is what turned a green pad minty rather
+            // than merely pale.
+            //
+            // TUNED AGAINST THE GAME'S OWN PITCH, which is the only defensible target: "it should just
+            // be green" means the green already on screen everywhere else. Sampled from a menu
+            // screenshot, the real pitch renders at (0.42, 0.64, 0.42) with 0.34 saturation. The old
+            // preview floor rendered at (0.43, 0.58, 0.46) with 0.25 - almost exactly the pitch's
+            // BRIGHTNESS but a third less saturated, which is the whole complaint: not too pale, too
+            // GREY. Aiming at an invented, more saturated target first overshot the other way and came
+            // out 27% too dark, so the figure below is the pitch's own rendered colour divided back
+            // through the measured per-channel gain.
+            //
+            // The green-heavy ratio is deliberate. The ambient source is the SKYBOX, so it is
+            // sky-tinted and lifts red and blue harder than green (measured gain 3.4 / 2.6 / 3.6);
+            // biasing the albedo green cancels that instead of fighting it.
+            _floor.GetComponent<Renderer>().sharedMaterial = Make.Mat(new Color(0.078f, 0.212f, 0.072f), 0.05f);
 
             Rebuild();
         }
