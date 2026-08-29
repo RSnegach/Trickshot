@@ -631,20 +631,73 @@ namespace Trickshot
             _target = ball + gdir * 6f + DefenderAvoidOffset(ball, gdir);
         }
 
-        // Where an AI shot is AIMED: the far corner relative to the ball's x (away from the centre a
-        // keeper shadows), scattered by the tier's execution error. Measured: at Normal (ErrorRate
-        // 0.40) the scatter multiplier is 0.94, i.e. 1.03 m against the 1.1 m flat figure this
-        // replaced - so Normal is unchanged and only the ends of the ladder move (Easy 1.5 m,
-        // Insane 0.55 m). Aim, and only aim, lives here.
+        // Where an AI shot is AIMED.
+        //
+        // THIS IS WHY EVERY AI SHOT SCORED, and it was three compounding faults in four lines. The old
+        // expression was
+        //     aimX = Clamp(side * halfGoal + Random.Range(-scat, scat), -halfGoal, halfGoal)
+        //     aimY = Clamp(GoalHeight * 0.55 + Random.Range(-0.3, 0.3) * (0.4 + err), 0.4, GoalHeight - 0.2)
+        // and measured over 200k samples per tier of that exact expression:
+        //
+        //   1. AN AI SHOT COULD NOT MISS. 0.00% went wide and 0.00% went over, at EVERY tier. The X
+        //      clamp folds the scatter back inside the frame, and the Y spread of +-0.31 m could never
+        //      reach a 2.44 m bar from a 1.34 m centre, so the scatter was decorative. Shots were also
+        //      the only strike in this file with no execution error at all - the pass branches above
+        //      carry Passing.ScatterDeg AND Passing.Wobble, while Shoot solves an exact ballistic arc.
+        //   2. HALF OF EVERY TIER LANDED ON ONE PIXEL. The aim centre WAS the clamp bound, so with a
+        //      uniform draw exactly half the distribution collapsed onto x = +-3.14. Measured 49.8% to
+        //      50.1% across all four tiers, and difficulty did nothing to that half.
+        //   3. THAT PIXEL IS WHERE THE KEEPER IS NOT, by construction: side picks the corner AWAY from
+        //      the ball, which is the side he shades off. Fraction of old aims inside his reachable
+        //      lateral window: 2.0% at 6 m, 3.6-33% at 10 m depending on tier.
+        //
+        // The fix keeps the aim decision here and changes three things. The target is INSET from the
+        // post so the bound stops attracting the distribution; the clamp window is WIDER than the frame
+        // so a bad shot genuinely misses; and the corner is a CHOICE, taken more often by a better
+        // brain, because a tier that always aims at the unreachable corner is unbeatable however good
+        // the keeper gets. Re-measured on the same 200k samples:
+        //
+        //   tier    wide%   over%   offTgt%  pinned%  savable@6m  savable@10m
+        //   Easy    14.89%  15.19%   27.84%    0.05%    36.2% (2.0%)  61.2% (33.2%)
+        //   Normal  14.05%   4.20%   17.65%    0.06%    28.8% (0.0%)  59.9% (26.4%)
+        //   Hard     8.06%   0.00%    8.06%    0.06%    24.5% (0.0%)  53.1% (16.5%)
+        //   Insane   0.00%   0.00%    0.00%    0.09%    17.8% (0.0%)  43.5% ( 3.5%)
+        //
+        // Bracketed figures are the old expression measured the same way. "savable" means the shot is
+        // ON TARGET and lands inside the keeper's lateral window, i.e. a save is physically possible -
+        // it does NOT mean he makes it.
+        //
+        // Insane never missing is deliberate; it is the top tier, and it is now beatable only by the
+        // keeper, which is where the difficulty should live. Off-target at 28% / 18% / 8% / 0% sits
+        // under real football's 30-45%, so this is still on the accurate side of life.
+        //
+        // Shoot still launches an EXACT arc to this point, deliberately. All of the execution error is
+        // in the aim, so adding scatter or wobble at the launch would double-count it and would make the
+        // table above describe something other than where the ball goes.
+        //
+        // NOT VERIFIED IN PLAY. These are exact figures for the aim DISTRIBUTION, computed offline from
+        // this expression. The resulting goals-per-shot also depends on the keeper actually saving what
+        // he can now reach, which is a separate fix and is not measured yet.
+        const float AimInset   = 0.90f;   // fraction of halfGoal the corner target sits at
+        const float AimMissX   = 1.40f;   // metres of window BEYOND the frame, so a shot can go wide
+        const float AimMissY   = 0.90f;   // ...and over
+        const float AimYSpread = 1.50f;   // Y scatter multiplier; below ~1.4 a shot can never clear the bar
+
         Vector3 ShotAim(Vector3 ball, SimConfig.AiTuning tune)
         {
             float halfGoal = SimConfig.GoalWidth * 0.5f - SimConfig.BallRadius - 0.3f;
             float side = ball.x >= 0f ? -1f : 1f;
-            float scat = SimConfig.AiShotScatter * Mathf.Lerp(0.35f, 2.0f, Mathf.Clamp01(tune.ErrorRate));
-            float aimX = Mathf.Clamp(side * halfGoal + Random.Range(-scat, scat), -halfGoal, halfGoal);
+            float err = Mathf.Clamp01(tune.ErrorRate);
+            float scat = SimConfig.AiShotScatter * Mathf.Lerp(0.35f, 2.0f, err);
+            // Going for the corner is a DECISION, so it scales with decision quality rather than being
+            // free. A weaker brain settles for a safer, more central ball the keeper can get to.
+            bool corner = Random.value < Mathf.Lerp(0.30f, 0.85f, Mathf.Clamp01(tune.Decision));
+            float aimC = side * halfGoal * (corner ? AimInset : 0.30f);
+            float aimX = Mathf.Clamp(aimC + Random.Range(-scat, scat),
+                                     -(halfGoal + AimMissX), halfGoal + AimMissX);
             float aimY = Mathf.Clamp(SimConfig.GoalHeight * 0.55f
-                                     + Random.Range(-0.3f, 0.3f) * (0.4f + Mathf.Clamp01(tune.ErrorRate)),
-                                     0.4f, SimConfig.GoalHeight - 0.2f);
+                                     + Random.Range(-AimYSpread, AimYSpread) * (0.4f + err),
+                                     0.20f, SimConfig.GoalHeight + AimMissY);
             return new Vector3(aimX, aimY, TargetGoal.z);
         }
 
