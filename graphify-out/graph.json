@@ -691,8 +691,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "gameinput.cs"
     },
     {
@@ -708,8 +708,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "gameinput"
     },
     {
@@ -730,8 +730,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "inputactionasset",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "inputactionasset"
     },
     {
@@ -741,8 +741,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "inputactionmap",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "inputactionmap"
     },
     {
@@ -763,8 +763,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "playerinput",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "playerinput"
     },
     {
@@ -831,8 +831,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_startrebind",
-      "community": 128,
-      "community_name": ".LateUpdate",
+      "community": 140,
+      "community_name": "PlayerAppearance",
       "norm_label": ".startrebind()"
     },
     {
@@ -842,8 +842,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_action",
-      "community": 128,
-      "community_name": ".LateUpdate",
+      "community": 140,
+      "community_name": "PlayerAppearance",
       "norm_label": "action"
     },
     {
@@ -853,8 +853,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_rebindingoperation",
-      "community": 128,
-      "community_name": ".LateUpdate",
+      "community": 140,
+      "community_name": "PlayerAppearance",
       "norm_label": "rebindingoperation"
     },
     {
@@ -870,8 +870,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_normalizepath",
-      "community": 128,
-      "community_name": ".LateUpdate",
+      "community": 140,
+      "community_name": "PlayerAppearance",
       "norm_label": ".normalizepath()"
     },
     {
@@ -887,8 +887,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_capturecursor",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".capturecursor()"
     },
     {
@@ -904,8 +904,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_lockcursor",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".lockcursor()"
     },
     {
@@ -921,8 +921,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_onapplicationfocus",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".onapplicationfocus()"
     },
     {
@@ -938,8 +938,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_ondestroy",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".ondestroy()"
     },
     {
@@ -949,8 +949,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_vector2",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "vector2"
     },
     {
@@ -977,8 +977,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_byte",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "byte"
     },
     {
@@ -2044,8 +2044,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": "inettransport"
     },
     {
@@ -2078,8 +2078,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_join",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".join()"
     },
     {
@@ -2095,8 +2095,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_shutdown",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".shutdown()"
     },
     {
@@ -2146,8 +2146,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_poll",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".poll()"
     },
     {
@@ -2163,8 +2163,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_listlobbies",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".listlobbies()"
     },
     {
@@ -2174,8 +2174,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_cs_action",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": "action"
     },
     {
@@ -2185,8 +2185,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_cs_list",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": "list"
     },
     {
@@ -2196,8 +2196,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_cs_func",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": "func"
     },
     {
@@ -2498,8 +2498,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "multiplayer.cs"
     },
     {
@@ -2515,8 +2515,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "multiplayer"
     },
     {
@@ -2526,8 +2526,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_cs_bool",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "bool"
     },
     {
@@ -2543,8 +2543,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_newtransport",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".newtransport()"
     },
     {
@@ -2560,8 +2560,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_host",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".host()"
     },
     {
@@ -2577,8 +2577,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_join",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".join()"
     },
     {
@@ -2594,8 +2594,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_end",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".end()"
     },
     {
@@ -2605,8 +2605,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "netpumprunner",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "netpumprunner"
     },
     {
@@ -2622,8 +2622,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_installpump",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".installpump()"
     },
     {
@@ -2639,8 +2639,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_ontransportdisconnected",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".ontransportdisconnected()"
     },
     {
@@ -2657,8 +2657,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_netpumprunner",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "netpumprunner"
     },
     {
@@ -2674,8 +2674,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_netpumprunner_update",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".update()"
     },
     {
@@ -2691,8 +2691,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_hostlost",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".hostlost()"
     },
     {
@@ -2708,8 +2708,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_installquitguard",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".installquitguard()"
     },
     {
@@ -2719,8 +2719,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_cs_runtimeinitializeonloadmethod",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "runtimeinitializeonloadmethod"
     },
     {
@@ -2736,8 +2736,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_browse",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".browse()"
     },
     {
@@ -2747,8 +2747,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_cs_list",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "list"
     },
     {
@@ -2764,8 +2764,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_browsepoll",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".browsepoll()"
     },
     {
@@ -2781,8 +2781,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_multiplayer_trickshot_net_multiplayer_poll",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".poll()"
     },
     {
@@ -3371,8 +3371,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_animstate",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": "animstate"
     },
     {
@@ -4648,8 +4648,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_joinlobby",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".joinlobby()"
     },
     {
@@ -4665,8 +4665,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_leave",
-      "community": 138,
-      "community_name": "StadiumSelectUI",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".leave()"
     },
     {
@@ -5056,8 +5056,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_inputtickforslot",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".inputtickforslot()"
     },
     {
@@ -5090,8 +5090,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastsnapshot",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -5197,8 +5197,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_qcallow",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": ".qcallow()"
     },
     {
@@ -5214,8 +5214,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_sendquickchat",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": ".sendquickchat()"
     },
     {
@@ -5231,8 +5231,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_deliverquickchat",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": ".deliverquickchat()"
     },
     {
@@ -5988,8 +5988,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_net_tailnetdiscovery",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 78,
+      "community_name": ".Tick",
       "norm_label": "tailnetdiscovery.cs"
     },
     {
@@ -6038,8 +6038,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_tailnetdiscovery_cs_int",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 78,
+      "community_name": ".Tick",
       "norm_label": "int"
     },
     {
@@ -6298,8 +6298,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_tailnetdiscovery_trickshot_net_tailnetdiscovery_poll",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".poll()"
     },
     {
@@ -8338,7 +8338,7 @@
       "label": ".LaunchLofted()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1730",
+      "source_location": "L1733",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -8355,7 +8355,7 @@
       "label": ".KickTo()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1787",
+      "source_location": "L1790",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -8372,7 +8372,7 @@
       "label": ".ResetTo()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1799",
+      "source_location": "L1802",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -8389,7 +8389,7 @@
       "label": ".PredictLanding()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1859",
+      "source_location": "L1862",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -8406,7 +8406,7 @@
       "label": ".IsLeftBone()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1881",
+      "source_location": "L1884",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -8866,8 +8866,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "chatcensor.cs"
     },
     {
@@ -8883,8 +8883,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor_trickshot_chatcensor",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "chatcensor"
     },
     {
@@ -8894,8 +8894,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor_cs_string",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "string"
     },
     {
@@ -8905,8 +8905,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor_cs_dictionary",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": "dictionary"
     },
     {
@@ -8922,8 +8922,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor_trickshot_chatcensor_norm",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": ".norm()"
     },
     {
@@ -8939,8 +8939,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor_trickshot_chatcensor_clean",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": ".clean()"
     },
     {
@@ -8956,8 +8956,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_chatcensor_trickshot_chatcensor_ismildbad",
-      "community": 127,
-      "community_name": "ChatCensor",
+      "community": 128,
+      "community_name": ".LateUpdate",
       "norm_label": ".ismildbad()"
     },
     {
@@ -10439,8 +10439,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_handlemodeldrag",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".handlemodeldrag()"
     },
     {
@@ -10914,8 +10914,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_pickscreenpixel",
-      "community": 121,
-      "community_name": "KickDetector",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".pickscreenpixel()"
     },
     {
@@ -10925,8 +10925,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_cs_ienumerator",
-      "community": 121,
-      "community_name": "KickDetector",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": "ienumerator"
     },
     {
@@ -11197,8 +11197,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_syncadultdims",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".syncadultdims()"
     },
     {
@@ -11214,8 +11214,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_commit",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".commit()"
     },
     {
@@ -11948,7 +11948,7 @@
       "label": ".ReleaseShot()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L444",
+      "source_location": "L464",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -11965,7 +11965,7 @@
       "label": ".ForceRelease()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L474",
+      "source_location": "L494",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12326,8 +12326,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_footballer_cs_scrimpos",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "scrimpos"
     },
     {
@@ -12363,7 +12363,7 @@
       "label": ".Init()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L136",
+      "source_location": "L142",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12372,15 +12372,15 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_footballer_trickshot_footballer_init",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".init()"
     },
     {
       "label": ".AiTick()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L171",
+      "source_location": "L177",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12397,7 +12397,7 @@
       "label": ".Think()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L224",
+      "source_location": "L237",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12414,7 +12414,7 @@
       "label": ".BallProgress()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L371",
+      "source_location": "L409",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12431,7 +12431,7 @@
       "label": ".ShapeSpot()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L388",
+      "source_location": "L426",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12459,7 +12459,7 @@
       "label": ".AiKeeperTick()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L432",
+      "source_location": "L470",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12476,7 +12476,7 @@
       "label": ".DistributeAim()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L463",
+      "source_location": "L501",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12493,7 +12493,7 @@
       "label": ".Drive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L481",
+      "source_location": "L519",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12510,7 +12510,7 @@
       "label": ".TryTackle()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L506",
+      "source_location": "L544",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12527,7 +12527,7 @@
       "label": ".OnBallAct()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L524",
+      "source_location": "L562",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12555,7 +12555,7 @@
       "label": ".ShotAim()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L600",
+      "source_location": "L638",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12572,7 +12572,7 @@
       "label": ".Shoot()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L622",
+      "source_location": "L660",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12589,7 +12589,7 @@
       "label": ".LaneClear()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L635",
+      "source_location": "L673",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12606,7 +12606,7 @@
       "label": ".DefenderAvoidOffset()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L639",
+      "source_location": "L677",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12623,7 +12623,7 @@
       "label": ".DriveCarry()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L668",
+      "source_location": "L706",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12640,7 +12640,7 @@
       "label": ".SetCarryCollision()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L699",
+      "source_location": "L737",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12657,7 +12657,7 @@
       "label": ".OnDisable()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L711",
+      "source_location": "L749",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12674,7 +12674,7 @@
       "label": ".RunGait()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L716",
+      "source_location": "L754",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -12691,7 +12691,7 @@
       "label": ".ResetTo()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L733",
+      "source_location": "L771",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -13676,8 +13676,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamecamera_trickshot_gamecamera_toggleballcam",
-      "community": 79,
-      "community_name": ".Heavy",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".toggleballcam()"
     },
     {
@@ -14161,8 +14161,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_setcrossmapopen",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".setcrossmapopen()"
     },
     {
@@ -15317,8 +15317,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_hostsetupui_trickshot_hostsetupui_create",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".create()"
     },
     {
@@ -19047,8 +19047,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_update",
-      "community": 26,
-      "community_name": ".Join",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".update()"
     },
     {
@@ -19664,8 +19664,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_menuui",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": "menuui.cs"
     },
     {
@@ -19698,8 +19698,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_trickshot_menuui",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": "menuui"
     },
     {
@@ -19709,8 +19709,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_cs_action",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": "action"
     },
     {
@@ -19720,8 +19720,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_cs_bool",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": "bool"
     },
     {
@@ -19737,8 +19737,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_trickshot_menuui_init",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": ".init()"
     },
     {
@@ -19771,8 +19771,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_trickshot_menuui_choose",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": ".choose()"
     },
     {
@@ -19788,8 +19788,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_trickshot_menuui_ondestroy",
-      "community": 140,
-      "community_name": "PlayerAppearance",
+      "community": 139,
+      "community_name": "HashSet",
       "norm_label": ".ondestroy()"
     },
     {
@@ -20400,8 +20400,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_broadcastsnapshot",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -20417,8 +20417,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_animstateof",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".animstateof()"
     },
     {
@@ -21435,8 +21435,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_animstateof",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".animstateof()"
     },
     {
@@ -21452,8 +21452,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_broadcastsnapshot",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -21537,8 +21537,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_lockcursor",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".lockcursor()"
     },
     {
@@ -22271,8 +22271,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_animstateof",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".animstateof()"
     },
     {
@@ -22288,8 +22288,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_broadcastsnapshot",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": ".broadcastsnapshot()"
     },
     {
@@ -22666,8 +22666,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_beginlisten",
-      "community": 128,
-      "community_name": ".LateUpdate",
+      "community": 140,
+      "community_name": "PlayerAppearance",
       "norm_label": ".beginlisten()"
     },
     {
@@ -23201,8 +23201,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_addyaw",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".addyaw()"
     },
     {
@@ -23503,8 +23503,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "aidifficulty",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "aidifficulty"
     },
     {
@@ -23633,8 +23633,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_scrimmagepickers",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".scrimmagepickers()"
     },
     {
@@ -24811,8 +24811,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_vector3",
-      "community": 29,
-      "community_name": "INetTransport",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": "vector3"
     },
     {
@@ -24990,8 +24990,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_spawnspot",
-      "community": 29,
-      "community_name": "INetTransport",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": ".spawnspot()"
     },
     {
@@ -25457,8 +25457,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_ondribbleshot",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".ondribbleshot()"
     },
     {
@@ -25508,8 +25508,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_noteshotby",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".noteshotby()"
     },
     {
@@ -25559,8 +25559,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_row",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".row()"
     },
     {
@@ -25576,8 +25576,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_notetouch",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".notetouch()"
     },
     {
@@ -25593,8 +25593,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_notepass",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".notepass()"
     },
     {
@@ -25610,8 +25610,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_noteshot",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".noteshot()"
     },
     {
@@ -25627,8 +25627,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_notetackle",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".notetackle()"
     },
     {
@@ -25678,8 +25678,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_tracktouches",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".tracktouches()"
     },
     {
@@ -25864,8 +25864,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_clampaim",
-      "community": 29,
-      "community_name": "INetTransport",
+      "community": 58,
+      "community_name": "IStrikerInput",
       "norm_label": ".clampaim()"
     },
     {
@@ -26130,8 +26130,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "sessionbrowserui.cs"
     },
     {
@@ -26147,8 +26147,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "sessionbrowserui"
     },
     {
@@ -26158,8 +26158,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_action",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "action"
     },
     {
@@ -26169,8 +26169,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_list",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "list"
     },
     {
@@ -26180,8 +26180,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_int",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "int"
     },
     {
@@ -26191,8 +26191,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_ulong",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "ulong"
     },
     {
@@ -26202,8 +26202,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_float",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "float"
     },
     {
@@ -26213,8 +26213,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_string",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "string"
     },
     {
@@ -26224,8 +26224,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_cs_bool",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": "bool"
     },
     {
@@ -26241,8 +26241,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_startconnect",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".startconnect()"
     },
     {
@@ -26258,8 +26258,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_cancelconnect",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".cancelconnect()"
     },
     {
@@ -26275,8 +26275,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_init",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".init()"
     },
     {
@@ -26292,8 +26292,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_refresh",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".refresh()"
     },
     {
@@ -26309,8 +26309,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_tryjoinbyip",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".tryjoinbyip()"
     },
     {
@@ -26326,8 +26326,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_update",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".update()"
     },
     {
@@ -26343,8 +26343,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_browsestatus",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".browsestatus()"
     },
     {
@@ -26360,8 +26360,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_sessionbrowserui_trickshot_sessionbrowserui_foundline",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 26,
+      "community_name": ".Join",
       "norm_label": ".foundline()"
     },
     {
@@ -26422,8 +26422,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "setpiecemap.cs"
     },
     {
@@ -26439,8 +26439,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "setpiecemap"
     },
     {
@@ -26450,8 +26450,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_cs_color",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "color"
     },
     {
@@ -26461,8 +26461,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_cs_float",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "float"
     },
     {
@@ -26478,8 +26478,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_draw",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".draw()"
     },
     {
@@ -26489,8 +26489,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_cs_rect",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "rect"
     },
     {
@@ -26500,8 +26500,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_cs_vector3",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "vector3"
     },
     {
@@ -26517,8 +26517,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_clampoutsidebox",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".clampoutsidebox()"
     },
     {
@@ -26534,8 +26534,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_defaultplacement",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".defaultplacement()"
     },
     {
@@ -26551,8 +26551,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_randomspot",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".randomspot()"
     },
     {
@@ -26562,8 +26562,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_cs_random",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "random"
     },
     {
@@ -26596,8 +26596,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_maptoworld",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".maptoworld()"
     },
     {
@@ -26607,8 +26607,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_cs_vector2",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": "vector2"
     },
     {
@@ -26624,8 +26624,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_worldtomap",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".worldtomap()"
     },
     {
@@ -26641,8 +26641,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_wboxoutline",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".wboxoutline()"
     },
     {
@@ -26658,8 +26658,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawmarker",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".drawmarker()"
     },
     {
@@ -26675,8 +26675,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawreticle",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".drawreticle()"
     },
     {
@@ -26692,8 +26692,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawcircle",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".drawcircle()"
     },
     {
@@ -26709,8 +26709,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_worldarc",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".worldarc()"
     },
     {
@@ -26726,8 +26726,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawdottedline",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".drawdottedline()"
     },
     {
@@ -26743,8 +26743,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_drawrectoutline",
-      "community": 17,
-      "community_name": ".Box",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".drawrectoutline()"
     },
     {
@@ -27042,8 +27042,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_rungait",
-      "community": 105,
-      "community_name": "AccuracyBoard",
+      "community": 45,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".rungait()"
     },
     {
@@ -37041,8 +37041,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "simconfig.cs"
     },
     {
@@ -37058,8 +37058,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "simconfig"
     },
     {
@@ -37069,8 +37069,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_float",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "float"
     },
     {
@@ -37080,8 +37080,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_int",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "int"
     },
     {
@@ -37091,8 +37091,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_vector3",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "vector3"
     },
     {
@@ -37102,8 +37102,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_bool",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "bool"
     },
     {
@@ -37120,8 +37120,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_delivery",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "delivery"
     },
     {
@@ -37131,8 +37131,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_color",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "color"
     },
     {
@@ -37149,8 +37149,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_scrimrole",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "scrimrole"
     },
     {
@@ -37167,8 +37167,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_scrimpos",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "scrimpos"
     },
     {
@@ -37184,8 +37184,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_formation",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".formation()"
     },
     {
@@ -37201,8 +37201,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_positionof",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".positionof()"
     },
     {
@@ -37218,8 +37218,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_positionname",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".positionname()"
     },
     {
@@ -37235,8 +37235,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_shirtforposition",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".shirtforposition()"
     },
     {
@@ -37252,8 +37252,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_keepershirt",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".keepershirt()"
     },
     {
@@ -37269,8 +37269,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_positionanchorbase",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".positionanchorbase()"
     },
     {
@@ -37280,8 +37280,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_vector2",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "vector2"
     },
     {
@@ -37297,8 +37297,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_positionanchor",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".positionanchor()"
     },
     {
@@ -37315,8 +37315,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_aidifficulty",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "aidifficulty"
     },
     {
@@ -37333,8 +37333,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_aituning",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "aituning"
     },
     {
@@ -37344,8 +37344,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_cs_string",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": "string"
     },
     {
@@ -37378,8 +37378,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_applyscrimmagestatics",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".applyscrimmagestatics()"
     },
     {
@@ -37395,8 +37395,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_scrimhalflength",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".scrimhalflength()"
     },
     {
@@ -37412,8 +37412,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_scrimhalfwidth",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".scrimhalfwidth()"
     },
     {
@@ -37429,8 +37429,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_aipace",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 17,
+      "community_name": ".Box",
       "norm_label": ".aipace()"
     },
     {
@@ -42390,8 +42390,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "body",
-      "community": 101,
-      "community_name": ".StartRebind",
+      "community": 127,
+      "community_name": "ChatCensor",
       "norm_label": "body"
     },
     {
@@ -42445,8 +42445,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "touch",
-      "community": 139,
-      "community_name": "HashSet",
+      "community": 138,
+      "community_name": "StadiumSelectUI",
       "norm_label": "touch"
     },
     {
@@ -62790,7 +62790,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1881",
+      "source_location": "L1884",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller",
@@ -62801,7 +62801,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1787",
+      "source_location": "L1790",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller",
@@ -62823,7 +62823,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1730",
+      "source_location": "L1733",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller",
@@ -62867,7 +62867,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1859",
+      "source_location": "L1862",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller",
@@ -62878,7 +62878,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1799",
+      "source_location": "L1802",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller",
@@ -63187,7 +63187,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L136",
+      "source_location": "L142",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -63997,7 +63997,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1787",
+      "source_location": "L1790",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -64027,7 +64027,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1730",
+      "source_location": "L1733",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -64072,7 +64072,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1859",
+      "source_location": "L1862",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -64087,7 +64087,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1799",
+      "source_location": "L1802",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -64269,7 +64269,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L707",
+      "source_location": "L745",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_setcarrycollision",
@@ -64364,7 +64364,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1722",
+      "source_location": "L1699",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_dribbleshot",
@@ -64376,7 +64376,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1796",
+      "source_location": "L1799",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_kickto",
@@ -64400,7 +64400,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1779",
+      "source_location": "L1738",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_launchlofted",
@@ -64689,7 +64689,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L629",
+      "source_location": "L667",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_shoot",
@@ -64952,7 +64952,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1696",
+      "source_location": "L1699",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_dribbleshot",
@@ -64964,7 +64964,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1735",
+      "source_location": "L1738",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_launchlofted",
@@ -64977,7 +64977,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1717",
+      "source_location": "L1720",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_dribbleshot",
@@ -65004,7 +65004,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L468",
+      "source_location": "L488",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_dribble_trickshot_dribble_releaseshot",
@@ -65016,7 +65016,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1771",
+      "source_location": "L1774",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_launchlofted",
@@ -65026,7 +65026,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1730",
+      "source_location": "L1733",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65043,7 +65043,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L466",
+      "source_location": "L486",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_dribble_trickshot_dribble_releaseshot",
@@ -65053,7 +65053,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1787",
+      "source_location": "L1790",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65118,7 +65118,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1817",
+      "source_location": "L1820",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_resetto",
@@ -65464,7 +65464,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/BallController.cs",
-      "source_location": "L1881",
+      "source_location": "L1884",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -73402,7 +73402,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L474",
+      "source_location": "L494",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_dribble_trickshot_dribble",
@@ -73479,7 +73479,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L444",
+      "source_location": "L464",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_dribble_trickshot_dribble",
@@ -74123,7 +74123,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L687",
+      "source_location": "L725",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drivecarry",
@@ -74195,7 +74195,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L691",
+      "source_location": "L729",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drivecarry",
@@ -74246,7 +74246,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L690",
+      "source_location": "L728",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drivecarry",
@@ -74270,7 +74270,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L692",
+      "source_location": "L730",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drivecarry",
@@ -74305,7 +74305,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L476",
+      "source_location": "L496",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_dribble_trickshot_dribble_forcerelease",
@@ -74317,7 +74317,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Dribble.cs",
-      "source_location": "L456",
+      "source_location": "L476",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_dribble_trickshot_dribble_releaseshot",
@@ -74369,7 +74369,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L703",
+      "source_location": "L741",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_setcarrycollision",
@@ -74858,7 +74858,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L217",
+      "source_location": "L230",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -74873,7 +74873,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L108",
+      "source_location": "L114",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -74888,7 +74888,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L111",
+      "source_location": "L117",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -74935,7 +74935,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L130",
+      "source_location": "L136",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -74950,7 +74950,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L113",
+      "source_location": "L119",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -74965,7 +74965,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L432",
+      "source_location": "L470",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -74976,7 +74976,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L171",
+      "source_location": "L177",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -74987,7 +74987,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L371",
+      "source_location": "L409",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -74998,7 +74998,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L639",
+      "source_location": "L677",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75009,7 +75009,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L463",
+      "source_location": "L501",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75020,7 +75020,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L481",
+      "source_location": "L519",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75031,7 +75031,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L668",
+      "source_location": "L706",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75042,7 +75042,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L136",
+      "source_location": "L142",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75053,7 +75053,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L635",
+      "source_location": "L673",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75064,7 +75064,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L524",
+      "source_location": "L562",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75075,7 +75075,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L711",
+      "source_location": "L749",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75086,7 +75086,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L733",
+      "source_location": "L771",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75097,7 +75097,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L716",
+      "source_location": "L754",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75108,7 +75108,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L699",
+      "source_location": "L737",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75119,7 +75119,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L388",
+      "source_location": "L426",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75130,7 +75130,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L622",
+      "source_location": "L660",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75141,7 +75141,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L600",
+      "source_location": "L638",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75152,7 +75152,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L224",
+      "source_location": "L237",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75163,7 +75163,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L506",
+      "source_location": "L544",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer",
@@ -75185,7 +75185,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L444",
+      "source_location": "L482",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -75200,7 +75200,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L116",
+      "source_location": "L122",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -75230,7 +75230,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L123",
+      "source_location": "L129",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -75620,7 +75620,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L371",
+      "source_location": "L409",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75635,7 +75635,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L639",
+      "source_location": "L677",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -75650,7 +75650,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L463",
+      "source_location": "L501",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -75665,7 +75665,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L481",
+      "source_location": "L519",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75680,7 +75680,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L668",
+      "source_location": "L706",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75695,7 +75695,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L136",
+      "source_location": "L142",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75710,7 +75710,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L635",
+      "source_location": "L673",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75725,7 +75725,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L524",
+      "source_location": "L562",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75740,7 +75740,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L733",
+      "source_location": "L771",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75755,7 +75755,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L388",
+      "source_location": "L426",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -75770,7 +75770,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L622",
+      "source_location": "L660",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75785,7 +75785,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L600",
+      "source_location": "L638",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -75800,7 +75800,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L224",
+      "source_location": "L237",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75815,7 +75815,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L506",
+      "source_location": "L544",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75905,7 +75905,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L136",
+      "source_location": "L142",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75920,7 +75920,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L136",
+      "source_location": "L142",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75937,7 +75937,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L140",
+      "source_location": "L146",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_init",
@@ -75949,7 +75949,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L158",
+      "source_location": "L164",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_init",
@@ -75961,7 +75961,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L157",
+      "source_location": "L163",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_init",
@@ -75972,7 +75972,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L214",
+      "source_location": "L227",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aitick",
@@ -75984,7 +75984,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L213",
+      "source_location": "L226",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aitick",
@@ -75996,7 +75996,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L181",
+      "source_location": "L187",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aitick",
@@ -76008,7 +76008,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L208",
+      "source_location": "L221",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aitick",
@@ -76021,7 +76021,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L182",
+      "source_location": "L188",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aitick",
@@ -76044,7 +76044,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L295",
+      "source_location": "L333",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_think",
@@ -76056,7 +76056,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L354",
+      "source_location": "L392",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_think",
@@ -76068,7 +76068,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L296",
+      "source_location": "L334",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_think",
@@ -76080,7 +76080,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L328",
+      "source_location": "L366",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_think",
@@ -76093,7 +76093,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L227",
+      "source_location": "L240",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_think",
@@ -76103,7 +76103,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L388",
+      "source_location": "L426",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76120,7 +76120,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L388",
+      "source_location": "L426",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76135,7 +76135,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L524",
+      "source_location": "L562",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76152,7 +76152,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L600",
+      "source_location": "L638",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76186,7 +76186,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L436",
+      "source_location": "L474",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aikeepertick",
@@ -76198,7 +76198,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L438",
+      "source_location": "L476",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_aikeepertick",
@@ -76222,7 +76222,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L466",
+      "source_location": "L504",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_distributeaim",
@@ -76234,7 +76234,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L468",
+      "source_location": "L506",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_distributeaim",
@@ -76245,7 +76245,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L497",
+      "source_location": "L535",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drive",
@@ -76258,7 +76258,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L513",
+      "source_location": "L551",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_trytackle",
@@ -76270,7 +76270,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L511",
+      "source_location": "L549",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_trytackle",
@@ -76280,7 +76280,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L524",
+      "source_location": "L562",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76298,7 +76298,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L592",
+      "source_location": "L630",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76310,7 +76310,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L545",
+      "source_location": "L583",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76322,7 +76322,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L560",
+      "source_location": "L598",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76334,7 +76334,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L545",
+      "source_location": "L583",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76346,7 +76346,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L544",
+      "source_location": "L582",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76359,7 +76359,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L561",
+      "source_location": "L599",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76371,7 +76371,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L557",
+      "source_location": "L595",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76383,7 +76383,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L562",
+      "source_location": "L600",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76395,7 +76395,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L533",
+      "source_location": "L571",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76407,7 +76407,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L563",
+      "source_location": "L601",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76419,7 +76419,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L564",
+      "source_location": "L602",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_onballact",
@@ -76429,7 +76429,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L635",
+      "source_location": "L673",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -76447,7 +76447,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L625",
+      "source_location": "L663",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_shoot",
@@ -76460,7 +76460,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L626",
+      "source_location": "L664",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_shoot",
@@ -76472,7 +76472,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L636",
+      "source_location": "L674",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_laneclear",
@@ -76484,7 +76484,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L641",
+      "source_location": "L679",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_defenderavoidoffset",
@@ -76495,7 +76495,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L676",
+      "source_location": "L714",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drivecarry",
@@ -76507,7 +76507,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L682",
+      "source_location": "L720",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_drivecarry",
@@ -76519,7 +76519,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L711",
+      "source_location": "L749",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_ondisable",
@@ -76531,7 +76531,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L738",
+      "source_location": "L776",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_resetto",
@@ -76544,7 +76544,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L730",
+      "source_location": "L768",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_rungait",
@@ -76556,7 +76556,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L729",
+      "source_location": "L767",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_rungait",
@@ -76568,7 +76568,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L723",
+      "source_location": "L761",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_rungait",
@@ -76580,7 +76580,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L718",
+      "source_location": "L756",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_rungait",
@@ -76592,7 +76592,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L728",
+      "source_location": "L766",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_rungait",
@@ -76604,7 +76604,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L720",
+      "source_location": "L758",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_rungait",
@@ -76616,7 +76616,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L743",
+      "source_location": "L781",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_resetto",
@@ -76628,7 +76628,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Footballer.cs",
-      "source_location": "L744",
+      "source_location": "L782",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_footballer_trickshot_footballer_resetto",
@@ -140618,5 +140618,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "483db4fb8b941a4c4369df718d95e5f2e3adf4f2"
+  "built_at_commit": "5421cda06be61c59851bfd4f6089b3b6296837d9"
 }

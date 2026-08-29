@@ -141,12 +141,5 @@
   "139": "HashSet",
   "140": "PlayerAppearance",
   "141": "Queue",
-  "142": "string",
-  "143": "uint",
-  "144": "Camera",
-  "145": "GameObject",
-  "146": "Light",
-  "147": "Material",
-  "148": "Quaternion",
-  "149": "Rect"
+  "142": "Func"
 }
