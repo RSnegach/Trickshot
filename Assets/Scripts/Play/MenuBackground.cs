@@ -34,19 +34,58 @@ namespace Trickshot
         const float KeeperAbilityLevel = 1.0f;   // max (Goalkeeper clamps to 1): fastest tracking + longest dive reach
         const float BallSpeedBoost     = 1.5f;   // multiplies launch speed (shortens flight) for punch
         const float PlantOutZ          = 11f;    // metres in front of goal the shooter plants + strikes from
+        // Orbit geometry, sized so the camera stays inside the playing surface now that a stadium
+        // surrounds it. Everything here is RELATIVE to _goalC (= SimConfig.GoalCenter), which is derived
+        // from the active PitchLayout and is NOT a fixed number - it measures 17 under ResetToTraining
+        // today and moves with the layout, so the arithmetic below is written in terms of GoalCenter.z
+        // rather than a literal. Pivot 13 m off the goal line, radius 11.5.
+        const float MenuOrbitBackZ     = 13f;
+        const float MenuOrbitRadius    = 11.5f;
+        // Base downtilt, oscillating +/-3 as it laps. This went 8 -> 15 -> 7 and the round trip is worth
+        // recording, because the two arguments pull opposite ways and the second one won:
+        //   8 originally, to keep the sky band in frame.
+        //   15 once the stadium existed, on the grounds that the band was full of roof and pylons so the
+        //     sky no longer mattered and the camera might as well look down into the bowl.
+        //   7 now, because looking down into the bowl is what made the sky "boring gray". A downtilt of
+        //     p with a 46 degree lens puts the top of frame at (23 - p) degrees of elevation, so 15 was
+        //     showing only 0..8 - and near the horizon every panorama is hazy, desaturated and cloudless.
+        //     Measured on the chosen sky, opening the band from 0..8 to 0..17 takes blueness from +0.174
+        //     to +0.241 and chroma from 0.20 to 0.27. The sky cannot be fixed by picking a different
+        //     image while the camera only looks at haze.
+        const float MenuOrbitPitch     = 7f;
+        // Pivot height, RAISED from 1.6 to hold the camera where it was while the tilt flattens. Camera
+        // height is MenuOrbitPivotY + MenuOrbitRadius * sin(pitch), so dropping the tilt from 15 to 7
+        // costs 11.5 * (sin15 - sin7) = 1.6 m, and the pivot absorbs exactly that. Net effect: the camera
+        // sits at the same height as before and sees the same amount of stadium, but aims flatter, so sky
+        // replaces turf at the top of frame rather than the bowl shrinking.
+        const float MenuOrbitPivotY    = 3.2f;
         const float RunBackDist        = 5f;     // how far behind the plant spot the run-up starts
         const float RunupSpeed         = 5.0f;   // jog-in speed (m/s)
         const float PlantStopDist      = 0.35f;  // within this of the plant spot -> stop and swing
         const float RunupTimeout       = 3.0f;   // safety: force the swing if the jog stalls
         const float LiveDuration       = 2.9f;   // time a shot + save is allowed to play before reset
         const float SlowMo             = 0.7f;   // global time scale while the reel plays (restored on teardown)
-        const float OrbitSpeed         = 22f;    // deg/sec the camera circles the action (full 360 loop)
+        // Raised from 22. With the keeper-aware slowdown below, the lap now spends most of its time at
+        // the slow rate, so the cruise between interesting angles wanted to be brisker to compensate -
+        // otherwise adding the slowdown just made the whole orbit feel sluggish.
+        const float OrbitSpeed         = 30f;    // deg/sec the camera circles the action (full 360 loop)
+        // ...and the rate it drops to while the keeper is in shot, so the lap lingers on the save
+        // instead of sweeping past it. Eased between the two, never stepped: a sudden rate change on a
+        // slow orbit is very visible.
+        const float OrbitSpeedKeeper   = 8f;     // deg/sec while the keeper is framed
+        // The easing window, in degrees off the view axis. The lens is 46 vertical, which at 16:9 is
+        // about 74 horizontal, so the keeper leaves frame near 37 degrees off centre. Full slow inside
+        // 12, fully back up to speed by 40 - just past the frame edge, so the camera has finished
+        // accelerating before he reappears on the other side of the lap.
+        const float KeeperHoldInner    = 12f;
+        const float KeeperHoldOuter    = 40f;
 
         // Cosmetic run gait, mirroring Footballer.RunGait (procedural leg + arm pump via pose overrides).
         float _gaitPhase;
 
         Camera _cam;
         Light _light;
+        readonly List<Light> _parked = new List<Light>();   // suns switched off for the reel
         ActiveRagdoll _keeperRag;
         ActiveRagdoll _crosserRag;
         Goalkeeper _keeper;
@@ -63,6 +102,10 @@ namespace Trickshot
         Quaternion _shootFacing;// shooter facing toward goal (+Z)
 
         float _clock;           // free-running unscaled seconds
+        // The orbit angle is now INTEGRATED rather than computed as _clock * OrbitSpeed, because the
+        // rate varies with what is in frame (see DirectLive). Keeping it as a product of the clock would
+        // make a varying rate impossible without the angle jumping the moment the rate changed.
+        float _orbitYaw;        // accumulated degrees around the pivot
         float _phaseT;          // seconds in the current phase
         int _phase;             // 0 = run-up (jog in + gait), 1 = live (swing + shot + save)
 
@@ -96,11 +139,45 @@ namespace Trickshot
             _cam = camGo.AddComponent<Camera>();
             _cam.clearFlags = CameraClearFlags.SolidColor;
             _cam.backgroundColor = new Color(0.44f, 0.60f, 0.82f);   // stadium sky
-            _cam.nearClipPlane = 0.05f;
-            _cam.farClipPlane = 200f;
+            _cam.nearClipPlane = 0.15f;
+            // 600, up from 200, because there is a CITY out there now. SurroundBuilder.Skyline puts
+            // buildings 153-341 m from the middle of the pitch, and the orbit sits 40-51 m from that
+            // middle, so the furthest building is about 392 m from the lens. At the old 200 everything
+            // past halfway was simply cut, and because the camera laps (moving about 23 m across a lap)
+            // the buildings sitting near the boundary crossed it twice a lap and popped in and out.
+            //
+            // Near clip raised off 0.05 at the same time. Pushing the far plane out 3x stretches the
+            // depth range, and 0.05..600 is a 12000:1 ratio; nothing on this reel ever comes within a
+            // metre of the lens (the orbit is a fixed 11.5 m radius about a pivot on the pitch), so the
+            // extra precision is free.
+            // 900. This went 200 -> 600 -> 1200 -> 900 and the last step is just bookkeeping: 1200 was
+            // sized for a far mountain range that has since been removed. What is left out there is
+            // SurroundBuilder.Terrain's hills, whose furthest centre measures 602 m with a radius up to
+            // 174 m, and the orbit sits 40-51 m off the pitch centre on the far side of the lap - so the
+            // worst camera-to-far-edge distance is about 827 m. 900 covers it with 73 m spare.
+            //
+            // The reason to care at all: at 600 the city skyline sat beyond the plane and popped in and
+            // out twice a lap as the camera moved. Anything placed further out than this has to move the
+            // plane with it.
+            _cam.farClipPlane = 900f;
             _cam.depth = 1;                 // over the main camera, under any later preview cam
-            _cam.fieldOfView = 42f;
+            _cam.fieldOfView = 46f;   // DirectLive resets this every frame; matched so frame one does not pop
             // No AudioListener here: the main camera already owns the one listener.
+
+            // ONE directional light for the reel. GameBootstrap's sun is still alive behind the
+            // menu, aimed at yaw -35, while this shot is lit from 150: two directional lights 175
+            // degrees apart each land N.L = sin(48) = 0.74 on flat ground, so the pitch was getting
+            // 1.7x the diffuse it was authored for AND every surface was lit from both sides, which
+            // cancels the modelling. Turf read as flat bright card because of it. Park them here and
+            // put them back in OnDestroy. Runs at Awake, so anything created later (PlayerPreview
+            // makes its own light for the customise screen) is left alone.
+            var lit = FindObjectsByType<Light>(FindObjectsInactive.Exclude);
+            for (int i = 0; i < lit.Length; i++)
+            {
+                if (lit[i].type != LightType.Directional || !lit[i].enabled) continue;
+                lit[i].enabled = false;
+                _parked.Add(lit[i]);
+            }
 
             // Warm key light angled across the pitch.
             var lgo = new GameObject("MenuBgLight");
@@ -108,9 +185,33 @@ namespace Trickshot
             _light = lgo.AddComponent<Light>();
             _light.type = LightType.Directional;
             _light.color = new Color(1f, 0.97f, 0.9f);
-            _light.intensity = 1.15f;
-            _light.transform.rotation = Quaternion.Euler(48f, 150f, 0f);
+            _light.intensity = 1.25f;
+            _light.transform.rotation = Quaternion.Euler(50f, 150f, 0f);   // 50 = the menu sky's own sun
             _light.cullingMask = ~0;
+            // The sun this replaces cast soft shadows; without these the reel has none at all.
+            _light.shadows = LightShadows.Soft;
+            _light.shadowStrength = 0.58f;
+
+            // Fill. Not a second sun: at 0.28 against the key's 1.25 this is a 22% ratio, which is
+            // what a fill is, whereas the pair this replaced were both 1.15 and cancelled each other.
+            // It exists because one directional light leaves every surface facing away from yaw 150
+            // on ambient alone, and that read as unlit rather than shaded. No shadows, so it costs a
+            // forward pass and nothing else. Sky-blue because that is the colour of the light a real
+            // shadow gets, which is bounce off the sky.
+            var fgo = new GameObject("MenuBgFill");
+            fgo.transform.SetParent(transform, false);
+            var fill = fgo.AddComponent<Light>();
+            fill.type = LightType.Directional;
+            fill.color = new Color(0.80f, 0.87f, 1f);
+            fill.intensity = 0.28f;
+            fill.transform.rotation = Quaternion.Euler(22f, 330f, 0f);
+            fill.shadows = LightShadows.None;
+            fill.cullingMask = ~0;
+
+            // Real sky behind the backdrop. Deliberately the FIXED menu sky, not the selected
+            // venue's: the front end should not change mood with the stadium picker. The light
+            // keeps its own direction (it is aimed for this shot) and the sky puts its disk there.
+            SkyDome.ApplyMenu(_cam, _light);
 
             BuildScene();
             BuildActors();
@@ -123,23 +224,29 @@ namespace Trickshot
         // backstops. Built at the real goal coords so the AI aims true. ----
         void BuildScene()
         {
-            Material grass = M(new Color(0.16f, 0.34f, 0.16f), 0.05f);
-            Material stripe = M(new Color(0.19f, 0.39f, 0.19f), 0.05f);
-
-            // Turf: a big slab with a SOLID collider (a live ragdoll grounds via a downward
-            // spherecast and needs static ground under it; the old backdrop used collider:false
-            // because its puppets were kinematic). Top surface at y = 0 so feet rest on it.
-            var ground = Make.Box("BgGround", new Vector3(44f, 0.4f, 48f),
-                                  _goalC + new Vector3(0f, -0.2f, -7f), grass, transform, collider: true);
-            if (ground.TryGetComponent<Collider>(out var gcol))
-                gcol.material = Make.PhysMat("BgTurf", 0.0f, 0.6f, 0.6f);
-            for (int i = -5; i <= 5; i++)
-            {
-                if ((i & 1) == 0) continue;
-                Make.Box("BgStripe", new Vector3(44f, 0.02f, 3.6f),
-                         _goalC + new Vector3(0f, 0.011f, -7f + i * 3.6f), stripe, transform, collider: false);
-            }
-
+            // THE REAL PITCH AND THE REAL STADIUM, not a turf patch. This used to be a bare 44 x 48
+            // slab with a goal on it and nothing else in view, so the front end was a goal in a field.
+            // Everything needed already existed and was only ever used by matches:
+            //
+            //   PitchLayout.ResetToTraining puts a regulation 105 x 68 pitch down with its ATTACKING
+            //   goal at SimConfig.GoalCenter.z - which is exactly where this scene's goal already is,
+            //   so the two align with no new arithmetic.
+            //   PitchBuilder.Build lays the marked pitch, its ground collider (with a turf physics
+            //   material) and the FAR goal. It builds no near goal, so it does not collide with the one
+            //   assembled below.
+            //   StadiumBuilder.Build raises the bowl: raked stands, advertising perimeter, back walls,
+            //   cantilevered roofs, corner infill towers, floodlight pylons and a player tunnel.
+            //   Crowd.Create fills the seats.
+            //
+            // ALL OF IT IS FREE PER FRAME, which is the constraint. PitchBuilder and Crowd both call
+            // StaticBatchingUtility.Combine, the crowd has no Update at all, and StadiumBuilder adds no
+            // real Lights - its floodlamps are emissive materials. CrowdCheer is deliberately NOT
+            // registered: a reacting crowd would move transforms and break the static batch for a
+            // backdrop nobody is playing.
+            PitchLayout.ResetToTraining();
+            PitchBuilder.Build(transform);
+            StadiumBuilder.Build(transform);
+            Crowd.Create(transform);
             // Goal frame (round white posts + crossbar + back frame), mirroring Arena, at the mouth.
             float gw = SimConfig.GoalWidth, gh = SimConfig.GoalHeight, gd = SimConfig.GoalDepth, postR = 0.07f;
             Material frameMat = M(Color.white, 0.3f);
@@ -284,10 +391,13 @@ namespace Trickshot
                 }
                 else
                 {
-                    // Arrived: stop, clear the gait, hand off to the Crosser's cosmetic swing which
-                    // launches the ball at contact. Do NOT call SetOrigin (it would force a hip-high
-                    // launch origin and re-plant the body); the Crosser uses the fixed ground launch
-                    // point, so the ball is struck from the turf with no hop.
+                    // Arrived: stop, clear the gait, hand off to the Crosser's swing (KickSwing:
+                    // windup, strike, follow-through, rebalance) which launches the ball at contact.
+                    // Do NOT call SetOrigin - it would force a hip-high launch origin and re-plant the
+                    // body; the Crosser uses the fixed ground launch point, so the BALL leaves the turf
+                    // flat. The shooter himself does come off the ground on the follow-through, which
+                    // releases his upright lock; the jog branch above re-asserts it every frame, so a
+                    // shot that ends mid-air can never leave him lying down for the next repetition.
                     _crosserRag.MoveInput = Vector3.zero;
                     _crosserRag.FacingRotation = _shootFacing;
                     _crosserRag.ClearPoseOverrides();
@@ -357,12 +467,48 @@ namespace Trickshot
         void DirectLive(float dt)
         {
             // Fixed pivot: centre of the action (shooter is at goalC.z - PlantOutZ, goal at goalC.z).
-            Vector3 pivot = _goalC + new Vector3(0f, 1.1f, -PlantOutZ * 0.5f);
+            Vector3 pivot = _goalC + new Vector3(0f, MenuOrbitPivotY, -MenuOrbitBackZ);
 
-            // Full slow circle. _clock is scaled time, so the orbit slows with the reel.
-            float yaw = _clock * OrbitSpeed;
-            float pitch = 12f + Mathf.Sin(_clock * 0.15f) * 3f;   // gentle rise/fall as it circles
-            float dist = 15f;                                     // constant radius; frames the whole scene
+            // Full slow circle, but at a VARIABLE rate: it eases down while the keeper is in shot and
+            // back up once he is out of frame. Measured horizontally only - the framing question is
+            // "has he gone off the side of the picture", and the downtilt just changes camera height,
+            // which cannot push him out sideways. So pitch is not needed here and is left to below.
+            //
+            // Explicit integration: this frame's rate comes from where the camera ALREADY is, then the
+            // angle advances. Solving the rate against the angle it produces would be simultaneous and
+            // buys nothing at these speeds.
+            //
+            // Honest limitation: this tracks the keeper's HOME spot, not his live body. That is
+            // deliberate - a keeper mid-dive is several metres off his line, and steering the orbit rate
+            // off a moving ragdoll would surge the camera every time he threw himself sideways. His home
+            // spot and the goal centre are within a metre of each other, so framing the spot frames him.
+            Vector3 camNow = pivot + Quaternion.Euler(0f, _orbitYaw, 0f)
+                                     * new Vector3(0f, 0f, -MenuOrbitRadius);
+            Vector3 viewAxis = pivot - camNow;                       viewAxis.y = 0f;
+            Vector3 toKeeper = _keeperHome - camNow;                 toKeeper.y = 0f;
+            float offAxis = Vector3.Angle(viewAxis, toKeeper);       // deg off centre, horizontal
+            float centred = 1f - Mathf.Clamp01((offAxis - KeeperHoldInner)
+                                               / (KeeperHoldOuter - KeeperHoldInner));
+            centred = centred * centred * (3f - 2f * centred);       // smoothstep the transition
+            _orbitYaw += Mathf.Lerp(OrbitSpeed, OrbitSpeedKeeper, centred) * dt;
+            float yaw = _orbitYaw;
+            // Downtilt, and the reason it is no longer 8: the original 8 existed to keep the top of the
+            // picture ABOVE the horizon haze that every shipped panorama has, because sky was all there
+            // was up there. The stadium fills that band now, so the constraint is gone and the camera can
+            // sit higher and look down into the bowl. Height works out at
+            //   MenuOrbitPivotY + MenuOrbitRadius * sin(pitch) = 3.2 + 11.5 * sin(7 +/- 3)
+            // which is 4.0 m at the bottom of the oscillation, 4.6 mean, 5.2 at the top - the same three
+            // numbers as the old 1.6 + 11.5 * sin(15 +/- 3), which is the point of raising the pivot.
+            float pitch = MenuOrbitPitch + Mathf.Sin(_clock * 0.15f) * 3f;   // gentle rise/fall as it circles
+            // The radius has a HARD CEILING now that a stadium surrounds the lap, and it is worth
+            // recording so it is not raised past it by eye. The far point of a lap sits at
+            //   GoalCenter.z - MenuOrbitBackZ + MenuOrbitRadius = 17 - 13 + 11.5 = 15.5
+            // i.e. 1.5 m SHORT of the goal line, and the stand behind that goal fronts a further
+            // PitchLayout.StandFrontGap (8 m) back at 25, so the lap clears the structure by 9.5 m.
+            // (Measured live: camera y = 5.1 at radius 13, pivot 13 m out - both matched prediction.)
+            // Before the stadium existed this orbited 15 about a pivot only 5.5 m off the line, which
+            // swung the camera through the advertising boards and into the lower tier once every lap.
+            float dist = MenuOrbitRadius;                          // constant radius; frames the scene
 
             // Subtle handheld drift so the frame feels alive.
             yaw += (Mathf.PerlinNoise(_clock * 0.5f, 0f) - 0.5f) * 1.4f;
@@ -371,7 +517,7 @@ namespace Trickshot
             Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
             _cam.transform.position = pivot + rot * new Vector3(0f, 0f, -dist);
             _cam.transform.LookAt(pivot);
-            _cam.fieldOfView = 42f;
+            _cam.fieldOfView = 46f;
         }
 
         Material M(Color c, float smoothness = 0.1f, float metallic = 0f)
@@ -396,6 +542,11 @@ namespace Trickshot
             // GameCamera.OnDisable resets it. Never leave the menu's slow-mo applied globally.
             Time.timeScale = _savedTimeScale > 0f ? _savedTimeScale : 1f;
             Time.fixedDeltaTime = _savedFixedDt > 0f ? _savedFixedDt : 0.02f;
+
+            // Put the gameplay sun back. Parked in Awake, see the note there.
+            for (int i = 0; i < _parked.Count; i++)
+                if (_parked[i] != null) _parked[i].enabled = true;
+            _parked.Clear();
 
             // Materials created here are not owned by any GameObject, so free them explicitly.
             for (int i = 0; i < _mats.Count; i++)

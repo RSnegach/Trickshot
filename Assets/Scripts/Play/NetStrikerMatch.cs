@@ -89,11 +89,13 @@ namespace Trickshot
                               Material torso, Material limb, Material glove, Transform root)
         {
             _input = input; _cam = gameCam; _ball = ball; _crosser = crosser; _reticle = reticle; _launch = launch;
+            _ball.NoCarry = true;   // striker mode has no carry: a dead touch is pushed clear of his feet
             _s = Multiplayer.Session;
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
             _goalLineZ = SimConfig.GoalCenter.z;
             _s.MatchEvent += OnMatchEvent;
             _s.BallKicked += OnBallKicked;
+            _s.PostHit += OnPostHit;
             _qcFeed = gameObject.AddComponent<QuickChatFeed>();
             _qcFeed.Bind(_s);
 
@@ -121,7 +123,7 @@ namespace Trickshot
                 else
                 {
                     _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
-                    if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw);
+                    if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
                 }
             }
 
@@ -200,10 +202,25 @@ namespace Trickshot
             {
                 var striker = go.AddComponent<Striker>();
                 b.striker = striker;
+                // Striker mode is VOLLEY ONLY: no carry at all. The Dribble component is still
+                // built and bound (SetDribble/Init keep every downstream null check happy and the
+                // shot paths read it), but it stays DISABLED, so the ball never leashes to his feet
+                // and a settled ball is struck where it lies instead of being nudged along.
+                var dribble = go.AddComponent<Dribble>();
+                striker.SetDribble(dribble);
                 if (hostSim)
                 {
                     if (isLocal) striker.Init(_input, ragdoll);          // host's own device
-                    else { b.netInput = new NetInputSource(); striker.Init(b.netInput, ragdoll); }
+                    else
+                    {
+                        b.netInput = new NetInputSource(); striker.Init(b.netInput, ragdoll);
+                        // A remote striker AIMS with his own camera, off the wire. Without this his
+                        // volleys launched down whatever way his body happened to be facing.
+                        striker.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f,
+                                             () => b.netInput != null ? b.netInput.LookPitch : 0f);
+                    }
+                    dribble.Init(isLocal ? (IStrikerInput)_input : b.netInput, striker, ragdoll, _ball);
+                    dribble.Enabled = false;
                     AttachKick(ragdoll, striker);
                     // Host sims every outfield body's emote on the real ragdoll (so its pose +
                     // phase can be streamed to clients).
@@ -214,6 +231,7 @@ namespace Trickshot
                     if (isLocal)
                     {
                         striker.Init(_input, ragdoll);                   // client-predicted local player
+                        dribble.Init(_input, striker, ragdoll, _ball);   // bound, but left disabled (host sims it)
                         // The owner plays their own emote locally on the real body for instant feedback.
                         b.celeb = go.AddComponent<Celebration>(); b.celeb.Init(ragdoll);
                     }
@@ -235,8 +253,8 @@ namespace Trickshot
                 // Host keeper, a human holds slot 0: drive the real KeeperController from the
                 // local device (host keeper) or this slot's NetInputSource (remote keeper).
                 var kc = go.AddComponent<KeeperController>();
-                if (isLocal) { kc.Init(_input, ragdoll); }
-                else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll); }
+                if (isLocal) { kc.Init(_input, ragdoll, _ball); }
+                else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll, _ball); }
                 // Local keeper reads the cone yaw (KeeperLookYaw) so body + camera lock-step, exactly
                 // like single-player. _cam.Yaw is stale in KeeperFollow mode. Remote keepers read the
                 // yaw streamed over the wire (also the cone yaw; see SampleFrame below).
@@ -307,9 +325,13 @@ namespace Trickshot
                     ragdoll.UprightLock = true;
                     ragdoll.LocomotionEnabled = false;
                     ragdoll.MoveInput = Vector3.zero;
-                    Vector3 toGoal = SimConfig.GoalCenter - SimConfig.CrosserStart; toGoal.y = 0f;
-                    ragdoll.ResetTo(SimConfig.CrosserStart,
-                                    Quaternion.LookRotation(toGoal.normalized, Vector3.up));
+                    // Plant through the Crosser so the spot + facing are RECORDED, not just applied
+                    // once: this inline ResetTo left _plantHome null, so the drift backstop was dead
+                    // and every contact hop walked him ~0.6 m off the wing toward the shooters with
+                    // nothing pulling him back. PlantAt (not SetOrigin) keeps Origin at the fixed
+                    // _launch point, which is what the ball resets to on the wire. It also faces him
+                    // at the delivery target rather than the goal centre, which is where he kicks.
+                    _crosser.PlantAt(SimConfig.CrosserStart);
                     // AI/planted server: the ball must never touch his body, and no other player may
                     // crowd him. Ignore ball<->crosser collisions and wrap him in a protective bubble
                     // (ejects other players, lets the ball pass). Host-side only (physics runs here).
@@ -380,11 +402,12 @@ namespace Trickshot
 
         void AttachKick(ActiveRagdoll ragdoll, Striker striker)
         {
-            // Both legs (bicycle off either foot must classify) - matches GameBootstrap.
-            AddDet(ragdoll.Rb(Bone.FootR), striker, ragdoll);
-            AddDet(ragdoll.Rb(Bone.CalfR), striker, ragdoll);
-            AddDet(ragdoll.Rb(Bone.FootL), striker, ragdoll);
-            AddDet(ragdoll.Rb(Bone.CalfL), striker, ragdoll);
+            // Striking bones come from the body's layout: a biped's feet and calves, a quadruped's
+            // front hooves. Both sides are listed so a bicycle off either limb classifies.
+            // Matches GameBootstrap.
+            var strike = ragdoll.StrikeBones;
+            for (int i = 0; i < strike.Length; i++)
+                AddDet(ragdoll.Rb(strike[i]), striker, ragdoll);
         }
         void AddDet(Rigidbody rb, Striker striker, ActiveRagdoll ragdoll)
         {
@@ -409,6 +432,7 @@ namespace Trickshot
         // Client: host reported a ball-body contact at `pos`; play the 3D kick thud there
         // (attenuated to this player's own position by the 10 m rolloff).
         void OnBallKicked(Vector3 pos) => AudioManager.Instance?.PlayBallKick(pos);
+        void OnPostHit(Vector3 pos, float speed) => AudioManager.Instance?.PlayPostHit(pos, speed);
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
 
         // Pop the local striker upright out of any trick/limp pose. Safe to call on host or client
@@ -440,10 +464,8 @@ namespace Trickshot
         // plays it immediately on the local body for instant owner feedback, then closes.
         void DrawEmoteWheel()
         {
-            float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
-            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.5f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = prev;
+            float cx = Hud.W * 0.5f, cy = Hud.H * 0.5f;
+            Hud.Scrim(0.55f);
 
             int pages = Celebration.Pages.Length;
             _wheelPage = ((_wheelPage % pages) + pages) % pages;
@@ -458,7 +480,7 @@ namespace Trickshot
                 float sy = cy - Mathf.Cos(ang) * rad;
                 float bw = 132f, bh = 42f;
                 var r = new Rect(sx - bw * 0.5f, sy - bh * 0.5f, bw, bh);
-                if (GUI.Button(r, page[i].name, lbl))
+                if (UITheme.Button(r, page[i].name, lbl))
                 {
                     _input.SetEmotePick((int)page[i].e);   // sync to host -> everyone
                     var me = _bodies[_localSlot];
@@ -474,15 +496,9 @@ namespace Trickshot
             if (GUI.Button(new Rect(cx + rad + 44f, cy - 26f, 52f, 52f), "›", arrow)) _wheelPage++;
 
             // Page dots + hint at the centre.
-            var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Hud.Dim } };
             GUI.Label(new Rect(cx - 160f, cy - 20f, 320f, 22f), "Click an emote  ·  B to close", hint);
-            float dotW = 16f, gap = 8f, totalW = pages * dotW + (pages - 1) * gap;
-            for (int d = 0; d < pages; d++)
-            {
-                var dr = new Rect(cx - totalW * 0.5f + d * (dotW + gap), cy + 8f, dotW, dotW);
-                var pc = GUI.color; GUI.color = d == _wheelPage ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 1f, 1f, 0.35f);
-                GUI.DrawTexture(dr, Texture2D.whiteTexture); GUI.color = pc;
-            }
+            Hud.PageDots(cx, cy + 16f, pages, _wheelPage);
         }
 
         // Replay start (any peer): freeze local control, cut to broadcast cam, roll playback.
@@ -670,7 +686,7 @@ namespace Trickshot
             if (!_replaying && BallInGoal(c))
             {
                 _goals++; _s.BroadcastEvent("GOAL!"); _goalHold = SimConfig.ReplayHold;
-                _shotLive = false;   // consumed as a goal, not a miss
+                _shotLive = false; _save.Disarm();   // consumed as a goal, not a miss/save
                 // Host's own goal: BroadcastEvent only fires MatchEvent on CLIENTS, so stand the
                 // host's local striker up here too (a trick finish otherwise stays limp through
                 // the hold + replay). Flash the callout locally to match the clients' HUD.
@@ -699,7 +715,7 @@ namespace Trickshot
                 _snapAccum = 0f;
                 // A local keeper sends its cone yaw (KeeperLookYaw); everyone else sends camera yaw.
                 float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
-                _s.SetLocalInput(_input.SampleFrame(_tick, wireYaw));   // (host records its own input too)
+                _s.SetLocalInput(_input.SampleFrame(_tick, wireYaw, _cam.Pitch));   // (host records its own input too)
                 BroadcastSnapshot();
                 _tick++;
             }
@@ -709,7 +725,7 @@ namespace Trickshot
         {
             // Send my input to the host each frame. A local keeper sends its cone yaw (KeeperLookYaw).
             float wireYaw = _localIsKeeper ? _cam.KeeperLookYaw : _cam.Yaw;
-            _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw));
+            _s.SetLocalInput(_input.SampleFrame(_tick++, wireYaw, _cam.Pitch));
 
             // Mirror the authoritative score so the client HUD shows the real goal count (goal
             // detection is host-only; a client's local _goals never increments on its own).
@@ -817,6 +833,7 @@ namespace Trickshot
             }
             else if (!b.ragdoll.IsGrounded) return AnimState.Jump;
             // Moving on the deck -> run. MoveInput is the controller's desired velocity.
+            if (b.striker != null && b.striker.IsSitting) return AnimState.Sit;
             if (b.ragdoll.MoveInput.sqrMagnitude > 0.6f) return AnimState.Run;
             return AnimState.Idle;
         }
@@ -844,6 +861,12 @@ namespace Trickshot
             var snap = new Snapshot
             {
                 tick = _tick, ballPos = _ball.transform.position, ballVel = _ball.Rb.linearVelocity,
+                // Populated here too even though only the scrimmage driver draws a landing telegraph
+                // today. It is a field on the shared Snapshot, and a wire field whose meaning depends on
+                // which driver sent it is a trap: these are the SHOT modes, so leaving it false would
+                // have made "not guided" mean "no assist" in one driver and "nobody filled this in" in
+                // the others, on nearly every ball.
+                guided = _ball.Guided,
                 homeScore = (byte)Mathf.Min(255, _goals), awayScore = 0, bodies = list.ToArray(),
             };
             _s.BroadcastSnapshot(snap);
@@ -864,14 +887,21 @@ namespace Trickshot
         // dribble, a pass, or a slow loose ball - only on a struck ball that reaches the goal
         // region and fails. One boo per shot; re-arms only after the ball is calm again.
         bool _shotLive;
+        readonly SaveWatch _save = new SaveWatch();   // shared SAVE / EPIC SAVE verdict
         void HostTrackMiss(Vector3 c)
         {
             float halfW = SimConfig.GoalWidth * 0.5f;
             bool goalward = _ball.Rb.linearVelocity.z > SimConfig.MissShotSpeed;
 
             // Arm a shot: fast ball headed at goal, still in front of the line.
-            if (!_shotLive && goalward && c.z < _goalLineZ) { _shotLive = true; return; }
+            if (!_shotLive && goalward && c.z < _goalLineZ) { _shotLive = true; _save.Arm(); return; }
             if (!_shotLive) return;
+
+            // Keeper contact, from the ball's touch log (real contacts, impact speed taken at the
+            // contact). A stop that stays in play never reaches the line tests below, so resolve it
+            // as soon as the touched ball settles - otherwise a catch produced no callout at all.
+            _save.Poll(_ball, KeeperRagdoll(), KeeperHighDive());
+            if (_save.SettledAfterTouch(_ball)) { _shotLive = false; Announce(_save.Callout()); return; }
 
             // Resolve the live shot the moment it reaches/leaves the goal line plane without
             // being in the frame (BallInGoal already handled the score + cleared _shotLive), or
@@ -883,16 +913,32 @@ namespace Trickshot
             if ((pastLine && wideOrOut) || offField)
             {
                 _shotLive = false;
+                // Touched by the keeper on the way = a save, wherever it ended up (parried wide is
+                // still a save). Only an untouched failed shot is a miss.
+                if (_save.Touched) { Announce(_save.Callout()); return; }
                 _s.BroadcastEvent("MISS");                     // clients boo via OnMatchEvent
                 AudioManager.Instance?.PlayMissBoosMaybe();    // host plays locally (BroadcastEvent skips host)
             }
         }
 
+        // Slot 0 is the keeper: its ragdoll, and whether it is mid big-reach (human or AI Clanker).
+        ActiveRagdoll KeeperRagdoll() => _bodies[0] != null ? _bodies[0].ragdoll : null;
+        bool KeeperHighDive()
+        {
+            var kb = _bodies[0];
+            if (kb == null) return false;
+            if (kb.keeper != null) return kb.keeper.IsHighDive;
+            return kb.ai != null && kb.ai.WasDivingSave;
+        }
+
+        // Broadcast a callout AND flash it locally: BroadcastEvent only fires MatchEvent on clients.
+        void Announce(string tag) { _s.BroadcastEvent(tag); Flash(tag); }
+
         static void LockCursor() => GameInput.CaptureCursor(true);
 
         void OnDestroy()
         {
-            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.PostHit -= OnPostHit; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
@@ -910,7 +956,7 @@ namespace Trickshot
             Hud.Legend(_localIsCrosser
                 ? "WASD move   M aim map   Tap Q/E driven   Hold Q/E chip   R new ball   V ball cam"
                 : (youAre == "Keeper"
-                    ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
+                    ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   E/Q throw   V ball cam"
                     : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q/E call low/high   V ball cam   R reset"));
             Hud.Flash(_flash, _flashTime / 1.6f);
 
@@ -923,17 +969,15 @@ namespace Trickshot
             // Crosser's cross-targeting overlay (aim where deliveries land).
             if (_localIsCrosser && _crossMapOpen)
             {
-                var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.45f);
-                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-                GUI.color = prev;
+                Hud.Scrim(0.45f);
                 float w = 380f, h = 300f;
-                var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
-                var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
-                GUI.Label(new Rect(mapRect.x, mapRect.y - 34f, w, 28f), "WHERE SHOULD YOUR CROSSES LAND?", hdr);
+                var mapRect = new Rect(Hud.W * 0.5f - w * 0.5f, Hud.H * 0.5f - h * 0.5f, w, h);
                 CrossMap.Draw(mapRect, ref _crossTarget, interactive: true);
-                var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
-                GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to set target.  M to close.  Then tap Q/E = driven, hold = chip.", tip);
+                Hud.OverlayLabel(mapRect, "WHERE SHOULD YOUR CROSSES LAND?",
+                                 "Click to set target.  M to close.  Then tap Q/E = driven, hold = chip.");
             }
+
+            Hud.End();
         }
     }
 }

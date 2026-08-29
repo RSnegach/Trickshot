@@ -21,23 +21,33 @@ namespace Trickshot
 
         void OnGUI()
         {
-            float w = 340f, h = 66f, gap = 20f;
-            float cx = Screen.width * 0.5f - w * 0.5f;
-            float cy = Screen.height * 0.5f - (h * 1.5f + gap);
+            MenuScale.Begin();   // fit to the window; virtual coordinates from here on
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 48, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "MULTIPLAYER", title);
+            float w = 340f, h = 66f, gap = 20f;
+            float cx = MenuScale.Width * 0.5f - w * 0.5f;
+            float cy = MenuScale.Height * 0.5f - (h * 1.5f + gap);
+
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.30f, w + 380f);
+            UITheme.Title(new Rect(0, cy - 110f, MenuScale.Width, 80f), "MULTIPLAYER", 48);
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
-            if (GUI.Button(new Rect(cx, cy, w, h), "Host a Session", btn)) { enabled = false; _onHost?.Invoke(); }
-            if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Find a Session", btn)) { enabled = false; _onJoin?.Invoke(); }
-            if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
+            if (UITheme.Button(new Rect(cx, cy, w, h), "Host a Session", btn)) { enabled = false; _onHost?.Invoke(); }
+            if (UITheme.Button(new Rect(cx, cy + (h + gap), w, h), "Find a Session", btn)) { enabled = false; _onJoin?.Invoke(); }
+            if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
 
-            var note = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.85f) } };
-            string status = Multiplayer.SteamLinked
-                ? "Steam connected"
-                : "Direct connect (LAN / Tailscale) — host shares their IP, friends join by IP. See MULTIPLAYER.md.";
-            GUI.Label(new Rect(0, cy + (h + gap) * 3f + 6f, Screen.width, 22f), status, note);
+            // Transport status, with a lit dot so the state reads before the words do.
+            bool steam = Multiplayer.SteamLinked;
+            string status = steam ? "Steam connected" : "Direct connect. Host shares their IP.";
+            var note = new GUIStyle(GUI.skin.label)
+            { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = steam ? UITheme.Green : UITheme.Dim } };
+            var nr = new Rect(0, cy + (h + gap) * 3f + 6f, MenuScale.Width, 22f);
+            float tw = note.CalcSize(new GUIContent(status)).x;
+            Color dot = steam ? UITheme.Green : UITheme.Gold;
+            UITheme.Glow(new Rect(nr.center.x - tw * 0.5f - 24f, nr.y + 1f, 20f, 20f), new Color(dot.r, dot.g, dot.b, 0.7f));
+            UITheme.Fill(new Rect(nr.center.x - tw * 0.5f - 17f, nr.y + 8f, 6f, 6f), dot);
+            GUI.Label(nr, status, note);
+
+            MenuScale.End();
         }
     }
 }

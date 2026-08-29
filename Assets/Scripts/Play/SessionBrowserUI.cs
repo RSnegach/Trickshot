@@ -6,8 +6,17 @@ namespace Trickshot
 {
     /// <summary>
     /// Session browser: lists joinable lobbies (name / mode / players), Refresh + Join +
-    /// Back. Routes through Multiplayer.Browse (loopback now, Steam RequestLobbyList once
-    /// wired) and Multiplayer.Join(handle). On a successful join it hands off to the lobby.
+    /// Back. Routes through Multiplayer.Browse and Multiplayer.Join(handle). On a successful join it
+    /// hands off to the lobby.
+    ///
+    /// Discovery is a real sweep now, not a Steam-only stub: Multiplayer.Browse enumerates the tailnet
+    /// and probes each peer plus the LAN (see TailnetDiscovery), so a friend already on your tailnet
+    /// simply APPEARS here. Two consequences shape this screen:
+    ///   - Results are ASYNCHRONOUS (a worker thread and a ~1s reply window), so BrowsePoll must run
+    ///     every frame and the screen has a visible scanning state instead of pretending to be instant.
+    ///   - Discovery can fail in several distinct ways that need different actions from the player, so
+    ///     the empty state NAMES the reason (see BrowseStatus) rather than shrugging. The invite box
+    ///     stays regardless: it is the one path that works with no Tailscale, no LAN and no discovery.
     /// </summary>
     public class SessionBrowserUI : MonoBehaviour
     {
@@ -16,9 +25,17 @@ namespace Trickshot
 
         readonly List<LobbyInfo> _lobbies = new List<LobbyInfo>();
         int _sel = -1;
+        ulong _selHandle;          // selection follows the LOBBY, not the row index (see Refresh)
         float _autoRefresh;
-        string _ipText = "";        // direct-IP join box ("ip" or "ip:port")
+        string _ipText = "";        // direct-IP join box (invite code, IP, or hostname)
         string _ipError = "";       // shown when the typed address won't parse OR a join fails
+        bool _swept;                // at least one sweep has come back, so "found nothing" is real
+
+        // A sweep spawns the Tailscale CLI and waits ~1s for probe replies, so refreshing on the old
+        // 1.5s cadence would keep a process spawn permanently in flight for no benefit: lobbies do not
+        // appear and vanish on that timescale. (TailnetDiscovery caches the peer list for 15s, so the
+        // CLI cost is amortised anyway, but the socket work is not.)
+        const float AutoRefreshSeconds = 3f;
 
         // Join is a two-step handshake, not instant: after Multiplayer.Join we WAIT for the host to
         // assign us a real player slot (see NetSession.SlotRefused) before showing the lobby. Without this the client used to
@@ -28,7 +45,13 @@ namespace Trickshot
         bool _connecting;
         float _connectDeadline;
         string _connectLabel = "";
-        const float ConnectTimeout = 8f;   // > the transport's 5s peer timeout, room for reliable resends
+        // The transport's own 5s PeerTimeout is the PRIMARY failure signal, not this deadline: an
+        // unreachable host produces zero inbound packets, so DirectIpTransport drops it at 5s and
+        // Multiplayer tears the session down, which this loop sees as s == null. This 8s value is only
+        // the backstop for a transport that somehow stays up without ever completing the handshake.
+        // (The comment here used to read "> the transport's 5s peer timeout, room for reliable
+        // resends", which had the ordering backwards - the transport always wins the race.)
+        const float ConnectTimeout = 8f;
 
         // Begin connecting to a host handle and enter the Connecting state (pumped in Update).
         void StartConnect(ulong handle, string label)
@@ -55,16 +78,35 @@ namespace Trickshot
 
         void Refresh()
         {
-            Multiplayer.Browse(list => { _lobbies.Clear(); _lobbies.AddRange(list); if (_sel >= _lobbies.Count) _sel = -1; });
+            Multiplayer.Browse(list =>
+            {
+                _lobbies.Clear();
+                _lobbies.AddRange(list);
+                _swept = true;
+                // Re-find the selection BY HANDLE. Rows are ordered by which host answered the probe
+                // first, which is network timing and reorders freely between sweeps - so holding a row
+                // INDEX across an auto-refresh would silently move the selection onto a different
+                // lobby under the player's cursor, and Join would connect to whoever they didn't pick.
+                _sel = -1;
+                if (_selHandle != 0)
+                    for (int i = 0; i < _lobbies.Count; i++)
+                        if (_lobbies[i].handle == _selHandle) { _sel = i; break; }
+                // Nothing picked yet (or the pick is gone): preselect the top row so Join is usable
+                // immediately, which is what a one-lobby list almost always is.
+                if (_sel < 0 && _lobbies.Count > 0) { _sel = 0; _selHandle = _lobbies[0].handle; }
+                if (_lobbies.Count == 0) _selHandle = 0;
+            });
         }
 
-        // Parse the typed "ip" / "ip:port" into a join handle and connect. The handle encodes
-        // the endpoint (see NetEndpoint); Multiplayer.Join routes it to the direct-IP transport.
+        // Parse the typed invite code OR "ip" / "ip:port" into a join handle and connect. The handle
+        // encodes the endpoint (see NetEndpoint); Multiplayer.Join routes it to the direct-IP
+        // transport. Accepting both means a friend can paste the host's invite code without ever
+        // being told what an IP or a port is.
         void TryJoinByIp()
         {
-            if (!NetEndpoint.TryParse(_ipText, out var handle))
+            if (!NetEndpoint.TryParseAny(_ipText, out var handle))
             {
-                _ipError = "Enter a valid IPv4 address, e.g. 192.168.1.5 or 100.90.1.2:7777";
+                _ipError = "Not recognised. Use an invite code, an IP, or the host PC name.";
                 return;
             }
             StartConnect(handle, _ipText.Trim());
@@ -72,6 +114,12 @@ namespace Trickshot
 
         void Update()
         {
+            // Hand finished sweeps to the main thread. Unconditionally, INCLUDING while connecting: a
+            // sweep in flight when Join is pressed still has to be drained, because draining is what
+            // releases the discovery slot - leave it stuck and the browser would never scan again for
+            // the rest of the process.
+            Multiplayer.BrowsePoll();
+
             if (_connecting)
             {
                 // Pump the transport so the connect + Hello/AssignSlot handshake progresses.
@@ -81,15 +129,34 @@ namespace Trickshot
                 // full or a match is already in progress. Spectating isn't implemented and the match
                 // drivers clamp the slot into range, which would silently put us on slot 0's body,
                 // so bail out with the reason instead of entering the lobby.
-                if (s != null && s.LocalRole == NetRole.Spectator && s.SlotRefused)
+                //
+                // s.SlotAnswered is what makes this branch mean "refused" instead of "not yet", and
+                // it is load-bearing. Without it both halves were ALREADY true on the first frame of
+                // every join: a fresh NetSession starts at LocalSlot = -1 / LocalRole = Spectator
+                // (NetSession.cs:39-40), which is exactly the state a real AssignSlot(255, Spectator)
+                // refusal produces. So this fired ~16ms after the button press, before any packet
+                // could make a round trip, and CancelConnect closed the UDP socket one line after
+                // Poll() had queued our Hello. The host would receive it, grant a slot, reply into a
+                // dead socket, and time the ghost peer out 5s later. Joining was impossible 100% of
+                // the time, the "Connecting..." overlay never rendered a single frame, and the error
+                // blamed a full lobby that was in fact empty and waiting.
+                if (s != null && s.SlotAnswered && s.SlotRefused)
                 {
+                    var why = s.RefusedBecause;
                     CancelConnect();
-                    _ipError = _connectLabel + " has no free slot (session full, or the match "
-                             + "already started). Try again when a slot opens.";
+                    // Name the real cause. Each of these is a different action for the player, and
+                    // reporting all three as a full lobby sent them to wait for a slot that was
+                    // never the problem.
+                    if (why == JoinRefusal.Version)
+                        _ipError = "Version mismatch. Both players need the same build.";
+                    else if (why == JoinRefusal.MatchRunning)
+                        _ipError = _connectLabel + " is mid-match. Try the next lobby.";
+                    else
+                        _ipError = _connectLabel + " has no free slot.";
                     return;
                 }
                 // Success: the host assigned us a real player slot -> we're in their lobby.
-                if (s != null && !s.SlotRefused)
+                if (s != null && s.SlotAnswered && !s.SlotRefused)
                 {
                     _connecting = false;
                     enabled = false; _onJoined?.Invoke();
@@ -99,15 +166,71 @@ namespace Trickshot
                 if (s == null || !s.Active || Time.unscaledTime >= _connectDeadline)
                 {
                     CancelConnect();
-                    _ipError = "Couldn't reach " + _connectLabel + ". Check the IP, the host's "
-                             + "firewall (allow UDP " + NetEndpoint.DefaultPort + "), and Tailscale.";
+                    // Name the three things that actually cause this, in the order they bite:
+                    // the host's firewall silently dropping inbound UDP is by far the most common.
+                    _ipError = "Couldn't reach " + _connectLabel + ". Host must allow inbound UDP "
+                             + NetEndpoint.DefaultPort + ".";
                 }
                 return;   // don't refresh/list while connecting
             }
 
             // Light auto-refresh so a lobby hosted moments ago shows up.
             _autoRefresh -= Time.unscaledDeltaTime;
-            if (_autoRefresh <= 0f) { _autoRefresh = 1.5f; Refresh(); }
+            if (_autoRefresh <= 0f) { _autoRefresh = AutoRefreshSeconds; Refresh(); }
+        }
+
+        /// <summary>
+        /// What to tell the player when the list is empty (or thin). Each branch is a DIFFERENT thing
+        /// to go and do, which is the entire point of distinguishing them: "install Tailscale", "start
+        /// Tailscale", "add your friend's device to the tailnet" and "wait for someone to host" all look
+        /// identical as an empty list, and the old copy answered all four with a shrug about Steam.
+        /// </summary>
+        string BrowseStatus()
+        {
+            if (Multiplayer.SteamLinked)
+                return "No Steam lobbies open. Use an invite code below.";
+            if (!Multiplayer.UseDirectIp)
+                return "Loopback transport. Only sessions in this process are listed.";
+            if (!_swept || TailnetDiscovery.Scanning)
+                return "Scanning Tailscale and LAN...";
+
+            switch (TailnetDiscovery.LastReason)
+            {
+                case TailnetDiscovery.Reason.NoCli:
+                    // Distinguish the two ways the CLI can be missing, because only one is the player's
+                    // to fix. An adapter with no command means an install we cannot drive; no adapter
+                    // and no command means Tailscale simply is not here.
+                    return TailnetDiscovery.HasTailnet
+                        ? "Tailscale program not found. Paste the host's invite code below."
+                        : "No Tailscale here. LAN only. Invite codes still work.";
+
+                case TailnetDiscovery.Reason.TailnetDown:
+                    return "Tailscale is not connected. Sign in, then Refresh.";
+
+                case TailnetDiscovery.Reason.NoPeers:
+                    return TailnetDiscovery.HasTailnet
+                        ? "No other devices on your tailnet. Invite your friend, then Refresh."
+                        : "No LAN sessions. Internet play needs Tailscale on both PCs.";
+
+                default:
+                    // Sweep worked, peers answered, nobody is hosting a JOINABLE PUBLIC lobby. Say so
+                    // exactly, because a host with "Public" off, a full lobby or a started match are all
+                    // invisible by design and would otherwise look like a broken list.
+                    return "Nobody is hosting an open session.";
+            }
+        }
+
+        /// <summary>One-line footer once rows exist: says what was searched, so a SHORT list still
+        /// reads as a working search rather than a suspiciously empty one.</summary>
+        string FoundLine()
+        {
+            string what = _lobbies.Count == 1 ? "1 session" : _lobbies.Count + " sessions";
+            if (Multiplayer.SteamLinked || !Multiplayer.UseDirectIp) return what + " found";
+            int peers = TailnetDiscovery.PeerCount;
+            string where = TailnetDiscovery.HasTailnet
+                ? (peers == 1 ? "1 Tailscale device + LAN" : peers + " Tailscale devices + LAN")
+                : "your LAN";
+            return what + " found on " + where + (TailnetDiscovery.Scanning ? "  (scanning...)" : "");
         }
 
         // Scaled up on big displays like the other pre-match menus (see MenuScale); the fixed sizes
@@ -126,48 +249,76 @@ namespace Trickshot
             float panelH = 150f + 6 * (rowH + gap) + 60f + 78f;   // +78: direct-IP join row
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
-            var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
-            GUI.DrawTexture(new Rect(x, y, w, panelH), Texture2D.whiteTexture); GUI.color = prev;
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 300f);
+            UITheme.Panel(new Rect(x, y, w, panelH), UITheme.Blue);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x, y + 14f, w, 40f), "FIND A SESSION", title);
+            UITheme.Title(new Rect(x, y + 14f, w, 40f), "FIND A SESSION", 30);
 
             var rowName = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
-            var rowNameSel = new GUIStyle(rowName); rowNameSel.normal.textColor = new Color(1f, 0.9f, 0.3f);
-            var meta = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleRight, normal = { textColor = new Color(0.82f, 0.83f, 0.88f) } };
+            var rowNameSel = new GUIStyle(rowName); rowNameSel.normal.textColor = UITheme.Gold;
+            var meta = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Dim } };
 
             float row = y + 66f, lx = x + 24f, lw = w - 48f;
             if (_lobbies.Count == 0)
             {
-                var empty = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.85f) } };
-                GUI.Label(new Rect(lx, row, lw, 56f),
-                          "The lobby list only finds Steam games. For LAN or Tailscale, use "
-                          + "“Join by IP” below with the host's address.", empty);
+                var empty = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
+                // Given the full row area, not 56px: these messages name a specific thing to go and do
+                // and the old fixed height clipped that half away.
+                var er = new Rect(lx, row, lw, 6f * (rowH + gap) - 8f);
+                // Spin a ring while a sweep is in flight: an empty list plus motion reads as "looking",
+                // which is the difference between patience and assuming the screen is broken.
+                bool sweeping = !_swept || TailnetDiscovery.Scanning;
+                if (sweeping) UITheme.Spinner(new Rect(er.center.x - 16f, er.y + 18f, 32f, 32f), UITheme.Gold);
+                GUI.Label(new Rect(er.x, er.y + (sweeping ? 44f : 0f), er.width, er.height - (sweeping ? 44f : 0f)),
+                          BrowseStatus(), empty);
             }
             for (int i = 0; i < _lobbies.Count && i < 6; i++)
             {
                 var l = _lobbies[i];
                 bool sel = i == _sel;
                 var r = new Rect(lx, row, lw, rowH);
-                if (GUI.Button(r, "  " + (string.IsNullOrEmpty(l.name) ? "Session" : l.name), sel ? rowNameSel : rowName)) _sel = i;
+                if (UITheme.Toggle(r, "      " + (string.IsNullOrEmpty(l.name) ? "Session" : l.name), sel, sel ? rowNameSel : rowName))
+                { _sel = i; _selHandle = l.handle; }
+                // Green while the lobby has room, gold once it is full: the joinable ones stand out.
+                UITheme.Dot(r.x + 16f, r.center.y, l.players < l.maxPlayers ? UITheme.Green : UITheme.Gold, 2.5f);
+                if (sel) UITheme.Fill(new Rect(r.x + 5f, r.y + 7f, 3f, r.height - 14f), UITheme.Gold);
                 GUI.Label(new Rect(r.x, r.y, r.width - 14f, rowH), $"{l.mode}    {l.players}/{l.maxPlayers}  ", meta);
                 row += rowH + gap;
             }
+            if (_lobbies.Count > 0)
+                UITheme.Hint(new Rect(lx, row - 2f, lw, 18f), FoundLine(), TextAnchor.MiddleLeft);
 
-            // ---- Direct-IP join (LAN / Tailscale): no discovery, so type the host's IP. ----
+            // ---- Direct join: the path that works when discovery cannot. Kept in front of the player
+            // permanently rather than hidden behind a failure, because it needs nothing from the
+            // network stack: no Tailscale CLI, no broadcast, no host answering a probe.
             float ipY = y + panelH - 52f - 78f;
-            var sep = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.7f, 0.72f, 0.8f) } };
-            GUI.Label(new Rect(lx, ipY, lw, 20f), "Or join directly by the host's IP  (LAN, or Tailscale 100.x):", sep);
+            UITheme.Divider(lx, ipY - 8f, lw);
+            UITheme.Section(new Rect(lx, ipY, lw, 20f), "OR JOIN DIRECTLY  -  INVITE CODE, IP, OR PC NAME");
 
             var ipField = new GUIStyle(GUI.skin.textField) { fontSize = 16, alignment = TextAnchor.MiddleLeft };
+            // Enter inside the field joins too (the reflex after pasting). Read the event BEFORE
+            // TextField consumes the keystroke.
+            bool submit = Event.current.type == EventType.KeyDown
+                       && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter)
+                       && GUI.GetNameOfFocusedControl() == "joinbox";
+            GUI.SetNextControlName("joinbox");
             _ipText = GUI.TextField(new Rect(lx, ipY + 22f, lw - 150f, 34f), _ipText, 32, ipField);
-            if (GUI.Button(new Rect(lx + lw - 140f, ipY + 22f, 140f, 34f), "Join by IP",
-                           new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold }))
+            if (submit) { Event.current.Use(); TryJoinByIp(); }
+            // Ctrl+V into an IMGUI TextField only works while it has focus; a friend pasting an
+            // invite code shouldn't have to click the box first, so offer an explicit Paste.
+            if (UITheme.Button(new Rect(lx + lw - 140f, ipY - 2f, 66f, 20f), "Paste",
+                               new GUIStyle(GUI.skin.button) { fontSize = 11 }))
+                _ipText = GUIUtility.systemCopyBuffer ?? "";
+            if (UITheme.Button(new Rect(lx + lw - 140f, ipY + 22f, 140f, 34f), "Join",
+                               new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold }))
                 TryJoinByIp();
             if (!string.IsNullOrEmpty(_ipError))
             {
-                var err = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = new Color(1f, 0.5f, 0.45f) } };
-                GUI.Label(new Rect(lx, ipY + 56f, lw, 18f), _ipError, err);
+                // wordWrap + real height: these messages name several causes and used to be
+                // clipped to a single 18px line, hiding the part that says what to fix.
+                var err = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Red } };
+                UITheme.Chip(new Rect(lx - 6f, ipY + 55f, lw + 12f, 50f), new Color(0.22f, 0.07f, 0.07f, 0.9f), UITheme.Red);
+                GUI.Label(new Rect(lx, ipY + 58f, lw, 46f), _ipError, err);
             }
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
@@ -175,12 +326,22 @@ namespace Trickshot
             // panel can reach past that line, so push below it and clamp so the row always fits.
             float by = Mathf.Min(MenuScale.Height - 52f,
                                  Mathf.Max(MenuScale.Height - 64f, y + panelH + 16f));
-            if (GUI.Button(new Rect(x + 24f, by, 130f, 40f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
-            if (GUI.Button(new Rect(x + w * 0.5f - 65f, by, 130f, 40f), "Refresh", btn)) Refresh();
+            if (UITheme.Button(new Rect(x + 24f, by, 130f, 40f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
+            // A sweep takes about a second, so say so on the button rather than looking unresponsive.
+            // Left ENABLED: pressing it mid-sweep is a harmless no-op (Sweep ignores a re-entrant call)
+            // and a greyed button during every auto-refresh would flicker.
+            bool scanning = Multiplayer.UseDirectIp && !Multiplayer.SteamLinked && TailnetDiscovery.Scanning;
+            var rr = new Rect(x + w * 0.5f - 65f, by, 130f, 40f);
+            if (UITheme.Button(rr, scanning ? "Scanning" : "Refresh", btn)) Refresh();
+            if (scanning) UITheme.Spinner(new Rect(rr.x - 34f, rr.center.y - 11f, 22f, 22f), UITheme.Gold);
 
-            GUI.enabled = _sel >= 0 && _sel < _lobbies.Count;
-            if (GUI.Button(new Rect(x + w - 154f, by, 130f, 40f), "Join", btn))
+            bool canJoin = _sel >= 0 && _sel < _lobbies.Count;
+            GUI.enabled = canJoin;
+            var keepJoin = GUI.backgroundColor;
+            if (canJoin) GUI.backgroundColor = UITheme.GoodTint;
+            if (UITheme.Button(new Rect(x + w - 154f, by, 130f, 40f), "Join", btn))
                 StartConnect(_lobbies[_sel].handle, _lobbies[_sel].name);
+            GUI.backgroundColor = keepJoin;
             GUI.enabled = true;
 
             // Connecting overlay: block the panel + show progress while we wait for the host.
@@ -190,24 +351,21 @@ namespace Trickshot
         // Modal "Connecting…" overlay shown between clicking Join and the host assigning us a slot.
         void DrawConnecting()
         {
-            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
-            GUI.color = pc;
+            UITheme.Fill(new Rect(0, 0, MenuScale.Width, MenuScale.Height), new Color(0f, 0f, 0f, 0.72f));
 
             float w = 420f, h = 150f;
             float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
-            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-            GUI.color = new Color(0.16f, 0.55f, 0.95f); GUI.DrawTexture(new Rect(px, py, w, 3f), Texture2D.whiteTexture);
-            GUI.color = pc;
+            UITheme.Panel(new Rect(px, py, w, h), UITheme.Blue);
 
             int dots = ((int)(Time.unscaledTime * 2f) % 4);
-            var msg = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(px, py + 28f, w, 30f), "Connecting to " + _connectLabel + new string('.', dots), msg);
-            var sub = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.75f, 0.77f, 0.82f) } };
-            GUI.Label(new Rect(px + 20f, py + 60f, w - 40f, 20f), "Waiting for the host to respond", sub);
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
+            UITheme.Spinner(new Rect(px + 22f, py + 30f, 26f, 26f), UITheme.Blue);
+            UITheme.Shadowed(new Rect(px, py + 28f, w, 30f),
+                             "Connecting to " + _connectLabel + new string('.', dots), msg, UITheme.Ink, 0.7f, 1.5f);
+            UITheme.Hint(new Rect(px + 20f, py + 60f, w - 40f, 20f), "Waiting for the host to respond");
 
             var cancel = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
-            if (GUI.Button(new Rect(px + w * 0.5f - 65f, py + h - 46f, 130f, 34f), "Cancel", cancel))
+            if (UITheme.Button(new Rect(px + w * 0.5f - 65f, py + h - 46f, 130f, 34f), "Cancel", cancel, true))
                 CancelConnect();
         }
     }

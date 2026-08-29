@@ -52,3 +52,7 @@ Assets/_Recovery.meta
 
 # graphify derived cache (regenerated on every run; not source)
 graphify-out/cache/
+
+# Verification screenshots taken by tooling; not project assets.
+/[Aa]ssets/[Ss]creenshots/
+/[Aa]ssets/[Ss]creenshots.meta

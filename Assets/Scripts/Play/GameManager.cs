@@ -33,6 +33,7 @@ namespace Trickshot
         Transform _launchPoint;
 
         bool _resolved;        // has the current served ball's outcome been called out yet
+        readonly SaveWatch _save = new SaveWatch();   // shared SAVE / EPIC SAVE / MISS verdict
 
         int _goals, _trickGoals, _attempts, _saves;
         string _flash = "";
@@ -72,9 +73,18 @@ namespace Trickshot
             // Camera follows the pelvis and is driven by mouse movement.
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
-            _striker.SetCameraYaw(() => _cam.Yaw);
+            _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
 
             _cam.SetMode(GameCamera.Mode.Follow);
+            // Plant the AI crosser BEFORE the first serve. PlantAt and not SetOrigin deliberately:
+            // SetOrigin would also claim the launch origin, which moves the ball's rest point 1.6 m
+            // off the wing launch point and shortens every default cross from 1.294 s to 1.190 s of
+            // flight. Nobody asked for that; the origin stays the cross map's business. What this buys
+            // is _plantHome (which arms the drift snap-back) and a real _plantFacing instead of
+            // identity, so his first swing no longer turns him to face world +Z.
+            _crosser.TargetOverride = _crossTarget;
+            _crosser.GroundCross = _crossGround;
+            _crosser.PlantAt(_crosserSpot);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;   // no live ball yet
 
@@ -89,16 +99,11 @@ namespace Trickshot
             if (_strikerRagdoll != null) tracked.AddRange(_strikerRagdoll.BoneTransforms);
             if (_keeper != null)
             {
-                var kr = _keeper.GetComponent<ActiveRagdoll>();
+                var kr = _keeper.Body;
                 if (kr != null) tracked.AddRange(kr.BoneTransforms);
             }
             _replay = gameObject.AddComponent<ReplaySystem>();
             _replay.Setup(tracked, null, SimConfig.ReplayWindow);
-        }
-
-        public void NotifyValidTrick()
-        {
-            Flash("TRICK CONNECT!");
         }
 
         // Striker calls the AI crosser for a pass to his feet: low (driven) or high (chipped).
@@ -112,7 +117,7 @@ namespace Trickshot
             if (PlayerProfile.PerkMaestro) acc = 1f;
             float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
             _crosser.ServeNow(target, lofted, 0.5f, scatter);
-            _attempts++; _resolved = false;
+            _attempts++; _resolved = false; _save.Arm();
             Flash(lofted ? "CALL: HIGH" : "CALL: LOW");
         }
 
@@ -147,7 +152,7 @@ namespace Trickshot
             if (_crossMapOpen)
             {
                 if (_keeper != null) _keeper.Tick();
-                if (_crosser.Tick()) { _attempts++; _resolved = false; Flash("CROSS!"); }
+                if (_crosser.Tick()) { _attempts++; _resolved = false; _save.Arm(); Flash("CROSS!"); }
                 TrackOutcome();
                 if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
                 return;   // skip striker control + ball-cam toggle while the map is up
@@ -174,6 +179,7 @@ namespace Trickshot
             {
                 _attempts++;
                 _resolved = false;
+                _save.Arm();
                 Flash("CROSS!");
             }
 
@@ -192,6 +198,15 @@ namespace Trickshot
             Vector3 c = _ball.transform.position;
 
             if (BallFullyInGoal(c)) { OnGoal(_ball.LastShotWasTrick); return; }
+
+            // Keeper contact, from the ball's touch log (never proximity).
+            _save.Poll(_ball, _keeper != null ? _keeper.Body : null,
+                       _keeper != null && _keeper.WasDivingSave);
+
+            // A save that stays IN PLAY (caught, smothered, parried down) never leaves the field, so
+            // the out-of-play test below would swallow the callout entirely. Call it once the touched
+            // ball has settled. Checked AFTER the goal test, so a parry that trickles in is a goal.
+            if (_save.SettledAfterTouch(_ball)) { OnSave(); return; }
 
             float halfGoal = SimConfig.GoalWidth * 0.5f;
             bool behindGoal = c.z > _goalLineZ + 0.6f
@@ -256,17 +271,22 @@ namespace Trickshot
             _resolved = true;
         }
 
+        // A keeper TOUCH is a save, wherever the ball ends up. This used to test the ball's resting
+        // distance to the keeper, which called every parried-clear save a MISS and called an
+        // untouched ball that happened to die near him a SAVE.
+        void OnSave()
+        {
+            _resolved = true;
+            _saves++;
+            Flash(_save.Callout());
+        }
+
         void OnMiss()
         {
             _resolved = true;
-            // A save close to the keeper is normal; one where he had to DIVE (far from his
-            // guard spot, i.e. a big lateral reach) is an EPIC SAVE.
-            if (_keeper != null && Vector3.Distance(_ball.transform.position, _keeper.PelvisPos) < 2.2f)
-            {
-                _saves++;
-                Flash(_keeper.WasDivingSave ? "EPIC SAVE!" : "SAVE!");
-            }
-            else { Flash("MISS"); AudioManager.Instance?.PlayMissBoosMaybe(); }   // occasional boos (~1 in 5-6)
+            if (_save.Touched) { _saves++; Flash(_save.Callout()); return; }
+            Flash("MISS");
+            AudioManager.Instance?.PlayMissBoosMaybe();   // occasional boos (~1 in 5-6)
         }
 
         void ResetRound()
@@ -284,6 +304,10 @@ namespace Trickshot
             _strikerRagdoll.ResetTo(SimConfig.StrikerStart, Quaternion.identity);
             if (_keeper != null) _keeper.ResetTo(SimConfig.KeeperStart);
             _cam.SetMode(GameCamera.Mode.Follow);
+            // R resets the striker and keeper, so put the crosser back too: the snap-back tolerates
+            // CrosserPlantDrift (0.6 m) of wander and a reset should clear that as well. PlantAt, so a
+            // player who HAS placed him with the cross map keeps their chosen launch origin.
+            _crosser.PlantAt(_crosserSpot);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;
         }
@@ -325,27 +349,21 @@ namespace Trickshot
             // Cross-targeting overlay.
             if (_crossMapOpen)
             {
-                var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.45f);
-                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-                GUI.color = prev;
+                Hud.Scrim(0.45f);
 
                 float w = 380f, h = 300f;
-                var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
-                var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
-                GUI.Label(new Rect(mapRect.x, mapRect.y - 60f, w, 28f), _crossEdit == 1 ? "PLACE THE CROSSER" : "WHERE SHOULD CROSSES LAND?", hdr);
+                var mapRect = new Rect(Hud.W * 0.5f - w * 0.5f, Hud.H * 0.5f - h * 0.5f, w, h);
 
                 // Target / Crosser edit toggle.
-                var seg = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
-                var segOn = new GUIStyle(seg); segOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), _crossEdit == 0 ? "● Target" : "Target", _crossEdit == 0 ? segOn : seg)) _crossEdit = 0;
-                if (GUI.Button(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), _crossEdit == 1 ? "● Crosser" : "Crosser", _crossEdit == 1 ? segOn : seg)) _crossEdit = 1;
+                if (Hud.Seg(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), "Target", _crossEdit == 0)) _crossEdit = 0;
+                if (Hud.Seg(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), "Crosser", _crossEdit == 1)) _crossEdit = 1;
 
                 // Crosser tab: an Air/Ground delivery toggle (default Air = lofted). Sits just
                 // below the map so it doesn't overlap the segment row.
                 if (_crossEdit == 1)
                 {
                     string label = "Delivery:  " + (_crossGround ? "GROUND" : "AIR (lofted)");
-                    if (GUI.Button(new Rect(mapRect.x, mapRect.yMax + 30f, w, 24f), label, _crossGround ? seg : segOn))
+                    if (Hud.Seg(new Rect(mapRect.x, mapRect.yMax + 30f, w, 24f), label, !_crossGround))
                         _crossGround = !_crossGround;
                     _crosser.GroundCross = _crossGround;
                 }
@@ -356,9 +374,13 @@ namespace Trickshot
                     _crosser.GroundCross = _crossGround;      // keep delivery mode in sync
                     _crosser.SetOrigin(_crosserSpot);         // live-apply crosser position (faces the target)
                 }
-                var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f,0.85f,0.9f) } };
-                GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f), "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M to close.", tip);
+                Hud.OverlayLabel(mapRect,
+                                 _crossEdit == 1 ? "PLACE THE CROSSER" : "WHERE SHOULD CROSSES LAND?",
+                                 "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M to close.",
+                                 60f);
             }
+
+            Hud.End();
         }
     }
 }

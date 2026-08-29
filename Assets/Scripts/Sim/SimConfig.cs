@@ -62,6 +62,11 @@ namespace Trickshot
         public static readonly Vector3 CrosserStart   = new Vector3(9.5f, 0f, FieldLength * 0.5f - 5.5f);
         public static readonly Vector3 StrikerStart   = new Vector3(-1.5f, 0f, FieldLength * 0.5f - 8.5f);
         public static readonly Vector3 KeeperStart    = new Vector3(0f, 0f, FieldLength * 0.5f - 0.6f);
+        // A penalty is taken with the keeper ON his goal line, not 0.6 m off it the way he stands in
+        // open play - standing off the line gives him a head start at closing the angle that the laws
+        // do not allow, and it looks wrong from behind the ball. Held a hair in front of GoalCenter.z
+        // so he is in the goal MOUTH rather than buried in the netting behind it.
+        public static readonly Vector3 KeeperPenaltyStart = new Vector3(0f, 0f, FieldLength * 0.5f - 0.08f);
         public static readonly Vector3 ReticleStart   = new Vector3(0f, 0.02f, FieldLength * 0.5f - 8.5f);
 
         // ---- Goalkeeper (player-controlled keeper mode) ----
@@ -81,7 +86,10 @@ namespace Trickshot
 
         // LMB/RMB reflex save: one-time sideways lunge, arm+leg out. He STAYS DOWN in
         // the save pose for as long as the button(s) are held, then gets up on release.
-        public const float KeeperSaveLunge = 7f;
+        // Sideways velocity of the keeper's LMB/RMB reflex save (KeeperController.BeginSave). Cut 20%
+        // from 7: the lunge carried him far enough sideways that a save near one post left him past the
+        // other, and the reach was covering ground the dive is supposed to be for.
+        public const float KeeperSaveLunge = 5.6f;
         public const float KeeperSaveReleaseTime = 0.12f; // brief settle after release before standing
 
         // Upward dive (A/D + Space): reach/height scale with prior speed. More hang time
@@ -111,12 +119,83 @@ namespace Trickshot
         // this hard is EPIC; so is any save made in a high dive (see KeeperController.IsHighDive).
         // Those are the only two epic criteria. Set above a firm shot but below a rocket.
         public const float KeeperEpicSaveSpeed = 22f;
+
+        // ---- Human keeper: getting up, catching, distributing ----
+        // Coming down from a dive costs a moment. The AI keeper's version of that beat is emergent
+        // (it walks back to its guard spot while balance re-engages) but the human keeper snapped
+        // straight from prone to Ready, which read as weightless. This is the same beat, authored:
+        // a short push-up-and-drift he can cancel out of by pressing a save.
+        public const float KeeperStumbleTime = 0.55f;  // scaled by PlayerProfile.RecoveryTimeMul
+        public const float KeeperStumbleStep = 2.2f;   // m/s of leftover drift the instant he is up
+        // Catching. The AI gates gathering on its difficulty slider; a human has no such slider, so
+        // his hands come off Control instead - and the floor sits well above zero, because a player
+        // who can never hold a ball is a bug, not a stat.
+        public const float KeeperHumanHandsRaw     = 0.25f; // hands at zero Control
+        public const float KeeperHumanHandsSkilled = 1.00f; // hands at full Control
+        public const float KeeperHumanHoldMax      = 4.0f;  // held this long -> he punts it himself
         public static float KeeperJumpVel = 6.5f;        // straight-up jump (Space); pre-match slider
         public const float KeeperJumpVelBase = 6.5f;     // 1.0x reference for jump/dive-height scaling
         // Keeper camera slight mouse look (clamped, stays a behind-view). Yaw is carried
         // by the keeper's body facing now, so the camera only pitches.
         public const float KeeperCamLookPitch = 12f;      // max deg up/down
         public const float KeeperCamLookSpeed = 0.06f;    // deg per mouse-delta unit
+
+        // ---- Goalkeeping (AI keeper positioning, sweeping, handling, distribution) ----
+        // POSITION ON THE ANGLE. He stands on the ball-to-goal-centre line, off his line in
+        // proportion to how far out the ball is. Covering the near post from wide covers the far
+        // post too; a keeper welded to the middle of his line is beaten by geometry every time.
+        public const float KeeperAngleFrac   = 0.16f; // metres off the line per metre the ball is out
+        public const float KeeperLineOffset  = 0.55f; // never flat on the goal line
+        public const float KeeperMaxOffLine  = 5.0f;  // furthest he'll advance to narrow the angle
+        public const float KeeperDrillOffLine = 1.4f; // furthest in the single-goal drills (see Goalkeeper.Sweeper)
+        public const float KeeperWideAllow   = 1.1f;  // how far outside the posts he may track a wide ball
+        public const float KeeperGuardBand   = 1.0f;  // proportional band: full speed once this far off his spot
+        public const float KeeperRunGaitSpeed = 3.2f; // above this he runs properly instead of shuffling
+        // Sweeping: a loose SLOW ball near his goal is his. A ball in someone's feet is not -
+        // that needs a challenge, not a keeper vacuuming it off a dribbler.
+        public const float KeeperRushZone     = 12f;  // loose ball this near the goal -> come and get it
+        public const float KeeperRushMaxSpeed = 9f;   // ...but only if it isn't flying (that's a dive)
+        public const float KeeperRushSpeedMul = 1.6f; // he moves off his line quicker than he tracks on it
+        // Handling. A CATCH IS THE EXCEPTION. Gathering demands a nearly dead ball, at his hands,
+        // in FRONT of him, and not already running away from him. Everything else is PARRIED with
+        // a real impulse (KeeperHands.TryParry) instead of bobbling off his capsules.
+        public const float KeeperClaimReach      = 0.62f; // gather radius from the chest - a glove length, not a bubble
+        public const float KeeperClaimMaxSpeed   = 6.6f;  // faster than this cannot be caught (ability scales it 0.55x - 1.6x)
+        // ...except at his chest. That is the one height he gets his body behind rather than
+        // just a glove, so it earns a higher ceiling; the same pace at his boots or over his
+        // head stays a parry. Fades between the two so there is no band edge you can feel.
+        public const float KeeperClaimChestSpeed = 8f;    // ceiling at chest height
+        public const float KeeperClaimChestBand  = 0.20f; // within this of chest height: full chest ceiling
+        public const float KeeperClaimChestFade  = 0.40f; // and back to KeeperClaimMaxSpeed this much further out
+        public const float KeeperClaimZone       = 9f;    // only gathers this near his own goal
+        public const float KeeperClaimCooldown   = 2.2f;  // after releasing, before he can gather again
+        public const float KeeperClaimMinAbility = 0.30f; // a hopeless keeper never holds anything
+        public const float KeeperClaimFrontDot   = 0.35f; // ball must be this far in FRONT of him (ability widens the cone)
+        public const float KeeperClaimMaxRecede  = 1.2f;  // ball leaving his chest faster than this is gone, not gathered
+        public const float KeeperHoldForward     = 0.42f; // held ball sits this far in front of the chest
+        public const float KeeperHoldTime        = 1.4f;  // seconds held before he plays it (ability scales it)
+        public const float KeeperHoldBreak       = 2.5f;  // ball teleported this far out from under the hold -> drop it
+        // Parry - what happens INSTEAD of a catch. Fires only on a collision PhysX already logged
+        // against his body, so it is never telekinesis and SaveWatch still credits the save.
+        public const float KeeperParryTouchWindow = 0.15f; // a logged contact this recent counts as his touch
+        public const float KeeperParryReach       = 2.0f;  // sanity cap from the chest - rejects a stale log entry only
+        public const float KeeperParryCooldown    = 0.35f; // one touch per passage; also blocks gathering what he just pushed
+        public const float KeeperParryKeep        = 0.40f; // fraction of impact speed kept, so a rocket flies further off
+        public const float KeeperParryPush        = 4.0f;  // floor push, so a tame ball is still cleared off his line
+        public const float KeeperParrySide        = 0.85f; // lateral weight - parried WIDE, not back to the shooter
+        public const float KeeperParryUp          = 0.35f; // slight lift so it clears the turf
+        // Distribution.
+        public const float KeeperDistributeRange      = 26f;   // punt distance when there is nobody to find
+        public const float KeeperDistributeScatterDeg = 14f;   // aim error at zero ability
+        public const float KeeperDistributeWobble     = 0.10f; // weight error at zero ability
+
+        // ---- Audio mix ----
+        // Per-sound trims sitting on top of the user's SFX slider. The whistle is the one cue that
+        // fires at full level right beside the camera, so it needed pulling down.
+        public const float WhistleVolume = 0.60f;
+        // The woodwork clang fires in the same instant as the touch that caused it, so at full
+        // level it swamped the thud it is meant to sit on top of.
+        public const float PostHitVolume = 0.75f;
 
         // ---- Physics ----
         public const float Gravity = -19.6f;      // 2x real gravity: snappier, arcade feel
@@ -125,6 +204,19 @@ namespace Trickshot
         public const float BallDrag = 0.02f;        // lower -> keeps pace, rolls further
         public const float BallAngularDrag = 0.02f;
         public const float BallBounciness = 0.55f;
+        // ---- Rolling resistance (BallController.ApplyRollingResistance) ----
+        // PhysX has no rolling friction for a sphere: once the ball rolls without slipping the
+        // contact patch has zero relative velocity, so the turf material's friction cannot slow it.
+        // With BallDrag/BallAngularDrag at 0.02 (about 2%/s) a loose ball trundled at a constant
+        // speed forever and a keeper (StrikerMoveSpeed 3.8 base) could never close on it. These add
+        // the missing term, gated so nothing in flight is touched.
+        public const float BallRollDecel  = 3.2f;   // m/s^2 opposing a grounded roll (mu_r ~0.16 at this gravity)
+        public const float BallRollSpeed  = 11f;    // flat speed at/below which the ball counts as LOOSE and rolling.
+                                                    // Far under StrikeHorizMax 26 and DribbleShotSpeed 17, so no
+                                                    // struck shot or lofted set piece is ever damped at launch.
+        public const float BallRollMaxVy  = 1.2f;   // |vy| above this is a bounce, not a roll. Above DribbleTouchHop
+                                                    // 0.85 so a dribble touch still counts as rolling, consistently.
+        public const float BallRollStop   = 0.35f;  // below this the roll is killed dead instead of creeping
 
         // ---- Cross tuning ----
         // Loft flight times are kept SHORT so a lofted cross is a low, crossable arc (~3m apex to
@@ -147,9 +239,119 @@ namespace Trickshot
         // He plants, plays a right-leg swing, and the ball leaves at contact - but the
         // launch is still solved perfectly by code every time (the swing is cosmetic).
         public const float CrosserWindupTime = 0.45f; // time from telegraph->contact the leg swings through
-        public const float CrosserSwingThigh = 95f;   // deg the kicking thigh swings through (back then through)
-        public const float CrosserSwingCalf = 70f;    // deg the knee extends on follow-through
-        public const float CrosserPlantLean = 12f;    // deg torso lean into the kick
+        // How far a planted AI crosser may be shoved off his spot before he is put back on it. He has
+        // no locomotion controller (Crosser.Init turns it off), so nothing bleeds off a velocity he
+        // picks up - without this he skates away from the wing for the rest of the match.
+        public const float CrosserPlantDrift = 0.6f;   // metres
+
+        // ---- Kick swing (KickSwing: the AI crosser, the set-piece taker, the menu shooter) ----
+        // One normalised clock t: 0 opens the windup, 1 is contact, and it runs on to KickRecoverEnd
+        // through the follow-through and the rebalance. Drivers scale t by their own windup duration.
+        // Replaces CrosserSwingThigh/CrosserSwingCalf/CrosserPlantLean, which described a three-bone
+        // linear sweep that ran the thigh the WRONG WAY (see the KickSwing class comment).
+        //
+        // Sign convention, from RagdollPose: NEGATIVE local X throws a limb's lower end FORWARD, so a
+        // cocked-back thigh is positive and a thigh driven through the ball is negative. A positive X
+        // on a calf folds the knee.
+        public const float KickWindupEnd   = 0.45f;  // t at which the leg is fully cocked
+        public const float KickThroughEnd  = 1.45f;  // t at the peak of the follow-through
+        public const float KickRecoverEnd  = 2.10f;  // t at which he is stood up square again
+        // ---- sequencing: the two OVERLAPPING sub-clocks inside the strike ----
+        // A kick is a double pendulum. The HIP fires first while the knee stays folded, then decelerates
+        // and hands its momentum to the shank, which whips through LATE. The old table lerped thigh and
+        // knee over one shared interval with one shared curve, which is a swinging plank - and it is the
+        // main reason the body read as static with a lean bolted on.
+        public const float KickHipStart  = 0.50f;   // hip drive opens
+        public const float KickHipEnd    = 0.97f;   // ...and eases out, still carrying residual rate
+        public const float KickKneeStart = 0.80f;   // shin stays folded until here
+        public const float KickKneeEnd   = 1.00f;   // ...then extends into the ball
+        // JOINT DRIVE LAG. The drives are a first-order tracker with tau = JointDamper / JointSpring =
+        // 150 / 6500 = 0.023 s, so a moving target is always reached LATE by tau x rate. Commanded
+        // angles therefore have to peak EARLY or the pose that lands on the contact frame is the one
+        // commanded 23 ms before it. Expressed in seconds and converted per driver, because the same
+        // normalised lead is a different amount of time for a 0.45 s crosser swing and a 0.32 s
+        // set-piece swing. (DriveScale is the only lever that would shorten tau - it scales spring and
+        // not damper. DriveMul scales both and leaves tau fixed.)
+        public const float KickDriveLagSeconds = 0.023f;
+
+        public const float KickCockThigh   = 38f;    // deg the kicking thigh draws BACK in the windup
+        public const float KickCockKnee    = 85f;    // deg the knee folds up behind him with it
+        public const float KickStrikeThigh = 48f;    // deg the thigh has driven FORWARD by contact
+        public const float KickFollowThigh = 76f;    // ...and by the top of the follow-through
+        // 28, not the 8 this used to command. Two independent reasons landed on the same number. Real
+        // instep contact is at 25-35 deg of knee flexion with the knee still EXTENDING through the ball,
+        // not locked out on it. And the drive lag above means a commanded 8 arrives at roughly 28
+        // anyway - so the old table was fighting the rig to reach a pose that was wrong regardless.
+        public const float KickStrikeKnee  = 28f;    // deg of knee flexion at contact
+        // The knee keeps extending AFTER contact, over the first part of the follow-through, so the
+        // target decays across several physics steps instead of stopping dead on one frame.
+        public const float KickPostKnee    = 8f;
+        // SIGN WAS INVERTED. Rotation about a foot's local +X takes its local +Z - the toe box - toward
+        // -Y, i.e. DOWN, so plantarflexing an instep is POSITIVE X. RagdollPose.Sit agrees: it authors
+        // both feet at -18 for "heels down, toes up". This was being applied NEGATIVE, which dorsiflexed
+        // the toe 26 deg up through the entire strike - the foot was pulled back like a heel strike for
+        // the whole swing. (Bicycle's "-25 pointed" comment is the one that is wrong.)
+        public const float KickToePoint    = 26f;    // deg the ankle plantarflexes on the strike
+        public const float KickPlantFlex   = 22f;    // deg the standing knee gives, bracing then landing
+        public const float KickTorsoLean   = 10f;    // deg trunk leans in over the plant foot
+        public const float KickTorsoTwist  = 14f;    // deg the trunk opens away from the ball, then squares
+        // Lateral trunk tilt toward the PLANT side, peaking at contact and unwinding after. This is
+        // the weight transfer: a player tips away from the ball to swing the kicking hip past the
+        // standing one. A CONSTANT side lean is what the old animation looked like and why it read as
+        // a hinge rather than a person.
+        public const float KickTorsoTilt   = 16f;    // deg
+        // The trunk EXTENDS (arches back) at the top of the cock and again on the follow-through, and
+        // only flexes forward through contact. The old table had one forward lean the whole way, which
+        // is the "leans to one side and recovers" the animation was reduced to.
+        public const float KickTorsoExtend = 10f;    // deg of arch-back at the top of the cock
+        public const float KickTorsoArch   = 8f;     // deg of arch-back at the top of the follow-through
+        // The trunk rotates THROUGH the delivery line and finishes rotated past it. It used to unwind to
+        // zero at contact and then hold zero for both later phases, so the shoulders stopped moving at
+        // the most violent moment of the action.
+        public const float KickTorsoThrough = 18f;   // deg past square, on the follow-through
+
+        // ---- the pelvis substitute ----
+        // The pelvis CANNOT be posed: ActiveRagdoll skips it when building joints, and every drive target
+        // is read as child-local relative to its parent, so SetPoseOverride(Bone.Pelvis, ...) is a silent
+        // no-op twice over. Hip rotation is therefore expressed as BODY YAW through FacingRotation, which
+        // UprightLock slews the pelvis toward at up to 900 deg/s - a 22 deg turn over the hip window is
+        // ~110 deg/s mean, nowhere near saturating. From outside, a hip rotation and a whole-body yaw are
+        // indistinguishable while both feet are committed.
+        //
+        // NOTE HONESTLY WHAT THIS DOES NOT COVER: UprightLock freezes pelvis pitch and roll with
+        // rigidbody constraints and steers yaw only, so while grounded the hips stay level and the lean
+        // is chest-only. Real pelvic tilt exists only for the airborne follow-through, via
+        // BodyOrientTarget. Fixing that needs the balance lock released through the strike, which also
+        // drops the carry servo, and is deliberately not done here.
+        public const float KickAddressAngle = 30f;   // deg the body starts off the delivery line
+        public const float KickYawThrough   = 22f;   // ...and turns through it on the hip clock
+        // The plant toes must stay pointed down the delivery line while the body turns through it, so the
+        // plant foot's yaw counter-rotates on the SAME clock. Authored as a constant local offset it
+        // would rotate rigidly with the parent and sweep the same 22 deg the body does - and the foot
+        // collider is frictionless, so it would visibly pivot and skid on the turf.
+        public const float KickPlantSplay  = 14f;    // deg of hip abduction putting the plant foot wide
+        public const float KickPlantStep   = 8f;     // deg putting it slightly ahead of the hips
+        public const float KickPlantBrace  = 6f;     // deg the plant knee extends to brace through contact
+
+        // ---- the follow-through crosses the body ----
+        // An instep cross finishes high and ACROSS the midline. Every kicking-leg override used to be
+        // Vector3(x, 0, 0), so the leg was locked in the sagittal plane and physically could not cross.
+        public const float KickSwingOut    = 12f;    // deg the leg abducts out in the cock (diagonal plane)
+        public const float KickContactCross = 8f;    // deg adducted at contact, so foot velocity is down the line
+        public const float KickFollowCross = 26f;    // deg across the midline at the top of the follow-through
+        public const float KickCalfCross   = 10f;    // ...and the shin lays across too, not a rigid pivot
+        // How far the SUPPORT leg trails out behind on the follow-through. Selling that his weight has
+        // come off it is most of what makes the hop read as one leg to the other.
+        public const float KickTrailThigh  = 30f;    // deg
+        public const float KickArmSwing    = 52f;    // deg the opposite arm swings across to counter it
+        public const float KickArmSpread   = 28f;    // deg both arms open out while he is off the ground
+        public const float KickElbowBend   = 34f;    // deg carried at the elbows throughout
+        // The pop off the plant leg at contact. Small on purpose: it has to read as a follow-through
+        // and not a jump, and the balance lock is off while he is in the air.
+        public const float KickHopVel      = 1.9f;   // m/s upward at contact
+        public const float KickHopDrift    = 1.1f;   // m/s forward, carried into the landing
+        public const float KickHopSide     = 0.7f;   // m/s toward the plant side, so it is a hop ACROSS
+        public const float KickHopGrace    = 0.30f;  // s before the upright lock may re-engage
 
         // ---- AI goalkeeper (striker mode): a ragdoll that shuffles + dives ----
         public const float AiKeeperReactZ = 14f;      // ball within this Z of goal -> keeper reacts
@@ -164,7 +366,7 @@ namespace Trickshot
         //   within AiKeeperLowDiveReach -> a LOW dive (down + across to a bottom corner);
         //   beyond that                 -> shuffle a step or two toward it first, then dive.
         public const float AiKeeperLowBallHeight = 1.0f;  // predicted ball height below this = low save
-        public const float AiKeeperSplitWidth = 1.2f;     // |ball x - centre| under this = Split, else side splay
+        public const float AiKeeperSplitWidth = 1.2f;     // predicted crossing within this of the keeper = Split, else side splay
         public const float AiKeeperLowSaveUp = 1.2f;      // small hop on a side splay (stays low)
         public const float AiKeeperSplayReach = 1.6f;     // low ball within this of the keeper = splay/split in place
         public const float AiKeeperLowDiveReach = 4.5f;   // low ball within this = commit a low dive; beyond = step closer first
@@ -182,14 +384,24 @@ namespace Trickshot
         public static int   WallCount = 4;              // defenders in the wall
         public static float WallDistance = 9.15f;       // wall distance from the ball (regulation)
         public static float WallLateralOffset = 0f;     // shift the wall along the goal-parallel axis
+        // Free-kick PLACEMENT picked on the pre-match map (the same SetPieceMap widget the
+        // multiplayer host uses). When SetPiecePlaced is set the driver puts the ball and the wall on
+        // these exact world points instead of deriving them from FreeKickDistance/WallDistance;
+        // penalty mode ignores both (the spot is the spot). SetPieceRandomSpots overrides the
+        // placement with a fresh legal spot every attempt, like the host's RANDOM SPOTS toggle.
+        public static bool    SetPiecePlaced = false;
+        public static Vector3 SetPieceBallSpot;
+        public static Vector3 SetPieceWallCenter;
+        public static bool    SetPieceRandomSpots = false;
 
         // ---- Auto serve ----
         public const float ServeFirstDelay = 1.6f; // before the first cross
         // Seconds between crosses (striker mode) - set from the pre-match screen.
         public static float ServeInterval = 3.5f;
-        // Keeper mode: fixed continuous 2s cadence, and a snappy resolve so callouts
-        // don't hold up the next ball.
-        public const float KeeperServeInterval = 2f;
+        // Keeper mode: fixed continuous cadence, and a snappy resolve so callouts
+        // don't hold up the next ball. 3s leaves room to actually get back on your line
+        // and reset your feet between shots; at 2s the drill outran the keeper.
+        public const float KeeperServeInterval = 3f;
         public const float KeeperResolveTime = 0.4f;
 
         // ---- Pre-match match settings (set from PrematchUI) ----
@@ -277,12 +489,118 @@ namespace Trickshot
         public const float AcrobatRecoveryMul = 1.4f; // Acrobat capstone: extra divisor on prone recovery time
         public const float BalanceFrequency = 3.2f;
         public const float BalanceDamping = 0.85f;
+        // Rate (1/s) the residual YAW RING of a non-biped body is bled off while it stands still.
+        // 14 clears a ring in about 0.2 s, which reads as damped rather than as a snap. A biped never
+        // runs this at all. See ActiveRagdoll.SettleYawRing for what it fixes and why the balance
+        // constants above could not be the place to fix it.
+        public const float StandYawSettleRate = 14f;
+
+        // ---- Body preview (customize / species screens) ----
+        // Ambient intensity while a PlayerPreview is on screen, restored when the last one closes.
+        // The preview was lit by ONE directional at 1.1 against whatever ambient the menu sky left
+        // (1.08), and raising that light did almost nothing: measured, the LIT side of the model is
+        // albedo-capped at 0.60 luminance, so more key light has nowhere to go. All of the dimness was
+        // on the shadow side, which is ambient-only - so ambient is the lever. At 1.95 the model's dark
+        // half goes 0.235 -> 0.383 (+63%) while the lit side is unchanged, which reads as properly lit
+        // rather than washed out; 2.4 lifts it further but flattens the shadow/lit ratio to 0.75 and
+        // the body stops having any form.
+        public const float PreviewAmbient = 1.95f;
+
+        // ---- Scrimmage per-player match stats + ratings ----
+        // Attribution windows. A "touch" is proximity-based: the sim has no ball-contact callback, and
+        // the intent-bearing sites (a pass, a shot, a tackle, a keeper claim) note themselves
+        // explicitly, so proximity only has to catch deflections and headers.
+        public const float StatTouchRadius   = 1.25f;  // m from the ball to count as touching it
+        public const float StatPassResolveWindow = 4f; // s a pass waits for someone to receive it
+        // Passing.Launch TELEPORTS the ball 0.85 m off the passer's pelvis before it moves
+        // (PassSpawnFromBody), so the spawn can land inside a pressing defender. Touches this soon after
+        // a pass are that teleport, not a reception.
+        public const float StatPassSpawnIgnore = 0.15f;
+        public const float StatGoalCreditWindow = 6f;  // s back from a goal to look for who scored it
+        // A keeper touch only counts as a SAVE if an opponent shot came in this recently and the ball
+        // was actually moving. The shot is CONSUMED by the first save, or a ball pinballing off the
+        // keeper would bank one save per parry cooldown.
+        public const float StatSaveShotWindow  = 2.5f;
+        public const float StatSaveMinBallSpeed = 6f;   // m/s
+
+        // ---- Match rating (6.0 - 10.0, one decimal) ----
+        // Base is 6.5, not 6.0, so the FLOOR and a neutral anonymous performance are different numbers:
+        // at 6.0 both "never touched the ball" and "conceded five" would print the same rating.
+        public const float RatingBase    = 6.5f;
+        public const float RatingMin     = 6.0f;
+        public const float RatingMax     = 10.0f;
+        // Match EVENTS, not volume: never normalised.
+        public const float RatingGoal    = 1.20f;
+        public const float RatingAssist  = 0.70f;
+        public const float RatingConcede = 0.45f;   // deliberately > RatingSave: a shelled keeper must
+                                                    // not be able to save his way back to neutral
+        public const float RatingCleanSheet = 0.60f;
+        public const int   RatingCleanSheetMinSaves = 1;   // a keeper who faced nothing gets no bonus
+        // VOLUME terms. These accumulate with match length, and match length is a PRE-MATCH OPTION
+        // spanning 2 to 10 minutes (PrematchUI), with roster size spanning 3 to 11 a side on top. An
+        // unnormalised sum would therefore rate a 10-minute 3v3 far above a 2-minute 11v11 for
+        // identical play, which is why every one of these is divided by the match's length against
+        // RatingRefSeconds before it is weighted.
+        public const float RatingRefSeconds = 180f;  // the 3 min default; the weights below are tuned here
+        public const float RatingShot     = 0.06f;
+        public const float RatingPassDone = 0.035f;
+        // Low on purpose. A human pass fires straight down the look ray with no target snap, so it
+        // misplaces far more than the AI's BestTarget-aimed pass does; a heavy penalty would make
+        // volume passing net negative for a human and not for a bot. An UNRESOLVED pass (nobody
+        // touched it at all) is charged nothing rather than counted lost.
+        public const float RatingPassLost = 0.015f;
+        // Cut from a first-draft 0.14. Tackles fire off proximity plus a 0.9 s cooldown, so even with
+        // the carrier gate they are the cheapest event to repeat, and at 0.14 the column dominated.
+        public const float RatingTackle   = 0.05f;
+        public const float RatingSave     = 0.30f;
+
+        // ---- Scrimmage landing reticle ----
+        // A disc on the turf under where an airborne ball will come down. Scrimmage only.
+        // The ball must be genuinely airborne and the flight long enough to be worth telegraphing:
+        // below MinHeight it is a roll, and outside the time window the disc is either a flicker or a
+        // prediction nobody can use.
+        public const float ScrimReticleMinHeight = 0.85f;  // m above resting height before it draws
+        public const float ScrimReticleMinTime   = 0.22f;  // s of remaining flight
+        public const float ScrimReticleMaxTime   = 2.6f;
+        // The disc geometry itself is AimReticle's (a 1.4-unit ring, i.e. this radius); recorded here
+        // so the two cannot silently disagree if either is retuned.
+        public const float ScrimReticleRadius    = 0.7f;   // disc radius on the turf, matches AimReticle
+        // Cyan, so it reads against turf and against both kit colours without being mistaken for a
+        // marking or a team indicator.
+        public static readonly Color ScrimReticleTint = new Color(0.35f, 0.85f, 1f, 1f);
 
         // ---- Striker locomotion ----
         public static float StrikerMoveSpeed = 3.8f;   // pre-match slider. LOW base on purpose: an
                                                         // uninvested striker is sluggish; Pace nodes
                                                         // (SkillTree "move"/"sprint") swing this hard.
         public const float StrikerSprintMul = 1.8f;  // Shift-held speed multiplier
+        // How hard Pace swings top speed. The trait multiplier itself (PlayerProfile.MoveSpeedMul /
+        // SprintSpeedMul) runs about 0.85 uninvested to ~2.1 on a full Pace build, which at gain 1
+        // put a sprint between 5.8 and 14.5 m/s. That is a real spread on paper and read as flat on
+        // the pitch, because AI outfielders run a FLAT AiOutfieldSpeed (5 m/s): at the uninvested
+        // end you are pinned to the pack and only the very top of the tree ever pulls away.
+        // This multiplies the trait's DEVIATION ABOVE 1, so an uninvested or heavy build is untouched
+        // and the invested end is amplified.
+        //
+        // BACK TO 1 (neutral). At 2 the top end reached ~32 m/s, not the ~22 first estimated: that
+        // estimate missed the Afterburners capstone, which multiplies sprint by AfterburnerMul (1.30)
+        // on top of the tree. The top is now set by SprintSpeedCeiling instead of by this gain, which
+        // is the honest way round - a ceiling states the number it guarantees, where a gain only
+        // implies one and goes stale the moment a Pace node is retuned. Left in place as the lever for
+        // how steeply pace ramps BELOW the ceiling.
+        public const float PaceSpeedGain = 1f;
+        // Hard ceiling on ground speed, sprint included. Set to exactly what a maxed Pace build
+        // reaches today:
+        //     StrikerMoveSpeed 3.8 x StrikerSprintMul 1.8 x SprintSpeedMul 2.87 = 19.7 m/s
+        // (SprintSpeedMul's own top is BodySprint 1.105 x the tree's sprint nodes 2.00 x
+        // AfterburnerMul 1.30.) So at PaceSpeedGain 1 this clips NOTHING - the full tree is spendable
+        // and the top of it is the fastest anyone can be. An uninvested build still sprints ~5.8, so
+        // pace is worth a 3.4x spread end to end.
+        //
+        // It stays as a BACKSTOP rather than being deleted: it is applied last, after every
+        // multiplier, so a Pace node added or retuned later cannot quietly raise the game's top speed
+        // without someone changing this number on purpose.
+        public const float SprintSpeedCeiling = 19.7f;  // m/s
         public const float StrikerAccel = 22f;      // applied to every bone (whole-body translation)
         public const float JumpVelocity = 7.155f;   // m/s upward on a standing jump (base). ~20% lower peak height than 8.0 (h proportional to v^2, so sqrt(0.8)*8). Trait/run/sprint muls stack on top.
         public const float RunJumpMul = 1.0f;        // running jumps now go full height (more vertical pop)
@@ -313,10 +631,97 @@ namespace Trickshot
         public const float HeaderTorsoBend = 90f;    // deg the torso folds forward on an airborne header (snappy, far)
         public const float HeaderBendEase = 60f;     // how fast the torso snaps forward into the header (very fast)
         public const float HeaderGrace = 0.12f;      // sec an airborne header stays live after the click (GK-split-style)
+
+        // Sit-down gesture: LMB+RMB pressed TOGETHER while standing drops him on his backside.
+        // The window is the same idea as HeaderGrace - two clicks a few frames apart still count
+        // as one gesture - but it only opens on the second button's PRESS EDGE, so pressing one,
+        // swinging, then pressing the other is still two ordinary leg raises.
+        public const float SitWindow    = 0.18f;  // sec the two clicks may be apart and still read as together
+        public const float SitRaiseMax  = 0.5f;   // a leg already this far up is a committed strike - no sit
+        public const float SitDrop      = 0.55f;  // m the hips sink to seat height (scaled by build height)
+        public const float SitDropEase  = 2.2f;   // m/s the hips sink into, and rise out of, the sit
+        public const float SitPoseSpeed = 4f;     // pose blend rate into Sit and back to Stand
+        // Arbitration with the SLIDE TACKLE, which reads the identical both-buttons combo in
+        // scrimmage (ScrimmageGame: `if (_input.LeftLegHeld && _input.RightLegHeld) TrySlideTackle();`).
+        // Speed is the discriminator, measured on FLAT PELVIS VELOCITY because that is what
+        // TrySlideTackle measures - the two gates have to be in the same units to be mutually
+        // exclusive. Sitting needs him near-stationary; sliding needs SlideTackleMinSpeed (3.5).
+        // The gap between 1.2 and 3.5 is dead ground where neither fires, which is deliberate: a
+        // jogging player who mashes both buttons gets nothing rather than a coin flip.
+        // LMB+RMB is one combo with TWO outcomes, and the MOVE STICK picks which: pushing forward
+        // slides, pulling back sits. It used to be arbitrated by SPEED instead (sit under 1.2 m/s,
+        // slide over 3.5), which meant the same intent gave different results depending on how fast he
+        // happened to be travelling, and neither was reachable on purpose from a standing start. The
+        // deadzone is wide enough that a neutral stick does neither.
+        public const float BothButtonMoveDeadzone = 0.35f;   // |Move.y| needed to pick a side
+        public const float SitMaxSpeed  = 1.2f;   // m/s: legacy speed gate, no longer arbitrates (see above)
+
+        // ---- Sliding challenge (LMB+RMB pushed FORWARD) ----
+        // A slide COMMITS: releasing the buttons does not cancel it, because a real one cannot be
+        // taken back halfway. He rides it out and gets up, and cannot start another until Recover
+        // has passed.
+        public const float SlideDuration = 0.85f;   // s committed to the slide before he gets back up
+        public const float SlideLunge    = 6.5f;    // m/s forward push launching the slide
+        public const float SlideDrop     = 0.5f;    // m the hips sink (x build height), as SitDrop
+        // Horizontal velocity retained per 60 Hz FRAME while down. It is applied per RENDER frame
+        // (Striker.Tick is pumped from Update), so it has to be raised to Time.deltaTime*60 or the
+        // slide's length becomes a function of the player's monitor. Measured with locomotion off, a
+        // 6.5 m/s launch and fixedDeltaTime 0.014: as a raw per-frame multiply it carried 3.34 m at
+        // 30 fps, 2.29 m at 60, 1.10 m at 144 and 0.69 m at 240 - a 4.8x spread. Raised to dt*60 the
+        // same integration holds 2.24 / 2.29 / 2.31 / 2.32 m across that range.
+        public const float SlideFriction = 0.96f;
+        public const float SlideRecover  = 0.45f;   // s after standing up before he can slide again
+        public const float SlidePoseSpeed = 7f;     // pose blend into Slide: faster than the sit, it is a lunge
+        // Ceiling on the TOTAL horizontal launch speed (carried run + SlideLunge). It exists because
+        // the slide now runs with LocomotionEnabled false, and with the locomotion servo out of the
+        // way nothing else caps what he arrives with. Measured travel is linear in launch speed at
+        // 0.354 m per m/s (2.30 m from 6.5, 4.72 m from 13.3), so:
+        //     standstill        6.5  -> 2.30 m
+        //     base run    3.8 + 6.5  -> 3.65 m   (under the cap; the cap changes nothing here)
+        //     base sprint 6.8 + 6.5  -> 4.26 m   (capped, from 4.72)
+        //     maxed Pace 19.7 + 6.5  -> 4.26 m   BRAKED to the ceiling, which is why this exists
+        // Pace still buys reach; it cannot buy a slide across a third of the box. Same shape as
+        // SprintSpeedCeiling - a backstop that states the number it guarantees.
+        public const float SlideLaunchMax = 12f;   // m/s
+        // The slide hands off to a LIMP phase rather than snapping upright, reusing the diving
+        // header's mechanism (DriveScale down, upright/balance/locomotion off, one timer, EndTrick
+        // restores). SlideDuration 0.85 + SlideLimpTime 0.6 = 1.45 s of total commitment, against the
+        // KnockdownTime 1.4 s the man you felled spends down: landing a tackle trades about even on
+        // time, so it is neither a free tempo win nor a punishment for connecting.
+        public const float SlideLimpTime = 0.6f;       // s limp on the deck before he gets up
+        public const float SlideLimpMinTime = 0.3f;    // floor: recovery upgrades can't drop below this
+        // The same number as DiveDriveScale today, on purpose - the request was "limp like the diving
+        // header". Its own knob so retuning the dive cannot silently retune the slide.
+        public const float SlideLimpDriveScale = 0.15f;
         // Arm pump (both keeper + striker): upper arms swing fore/aft opposite the legs,
         // elbows held bent. Reads as a runner's arm carriage over the glide.
         public const float ArmPumpSwing = 45f;      // deg upper arm swings fore/aft
         public const float ArmPumpElbow = 65f;      // deg the elbow stays folded
+
+        // ---- Shared gait (Gait.cs): cadence, fade, stance bend ----
+        // StrideRateMax above is no longer the cadence. Cadence is now 2pi * MEASURED speed / stride
+        // length, which is the fix for the skating: a key press used to take the legs to full rate
+        // instantly while the body was still accelerating from rest. At full walk and full sprint
+        // the new maths lands on 8.98 and 13.5 rad/s, i.e. exactly the old StrideRateMax and
+        // StrideRateMax * SprintStrideMul, so the human tempo at the two ends is unchanged.
+        public const float GaitRateMax    = 22f;   // safety cap on cadence (rad/s); trait muls can outrun sprint speed
+        public const float GaitMinSpeed   = 0.35f; // below this the gait is fully faded out
+        public const float GaitFadeSpeed  = 1.1f;  // m/s of speed over GaitMinSpeed to reach full gait
+        public const float GaitFadeIn     = 9f;    // gait weight ease-in (per sec)
+        public const float GaitFadeOut    = 16f;   // ...and ease-out, faster so leaving the ground drops it
+        public const float GaitKneeStance = 12f;   // deg the stance knee holds bent (a locked stick reads as stilts)
+
+        // ---- Whole-body carry servo (ActiveRagdoll) ----
+        // The pelvis height was never servo'd, so the body physically hung off whichever leg the
+        // COSMETIC gait happened to have planted, and every stride dropped the hips onto the next
+        // one. No leg pose can fix that, because the legs carry no weight. So carry the body: drive
+        // the hips to their authored standing height and assign the SAME vertical velocity to every
+        // bone, which lifts the assembly rigidly instead of stretching it against its own joints.
+        // Gated on grounded + upright, so a jump, dive, trick, keeper lay-out or tumble never sees it.
+        public const float CarryHeightGain     = 10f;   // vertical velocity per metre of height error
+        public const float CarryHeightMaxSpeed = 2.4f;  // m/s cap, so a big correction is still a glide
+        public const float CarryErrUp          = 0.60f; // max height error it will lift out of (m)
+        public const float CarryErrDown        = 0.30f; // ...and push down out of
 
         // Moonwalk celebration: steady backward glide speed (m/s) while the shuffle pose plays.
         public const float MoonwalkGlideSpeed = 2.2f;
@@ -446,6 +851,16 @@ namespace Trickshot
         // the scripted set-piece speed is rebuilt entirely from these two, see LaunchSetPiece.
         public const float SetPieceMinStatSpeed   = 10f;   // full-bar launch speed (m/s) at 0 power stat
         public const float SetPieceLaunchFloorFrac = 0.55f; // empty-bar speed as a fraction of the stat's ceiling
+        // ---- Absolute CEILINGS on a scripted set-piece launch (LaunchSetPiece) ----
+        // These raise the top of each range WITHOUT touching how any stat or input scales into it:
+        // the power stat still picks where the speed band sits, the power bar still sweeps that band,
+        // and camera pitch still owns the launch height. Only the ceiling each one runs into moves,
+        // so a maxed-out shot goes further past what it used to while a weak one is unchanged.
+        // Applied to the scripted launch ONLY - the physical (foot-contact) set-piece strike keeps
+        // the raw constants. Shared by single player and the multiplayer host (same launch call).
+        public const float SetPieceCurveMaxMul  = 1.15f;  // A/D curve bend ceiling: +15%
+        public const float SetPieceApexCeilMul  = 1.25f;  // camera-aimed apex height ceiling: +25%
+        public const float SetPieceSpeedCeilMul = 1.10f;  // launch-speed ceiling: +10%
         // OVER-THE-BAR LOFT (m/s of extra UPWARD velocity, on top of the clean apex cap). Driven by
         // shot POWER and INVERSE accuracy: loft = power01 * (1 - accuracyStat) * this. So a high-power
         // shot with LOW accuracy balloons well over the crossbar, spending accuracy pulls the loft
@@ -485,7 +900,12 @@ namespace Trickshot
         public const float SetPieceOffTargetPush    = 3.0f; // extra metres the aim is shoved outward once outside the cone (guarantees it clears the post)
         public const float SetPieceRunupSpeed    = 5.5f;  // run-in speed (m/s); matches a brisk approach (the driver places the taker ~3m back)
         public const float SetPiecePlantOffset   = 0.55f; // stops the run-in this far short of the ball (plant beside it)
-        public const float SetPieceSwingTime     = 0.22f; // seconds of cosmetic leg swing after the plant before contact
+        // Seconds of leg swing after the plant before contact, and the rate the follow-through and
+        // rebalance then run at (SetPieceTaker.TickStruck). Was 0.22, which is half the crosser's
+        // windup and too quick to see a windup, a strike and a recovery inside; 0.32 reads as a kick
+        // without noticeably delaying the launch. Host and client both derive their swing from this
+        // constant, so changing it cannot desync a networked set piece.
+        public const float SetPieceSwingTime     = 0.32f;
         public const float SetPieceSettleTime    = 0.8f;  // taker Settle hold after the strike before it goes Idle
         // Spin is chosen by WHERE the ball is struck (contact point in the shot frame):
         public const float SetPieceSideThresh  = 0.30f;  // |side dot| beyond this -> side spin (bends the SAME way struck)
@@ -514,6 +934,17 @@ namespace Trickshot
         public const float KickSpeedFull  = 9f;      // bone speed at/above this = a full strike
         public const float DeadTouchPower = 0.12f;   // velocity kept on a dead (non-kicking) touch
 
+        // ---- NO-CARRY MODES: a dead touch must never park the ball under his feet ----
+        // Striker / Freeplay / Time Trial have no dribble at all, so the normal trap (keep 12%
+        // of the pace) left the ball resting between his boots with nothing to hand it to, and
+        // every follow-up swing was point blank. In those modes a dead touch instead PUSHES the
+        // ball away from the body: more pace is kept AND a floor is enforced on the outward
+        // component, so a loose ball always leaves the feet and has to be run down again.
+        public const float NoCarryTouchKeep     = 0.55f; // velocity kept (vs DeadTouchPower above)
+        public const float NoCarryTouchMinSpeed = 2.6f;  // m/s floor on the OUTWARD (away-from-pelvis) flat speed
+        public const float NoCarryTouchSuppress = 0.18f; // s the SAME body cannot re-touch, so a trailing leg in
+                                                         // the same stride cannot immediately re-glue the ball
+
         // ---- Volley: a FLYING ball met by a SWINGING leg launches like a free kick ----
         // A ball whose centre is above this height (m) is "flying"; a swinging leg (kick > 0)
         // that hits it fires the set-piece launch (loft + contact-point curl, stat-scaled)
@@ -523,53 +954,183 @@ namespace Trickshot
         // keeps a still, jittering ball from falsely registering as a volley.
         public const float VolleyMinBallHeight = BallRadius + 0.03f;   // 0.25
 
-        // ---- Dribble (soft-magnet close control) ----
-        // The ball auto-sticks to a carry point just in front of the grounded striker's
-        // feet whenever it is close and slow, travelling with him arcade-style. A kick
-        // (leg button or a genuinely fast leg swing) releases it as a real shot.
+        // ---- VOLLEY tuning (the PHYSICAL foot-strike volley ONLY) ----
+        // Every constant in this block is read behind an `if (volley)` in
+        // BallController.OnCollisionEnter. The scripted set piece (LaunchSetPiece, i.e. free
+        // kick and penalty mode) shares the same launch code but never reaches these, so free
+        // kicks are unchanged.
         //
-        // Capture: ball must be within CaptureRadius of the carry point, moving slower
-        // than CaptureMaxBallSpeed, with the striker grounded and not mid-trick.
-        public const float DribbleCaptureRadius   = 1.4f;   // how near the carry point the ball is grabbed
-        public const float DribbleCaptureMaxSpeed  = 12f;   // ball must be slower than this to be captured (m/s)
-        public const float DribbleReleaseRadius    = 2.0f;  // if the ball ends up beyond this from the carry point, drop the leash
-        // Carry point: sits this far in front of the feet at a walk; sprint pushes it out
-        // toward the far distance (heavier touch). Height rides at the ball radius. These
-        // are the LOOSE defaults (no Control); the Control trap stat pulls them in a lot
-        // (see DribbleTrapTightenMax) so investing in Control gives a visibly tighter touch.
-        public const float DribbleNearDistance     = 0.75f; // carry distance at a stand/walk, no Control
-        public const float DribbleSprintDistance    = 1.7f;  // carry distance at full sprint, no Control
-        // Follow spring: acceleration = k * offset - c * relativeVel. Higher k = stickier,
-        // higher damp = settles without overshooting past the carry point.
-        public const float DribbleFollowAccel      = 48f;    // spring stiffness toward the carry point (very sticky)
-        public const float DribbleFollowDamp       = 14f;    // velocity damping (near-critical: no overshoot/orbit)
-        public const float DribbleMaxAccel         = 160f;   // cap on the follow acceleration (m/s^2)
-        // Feed-forward of the striker's velocity so the ball tracks the MOVING carry point
-        // without lagging behind it. The carry point travels at the striker's speed, so the
-        // ball must too; anything below 1.0 leaves a steady-state trailing offset that grows
-        // with speed (why the ball used to lag behind on the run). 1.0 = the ball keeps pace
-        // and sits on the carry point in front of the feet.
-        public const float DribbleLeadSpeedFrac    = 1.0f;   // match striker speed: no trailing lag
-        public const float DribbleSpinScale        = 2.2f;   // rolling spin visual per m/s of carry speed
+        // Side contact used to bend at the full set-piece curl for AssistDuration+0.5s, which
+        // accrues ~11 m/s of lateral velocity: the ball travelled sideways and stopped closing
+        // on goal. Cut the bend, cut the spin, shorten the window, and put the difference into
+        // goalward pace.
+        // RAISED from 0.45/0.85/0.50. The earlier cut went too far: a side contact barely bent at
+        // all, which is the opposite complaint. The bend is now real, but it is no longer competing
+        // with the shot direction, because a human volley leaves down the look ray (see the
+        // look-ray block below) rather than being aimed at the goal - so lateral velocity curls the
+        // ball around the line he chose instead of dragging it off a goalward one.
+        public const float VolleyCurlMul      = 0.70f; // side-contact bend, x the set-piece curl
+        public const float VolleyCurlTimeMul  = 1.0f;  // side-contact curl window, x AssistDuration
+        public const float VolleySpinMul      = 0.75f; // side-contact spin, x the set-piece curl
+        public const float VolleySidePaceMul  = 1.15f; // ...and drive a side contact FORWARD harder
+        // Bottom contact: no chip, no knuckle. It just drives forward at a modest loft.
+        public const float VolleyBottomLoft    = 0.42f; // up-vel as a fraction of launch (vs 0.95 chip)
+        public const float VolleyBottomPaceMul = 1.10f; // ...with MORE forward pace, not less
+        // Aim window, as fractions of the LIVE goal opening (match setup scales GoalWidth /
+        // GoalHeight, so this follows it). Deliberately imprecise: the aim is never the corner,
+        // it is a random point inside a window that always sits UNDER the crossbar and BETWEEN
+        // the posts. Scatter shrinks with Shooting+Control but never reaches zero.
+        public const float VolleyAimLatFrac  = 0.62f; // most of the half-goal the struck side may pull to
+        public const float VolleyAimTopFrac  = 0.74f; // highest aim, x GoalHeight (stays under the bar)
+        public const float VolleyAimLowFrac  = 0.22f; // lowest aim, x GoalHeight
+        public const float VolleyAimScatter  = 0.22f; // random placement scatter at zero skill
+        public const float VolleyAimTighten  = 0.65f; // how much full Shooting+Control shrinks that scatter
+        // ---- Look-ray volley (a HUMAN striker only; an AI body has no look source) ----
+        // A human volley aims down the CAMERA RAY, not at the goal. The window above still applies,
+        // but it now recentres on where he is actually looking instead of on the goal mouth, and the
+        // stat blend decides how hard the ray is pulled back onto the frame.
+        public const float VolleyLookSlopeMax  = 0.85f; // hard cap on tan(pitch): looking near-straight up
+                                                       // would otherwise ask for an infinite vertical
+        public const float VolleyLookMinLoft   = 0.10f; // floor on that slope, so a flat-aimed volley still
+                                                       // leaves the turf instead of grinding along it
+        public const float VolleyLookOffFrame  = 6f;    // metres past the post at which the ray is judged to
+                                                       // MISS the goal entirely, so the on-frame clamp is
+                                                       // skipped and he is allowed to blaze it wide.
+                                                       // SetPieceTaker.LookAimPoint's away path pushes >=30 m
+                                                       // laterally, so this never trips on a genuine attempt.
+        public const float VolleyBarClear      = 0.28f; // m under the crossbar the clamped aim tops out
+        public const float VolleyCurveStatMul  = 1.6f;  // x on side-contact bend AND spin at full Shooting+
+                                                        // Control, so an invested player genuinely bends it
+
+        // ---- BICYCLE trajectory (Shooting + Control scaled) ----
+        // The bike used to leave as a high looper the keeper caught every time: the physical
+        // strike kept its full upward component and the trick bonus added another 0.55 of lift.
+        // Trade vertical for goalward pace, more so the more invested the player is. The whole
+        // vector is re-bounded at the strike's own ceiling afterwards, so this never out-hits a
+        // normal shot - it only lowers the launch angle.
+        public const float BicycleVKeepRaw     = 0.58f; // vertical kept at zero Shooting+Control
+        public const float BicycleVKeepSkilled = 0.36f; // vertical kept at full Shooting+Control
+        public const float BicyclePaceRaw      = 1.05f; // goalward pace mul at zero skill
+        public const float BicyclePaceSkilled  = 1.12f; // goalward pace mul at full skill
+        public const float BicycleBonusLiftRaw     = 0.26f; // trick-bonus up component at zero skill
+        public const float BicycleBonusLiftSkilled = 0.12f; // trick-bonus up component at full skill
+        // Trading vertical for pace lowers the AVERAGE bike; it does not BOUND the worst one. The
+        // launch is a solve plus an AddForce bonus on top, so a steep contact could still clear the
+        // bar. The last word is therefore geometric rather than statistical: BallController solves
+        // the flight time to the goal-line plane and caps the rise so the ball arrives at most this
+        // far under the crossbar. Drag only ever lengthens the real flight, so the cap errs low. On
+        // target by construction, whatever the goal was scaled to in match setup.
+        // Metres under the bar the flight must arrive. Compared against the ball's CENTRE, so it has
+        // to exceed BallRadius (0.22) + the crossbar's own radius (0.07) or a capped shot arrives
+        // exactly on the woodwork instead of under it.
+        public const float BicycleBarClear = 0.32f;
+
+        // ---- Dribble (discrete-touch ball control) ----
+        // The model every real football game uses, and NOT a magnet. The ball is always a
+        // free rigidbody: it rolls, decelerates, and can be intercepted at any instant. All
+        // the carrier ever does is TOUCH it - once per stride, the same way a real player's
+        // foot meets it - by setting a velocity that lands the ball where the next stride
+        // wants it. Between touches nobody is holding anything, which is the whole reason a
+        // spring leash felt wrong: a leash has no touches, so it has no rhythm, no error,
+        // and nothing for a defender to poke away.
+        //
+        // Three paces, exactly like the console games:
+        //   walk/jog       - short touches, ball glued near the feet, quickest turns
+        //   sprint         - the KNOCK-ON: the ball is pushed a long way ahead and the
+        //                    player runs onto it, so top speed costs you control
+        //   close control  - the modifier key: shortest touches at reduced pace, for
+        //                    beating a man in a phone box
+        //
+        // Capture: the ball must be near the feet, LOW (a served/airborne ball is never
+        // eaten), and not arriving faster than the trap can cushion.
+        public const float DribbleCaptureRadius     = 0.62f; // flat distance from the feet at which the ball is taken
+                                                     // (measured from the PELVIS, so this is already about a
+                                                     //  boot-length of reach; larger and the ball visibly
+                                                     //  snaps in from arm's length, which is not a touch)
+        public const float DribbleCaptureMaxSpeed    = 12f;  // ball must be slower than this to be taken at all (m/s)
+        public const float DribbleCaptureApproachMax = 9f;   // ...and closing on the feet no faster than this (m/s)
+        public const float DribbleMaxBallHeight     = 2.2f;  // ball centre above this many radii = airborne, no carry
+        public const float DribbleLoseRadius        = 3.5f;  // ball further than this from the feet: possession lost
+                                                             // (must clear a full sprint knock-on plus its over-hit)
+        public const float DribbleTrapCaptureBonus   = 0.30f; // up to +0.30m capture radius with full Control, so even
+                                                      // the best close-control player reaches under a metre
+
+        // First touch. Whatever pace the ball arrives with is cushioned on contact, and how
+        // dead that touch is comes straight off the Control stat: a raw build lets it bounce
+        // away from them, a Control build kills it stone dead at their feet.
+        public const float DribbleFirstTouchKeepRaw     = 0.55f; // fraction of arrival speed kept, zero Control
+        public const float DribbleFirstTouchKeepSkilled = 0.13f; // ...at full Control
+        public const float DribbleFirstTouchSettle      = 0.14f; // pause before the first pushing touch (reads as a trap)
+
+        // Touch distance: how far in front of the feet the ball is knocked. Walk -> sprint,
+        // then the Control stat pulls the whole range in (a Control build keeps it under
+        // their studs at any pace).
+        public const float DribbleNearDistance     = 0.72f;  // touch distance at a stand/walk, no Control
+        public const float DribbleSprintDistance   = 2.35f;  // touch distance at full sprint, no Control (knock-on)
+        public const float DribbleTrapTightenMax   = 0.55f;  // up to 55% shorter touches with full Control
+
+        // Touch cadence. Derived from the gait so a touch lands on a stride, not on a timer
+        // the animation knows nothing about: interval = pi / gaitCadence * StrideFrac, i.e.
+        // one touch per step. Clamped so a standstill does not stall and a sprint does not
+        // machine-gun.
+        public const float DribbleTouchStrideFrac  = 1.0f;   // 1 = one touch per step (0.5 = per half step)
+        public const float DribbleTouchIntervalMin = 0.15f;  // floor on the gap between touches (s)
+        public const float DribbleTouchIntervalMax = 0.55f;  // ceiling (a near-stationary shuffle still taps it)
+
+        // A touch also fires EARLY, off cadence, when the ball is no longer where it should
+        // be - the ball has fallen level with the feet, or drifted out to one side. This is
+        // what makes the carry self-correct instead of drifting away like a spring would.
+        public const float DribblePushMinAhead     = 0.12f;  // ball less than radius+this in front: push it out now
+        public const float DribbleSideTolerance    = 0.60f;  // lateral drift from the facing line before a corrective touch
+        public const float DribbleSideToleranceFrac = 0.30f; // ...widened by this much per metre the ball is ahead
+
+        // Touch velocity. The push is aimed at where the next stride wants the ball, then
+        // scaled up a little for what rolling friction will eat on the way.
+        public const float DribbleRollLossComp     = 1.16f;  // over-hit factor to cover roll-out losses
+        public const float DribbleTouchMaxSpeed    = 14f;    // hard cap on a touch (never a pass)
+        public const float DribbleTouchMinSpeed    = 1.1f;   // DEADBAND: below this the ball is already where the
+                                                             // next stride wants it, so it is killed dead instead
+                                                             // of nudged (else a standing player walks it away)
+        public const float DribbleTouchHop         = 0.85f;  // small upward m/s on a touch (~2cm skip): a kick, not a slide
+        public const float DribbleSpinScale        = 2.2f;   // rolling spin visual per m/s of ball speed
+
+        // Touch ERROR, in degrees of aim scatter. This is the cost of pace and the value of
+        // the Control stat: at full Control a sprinting carrier still keeps the ball, at zero
+        // Control the same run sprays it. Sharp turns scatter it further (you are dragging
+        // the ball across your own body).
+        public const float DribbleTouchErrorDeg      = 14f;  // base scatter at zero Control
+        public const float DribbleTouchErrorSpeedDeg = 8f;   // extra scatter at full sprint
+        public const float DribbleTurnErrorDeg       = 11f;  // extra scatter on a fully sharp turn
+
+        // Turning with the ball. Past TurnTightenDeg of facing change since the last touch
+        // the push is shortened toward TurnTightenMul, so the ball is dragged around the body
+        // instead of squirting off at the old angle.
+        public const float DribbleTurnTightenDeg = 55f;      // facing change (deg) at which tightening is full
+        public const float DribbleTurnTightenMul = 0.42f;    // touch-distance factor on a fully sharp turn
+
+        // Close control (the modifier key): shortest touches, more of them, less pace, but
+        // a much quicker turn. The trade real games make.
+        public const float DribbleCloseDistMul     = 0.46f;  // touch-distance factor while held
+        public const float DribbleCloseIntervalMul = 0.66f;  // touch-cadence factor (more touches)
+        public const float DribbleCloseSpeedMul    = 0.68f;  // move-speed factor
+        public const float DribbleCloseTurnMul     = 1.70f;  // facing-slew factor
+        public const float DribbleCloseErrorMul    = 0.45f;  // scatter factor (deliberate touches are cleaner)
+
         // Shot on release (kick): the carried ball is launched in the aim/facing direction.
         public const float DribbleShotSpeed        = 17f;    // base release shot speed (m/s), scaled by ShotPowerMul
         public const float DribbleShotLift         = 0.16f;  // upward fraction added so it isn't a pure ground roll
         public const float DribbleRecaptureCooldown = 0.45f; // after a shot, don't re-grab the ball for this long
-        // Control trap stat tightens the touch: at full DribbleTightness (1) the carry
-        // sits this fraction closer and captures from this much wider a net.
-        public const float DribbleTrapTightenMax   = 0.62f;  // up to 62% closer carry with full Control (0.75->0.29 walk)
-        public const float DribbleTrapCaptureBonus  = 0.6f;  // up to +0.6m capture radius with full Control
 
         // While carrying, the striker moves SLOWER and turns SLOWER by default; the Control
         // trap stat claws both back (a Control build dribbles nearly at full pace and turns
         // sharply, a raw build is ponderous with the ball). DribbleTightness (0..1) lerps
         // each penalty from its "no Control" value to "full Control".
-        public const float DribbleMoveMulLow  = 0.62f;  // move-speed factor while dribbling, no Control
-        public const float DribbleMoveMulHigh = 0.92f;  // move-speed factor while dribbling, full Control
+        public const float DribbleMoveMulLow  = 0.72f;  // move-speed factor while dribbling, no Control
+        public const float DribbleMoveMulHigh = 0.95f;  // move-speed factor while dribbling, full Control
         // Turn rate = how fast the facing yaw slews toward the mouse aim while carrying
         // (deg/sec). Low with no Control (ponderous), snappy with full Control.
-        public const float DribbleTurnRateLow  = 220f;  // deg/sec facing slew while dribbling, no Control
-        public const float DribbleTurnRateHigh = 620f;  // deg/sec facing slew while dribbling, full Control
+        public const float DribbleTurnRateLow  = 260f;  // deg/sec facing slew while dribbling, no Control
+        public const float DribbleTurnRateHigh = 680f;  // deg/sec facing slew while dribbling, full Control
 
         // ---- Scrimmage (full match: two goals, teams, AI, passing) ----
         // Chosen role + team size come from the pre-match screen.
@@ -581,8 +1142,30 @@ namespace Trickshot
         // The scrimmage pitch is its OWN square-ish field centred on origin, sized to the
         // team count, with a goal at each end (+Z and -Z) and walls all round. Independent
         // of the single-goal training arena so nothing else has to change.
-        public static float ScrimHalfLength(int perSide) => perSide >= 11 ? 52f : perSide >= 5 ? 34f : 24f;
-        public static float ScrimHalfWidth(int perSide)  => perSide >= 11 ? 34f : perSide >= 5 ? 22f : 16f;
+        //
+        // Sized so the GOAL does not dominate the pitch. This has been wrong in both directions.
+        //
+        // Originally the three sizes were one 11-a-side rectangle uniformly shrunk, which left two or
+        // four outfielders each covering most of a full pitch. Correcting that on area-per-player gave
+        // 36 x 25 and 50 x 30 - and those turned out to be far too small to defend, because the GOALS
+        // never shrank with them. SimConfig.GoalWidth is a global read by 20-odd files, so a 3-a-side
+        // pitch was 25 m wide with a regulation 7.32 m goal in it: 29% of the width, more than a keeper
+        // can cover, and every attack that reached the box scored.
+        //
+        // These are bigger than BOTH previous sets. The number that actually governs how easily a goal
+        // is scored is the goal's share of the pitch width, so that is what is being tuned:
+        //     3 a side   54 x 36   goal = 20% of the width
+        //     5 a side   76 x 48   goal = 15% of the width
+        //    11 a side  105 x 68   goal = 11% of the width   (FIFA recommended, unchanged)
+        // Small-sided stays deliberately more goal-dominant than 11-a-side - it should be higher
+        // scoring - but 20% is a goal a keeper can work, where 29% was not.
+        //
+        // If scoring is STILL too easy, the more direct lever is the goal itself: GoalWidth is a mutable
+        // static that PrematchUI already writes, so scrimmage could scale it per format instead of
+        // growing the pitch further. That is a bigger change (it moves keeper dive tuning and aim assist
+        // with it) and is deliberately not done here.
+        public static float ScrimHalfLength(int perSide) => perSide >= 11 ? 52.5f : perSide >= 5 ? 38f : 27f;
+        public static float ScrimHalfWidth(int perSide)  => perSide >= 11 ? 34f   : perSide >= 5 ? 24f : 18f;
 
         // Player (human) attacks +Z and defends -Z, matching the Striker/KeeperController
         // hardcoded facing. The team attacking +Z is "Home"; attacking -Z is "Away".
@@ -592,6 +1175,11 @@ namespace Trickshot
         // long, drop it back to a sensible in-play spot so a match can't stall.
         public const float ScrimStuckTime         = 4f;
         public const float ScrimStuckSpeed        = 0.5f;   // "nearly still" threshold (m/s)
+        // The pitch is SEALED. Walls this tall plus a lid, and the goal-mouth gaps in the end
+        // walls are filled in above the crossbar - a ball over the bar used to fly straight out
+        // through the gap and leave the pitch entirely.
+        public const float ScrimWallHeight        = 13f;
+        public const float ScrimGoalGapPad        = 0.4f;   // clearance either side of the posts in the end wall
 
         // Passing (controlled outfielder). A pass picks the teammate nearest the aim ray.
         public const float PassGroundSpeed   = 12f;   // ground (rolled) pass base speed (m/s), scaled by PassPowerMul
@@ -599,7 +1187,9 @@ namespace Trickshot
         public const float PassLoftedArc     = 0.55f; // upward fraction of a lofted pass (higher = floatier)
         // Where a launched pass spawns relative to the passer, so it clears their own body
         // instead of rising into their torso (which flattened lofted passes to the ground).
-        public const float PassSpawnForward  = 0.6f;   // metres forward along the pass direction
+        // Superseded by PassSpawnFromBody: the spawn is measured from the PASSER now, not from the
+        // ball, because a look-ray pass can point behind and this offset then landed inside his legs.
+        // Kept only so a tuner searching for it finds the reason it stopped being read.
         public const float PassSpawnLift     = 0.7f;   // extra metres up for a lofted pass
         public const float PassAimConeDot    = 0.2f;  // teammate must be within this cone of the aim to be picked
         public const float PassMaxRange      = 45f;   // don't target teammates further than this
@@ -607,13 +1197,112 @@ namespace Trickshot
         // Hold Q/E to charge: a tap is a soft pass, a full hold a hard/fast one. The charge
         // fraction (0..1 over PassMaxCharge seconds) scales speed between these bounds.
         public const float PassMaxCharge     = 0.6f;   // seconds of hold to reach full power
-        public const float PassChargeMinMul  = 0.55f;  // speed factor for a bare tap
-        public const float PassChargeMaxMul  = 1.6f;   // speed factor at full charge
+        // CAP AND WAIT, which is what FIFA actually does: the bar fills, then SITS at full until the
+        // button comes up. Overholding is free, so a player who fills the bar while looking for a
+        // runner is not punished for it, and the pass always leaves on a deliberate release.
+        //
+        // It also removes a whole class of network hazard. Firing at full meant the host picked the
+        // moment from its own accumulated timer, so a mispredicted client bar could commit a pass, and
+        // a stale repeated input frame could fire one on its own (which is why NetInputSource.Fresh
+        // exists - that guard is still load-bearing for the CHARGE, just no longer for the commit).
+        // Now nothing fires without a release edge, and the release edge is the one thing the wire
+        // supplies reliably. Set true to go back to firing at full; the bar and the fill are identical
+        // either way, only the commit changes.
+        public const bool  PassAutoFireAtFull = false;
+
+        // ---- Look-ray pass ranges (metres) ----
+        // The bar's charge picks the pass DISTANCE along the look ray: a tap is a short one, a full bar
+        // is the longest that type plays. Bands are deliberately inside the pitch - the smallest
+        // scrimmage field is 36 x 25 m (SimConfig.ScrimHalfLength/Width at perSide < 5, and networked
+        // scrimmage is capped to 2..4 a side) - because the box is SEALED and an aim point past the
+        // wall is a pass into a wall. ScrimmageGame clamps the final aim into the arena as well.
+        public const float PassRangeGroundMin = 4f;
+        public const float PassRangeGroundMax = 22f;
+        public const float PassRangeAirMin    = 6f;
+        public const float PassRangeAirMax    = 26f;
+        // The chip is SHORT by definition: it exists to drop a ball onto a team-mate's head or bicycle,
+        // not to cover ground. The cap holds even for a maxed power build.
+        public const float PassRangeChipMin   = 4f;
+        public const float PassRangeChipMax   = 9f;
+        public const float PassRangeChipCap   = 11f;
+        // Apex height of a chip above its launch, which is what makes it a chip rather than a lob: the
+        // shape is FIXED, so distance changes only how flat it looks, never how high it goes, and the
+        // receiver can time it. 3.6 m clears a 2.9 m standing reach with enough margin to drop steeply
+        // onto a head. It is deliberately not higher: at 6 m the ball arrives too steep and too fast to
+        // volley or head, which is the entire point of the pass.
+        public const float PassChipApexY      = 3.6f;
+        // Spawn distance from the PASSER'S BODY, not from the ball. The carried ball sits ~0.72 m ahead
+        // of the body (DribbleNearDistance), so the old "ball position + 0.6 m along the pass" was fine
+        // only while the aim was roughly forward. A look ray can point BEHIND, and that offset then put
+        // the spawn inside the passer's own legs and fired the pass into them.
+        public const float PassSpawnFromBody = 0.85f;
+        // Seconds to ease the run's heading back to the camera after an aim ends. See Striker.LockRun:
+        // while a pass is aimed the run holds its own heading, and resuming instantly would kick it
+        // sideways by however far the aim had swung.
+        public const float PassAimBlendTime = 0.18f;
+        // Minimum charge a FIRST-TIME pass is credited with. The ball only just arrived, so there was
+        // no window to fill the bar, and without a floor every first-time ball is a minimum-range dink
+        // no matter how the player was set. Not a full bar either - striking it without settling it
+        // should still cost you the long option.
+        public const float PassFirstTimeChargeFloor = 0.45f;
+        public const float PassChargeMinMul  = 0.85f;  // drive factor for a bare tap (distance already sets the pace)
+        public const float PassChargeMaxMul  = 1.30f;  // drive factor at full charge (a narrow band, not a power bar)
         // Accuracy scatter: at PassAccuracyMul = 1 (no Passing nodes) a pass is knocked off
         // its intended line by up to this angle + a power wobble; investment shrinks it to
         // ~0 (Maestro perk = pinpoint). Harder-charged passes also scatter a touch more.
-        public const float PassScatterMaxDeg = 22f;    // max aim error at low passing (deg)
+        // CUT FROM 22. That figure was tuned when the aim point was a TEAMMATE (Passing.BestTarget):
+        // scatter is a yaw error about the aim, so with a body at the far end a 22 degree miss often
+        // still found somebody, and the cone was really a "who receives it" roll. The aim is now a raw
+        // look ray, so the same cone is a pure positional error with nothing to catch it - at
+        // PassAccuracyMul 1 (an uninvested build, since it is SkillTree.Mul("passacc") = 1 + sum) that
+        // was +/-27 degrees on a 14 m pass, about 6.4 m of lateral miss, and passing was uncompletable.
+        // At 9 the same build misses by about 2.7 m, which reads as a misplaced pass rather than a
+        // random one, and a fully invested build still goes where it is pointed.
+        public const float PassScatterMaxDeg = 9f;     // max aim error at low passing (deg)
         public const float PassPowerWobble   = 0.18f;  // +/- fraction of speed randomised at low passing
+
+        // ---- Pass weight (the FIFA-style model; see Passing.cs) ----
+        // PACE COMES FROM DISTANCE. A flat launch speed is the single reason the old passing
+        // felt wrong: 12 m/s dies short on a 30 m switch and blasts a 6 m square ball past the
+        // receiver. Ground pace = base + per-metre, then the hold trims it.
+        public const float PassGroundBase      = 5.5f;  // m/s floor before distance is added
+        public const float PassGroundPerMetre  = 0.62f; // extra m/s per metre of pass length
+        public const float PassGroundMin       = 6f;    // never limper than this
+        public const float PassGroundMax       = 26f;   // never a shot
+        public const float PassGroundLift      = 0.35f; // tiny lift so it clears turf seams and rolls true
+        // Lofted passes are solved to LAND on the target, so the knob is TIME OF FLIGHT, not
+        // speed: longer chips hang longer, a tap floats and a hold drives it flatter.
+        public const float PassLoftBaseTime    = 0.42f; // seconds of hang before distance is added
+        public const float PassLoftTimePerMetre = 0.030f;
+        public const float PassLoftFloatMul    = 1.30f; // tap: floatier, higher arc
+        public const float PassLoftDrivenMul   = 0.78f; // full hold: driven, flatter, arrives sooner
+        public const float PassLoftTimeMin     = 0.45f;
+        public const float PassLoftTimeMax     = 1.9f;
+        // Error grows with what actually makes a pass hard: range, pressure, and hitting it
+        // first time. Accuracy closes the cone; Maestro shuts it.
+        public const float PassScatterPerMetre     = 0.012f; // +1.2% of the cone per metre
+        public const float PassScatterPressure     = 0.6f;   // +60% of the cone when fully closed down
+        public const float PassFirstTimeScatterMul = 1.7f;   // hitting it without settling it costs accuracy
+        public const float PassFirstTouchRadius    = 1.9f;   // ball within this of the feet = a first-time pass is on
+        public const float PassPressureRadius      = 3.5f;   // an opponent inside this is pressure
+        // Target choice. Weighs where you are pointing, forward progress, the receiver's
+        // space, range fit, and whether the lane is blocked.
+        public const float PassOpenRadius     = 6f;    // receiver space is "open" at this much room
+        public const float PassLaneRadius     = 1.1f;  // a defender this near the line blocks it
+        public const float PassIdealRange     = 14f;   // best-fitting pass length
+        public const float PassRangeFalloff   = 26f;   // how fast the range fit decays either side
+        public const float PassWeightAlign    = 1.0f;
+        public const float PassWeightForward  = 0.8f;
+        public const float PassWeightOpen     = 0.9f;
+        public const float PassWeightRange    = 0.5f;
+        public const float PassWeightLane     = 0.6f;
+        public const float PassMinScore       = 0.35f; // below this there is no pass on
+        public const float PassLeadMul        = 0.9f;  // fraction of the flight-time lead actually applied
+        // Through balls: played into the grass ahead of a runner instead of at their feet.
+        public const float PassThroughSpeedMin = 2f;    // receiver must actually be running
+        public const float PassThroughLeadMul  = 0.55f; // metres ahead per m/s of their run
+        public const float PassThroughSpaceMin = 4f;    // that space must be this clear of defenders
+        public const float PassThroughBonus    = 1.1f;  // preference for a ball into space over one to feet
 
         // Auto-switch: control the teammate nearest the ball (outfield role). A manual
         // switch key cycles too. A brief lockout stops rapid flip-flopping.
@@ -625,6 +1314,29 @@ namespace Trickshot
 
         // Outfield AI.
         public const float AiOutfieldSpeed    = 5.0f;  // base run speed for AI outfielders (keeps pace with play)
+        // PER-PLAYER PACE. Every AI outfielder used to run this speed exactly, which is why pace was
+        // worth nothing defensively: nobody could out-run you and you could not be out-run, whatever
+        // either of you had invested. Each body now carries its own multiplier, so a quick winger can
+        // pull away from a slow centre back and your own pace decides whether you get back.
+        public const float AiPaceMin = 0.80f;   // 4.0 m/s
+        public const float AiPaceMax = 1.24f;   // 6.2 m/s
+
+        /// <summary>
+        /// A body's pace multiplier, DERIVED from its team and shirt number rather than rolled. Two
+        /// reasons it has to be deterministic: the host and every client build their own copies of the
+        /// same squad, so a random draw would have the same player running at two speeds on two
+        /// machines and the puppets fighting their snapshots; and a squad that re-rolls its pace every
+        /// kickoff is not a squad. Keepers are left at 1 - they barely run, and a slow one just looks
+        /// broken.
+        /// </summary>
+        public static float AiPace(int team, int shirt, bool keeper)
+        {
+            if (keeper) return 1f;
+            // Small stable hash. The odd multipliers keep neighbouring shirt numbers apart, so a team
+            // gets a spread rather than a gradient.
+            int h = (team * 131 + shirt * 71 + 29) & 0xFF;
+            return Mathf.Lerp(AiPaceMin, AiPaceMax, h / 255f);
+        }
         public const float AiChaseStopDist    = 0.6f;  // stop closing when this near the ball
         public const float AiShootRange       = 20f;   // shoot when this close to the target goal with the ball
         public const float AiSupportSpread    = 7f;    // how far off-ball teammates spread from the carrier
@@ -633,11 +1345,26 @@ namespace Trickshot
         public const float AiSeparationRadius = 3.8f;  // AI teammates keep at least this far apart
         // Smarter striker AI: dribble-carry toward goal, corner-aware arced shots, lane-checked passing.
         public const float AiCarrySpeed     = 5.6f;  // run speed while carrying the ball (a touch above base)
+        // The AI carries the ball with the SAME touch model as the human (Dribble.Touch), so
+        // a bot's dribble rolls free between touches and can be intercepted mid-roll exactly
+        // like yours. These two give the bots a fixed mid-tier "Control stat" and a little aim
+        // scatter of their own, since a Footballer has no PlayerProfile behind it.
+        public const float AiDribbleTightness = 0.55f;  // bots' effective Control level, 0..1
+        public const float AiTouchErrorDeg    = 7f;     // bots' per-touch aim scatter (deg)
         public const float AiCarryNudge     = 6.5f;  // push speed given to the ball to keep it ahead while dribbling
         public const float AiDefenderAvoid  = 3.0f;  // steer the carry around an opponent within this range
         public const float AiShotScatter    = 1.1f;  // metres of aim scatter at the goal (keeps the AI beatable)
         public const float AiPassLeadTime   = 0.35f; // lead a moving teammate by this much when passing
         public const float AiLaneCheckRadius = 1.1f; // a pass lane is blocked if an opponent is within this of the line
+        public const float AiPassAccuracy   = 0.62f; // bots' effective Passing stat, 0..1 (they misplace passes too)
+        // (A networked player's passing stats used to be substituted here with a neutral 1.5 accuracy
+        // and 1.0 power, because nothing carried skill data. They are on the wire now as a Passing node
+        // mask - see SkillTree.PackPassing and NetSession.PassStatsForSlot - so both constants are gone
+        // rather than left as a second live path that reads like the gap is still open. The substitute
+        // was worse than it looked: 1.5 handed every client 0.59 of an accuracy scale they had not
+        // bought, AND deleted the stat entirely for anyone who had maxed it, since Accuracy01 clamps at
+        // 1 so a maxed 1.86 build and the 1.5 substitute produced the identical pass.)
+        public const float AiPassCharge     = 0.5f;  // how firmly a bot strikes a pass (0 = weighted, 1 = driven)
         public const float AiShootConeDot   = -0.2f; // only shoot when facing roughly goalward (gdir . attackZ >= this)
 
         // Tackling / ball-winning. A tackle is a short forward lunge; if it reaches the ball
@@ -658,6 +1385,11 @@ namespace Trickshot
         public const float SlideTackleRange  = 1.7f;  // contact distance to the target
         public const float SlideTackleMinSpeed = 3.5f; // must be moving at least this fast to count as a slide
         public const float SlideTackleCooldown = 1.2f;
+
+        // Diving header contact: a body in MID-FLIGHT of a dive that passes this close to an
+        // opponent fells them - the same knockdown a slide tackle applies. Only the victim is
+        // felled: the diver is already going down by definition (the dive lands belly-first).
+        public const float DiveHeaderKnockRange = 1.5f;   // contact distance, pelvis to pelvis
 
         // ---- Post-goal replay ----
         // On-screen replay duration = ReplayWindow / ReplaySlowMul. 4s of real action played
@@ -706,5 +1438,13 @@ namespace Trickshot
         public const float HeaderGoalBias = 0.85f;   // 0..1: how strongly it aims at goal
         public const float HeaderMinSpeed = 15f;     // floor horizontal speed off a header (m/s)
         public const float HeaderVerticalKeep = 0.35f; // fraction of incoming vertical kept (stays flat)
+
+        // Hard floor on a header's outgoing PITCH, in degrees below horizontal, after a species'
+        // HeaderAction.DownDeg tilt is applied. The tilt is there so a body that heads from a
+        // standing height a person has to jump for drives the ball down instead of flat and long,
+        // but a ball that arrived falling steeply is already pointed down, and tilting that further
+        // just buries it in the turf a metre in front of the animal. 32 deg still reads as a firm
+        // downward header off a 2 m contact and still clears the ground well short of the keeper.
+        public const float HeaderMaxDiveDeg = 32f;
     }
 }

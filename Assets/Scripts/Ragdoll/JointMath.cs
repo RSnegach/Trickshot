@@ -71,9 +71,28 @@ namespace Trickshot
         /// direction. freq is roughly how fast it corrects (Hz); damping is the
         /// damping ratio (1 = critically damped, i.e. fastest settle without
         /// overshoot; &lt;1 wobbles more). Torque is applied as Acceleration so it is
-        /// mass independent and easy to tune.
+        /// mass independent and easy to tune - but read that last claim narrowly, and see inertiaMul.
         /// </summary>
-        public static void DriveTowardRotation(Rigidbody rb, Quaternion targetRot, float freq, float damping)
+        /// <param name="inertiaMul">
+        /// Per-axis gain correction, in the body's LOCAL frame. Null or one changes nothing.
+        ///
+        /// Mass independence holds for a FREE body, because ForceMode.Acceleration makes Unity
+        /// multiply the commanded acceleration by that body's own inertia tensor. It does NOT hold for
+        /// a body joint-welded to others, which is the only way this is ever called. There the torque
+        /// is still sized from the driven body's tensor but has
+        /// to turn the whole assembly, so the achieved acceleration is the commanded one times
+        /// I_driven / I_assembly, per axis, and BOTH gains shrink with it. Damping ratio scales as the
+        /// square root of that. Measured on the yaw axis at the default build of each: a biped assembly
+        /// is 6.6x its pelvis and damps at 0.330 against a nominal 0.85, which is livable; a horse is
+        /// 135x and damps at 0.073, a 7.6-second sway that only loses a third of its amplitude per
+        /// swing; an elephant is 70x and damps at 0.102.
+        ///
+        /// Passing the inverse ratio restores the intended response. Per axis rather than scalar
+        /// because ForceMode.Acceleration resolves componentwise and a limbed body's inertia is
+        /// strongly anisotropic. BodyLayout.RootDriveMul is what computes it.
+        /// </param>
+        public static void DriveTowardRotation(Rigidbody rb, Quaternion targetRot, float freq, float damping,
+                                              Vector3? inertiaMul = null)
         {
             // kp = wn^2 with wn = 3*freq; critical kd = 2*wn = 6*freq, scaled by the
             // damping ratio so 'damping' means what the docstring says.
@@ -93,6 +112,18 @@ namespace Trickshot
             // angular error as a rotation vector (radians)
             Vector3 angularError = axis.normalized * (angleDeg * Mathf.Deg2Rad);
             Vector3 torque = kp * angularError - kd * rb.angularVelocity;
+
+            if (inertiaMul.HasValue)
+            {
+                // Scale in the body's own frame, since the correction was derived from body-frame
+                // inertia and the body yaws freely. Applying it to the whole expression rather than to
+                // kp and kd separately is equivalent, both terms being linear in it, and keeps the
+                // damping ratio at whatever `damping` asked for.
+                Vector3 local = Quaternion.Inverse(rb.rotation) * torque;
+                local.Scale(inertiaMul.Value);
+                torque = rb.rotation * local;
+            }
+
             rb.AddTorque(torque, ForceMode.Acceleration);
         }
     }

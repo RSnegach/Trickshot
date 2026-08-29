@@ -173,18 +173,53 @@ namespace Trickshot
         }
 
         /// <summary>
+        /// Which faces of a jersey box carry the painted art. The atlas is authored for an UPRIGHT
+        /// torso, so a barrel that rests pitched 90 deg needs a different set of faces entirely.
+        /// </summary>
+        public enum JerseyFaces
+        {
+            /// <summary>Biped chest/back: art on local +Z and -Z. The upright torso case.</summary>
+            Chest,
+            /// <summary>
+            /// Quadruped barrel: art on local +/-X (the FLANKS) and local -Z (the SPINE). The barrel
+            /// rests at RestEuler (90,0,0), which sends local +Y to world +Z and local +Z to world
+            /// -Y. So on a quadruped local +Z points at the BELLY and local -Z at the SPINE, and the
+            /// Chest mapping paints the whole design where nobody can see it while the flanks - the
+            /// only view of a horse that matters - collapse to the plain band.
+            /// </summary>
+            Flank,
+        }
+
+        /// <summary>
         /// A torso box whose UVs map the jersey ATLAS correctly onto the body instead of
         /// the stock cube's identical-0..1-on-every-face layout (which duplicated the design
         /// on all six faces and flipped the back). The atlas (see JerseyDesigns) stacks two
         /// 256x256 regions: BACK (bottom) and FRONT (above), plus a small plain band on top.
+        ///
+        /// JerseyFaces.Chest (biped):
         ///   +Z face (chest, character faces +Z)  -> samples the FRONT region, upright.
         ///   -Z face (back)                        -> samples the BACK region, upright + not mirrored.
         ///   all other faces (sides/top/bottom)    -> collapse to one texel in the plain band
         ///                                            so they show solid jersey base colour.
+        ///
+        /// JerseyFaces.Flank (quadruped barrel, rest-pitched 90 deg):
+        ///   +/-X faces (flanks)                   -> sample the BACK region, upright in the WORLD.
+        ///   -Z face (spine, world up)             -> samples the FRONT region.
+        ///   +Z (belly) and +/-Y (rump, shoulders) -> plain band.
+        /// Both flanks take BACK on purpose. JerseyDesigns runs the same paint delegate over both
+        /// regions, so they carry an identical design and only BACK additionally carries the baked
+        /// name and number - which is exactly how a numbered saddle cloth works.
+        ///
+        /// The flank face is 0.84 long by 0.34 deep, so a square atlas region stretches about 2.5x
+        /// along the body. That is deliberate: the alternative is cropping to a centred square, which
+        /// would leave most of the animal plain and hide the design the player just picked. A rug
+        /// covering the whole barrel is the real-world shape, stripes and bands survive it fine, and
+        /// only the baked number reads noticeably wide.
+        ///
         /// Uses a fresh mesh instance (mf.mesh), which Unity frees with the GameObject.
         /// </summary>
         public static GameObject JerseyBox(string name, Vector3 size, Vector3 pos, Material mat,
-                                           Transform parent = null)
+                                           Transform parent = null, JerseyFaces faces = JerseyFaces.Chest)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
@@ -213,6 +248,28 @@ namespace Trickshot
             {
                 Vector3 n = norms[i];
                 Vector3 v = verts[i];   // local, [-0.5, 0.5]
+                if (faces == JerseyFaces.Flank)
+                {
+                    // The orientation rule, validated against the two working biped faces below:
+                    // for a face that is upright and NOT mirrored when viewed from outside,
+                    // Cross(u_direction, t_direction) == -normal. On the rest-pitched barrel world
+                    // UP is local -Z and world FORWARD is local +Y, which is why t runs off -v.z.
+                    if (n.x > 0.5f)
+                        // RIGHT flank. From world +X the animal's nose sits on the viewer's right,
+                        // and that is local +Y, so u tracks +Y and the design is not mirrored.
+                        uv[i] = new Vector2(0.5f + v.y, backV0 + (0.5f - v.z) * regV);
+                    else if (n.x < -0.5f)
+                        // LEFT flank: the nose is now on the viewer's LEFT, so u tracks -Y instead.
+                        uv[i] = new Vector2(0.5f - v.y, backV0 + (0.5f - v.z) * regV);
+                    else if (n.z < -0.5f)
+                        // SPINE (local -Z = world up). Design "up" points at the head (+Y) so a
+                        // chase camera behind the animal reads it upright.
+                        uv[i] = new Vector2(0.5f + v.x, frontV0 + (0.5f + v.y) * regV);
+                    else
+                        // Belly (+Z), rump (-Y), shoulders (+Y): plain base colour, no art.
+                        uv[i] = plainUV;
+                    continue;
+                }
                 if (n.z > 0.5f)
                 {
                     // FRONT (+Z, chest). Looking at the chest from outside (down -Z), local +X

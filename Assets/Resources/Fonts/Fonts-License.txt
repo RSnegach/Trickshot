@@ -1,0 +1,9 @@
+Barlow Condensed, by Jeremy Tribby.
+
+Source:  https://github.com/jpt/barlow  (also on Google Fonts)
+License: SIL Open Font License 1.1 - full text in OFL.txt beside this file.
+
+The OFL permits use, embedding and redistribution, including commercially, as long
+as the licence text travels with the fonts. OFL.txt is that text; keep it here.
+
+Unmodified. Two cuts shipped: Medium for interface text, Bold for display sizes.

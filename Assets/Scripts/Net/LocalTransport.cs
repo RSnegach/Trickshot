@@ -26,8 +26,18 @@ namespace Trickshot.Net
         public PeerId LocalPeer { get; private set; }
         public PeerId HostPeer { get; private set; }
 
-        // Advertised lobby info for the browser (hosts set this).
+        // Advertised lobby info for the browser (hosts set this). Only `handle` is authoritative -
+        // on loopback it is the bus peer id, which is exactly what Join needs. The display fields are
+        // a fallback used only until the session installs AdvertProvider.
         public LobbyInfo Advert;
+
+        /// <summary>
+        /// Set by a HOST session (see INetTransport). On loopback there is no probe to answer, so it is
+        /// read directly in ListLobbies - which gives the single-machine browser the same live occupancy
+        /// and the same private-lobby rule as the real UDP path, instead of a snapshot taken at
+        /// StartHost time that said "Match, 1 player" forever.
+        /// </summary>
+        public Func<LobbyAdvert> AdvertProvider { get; set; }
 
         public event Action<PeerId> PeerJoined;
         public event Action<PeerId> PeerLeft;
@@ -100,7 +110,21 @@ namespace Trickshot.Net
         {
             // Loopback: every hosting transport on the bus is a joinable lobby.
             var list = new List<LobbyInfo>();
-            foreach (var kv in Bus) if (kv.Value.IsHost) list.Add(kv.Value.Advert);
+            foreach (var kv in Bus)
+            {
+                if (!kv.Value.IsHost) continue;
+                var info = kv.Value.Advert;      // keep `handle`: the bus peer id Join expects
+                var provider = kv.Value.AdvertProvider;
+                if (provider != null)
+                {
+                    LobbyAdvert ad;
+                    try { ad = provider(); } catch { continue; }
+                    if (!ad.visible) continue;   // private / full / started: same rule as the UDP path
+                    info.name = ad.name; info.mode = ad.mode;
+                    info.players = ad.players; info.maxPlayers = ad.maxPlayers;
+                }
+                list.Add(info);
+            }
             onResults?.Invoke(list);
         }
     }

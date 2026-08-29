@@ -68,6 +68,11 @@ namespace Trickshot
         const int KickVoices = 4;
         readonly AudioSource[] _kick = new AudioSource[KickVoices];
         int _kickNext;
+        // The woodwork gets its own pair instead of sharing the kick pool: a post hit lands in the
+        // same instant as the touch that caused it, so on one pool the clang would cut the thud.
+        const int PostVoices = 2;
+        readonly AudioSource[] _post = new AudioSource[PostVoices];
+        int _postNext;
 
         void Awake()
         {
@@ -84,6 +89,7 @@ namespace Trickshot
             _lively[1]  = MakeSource("Lively1",  loop: false);
             _event      = MakeSource("Event",    loop: false);
             for (int i = 0; i < KickVoices; i++) _kick[i] = MakeSource3D("Kick" + i);
+            for (int i = 0; i < PostVoices; i++) _post[i] = MakeSource3D("Post" + i);
         }
 
         AudioSource MakeSource(string name, bool loop)
@@ -199,6 +205,8 @@ namespace Trickshot
             // late thud can't follow you out of the match either.
             for (int i = 0; i < _kick.Length; i++)
                 if (_kick[i] != null) _kick[i].Stop();
+            for (int i = 0; i < _post.Length; i++)
+                if (_post[i] != null) _post[i].Stop();
             _fadeOld = null;
         }
 
@@ -368,12 +376,34 @@ namespace Trickshot
             s.Play();
         }
 
+        // ===================================================================== woodwork (3D)
+        // Ball off a post, the bar or a back rail. Speed drives level AND pitch, because one fixed
+        // setting turns a ball trickling onto the upright into a rocket off the bar. The pitch jitter
+        // is there because a deflection can clip the post and then the bar, and the identical sample
+        // twice inside 100 ms reads as a stutter rather than two hits.
+        public void PlayPostHit(Vector3 worldPos, float speed)
+        {
+            var clip = Clip("post_hit");
+            if (clip == null) return;
+            var s = _post[_postNext];
+            _postNext = (_postNext + 1) % PostVoices;
+            s.transform.position = worldPos;
+            s.clip = clip;
+            float hard = Mathf.InverseLerp(2f, 14f, speed);
+            s.volume = Chan(Channel.Sfx) * SimConfig.PostHitVolume * Mathf.Lerp(0.35f, 1f, hard);
+            s.pitch  = Mathf.Lerp(1.06f, 0.94f, hard) + Random.Range(-0.03f, 0.03f);
+            s.Play();
+        }
+
         // ===================================================================== whistles
         // A single referee whistle (2D - the ref's call is heard equally by everyone).
         public void PlayWhistle()
         {
             var clip = Clip("whistle");
-            if (clip != null) _event.PlayOneShot(clip, Chan(Channel.Sfx));
+            // Trimmed against every other SFX, not just turned down globally: the whistle sample is
+            // hot and 2D, so at the shared channel level it sat well above the rest of the mix.
+            // PlayWhistleTriple routes through here, so it inherits the same trim.
+            if (clip != null) _event.PlayOneShot(clip, Chan(Channel.Sfx) * SimConfig.WhistleVolume);
         }
 
         // Three whistles in quick succession (end of a scrimmage).

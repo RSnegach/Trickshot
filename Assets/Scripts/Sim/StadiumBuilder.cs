@@ -81,11 +81,17 @@ namespace Trickshot
             var tunnelMat = Make.Mat(TunnelColor, 0.0f);
             var wallPhys = Make.PhysMat("StadiumWall", 0.3f, 0.4f, 0.4f);
 
+            // One material per colour, reused across every box, so let the GPU instance anything
+            // static batching cannot merge (same treatment as Crowd's fan materials).
+            foreach (var m in new[] { seatMat, concrete, roofMat, accent, pylonMat, tunnelMat })
+                m.enableInstancing = true;
+
             // Open venue (e.g. the beach): skip the entire built shell + crowd; the venue is
             // defined by its Surroundings alone. The pitch, goal, and net are built elsewhere.
             if (s.NoStands)
             {
                 SurroundBuilder.Build(stadium, s);
+                StaticBatchingUtility.Combine(stadium.gameObject);
                 return;
             }
 
@@ -102,6 +108,11 @@ namespace Trickshot
             BuildCorners(stadium, concrete);
             BuildPylons(stadium, pylonMat, roofMat, lampMat);
             SurroundBuilder.Build(stadium, s);
+
+            // A terrace is one step box plus one nosing per row per side (34 rows x 4 sides at the
+            // Olympic), and nothing in the shell ever moves. Static-batch the whole thing: this is
+            // the difference between a packed venue costing a few draws and costing thousands.
+            StaticBatchingUtility.Combine(stadium.gameObject);
         }
 
         // ---------------------------------------------------------------- Terrace

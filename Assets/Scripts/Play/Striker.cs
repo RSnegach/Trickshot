@@ -19,11 +19,18 @@ namespace Trickshot
     /// </summary>
     public class Striker : MonoBehaviour, IPlayerController
     {
-        enum Trick { None, Dive }
+        // SlideLimp is the tail of a sliding challenge: limp on the deck, then up. It lives HERE
+        // rather than in its own bool because every gate in this file tests `_mode == Trick.None`
+        // (facing steer, jump/dive arming, the upright re-lock, the run cycle, leg raises, slide/sit
+        // arming), so a third state is excluded from all of them for free - and because ForceRecover
+        // and Knockdown.Fell already key off _mode/IsBusy, so every existing bail-out path recovers
+        // it with no new call sites. A separate bool would have needed each one taught about it.
+        enum Trick { None, Dive, SlideLimp }
 
         IStrikerInput _input;
         ActiveRagdoll _ragdoll;
         System.Func<float> _camYaw;
+        System.Func<float> _camPitch;   // AIM only; the body never pitches (see SetCameraYaw)
         Dribble _dribble;   // optional; when carrying, movement slows + facing slews (Control claws both back)
 
         public bool ControlEnabled = true;
@@ -33,13 +40,18 @@ namespace Trickshot
         Trick _mode = Trick.None;
         // True while a diving header is in progress (for the DIVING HEADER goal callout).
         public bool IsDiving => _mode == Trick.Dive;
+
+        // One-shot, armed at dive launch and consumed by the scrimmage sim the first time this
+        // dive fells an opponent, so a single dive cannot mow down a line of players. Never needs
+        // clearing: it is only ever read while IsDiving, and the next StartDive re-arms it.
+        public bool DiveHitPending;
         // Busy with a trick (dive, etc.): the Dribble system suspends the leash while true.
-        public bool IsBusy => _mode != Trick.None;
+        public bool IsBusy => _mode != Trick.None || _sitting || _sliding;
         // Is the leg-raise button for this side held? LMB raises the LEFT leg, RMB the RIGHT.
         // A volley only fires off a leg the player is deliberately raising, so just RUNNING
         // into a flying ball (fast gait swing, no button) never counts as a swing/volley.
         public bool LegRaiseHeld(bool leftSide)
-            => _input != null && (leftSide ? _input.LeftLegHeld : _input.RightLegHeld);
+            => _input != null && !_sitting && (leftSide ? _input.LeftLegHeld : _input.RightLegHeld);
         // Flat forward direction the striker faces (== camera yaw while grounded). The
         // dribble carry point sits along this, and dribble shots launch along it.
         public Vector3 FacingForward
@@ -64,7 +76,11 @@ namespace Trickshot
         // the landing frame would be miscredited as a bicycle. IsGrounded is a stable state
         // read (not the fast-sweeping pelvis angle the latch exists to smooth over), so
         // reading it at contact is reliable.
-        public bool TrickActive => _bicycleTimer > 0f && _mode != Trick.Dive
+        // `_mode == Trick.None` rather than `!= Trick.Dive`: a strictly tighter guard, so the new
+        // SlideLimp state cannot be read as a bicycle either. Belt and braces - a slide starts
+        // grounded and _bicycleTimer is only armed airborne and zeroed on landing - but the tighter
+        // test costs nothing and cannot regress the dive, which was already excluded.
+        public bool TrickActive => _bicycleTimer > 0f && _mode == Trick.None
                                    && _ragdoll != null && !_ragdoll.IsGrounded;
 
         // Arm/refresh the latched window when the airborne body commits to a flip. Called
@@ -83,6 +99,8 @@ namespace Trickshot
         public float Yaw => _facingYaw;
 
         float _gaitPhase;
+        float _gaitWeight;     // 0..1 fade of the run pose; NEVER a phase reset (that popped)
+        readonly Vector3[] _gaitScratch = new Vector3[(int)Bone.Count];
         float _airborneLock;   // grace after a normal jump before upright re-locks
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
         float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90 (or uncapped for Acrobat full flips)
@@ -93,8 +111,62 @@ namespace Trickshot
         float _lastAxisRoll;   // previous frame's wrapped axis roll, for the unwrap delta
         bool _flipSeed = true; // true until _lastAxisRoll is seeded for the current airborne window
         float _legRaiseL, _legRaiseR;   // eased 0..1 leg-raise amounts (no snap-back on release)
-        float _headerBend;              // eased 0..1 torso-forward amount for the airborne header
+        float _headerBend;              // eased 0..1 header-pose amount (torso fold, or barrel pitch + nod)
         float _lmbTimer, _rmbTimer;     // per-button grace windows; header needs both live at once
+        // Sit gesture state. _lmbDownT/_rmbDownT are the per-side PRESS-EDGE windows the
+        // simultaneity test reads (distinct from _lmbTimer/_rmbTimer, which are the airborne
+        // header's HELD grace). _sitDrop is the eased hip drop in metres, and it is what gates
+        // jumping and the gait, so the ramp back up counts as still seated.
+        bool _sitting;
+        // Aiming a pass must not steer the run. See LockRun.
+        float _runYaw;      // heading the run is held at while aiming
+        float _runLockT;    // 1 = run fully held at _runYaw, 0 = fully following the camera
+        bool _runLocked;
+        bool _sliding;         // riding out a sliding challenge (LMB+RMB pushed forward)
+        float _slideTimer;     // seconds left committed to the slide
+        float _slideRecover;   // lockout after getting up, so he cannot chain slides
+        float _lmbDownT, _rmbDownT;
+        float _sitDrop;
+        // True while the sit gesture owns the body. The host reads it to stream AnimState.Sit.
+        public bool IsSitting => _sitting;
+
+        /// <summary>
+        /// Hold the RUN at its current heading while the player aims a pass with the mouse.
+        ///
+        /// This exists because the mouse does two jobs on this scheme: it turns the body AND it is the
+        /// camera, and a look-ray pass adds a third - it aims. Without the split, pointing at a
+        /// team-mate off to the side swung the body and the run with it, so every non-forward pass cost
+        /// you your momentum and there was no way to play one while running anywhere else. FIFA does not
+        /// have the problem because the run is the left stick and the pass is a separate axis; this is
+        /// the same separation, reached by freezing one of them rather than adding a stick.
+        ///
+        /// While locked, WASD stays relative to the heading captured here and the camera is free to
+        /// point the pass. Nothing about the pass aim reads this - the aim is always the live camera yaw.
+        /// Idempotent: the heading is captured on the transition in, so calling it every frame is fine.
+        /// </summary>
+        public void LockRun(float yaw)
+        {
+            if (!_runLocked) { _runLocked = true; _runYaw = yaw; }
+        }
+
+        /// <summary>Stop holding the run. It eases back to the camera over PassAimBlendTime.</summary>
+        public void ReleaseRun() => _runLocked = false;
+
+        public bool RunLocked => _runLocked;
+        /// <summary>Down in a sliding challenge. ScrimmageGame reads this to resolve the contact, so
+        /// the tackle and the animation can never disagree about whether he is actually sliding.</summary>
+        public bool IsSliding => _sliding;
+
+        // This body's header aid, cached from the SPECIES IT WAS BUILT AS. Read off the ragdoll and
+        // never off PlayerProfile: the host binds a remote peer's net input onto a Striker driving
+        // that peer's body (see SetInput), so the local player's species is the wrong answer for
+        // every body but its own. Safe to cache in Init because the ragdoll never changes after it.
+        HeaderAction _header = HeaderAction.Biped;
+
+        // Which limb the raise lifts, per side, as {upper, lower}. A biped's legs, a quadruped's
+        // FRONT legs. Also cached from the layout: the hind legs sit behind a quadruped's body and
+        // cannot reach a ball in front of it.
+        Bone[] _raiseL, _raiseR;
 
         // Diving header lifecycle.
         float _spaceHeld;      // how long Space held while grounded (tap vs hold-to-dive)
@@ -105,13 +177,29 @@ namespace Trickshot
             _input = input;
             _ragdoll = ragdoll;
             _facingYaw = ragdoll.FacingRotation.eulerAngles.y;
+            _header = Species.ById(ragdoll.SpeciesId).Header;
+            _raiseL = ragdoll.RaiseChain(true);
+            _raiseR = ragdoll.RaiseChain(false);
         }
 
         // Swap the input source at runtime (e.g. the host binding a remote player's net
         // input to this body). Callers keep the ragdoll; only the input changes.
         public void SetInput(IStrikerInput input) => _input = input;
 
-        public void SetCameraYaw(System.Func<float> camYaw) => _camYaw = camYaw;
+        // Bind the look sources. camPitch is optional and only used for AIM (the body never
+        // pitches): a volley leaves down the camera ray, so the shot solve needs both angles.
+        // Callers that pass yaw only keep the old flat-aim behaviour.
+        public void SetCameraYaw(System.Func<float> camYaw, System.Func<float> camPitch = null)
+        {
+            _camYaw = camYaw;
+            _camPitch = camPitch;
+        }
+
+        // Does this body have a real look source (a local camera, or a remote player's streamed
+        // yaw/pitch)? An AI body has none, so the shot solve falls back to aiming at the goal.
+        public bool HasLookAim => _camYaw != null;
+        public float LookYaw   => _camYaw != null ? _camYaw() : _facingYaw;
+        public float LookPitch => _camPitch != null ? _camPitch() : 0f;
 
         void Update()
         {
@@ -132,7 +220,14 @@ namespace Trickshot
             bool grounded = _ragdoll.IsGrounded;
             float camYaw = _camYaw != null ? _camYaw() : _facingYaw;
 
-            Quaternion yawRot = Quaternion.Euler(0f, camYaw, 0f);
+            // The run's heading. Normally the camera's, but held at its own while a pass is aimed and
+            // EASED back afterwards rather than snapped - resuming instantly would kick his run
+            // sideways by however far the aim had swung (see LockRun).
+            _runLockT = Mathf.MoveTowards(_runLockT, _runLocked ? 1f : 0f,
+                                          Time.deltaTime / Mathf.Max(0.01f, SimConfig.PassAimBlendTime));
+            float moveYaw = _runLockT > 0.001f ? Mathf.LerpAngle(camYaw, _runYaw, _runLockT) : camYaw;
+
+            Quaternion yawRot = Quaternion.Euler(0f, moveYaw, 0f);
             Vector3 camFwd = yawRot * Vector3.forward;
             Vector3 camRight = yawRot * Vector3.right;
 
@@ -140,15 +235,26 @@ namespace Trickshot
             Vector3 wish = Vector3.ClampMagnitude(camFwd * mv.y + camRight * mv.x, 1f);
             // Build traits: lighter/shorter = quicker; sprint is weighted separately.
             float traitSpeed = _input.SprintHeld ? PlayerProfile.SprintSpeedMul : PlayerProfile.MoveSpeedMul;
+            // Widen what Pace is worth (see SimConfig.PaceSpeedGain). Only the ABOVE-1 side is
+            // scaled: doubling the deviation both ways would have made a heavy uninvested build
+            // slower than it is today, which is a nerf nobody asked for.
+            if (traitSpeed > 1f) traitSpeed = 1f + (traitSpeed - 1f) * SimConfig.PaceSpeedGain;
             float speed = SimConfig.StrikerMoveSpeed * (_input.SprintHeld ? SimConfig.StrikerSprintMul : 1f) * traitSpeed;
+            // Hard ceiling, applied after everything (see SimConfig.SprintSpeedCeiling). The dribble
+            // multipliers below cut into this, which is correct - the cap is on how fast he can ever
+            // travel, not on how fast the trait maths is allowed to claim he does.
+            speed = Mathf.Min(speed, SimConfig.SprintSpeedCeiling);
 
             // While dribbling, the striker is SLOWER and turns SLOWER - Control claws both
             // back. dribbling = the Dribble component is actively carrying the ball.
             bool dribbling = _dribble != null && _dribble.Carrying;
+            bool closeControl = dribbling && _input.CloseControlHeld;
             if (dribbling)
             {
                 float t = PlayerProfile.DribbleTightness;  // 0 (no Control) .. 1 (full)
                 speed *= Mathf.Lerp(SimConfig.DribbleMoveMulLow, SimConfig.DribbleMoveMulHigh, t);
+                // Close control trades pace for touch: a shuffle, but the ball stays under you.
+                if (closeControl) speed *= SimConfig.DribbleCloseSpeedMul;
             }
             _ragdoll.MoveInput = wish * speed;
 
@@ -162,14 +268,20 @@ namespace Trickshot
                 {
                     float t = PlayerProfile.DribbleTightness;
                     float turnRate = Mathf.Lerp(SimConfig.DribbleTurnRateLow, SimConfig.DribbleTurnRateHigh, t);
-                    _facingYaw = Mathf.MoveTowardsAngle(_facingYaw, camYaw, turnRate * Time.deltaTime);
+                    if (closeControl) turnRate *= SimConfig.DribbleCloseTurnMul;   // pivot on the ball
+                    _facingYaw = Mathf.MoveTowardsAngle(_facingYaw, moveYaw, turnRate * Time.deltaTime);
                 }
-                else _facingYaw = camYaw;
+                else _facingYaw = moveYaw;
                 _ragdoll.FacingRotation = Quaternion.Euler(0f, _facingYaw, 0f);
             }
 
+            // --- sit gesture (LMB+RMB together, grounded only) ---
+            UpdateSit(grounded);
+
             // --- trigger tricks / jump ---
-            if (_mode == Trick.None)
+            // Blocked while seated AND through the stand-up ramp: he gets to his feet first, so a
+            // jump press that ends the sit cannot also launch him on the same frame.
+            if (_mode == Trick.None && !_sitting && _sitDrop <= 0.02f)
             {
                 // He faces his movement direction, so "moving" is enough to arm the dive
                 // (it launches along that facing).
@@ -197,6 +309,13 @@ namespace Trickshot
             }
 
             if (_mode == Trick.Dive) ManageDive(grounded);
+            // SlideLimp must be routed AWAY from AirPitchControl: its grounded branch sets
+            // BalanceEnabled = true whenever balance is off, which would fight the limp on its very
+            // first frame. Every other _mode gate in this method already tests == Trick.None and so
+            // excludes SlideLimp on its own; this dispatch and TrickActive were the only two that did
+            // not. The upright re-lock at the bottom of Tick is one of the gated ones, which is what
+            // stops him being pinned upright the instant the limp starts.
+            else if (_mode == Trick.SlideLimp) ManageSlideLimp();
             else AirPitchControl(grounded);   // mouse-wheel body pitch while airborne
 
             // Re-lock upright only in normal state, grounded, past the jump grace. (Not
@@ -205,12 +324,27 @@ namespace Trickshot
                 _ragdoll.UprightLock = true;
 
             // Leg control (LMB/RMB) works the same grounded OR airborne - bicycle kicks
-            // come from raising legs while the wheel pitches him back. Run cycle only when
-            // grounded and locked upright.
+            // come from raising legs while the wheel pitches him back.
+            //
+            // ORDER MATTERS NOW. The gait runs FIRST and writes the base pose (already scaled down
+            // per limb by how far that limb is raised), then the raises ADD on top. The gait is also
+            // called unconditionally, with "allowed" false when airborne or off the upright lock, so
+            // a grounding flicker fades the run out over a few frames instead of snapping the legs
+            // to rest for one.
             if (_mode == Trick.None)
             {
-                ApplyLegRaises(grounded);
-                if (grounded && _ragdoll.UprightLock) RunCycle(wish.magnitude);
+                bool seated = _sitting || _sitDrop > 0.02f;
+                RunCycle(grounded && _ragdoll.UprightLock && !seated);
+                if (seated)
+                {
+                    // Bleed any half-built raise out so ApplyLegRaises resumes from rest once he
+                    // is back on his feet, instead of popping a stale raise back in.
+                    float kb = SimConfig.LegRaiseEase * Time.deltaTime;
+                    _legRaiseL = Mathf.MoveTowards(_legRaiseL, 0f, kb);
+                    _legRaiseR = Mathf.MoveTowards(_legRaiseR, 0f, kb);
+                    _headerBend = Mathf.MoveTowards(_headerBend, 0f, kb);
+                }
+                else ApplyLegRaises(grounded);
             }
         }
 
@@ -336,7 +470,7 @@ namespace Trickshot
                 bool heading = _lmbTimer > 0f && _rmbTimer > 0f;
                 if (heading)
                 {
-                    float legTarget = SimConfig.HeaderLegRaiseMul;
+                    float legTarget = _header.LegRaiseMul;
                     _legRaiseL = Mathf.MoveTowards(_legRaiseL, legTarget, k);
                     _legRaiseR = Mathf.MoveTowards(_legRaiseR, legTarget, k);
                 }
@@ -348,71 +482,70 @@ namespace Trickshot
                     _legRaiseL = Mathf.MoveTowards(_legRaiseL, _input.LeftLegHeld  ? SimConfig.BicycleLegRaiseMul : 0f, ks);
                     _legRaiseR = Mathf.MoveTowards(_legRaiseR, _input.RightLegHeld ? SimConfig.BicycleLegRaiseMul : 0f, ks);
                 }
-                // Torso snaps forward fast when heading (quicker than the release ease-out).
-                float kh = (heading ? SimConfig.HeaderBendEase : SimConfig.LegRaiseEase) * Time.deltaTime;
+                // The pose snaps in fast when heading (quicker than the release ease-out). The rate
+                // is per species: a human chest folds instantly, an elephant heaves a heavy barrel
+                // against its own balance torque and wants a frame or two more.
+                float kh = (heading ? _header.Ease : SimConfig.LegRaiseEase) * Time.deltaTime;
                 _headerBend = Mathf.MoveTowards(_headerBend, heading ? 1f : 0f, kh);
             }
 
-            if (_legRaiseL > 0.001f) RaiseLeg(Bone.ThighL, Bone.CalfL, _legRaiseL);
-            if (_legRaiseR > 0.001f) RaiseLeg(Bone.ThighR, Bone.CalfR, _legRaiseR);
+            if (_raiseL != null && _legRaiseL > 0.001f) RaiseLeg(_raiseL[0], _raiseL[1], _legRaiseL);
+            if (_raiseR != null && _legRaiseR > 0.001f) RaiseLeg(_raiseR[0], _raiseR[1], _legRaiseR);
             if (_headerBend > 0.001f)
-                _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.HeaderTorsoBend * _headerBend, 0f, 0f));
+            {
+                // Both channels are additive local +X, POST-multiplied onto the bone's REST
+                // rotation, so the same sign folds a bone forward in its own rest frame whatever
+                // that frame is. On a biped: the chest folds 90 and the head channel is unused (zero
+                // Torso-relative, which is what a human header has always done). On a quadruped:
+                // the barrel pitches nose-down a little and the head channel carries the rest, either
+                // swinging the muzzle down with it (horse, positive) or slinging the trunk up against
+                // it (elephant, negative).
+                _ragdoll.AddPoseOverride(Bone.Torso, new Vector3(_header.TorsoDeg * _headerBend, 0f, 0f));
+                if (_header.HeadDeg != 0f)
+                    _ragdoll.AddPoseOverride(Bone.Head, new Vector3(_header.HeadDeg * _headerBend, 0f, 0f));
+            }
         }
 
-        void RaiseLeg(Bone thigh, Bone calf, float amount)
+        // Lift one strike limb: a biped's leg, a quadruped's FRONT leg. Same maths for both, because
+        // both rest upright in the body frame, so a negative X throws the lower end forward and up.
+        void RaiseLeg(Bone upper, Bone lower, float amount)
         {
-            // Cap the thigh at 90deg (leg straight out horizontal) - that's max reach for
+            // Cap the upper at 90deg (limb straight out horizontal) - that's max reach for
             // bicycle contact; past 90 it tucks back toward the body and loses coverage.
-            float thighDeg = Mathf.Min(SimConfig.LegSwingRaise * amount, SimConfig.LegRaiseMaxDeg);
-            _ragdoll.SetPoseOverride(thigh, new Vector3(-thighDeg, 0f, 0f));
-            _ragdoll.SetPoseOverride(calf, new Vector3(20f * amount, 0f, 0f));
+            float upperDeg = Mathf.Min(SimConfig.LegSwingRaise * amount, SimConfig.LegRaiseMaxDeg);
+            // ADDITIVE, on top of whatever the gait left. The gait already scaled this limb's stride
+            // by (1 - amount), so the two sum to one continuous pose across the whole raise and the
+            // whole release. Overwriting was the release pop.
+            _ragdoll.AddPoseOverride(upper, new Vector3(-upperDeg, 0f, 0f));
+            _ragdoll.AddPoseOverride(lower, new Vector3(20f * amount, 0f, 0f));
         }
 
-        // Human-ish run: thighs alternate fore/aft, the knee of the SWING (forward)
-        // leg bends hard to pick the foot up, foot dorsiflexes. Stance leg stays straight.
-        void RunCycle(float moveAmount)
+        // The run, per body plan, from the shared table in Gait. Everything species-specific lives
+        // there; this only owns the phase and the fade weight.
+        //
+        // Three things changed and each one killed a specific piece of jank:
+        //   CADENCE comes from MEASURED speed, not from input magnitude. Tapping a key used to run
+        //   the legs at full rate over a body still accelerating from a standstill.
+        //   THE PHASE IS NEVER RESET. It used to snap to zero any time the stick came near centre,
+        //   which teleported both legs to rest between two steps. The weight fades instead.
+        //   A RAISED LIMB IS SCALED, not skipped. Skipping handed the limb over on one frame and
+        //   took it back on another; scaling crosses smoothly in both directions.
+        void RunCycle(bool allowed)
         {
-            if (moveAmount < 0.05f) { _gaitPhase = 0f; return; }
-            bool sprint = _input.SprintHeld;
-            // Sprinting quickens the cadence and lifts/folds the legs more.
-            float rate = SimConfig.StrideRateMax * (sprint ? SimConfig.SprintStrideMul : 1f);
-            _gaitPhase += Time.deltaTime * rate * moveAmount;
+            var p = Gait.For(_ragdoll.Plan);
+            float speed = _ragdoll.GroundSpeed;
+            _gaitWeight = Gait.Weight(_gaitWeight, speed, allowed, Time.deltaTime);
 
-            GaitLeg(Bone.ThighL, Bone.CalfL, Bone.FootL, _gaitPhase, _input.LeftLegHeld, sprint);
-            GaitLeg(Bone.ThighR, Bone.CalfR, Bone.FootR, _gaitPhase + Mathf.PI, _input.RightLegHeld, sprint);
+            float sprint01;
+            _gaitPhase += Time.deltaTime * Gait.Cadence(speed, _ragdoll.HeightScale, p, out sprint01);
+            if (_gaitPhase > Mathf.PI * 2f) _gaitPhase -= Mathf.PI * 2f;
 
-            // Contralateral swing: RIGHT arm forward as the LEFT leg comes forward (and
-            // vice versa). The leg thigh swings as -sin(phase) but GaitArm swings as
-            // +sin(phase), so to move the right arm WITH the left leg it takes the
-            // opposite phase, and the left arm takes the left-leg phase.
-            GaitArm(Bone.UpperArmR, Bone.ForearmR, _gaitPhase + Mathf.PI);
-            GaitArm(Bone.UpperArmL, Bone.ForearmL, _gaitPhase);
-
-            float bob = Mathf.Sin(_gaitPhase * 2f) * 2.5f;
-            _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.GaitTorsoLean + bob, 0f, 0f));
-        }
-
-        // Runner's arm carriage: the upper arm swings fore/aft, elbow held bent.
-        void GaitArm(Bone upper, Bone fore, float phase)
-        {
-            float sw = Mathf.Sin(phase);
-            _ragdoll.SetPoseOverride(upper, new Vector3(sw * SimConfig.ArmPumpSwing, 0f, 0f));
-            _ragdoll.SetPoseOverride(fore, new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
-        }
-
-        void GaitLeg(Bone thigh, Bone calf, Bone foot, float phase, bool heldByPlayer, bool sprint)
-        {
-            if (heldByPlayer) return;   // player raise owns this leg
-            float sw = Mathf.Sin(phase);
-            float lift = Mathf.Max(0f, sw);            // 1 through the forward swing, 0 in stance
-            float hipLift = sprint ? SimConfig.SprintThighLift : SimConfig.GaitThighLift;
-            float kneeBend = sprint ? SimConfig.SprintKneeBend : SimConfig.GaitKneeBend;
-            // Thigh swings fore/aft; during the forward swing add extra hip lift AND a
-            // hard knee fold so the foot clears the ground instead of dragging.
-            float thighAngle = -sw * SimConfig.GaitThighSwing - lift * hipLift;
-            _ragdoll.SetPoseOverride(thigh, new Vector3(thighAngle, 0f, 0f));
-            _ragdoll.SetPoseOverride(calf, new Vector3(lift * kneeBend, 0f, 0f));
-            _ragdoll.SetPoseOverride(foot, new Vector3(-sw * SimConfig.GaitFootPoint, 0f, 0f));
+            var over = _gaitScratch;
+            for (int i = 0; i < over.Length; i++) over[i] = Vector3.zero;
+            Gait.Pose(over, p, _gaitPhase, _gaitWeight, sprint01, _legRaiseL, _legRaiseR);
+            // Written unconditionally, zeros included: Tick already cleared the overrides, and the
+            // raises below ADD to whatever is here.
+            for (int i = 0; i < over.Length; i++) _ragdoll.SetPoseOverride((Bone)i, over[i]);
         }
 
 
@@ -427,6 +560,7 @@ namespace Trickshot
             _mode = Trick.Dive;
             _spaceHeld = 0f;
             _diveAir = 0f;
+            DiveHitPending = true;   // this dive may still fell one opponent
             _proneTimer = Mathf.Max(SimConfig.DiveProneMinTime,
                                     SimConfig.DiveProneTime * PlayerProfile.RecoveryTimeMul);
             _ragdoll.UprightLock = false;
@@ -477,8 +611,211 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
             _ragdoll.UprightLock = true;   // pop back to his feet
+            // Hand the height back unconditionally. The dive never sets these, but the slide's limp
+            // phase routes through here and a non-zero EmoteHeightOffset PD-pins the pelvis to a
+            // fixed height every frame - the exact trap Knockdown.Fell documents. Clearing it here
+            // as well as at limp start makes the restore idempotent, so an EndTrick from any path
+            // leaves a body that can stand.
+            _sitDrop = 0f;
+            _ragdoll.EmoteHeightOffset = 0f;
             _facingYaw = _ragdoll.FacingRotation.eulerAngles.y;
             _ragdoll.SetPose(RagdollPose.Stand, 5f);
+        }
+
+        // --------------------------------------------------- slide tail: limp, then up
+        // The end of a sliding challenge, and deliberately the SAME mechanism as the diving header
+        // rather than a parallel one: DriveScale down, upright/balance/locomotion off, one countdown
+        // on _proneTimer, and EndTrick as the single restore. Everything that already recovers a dive
+        // therefore already recovers this - ForceRecover zeroes _mode and _proneTimer and restores
+        // all four flags, and Knockdown.Fell tears it down via IsBusy.
+        //
+        // It does NOT hand off to Knockdown.Fell, which was the tempting shortcut. Fell calls
+        // ForceRecover on a busy striker and then applies KnockdownImpulse 5.5 m/s plus an upward pop
+        // and a spin: that is "felled by a tackle", not "the slide finished", and it would re-launch
+        // him at the moment he is supposed to be running out of momentum.
+        void StartSlideLimp()
+        {
+            _sliding = false;
+            _slideTimer = 0f;
+            _mode = Trick.SlideLimp;
+
+            // Hand the height back BEFORE going limp. While EmoteHeightOffset is non-zero the pelvis
+            // is PD-driven to a fixed height every frame, which would pin a limp body at slide height
+            // instead of letting it settle (Knockdown.cs:33-41 hit the same thing with a felled
+            // sitter). Zeroing _sitDrop also keeps UpdateSit's ramp-down branch writing -0f from here
+            // on, so nothing re-applies the drop.
+            _sitDrop = 0f;
+            _ragdoll.EmoteHeightOffset = 0f;
+
+            _ragdoll.UprightLock = false;
+            _ragdoll.BalanceEnabled = false;
+            _ragdoll.LocomotionEnabled = false;   // already false from the launch; idempotent
+            _ragdoll.BodyOrientTarget = null;
+            _ragdoll.DriveScale = SimConfig.SlideLimpDriveScale;
+            // Blend out of the Slide pose while limp so EndTrick's SetPose(Stand) has nothing left to
+            // do and there is no pop on the way up. At this DriveScale the pose is barely enforced
+            // anyway; it just stops the legs being authored splayed when he stands.
+            _ragdoll.SetPose(RagdollPose.Stand, SimConfig.SitPoseSpeed);
+
+            float limp = Mathf.Max(SimConfig.SlideLimpMinTime,
+                                   SimConfig.SlideLimpTime * PlayerProfile.RecoveryTimeMul);
+            _proneTimer = limp;
+            // SlideRecover is documented as "s after standing up before he can slide again", and the
+            // lockout bleeds down every frame including through the limp, so it has to cover the limp
+            // too. Set at limp START rather than in EndTrick because EndTrick is shared with the dive
+            // and a diving header should not arm a slide lockout.
+            _slideRecover = limp + SimConfig.SlideRecover;
+        }
+
+        // Deliberately NOT gated on grounded, unlike ManageDive: a striker shoved off the deck as the
+        // slide ends would otherwise stay limp forever with no input that could recover him. A limp
+        // that always ends after a bounded time is worth more than one that waits for a landing.
+        void ManageSlideLimp()
+        {
+            if ((_proneTimer -= Time.deltaTime) <= 0f) EndTrick();
+        }
+
+        // --------------------------------------------------- sit down
+        // LMB+RMB pressed TOGETHER while standing puts him on his backside. Four conditions keep
+        // it from stealing an ordinary strike:
+        //   - it fires on the SECOND button's PRESS EDGE with the other side's edge still inside
+        //     SitWindow, so press-one, swing, press-other stays two normal leg raises;
+        //   - neither leg may already be raised past SitRaiseMax (that is a committed strike);
+        //   - GROUNDED only. Airborne both-down is the header and is left exactly as it was;
+        //   - PULLED BACK on the move stick. The same combo pushed FORWARD is a sliding challenge
+        //     instead, so the stick is the discriminator and the two are mutually exclusive by
+        //     intent rather than by how fast he happened to be running (which is what SitMaxSpeed
+        //     used to arbitrate, and why neither outcome was reachable deliberately).
+        //
+        // The hips are dropped through EmoteHeightOffset, which is the shipped lever for this: a
+        // non-zero value hands the whole-body carry servo off and PD-drives the pelvis to its
+        // captured rest height plus the offset. UprightLock stays ON - it constrains pelvis
+        // rotation only, never position, so he sinks without ever being able to topple.
+        void UpdateSit(bool grounded)
+        {
+            if (_lmbDownT > 0f) _lmbDownT = Mathf.Max(0f, _lmbDownT - Time.deltaTime);
+            if (_rmbDownT > 0f) _rmbDownT = Mathf.Max(0f, _rmbDownT - Time.deltaTime);
+            bool lEdge = _input.LeftClickPressed, rEdge = _input.RightClickPressed;
+            if (lEdge) _lmbDownT = SimConfig.SitWindow;
+            if (rEdge) _rmbDownT = SimConfig.SitWindow;
+
+            if (_slideRecover > 0f) _slideRecover = Mathf.Max(0f, _slideRecover - Time.deltaTime);
+
+            bool bothHeld = _input.LeftLegHeld && _input.RightLegHeld;
+            float push = _input.Move.y;                 // + forward, - back, in camera space
+
+            // A slide COMMITS: it runs on its own timer and neither a release nor a change of stick
+            // cancels it, because a real sliding challenge cannot be taken back halfway. Handled
+            // before the sit so a slide in progress owns the body outright.
+            if (_sliding)
+            {
+                _slideTimer -= Time.deltaTime;
+                _ragdoll.MoveInput = Vector3.zero;                  // no steering once he is down
+                // Skids to a stop, framerate-independently. SlideFriction is authored per 60 Hz frame
+                // and this runs in Update, so a raw multiply made the slide's length a function of the
+                // monitor: measured 3.34 m at 30 fps down to 0.69 m at 240. Raised to dt*60 it holds
+                // 2.24-2.32 m across 30-240 fps. (There is a residual half-tick wobble because
+                // AddVelocityToAll's pending VelocityChange may not have been integrated yet when the
+                // first multiply lands. It favours travel and is under a percent; not worth chasing.)
+                _ragdoll.ScaleHorizontalVelocity(Mathf.Pow(SimConfig.SlideFriction, Time.deltaTime * 60f));
+                _sitDrop = Mathf.MoveTowards(_sitDrop, SimConfig.SlideDrop * _ragdoll.HeightScale,
+                                             SimConfig.SitDropEase * 2f * Time.deltaTime);
+                if (_slideTimer <= 0f || !grounded)
+                {
+                    // He does NOT snap upright any more: he goes limp and gets up, the way a diving
+                    // header does. Airborne still ends the travelling phase, and going limp is the
+                    // better answer there too (a slide off a step should tumble, not pop upright).
+                    // StartSlideLimp owns the hip drop and the EmoteHeightOffset teardown, so return
+                    // straight out rather than falling through to the write below.
+                    StartSlideLimp();
+                    return;
+                }
+                _ragdoll.EmoteHeightOffset = -_sitDrop;
+                return;
+            }
+
+            if (!_sitting)
+            {
+                bool together = (lEdge || rEdge) && _lmbDownT > 0f && _rmbDownT > 0f;
+                bool uncommitted = _legRaiseL < SimConfig.SitRaiseMax && _legRaiseR < SimConfig.SitRaiseMax;
+                bool armed = together && bothHeld && uncommitted && grounded
+                             && _mode == Trick.None && !_input.JumpHeld;
+
+                // FORWARD -> slide. Lunge along the way he is facing, drop the pose, start the clock.
+                if (armed && push > SimConfig.BothButtonMoveDeadzone && _slideRecover <= 0f)
+                {
+                    _sliding = true;
+                    _slideTimer = SimConfig.SlideDuration;
+                    _lmbDownT = 0f; _rmbDownT = 0f;
+                    _ragdoll.MoveInput = Vector3.zero;
+                    // THIS is why the slide never travelled. Zeroing MoveInput alone is not enough:
+                    // ApplyLocomotion keeps running and reads zero as "brake to a standstill", which
+                    // is StrikerAccel 22 x StrikerMoveSpeed 3.8 = 83.6 m/s^2 of deceleration on every
+                    // bone with a 45 ms time constant. Measured (fixedDeltaTime 0.014, from a 6.5 m/s
+                    // launch): 0.268 m of travel from the brake alone, 0.206 m with the old per-frame
+                    // friction on top - against the ~2.3 m the friction alone would allow. StartDive
+                    // already does exactly this ("preserve the launch, don't steer it"); the slide
+                    // just never copied it. EndTrick/ForceRecover both restore it.
+                    _ragdoll.LocomotionEnabled = false;
+                    Vector3 fwd = Quaternion.Euler(0f, _facingYaw, 0f) * Vector3.forward;
+                    // Keep the run he arrives with - a tackle out of a sprint SHOULD go further than
+                    // one from a standstill - but cap the total (see SimConfig.SlideLaunchMax).
+                    // Computed as a SCALAR against the pre-lunge speed rather than by measuring after
+                    // the fact, because AddVelocityToAll is AddForce(VelocityChange) and Unity defers
+                    // that to the next physics step: GroundSpeed read immediately afterwards still
+                    // reports the old velocity. Treating the carried run as if it were all along fwd
+                    // over-estimates the result when he is strafing, so the cap errs toward
+                    // under-adding, which is the safe direction.
+                    // NOTE the cap has to SCALE, not just add less. AddVelocityToAll is additive, so
+                    // clamping only the ADDED amount does nothing once the carried run already exceeds
+                    // the ceiling: at that point the added term is zero and he rides the full arrival
+                    // speed. A Pace build crosses 12 m/s at traitSpeed 1.75, well short of maxed, so
+                    // that is reachable - it would have given 6.97 m of slide at SprintSpeedCeiling
+                    // 19.7 while also deleting the lunge kick entirely, which is a worse feel than
+                    // either behaviour on its own.
+                    float carried = _ragdoll.GroundSpeed;
+                    float launch = Mathf.Min(carried + SimConfig.SlideLunge, SimConfig.SlideLaunchMax);
+                    if (carried > launch && carried > 1e-4f)
+                        _ragdoll.ScaleHorizontalVelocity(launch / carried);   // brake to the ceiling
+                    else
+                        _ragdoll.AddVelocityToAll(fwd * (launch - carried));
+                    _ragdoll.SetPose(RagdollPose.Slide, SimConfig.SlidePoseSpeed);
+                    _ragdoll.EmoteHeightOffset = -_sitDrop;
+                    return;
+                }
+                // BACKWARD -> sit.
+                if (armed && push < -SimConfig.BothButtonMoveDeadzone)
+                {
+                    _sitting = true;
+                    _lmbDownT = 0f; _rmbDownT = 0f;
+                    _ragdoll.MoveInput = Vector3.zero;
+                    _ragdoll.SetPose(RagdollPose.Sit, SimConfig.SitPoseSpeed);
+                }
+            }
+            else if (!bothHeld || _input.JumpPressed || !grounded)
+            {
+                // Up on either button releasing, on a jump press, or the instant he leaves the deck.
+                StandUp();
+            }
+
+            if (_sitting)
+            {
+                _ragdoll.MoveInput = Vector3.zero;   // no walking around on his backside
+                _sitDrop = Mathf.MoveTowards(_sitDrop, SimConfig.SitDrop * _ragdoll.HeightScale,
+                                             SimConfig.SitDropEase * Time.deltaTime);
+            }
+            else if (_sitDrop > 0f)
+                _sitDrop = Mathf.MoveTowards(_sitDrop, 0f, SimConfig.SitDropEase * Time.deltaTime);
+
+            // Reaching exactly 0 is what hands the carry servo back and lifts him to stand height.
+            _ragdoll.EmoteHeightOffset = -_sitDrop;
+        }
+
+        void StandUp()
+        {
+            _sitting = false;
+            _lmbDownT = 0f; _rmbDownT = 0f;
+            _ragdoll.SetPose(RagdollPose.Stand, SimConfig.SitPoseSpeed);
         }
 
         public void ForceRecover()
@@ -493,11 +830,28 @@ namespace Trickshot
             _headerBend = 0f;
             _lmbTimer = 0f;
             _rmbTimer = 0f;
+            _sitting = false;
+            _sliding = false;
+            _slideTimer = 0f;
+            _slideRecover = 0f;
+            _runLocked = false;
+            _runLockT = 0f;
+            _lmbDownT = 0f;
+            _rmbDownT = 0f;
+            _sitDrop = 0f;
+            _ragdoll.EmoteHeightOffset = 0f;
             _gaitPhase = 0f;
+            _gaitWeight = 0f;
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;
             _ragdoll.BodyOrientTarget = null;
             _ragdoll.BalanceEnabled = true;
+            // UprightLock too. It was missing, and normally that is invisible because Tick re-locks on
+            // the next grounded frame - but ForceRecover exists precisely for the cases where Tick
+            // never runs again (control handed to the AI, roster change, match end), and then nothing
+            // restores it: neither Footballer nor ScrimmageGame ever writes UprightLock. Knockdown
+            // .Recover sets it explicitly, which is why that path never showed the hole.
+            _ragdoll.UprightLock = true;
             _ragdoll.LocomotionEnabled = true;
             _ragdoll.ClearPoseOverrides();
             _ragdoll.SetPose(RagdollPose.Stand, 5f);

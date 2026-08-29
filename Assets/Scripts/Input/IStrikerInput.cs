@@ -15,6 +15,11 @@ namespace Trickshot
         Vector2 Move { get; }
         float Scroll { get; }
         bool SprintHeld { get; }
+
+        // Close-control modifier (the dribble "shield/jockey" key). Held: shortest touches
+        // at reduced pace with a much quicker turn, and sprint is ignored. Networked via the
+        // closeControl frame bit so a remote carrier dribbles the same way a local one does.
+        bool CloseControlHeld { get; }
         bool JumpPressed { get; }
         bool JumpHeld { get; }
         bool JumpReleased { get; }
@@ -31,7 +36,7 @@ namespace Trickshot
         bool LeftClickPressed { get; }
         bool RightClickPressed { get; }
 
-        // Pass buttons (Q ground / E lofted). The striker's call-for-pass and the human
+        // Pass buttons (E ground / Q lofted). The striker's call-for-pass and the human
         // crosser's driven/chipped delivery read these. Networked via the passGround/
         // passLofted frame bits (edges re-derived on the receiving side).
         bool PassGroundPressed { get; }
@@ -40,6 +45,19 @@ namespace Trickshot
         bool PassLoftedHeld { get; }
         bool PassGroundReleased { get; }
         bool PassLoftedReleased { get; }
+        // Chip: a short, very high lob to set up a header or a bicycle. Third pass button.
+        bool PassChipPressed { get; }
+        bool PassChipHeld { get; }
+        bool PassChipReleased { get; }
+
+        /// <summary>
+        /// Is this frame's input NEW? True always on a local device. On the networked path the host
+        /// re-feeds the last received frame every tick whether or not one arrived, and a client stops
+        /// sending entirely while paused or typing, so a held button stays pinned true indefinitely.
+        /// The pass power bar only accumulates on a fresh frame - without that, fire-at-full would turn
+        /// a dropped connection into a maximum-range pass nobody asked for.
+        /// </summary>
+        bool Fresh { get; }
 
         // Emote chosen THIS tick (from the emote wheel): a Celebration.Emote index, or 255 for
         // none. One-shot - the source returns a real id only on the frame a pick happens. The

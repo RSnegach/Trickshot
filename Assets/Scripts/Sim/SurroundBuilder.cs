@@ -23,6 +23,71 @@ namespace Trickshot
                                   + PitchLayout.StandRows * PitchLayout.RowDepth + 6f;
         static Vector3 Center => new Vector3(0f, 0f, PitchLayout.PitchCenterZ);
 
+        // ---- imported model sets (Kenney nature-kit, CC0), replacing the primitive trees ----
+        // These are picked by LOOP INDEX, never by Rand(). Consuming a random number to choose a variant
+        // would shift every subsequent draw and silently rearrange the entire venue, and the whole point
+        // of the fixed LCG seed above is that a venue looks the same every run. Index selection keeps the
+        // existing layout byte for byte and still gives variety, because position and height stay random.
+        // Selection is (i * 3 + i / count) % count. The stride of 3 stops the list being walked in
+        // order, and the + i / count term advances the phase by one on every full cycle, which is what
+        // actually kills the repeat: a plain stride still has period 8 over 60 trees, so the same eight
+        // trees recur seven times around the ring. With the phase term there is no repeating period at
+        // all, and the spread across models stays even (7 or 8 of each).
+        static readonly string[] ParkTrees =
+        {
+            "Props/Trees/tree_oak",       "Props/Trees/tree_default",  "Props/Trees/tree_blocks",
+            "Props/Trees/tree_tall",      "Props/Trees/tree_small",    "Props/Trees/tree_pineRoundA",
+            "Props/Trees/tree_pineTallB", "Props/Trees/tree_default_fall",
+        };
+        static readonly string[] BeachPalms =
+        {
+            "Props/Trees/tree_palm",     "Props/Trees/tree_palmTall",
+            "Props/Trees/tree_palmBend", "Props/Trees/tree_palmShort",
+        };
+        // The city beyond the stands. Mixed low blocks and towers so the skyline has a profile rather
+        // than being a row of equal slabs.
+        // ONE of each model, in a deliberate left-to-right order, low at the edges and tall in the
+        // middle. That order IS the skyline's profile - the array is read as a row, not sampled at
+        // random - so the silhouette rises to a centre and falls away, which is what a city looks like
+        // from outside it.
+        static readonly string[] SkylineRow =
+        {
+            "Props/City/skyline_e",   // low, left edge
+            "Props/City/skyline_c",
+            "Props/City/tower_b",
+            "Props/City/tower_a",     // tallest, centre
+            "Props/City/tower_c",
+            "Props/City/skyline_b",
+            "Props/City/skyline_d",
+            "Props/City/skyline_a",   // low, right edge
+        };
+        // Paired with the row above, in metres. Hand-set rather than randomised, because the whole point
+        // is that the profile is composed.
+        static readonly float[] SkylineHeights = { 22f, 34f, 58f, 72f, 54f, 36f, 27f, 20f };
+        static readonly string[] Houses =
+        {
+            "Props/City/house_a", "Props/City/house_b", "Props/City/house_c",
+            "Props/City/house_d", "Props/City/house_e", "Props/City/house_f",
+        };
+        static readonly string[] Cars =
+        {
+            "Props/City/car_sedan", "Props/City/car_suv", "Props/City/car_taxi",
+            "Props/City/car_hatch", "Props/City/car_van",
+        };
+
+        // UNLIKE THE NATURE KIT, the city and car models are atlas-textured: every one has a single
+        // material slot named "colormap" whose colour lives in a 512x512 texture, and the slot imports
+        // with NO texture bound at all - so left alone they render as flat white blocks. The atlas is
+        // therefore loaded here and pushed in through PropKit's palette, which also keeps it to ONE
+        // material for the whole ring and so one batch. The three kits ship DIFFERENT atlases (verified
+        // by hash), so a building must be painted with its own kit's texture or it samples the wrong
+        // patch of the map.
+        static Material Atlas(string name)
+        {
+            var tex = Resources.Load<Texture2D>("Props/Textures/" + name);
+            return tex == null ? null : Make.MatTex(tex, 0.05f);
+        }
+
         public static void Build(Transform root, StadiumStyle s)
         {
             _seed = 0x51ED5EED;
@@ -34,16 +99,174 @@ namespace Trickshot
                 case Surroundings.Palms: BuildPalms(p); break;
                 case Surroundings.Flags: BuildFlags(p); break;
             }
+
+            // A city on the horizon for every venue that HAS stands, including Arena, whose Surroundings
+            // is None and which therefore had nothing outside the shell at all. Deliberately AFTER the
+            // switch: the LCG draws for the venue's own dressing happen first, so adding this cannot
+            // shift any existing layout.
+            //
+            // The beach is excluded on purpose. It is a pitch on an island ringed by open water, and a
+            // skyline behind it would contradict the whole venue.
+            if (!s.NoStands) Skyline(p);
+
+            // Geography, beyond everything else. Last, so the draws it consumes cannot shift any
+            // layout above it.
+            Terrain(p, s);
         }
 
-        // A ring of positions just outside the bowl, evenly spaced with jitter.
+        // Distant land: rolling hills in the middle distance, and low islands instead at the beach.
+        // Generated (see Landform for why they are not Kenney models), collider-free and static.
+        //
+        // AERIAL PERSPECTIVE IS DOING MOST OF THE WORK HERE. Distance in a landscape reads almost
+        // entirely as loss of contrast toward the sky colour, not as size, so the hills are washed 32%
+        // toward the venue's own sky colour. Without that wash they read as solid green cardboard
+        // standing right behind the stands; with too much of it (0.45 was tried) they read as haze
+        // rather than as ground.
+        static void Terrain(Transform p, StadiumStyle s)
+        {
+            Color sky = s.Sky;
+
+            if (s.NoStands)
+            {
+                // Sunset Beach: no inland range. A pitch on an island wants ISLANDS - low, far out,
+                // sitting on the water with no snow on them.
+                var isle = Make.Mat(Blend(new Color(0.30f, 0.34f, 0.28f), sky, 0.62f), 0.05f);
+                for (int i = 0; i < 7; i++)
+                {
+                    float t = i / 7f + 0.031f;
+                    Vector3 pos = RingPoint(t, Range(430f, 640f), 60f);
+                    float h = Range(14f, 46f);
+                    var mesh = Landform.Cone(7, h * Range(3.4f, 5.2f), h, h * 2f,   // snow above the peak = none
+                                             0.34f, new Vector2(Range(-0.3f, 0.3f), Range(-0.3f, 0.3f)),
+                                             (uint)(0x1518E + i * 977));
+                    Landform.Place(p, "Island", pos, mesh, isle, null, Range(0f, 360f));
+                }
+                return;
+            }
+
+            // ---- middle distance: rolling hills, green but hazed toward the sky ----
+            // Haze pulled back from 0.45 to 0.32. At 0.45 against this sky the green washed to a pale
+            // desaturated teal that read as ATMOSPHERE rather than as ground - a flat band behind the
+            // stand rather than land. 0.32 still separates the hills from the pitch without dissolving
+            // them.
+            var hillMat = Make.Mat(Blend(new Color(0.26f, 0.36f, 0.22f), sky, 0.32f), 0.05f);
+            for (int i = 0; i < 26; i++)
+            {
+                float t = i / 26f + 0.023f;
+                Vector3 pos = RingPoint(t, Range(250f, 400f), 55f);
+                float h = Range(26f, 62f);
+                // FOOTPRINT MATTERS MORE THAN HEIGHT at this distance, and the first attempt got it
+                // badly wrong: a radius of 4.2-6.5x height put the widest hill at 403 m across, sitting
+                // 321 m away, so one hill subtended 103 degrees - a third of the horizon. That is why it
+                // read as a flat green wall instead of a hill. 1.8-2.8x brings the widest to 174 m and
+                // about 57 degrees, so several read as separate landforms across the same arc, which is
+                // what makes them look like hills at all. More facets than a peak because a rounded
+                // landform needs them, and they cost one triangle each.
+                var mesh = Landform.Cone(9, h * Range(1.8f, 2.8f), h, h * 2f,
+                                         0.30f, new Vector2(Range(-0.22f, 0.22f), Range(-0.22f, 0.22f)),
+                                         (uint)(0x41115 + i * 631));
+                Landform.Place(p, "Hill", pos, mesh, hillMat, null, Range(0f, 360f));
+            }
+
+            // NO FAR MOUNTAIN RANGE. There was one - 20 snow-capped peaks at 470-760 m of outset - and
+            // it was removed on request. The hills stay, so the horizon still has land on it rather than
+            // going straight from stand to sky.
+            //
+            // Kept rather than deleted: Landform still knows how to cut a snowline, and the sizing
+            // lessons are recorded above on the hills, so restoring a range is a loop, not a rewrite.
+        }
+
+        // Wash a colour toward the sky. This is aerial perspective and it is the only reason distance
+        // reads at all on flat-shaded geometry with no fog.
+        static Color Blend(Color c, Color sky, float amount)
+        {
+            amount = Mathf.Clamp01(amount);
+            return new Color(Mathf.Lerp(c.r, sky.r, amount),
+                             Mathf.Lerp(c.g, sky.g, amount),
+                             Mathf.Lerp(c.b, sky.b, amount), 1f);
+        }
+
+        /// <summary>
+        /// A distant city, on ONE bearing. Eight buildings, one of each model.
+        ///
+        /// REPLACES A RING OF 26, which looked haphazard for three separate reasons, all of them the
+        /// placement rather than the models:
+        ///   1. DEPTH SCATTER. outset was Range(120, 260) with jitter 40, i.e. an effective 80..300 m
+        ///      spread on every bearing. Neighbouring buildings sat 200 m apart in depth, so there was no
+        ///      readable distance to the city at all.
+        ///   2. RANDOM YAW. Each building took i * 29 degrees, so no two shared an orientation. Real
+        ///      cities are built on a grid and read as one because their faces line up; rotating each
+        ///      building individually is the single strongest "randomly scattered" cue there is.
+        ///   3. REPETITION. 26 buildings out of 8 models is three copies of each, which the eye picks up
+        ///      as duplicates precisely because they were scattered rather than grouped.
+        ///
+        /// So: one instance of each model, spread along a narrow arc at a nearly constant distance, all
+        /// sharing a yaw, with the height profile composed by hand (see SkylineHeights).
+        ///
+        /// The bearing is +Z, behind the attacking goal. That is the direction the reel camera looks at
+        /// for most of its lap, and the only end whose stand is low enough (7.95 m back wall, no roof) to
+        /// see a horizon over. It also means three quarters of the lap has a clean empty horizon, which is
+        /// correct: a city is a place you can see in one direction, not a wall around the ground.
+        /// </summary>
+        static void Skyline(Transform p)
+        {
+            var mat = Atlas("colormap_city");
+            if (mat == null) return;        // no city models in this build; the venue is fine without one
+            var paint = new PropKit.Paint[] { new PropKit.Paint("colormap", mat) };
+
+            const float ClusterBearing = 0f;      // +Z, behind the attacking goal
+            const float ClusterSpan    = 0.155f;  // ~56 degrees of arc for the whole district
+            int n = SkylineRow.Length;
+
+            // One shared facing, so the faces line up like a grid instead of pointing every which way.
+            // Angled off the viewing axis rather than square to it, so the buildings show two faces and
+            // read as solid rather than as flats.
+            float districtYaw = 24f;
+
+            for (int i = 0; i < n; i++)
+            {
+                float t = ClusterBearing + ((i / (float)(n - 1)) - 0.5f) * ClusterSpan;
+                // Nearly constant depth: a tight band, with the centre of the district set slightly
+                // further back so the tall middle does not tower over the low edges quite so hard.
+                float depth = 205f + Mathf.Abs((i / (float)(n - 1)) - 0.5f) * -18f + Range(0f, 12f);
+                Vector3 pos = RingPoint(t, depth, 0f);
+                PropKit.Place(SkylineRow[i], pos, SkylineHeights[i], districtYaw + Range(-4f, 4f), p, paint);
+            }
+        }
+
+        /// <summary>
+        /// A ring of positions just outside the bowl, evenly spaced, jittered OUTWARD only.
+        ///
+        /// THIS USED TO WALK AN ELLIPSE, AND THAT WAS THE BUG BEHIND "TREES INSIDE THE STADIUM".
+        /// The bowl is a RECTANGLE - four straight terraces, one per PitchLayout.AllSides - but the old
+        /// version placed props on the ellipse inscribed in the same half-extents:
+        ///
+        ///     rx = BowlHalfX + outset + Range(-jitter, jitter)      // signed jitter, so also inward
+        ///     pos = Center + (sin(ang) * rx, 0, cos(ang) * rz)
+        ///
+        /// An inscribed ellipse touches the rectangle only at the four axis points and dips inside it
+        /// everywhere else, worst at 45 degrees where it cuts in by a factor of 1/sqrt(2). Measured on the
+        /// Town Park ring: 20 of 60 trees stood inside the bowl rectangle and 9 stood inside a terrace
+        /// band outright, at positions like (36.3, 0, 28.2) - which is in the side stand's seating.
+        ///
+        /// Worth being explicit about why this went unnoticed: testing containment with an ELLIPSE test
+        /// reports zero, because the ellipse the props sit on is by construction inside the rectangle but
+        /// outside the inscribed ellipse. The shape of the test has to match the shape of the bowl.
+        ///
+        /// So: project the direction out to the RECTANGLE boundary, and let jitter push outward only.
+        /// A minimum outset now genuinely means minimum clearance from the structure on every bearing.
+        /// </summary>
         static Vector3 RingPoint(float t, float outset, float jitter)
         {
-            // t in 0..1 around an ellipse hugging the bowl.
             float ang = t * Mathf.PI * 2f;
-            float rx = BowlHalfX + outset + Range(-jitter, jitter);
-            float rz = BowlHalfZ + outset + Range(-jitter, jitter);
-            return Center + new Vector3(Mathf.Sin(ang) * rx, 0f, Mathf.Cos(ang) * rz);
+            Vector3 dir = new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang));   // unit
+            float rx = BowlHalfX + outset;
+            float rz = BowlHalfZ + outset;
+            // Distance along dir to the rectangle |x| <= rx, |z| <= rz: whichever axis saturates first.
+            // dir is a unit vector so one of the two components is always well clear of zero.
+            float reach = 1f / Mathf.Max(Mathf.Abs(dir.x) / rx, Mathf.Abs(dir.z) / rz);
+            // Outward-only, along the same bearing, so jitter can never reduce clearance.
+            return Center + dir * (reach + Range(0f, jitter));
         }
 
         // ---- Town Park: leafy trees + a few blocky houses ----
@@ -51,17 +274,68 @@ namespace Trickshot
         {
             var trunk = Make.Mat(new Color(0.35f, 0.24f, 0.14f), 0.1f);
             var leaf  = Make.Mat(new Color(0.18f, 0.42f, 0.18f), 0.05f);
+            // TWO MATERIALS FOR SIXTY TREES, shared deliberately. Every instance rebinds its slots to
+            // these same two, so the lot collapses into the stadium's static batch (StadiumBuilder calls
+            // Combine right after this returns). A material per tree would cost a draw call per tree.
+            //
+            // HEIGHTS AND OUTSETS ARE A SIGHTLINE FIX, not a style tweak. The complaint that trees looked
+            // like they were "inside the stadium" was real but not a layout bug - measured live, ZERO
+            // trees sat inside the bowl footprint. They were breaking the ROOFLINE: the stand's back wall
+            // behind the attacking goal tops out at 7.95 m, the reel camera sits as low as 4.0 m, and that
+            // sightline rises about 0.10 m per metre of depth, so anything over ~8.5 m at the near edge of
+            // the ring showed above the wall from inside the ground.
+            //
+            // The old primitive tree was the culprit twice over. Its h was the TRUNK height with a canopy
+            // sphere stacked on top, so h = 6 actually stood 10.2 m tall (measured: 10.1). PropKit's
+            // height is TOTAL height, so the same sort of number is now honest, and the ring starts a
+            // little further out as well. Max 8 m at a near edge of z = 40 stays under the 8.8 m ceiling
+            // there, and the side sightline is slacker still (~9.1 m), so nothing crests the wall.
             for (int i = 0; i < 60; i++)
             {
-                Vector3 pos = RingPoint(i / 60f, Range(3f, 16f), 4f);
-                Tree(p, pos, trunk, leaf, Range(3f, 6f));
+                Vector3 pos = RingPoint(i / 60f, Range(6f, 18f), 4f);
+                float h = Range(4.5f, 8f);
+                // Yaw by index for the same determinism reason as the model choice. 37 degrees a step
+                // walks all the way round without a short repeat.
+                string model = ParkTrees[(i * 3 + i / ParkTrees.Length) % ParkTrees.Length];
+                if (PropKit.PlaceTree(model, pos, h, i * 37f, p, leaf, trunk) == null)
+                {
+                    // No model in this build: fall back to the primitive. Its argument is TRUNK height and
+                    // it builds ~1.7x that overall, so divide to land on the same total height.
+                    Tree(p, pos, trunk, leaf, h / 1.7f);
+                }
             }
-            var wall = Make.Mat(new Color(0.80f, 0.76f, 0.68f), 0.1f);
-            var roof = Make.Mat(new Color(0.5f, 0.22f, 0.18f), 0.1f);
+            // Real houses instead of a box with a flatter box on top. Suburban kit, so its own atlas.
+            var wall  = Make.Mat(new Color(0.80f, 0.76f, 0.68f), 0.1f);
+            var roof  = Make.Mat(new Color(0.5f, 0.22f, 0.18f), 0.1f);
+            var brick = Atlas("colormap_suburb");
             for (int i = 0; i < 14; i++)
             {
                 Vector3 pos = RingPoint(i / 14f + 0.03f, Range(20f, 34f), 6f);
-                House(p, pos, wall, roof);
+                float h = Range(6f, 9f);
+                // Face the pitch, so a row of houses reads as a street backing onto the ground rather
+                // than as boxes at arbitrary angles.
+                Vector3 toC = Center - pos; toC.y = 0f;
+                float faceYaw = Mathf.Atan2(toC.x, toC.z) * Mathf.Rad2Deg;
+                string model = Houses[(i * 3 + i / Houses.Length) % Houses.Length];
+                if (brick == null || PropKit.Place(model, pos, h, faceYaw, p,
+                        new PropKit.Paint[] { new PropKit.Paint("colormap", brick) }) == null)
+                    House(p, pos, wall, roof);
+            }
+
+            // A handful of cars parked up outside, which is most of what makes a small ground look used.
+            var paint = Atlas("colormap_car");
+            if (paint != null)
+            {
+                for (int i = 0; i < 9; i++)
+                {
+                    Vector3 pos = RingPoint(i / 9f + 0.07f, Range(17f, 20f), 2f);
+                    Vector3 toC = Center - pos; toC.y = 0f;
+                    // Parked broadside to the pitch, i.e. along the kerb, not nose-on.
+                    float yaw = Mathf.Atan2(toC.x, toC.z) * Mathf.Rad2Deg + 90f;
+                    string model = Cars[(i * 3 + i / Cars.Length) % Cars.Length];
+                    PropKit.Place(model, pos, 1.5f, yaw, p,
+                                  new PropKit.Paint[] { new PropKit.Paint("colormap", paint) });
+                }
             }
         }
 
@@ -125,11 +399,20 @@ namespace Trickshot
             var trunk = Make.Mat(new Color(0.45f, 0.32f, 0.18f), 0.1f);
             var frond = Make.Mat(new Color(0.20f, 0.50f, 0.24f), 0.05f);
 
-            // Palms dotted around the sand.
+            // Palms dotted around the sand, now real models. This venue has NoStands, so there is no
+            // roofline to break and nothing to hide behind - the palms are the silhouette of the whole
+            // place, which is why they stay tall here (5-9 m) where the park trees were capped.
             for (int i = 0; i < 34; i++)
             {
                 Vector3 pos = RingPoint(i / 34f, Range(4f, 20f), 6f);
-                Palm(p, pos, trunk, frond, Range(5f, 9f));
+                float h = Range(5f, 9f);
+                string model = BeachPalms[(i * 3 + i / BeachPalms.Length) % BeachPalms.Length];
+                if (PropKit.PlaceTree(model, pos, h, i * 53f, p, frond, trunk) == null)
+                {
+                    // The primitive palm's argument IS its trunk height and the fronds sit at the top, so
+                    // it needs no correction factor the way the park tree does.
+                    Palm(p, pos, trunk, frond, h);
+                }
             }
 
             // Beach chairs + umbrellas: the "seating", an inner ring facing the pitch.

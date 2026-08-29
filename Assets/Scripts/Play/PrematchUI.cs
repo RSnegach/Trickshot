@@ -41,6 +41,13 @@ namespace Trickshot
         static float _wallDistance = 9.15f;
         static float _wallOffset = 0f;
 
+        // Free-kick PLACEMENT: picked on the same map + RANDOM SPOTS control the multiplayer host
+        // uses (SetPieceMap.DrawSetupPanel), which replaces the old distance/wall-offset sliders.
+        static bool    _fkInit;
+        static Vector3 _fkBall, _fkWall;
+        static int     _fkEdit;      // 0 = ball, 1 = wall
+        static bool    _fkRandom;    // fresh legal spot every attempt
+
         // Freeplay delivery
         static SimConfig.Delivery _delivery = SimConfig.Delivery.AutoCross;
         static Vector3 _aimTarget = SimConfig.ServeTarget;   // where an aimed cross lands
@@ -76,6 +83,7 @@ namespace Trickshot
             else
             {
                 n += 1; // striker speed
+                n += 1; // keeper ability (every mode in this branch can carry an AI keeper)
                 if (_mode == GameMode.Freeplay)
                 {
                     n += 1; // delivery picker
@@ -83,9 +91,11 @@ namespace Trickshot
                     if (_delivery == SimConfig.Delivery.AimSpot) n += 3;    // aim map (~154px)
                 }
                 else if (_mode == GameMode.TimeTrial) n += 2;   // cross interval + round time
-                // Accuracy: time + targets + distance + keeper + wall count (+2 wall rows when a wall is up)
-                else if (_mode == GameMode.Accuracy)  n += _wallCount >= 1f ? 7 : 5;
-                else if (_mode == GameMode.FreeKick)  n += _penaltyMode ? 1 : 5; // toggle (+4 wall rows)
+                // Accuracy: time + targets + wall count. The spot and the wall are PLACED on the
+                // map panel now, so the distance/wall-distance/wall-offset rows are gone.
+                else if (_mode == GameMode.Accuracy)  n += 3;
+                // Free kick: penalty toggle (+ wall players; spot + wall are placed on the map panel)
+                else if (_mode == GameMode.FreeKick)  n += _penaltyMode ? 1 : 2;
             }
             return n;
         }
@@ -105,7 +115,8 @@ namespace Trickshot
             float panelH = HeadH + RowCount() * RowH + FootH;
             float x = MenuScale.Width * 0.5f - PanelW * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
-            GUI.Box(new Rect(x, y, PanelW, panelH), GUIContent.none);
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.40f, PanelW + 520f);
+            UITheme.Panel(new Rect(x, y, PanelW, panelH), UITheme.Blue);
 
             // Attribute card to the LEFT of the settings panel (custom-player modes only;
             // keeper mode uses a fixed keeper, so no card).
@@ -114,11 +125,15 @@ namespace Trickshot
             // Title on ONE line: the old rect (PanelW - 200) was too narrow for the longer mode
             // names ("SETPIECES - SETUP" wrapped and clipped), so give it the full width left of
             // the Reset All button and stop it wrapping.
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white }, wordWrap = false, clipping = TextClipping.Overflow };
-            GUI.Label(new Rect(x + 30f, y + 14f, PanelW - 160f, 44f), _mode.ToString().ToUpper() + " - SETUP", title);
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink }, wordWrap = false, clipping = TextClipping.Overflow };
+            UITheme.Shadowed(new Rect(x + 30f, y + 14f, PanelW - 160f, 44f),
+                             _mode.ToString().ToUpper() + " - SETUP", title, UITheme.Ink, 0.75f, 2f);
+            // Short gold stub under the wordmark, then a hairline closing the header band.
+            UITheme.Fill(new Rect(x + 30f, y + 52f, 54f, 2.5f), UITheme.Gold);
+            UITheme.Divider(x + 30f, y + HeadH - 12f, PanelW - 60f);
 
             var smallBtn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            if (GUI.Button(new Rect(x + PanelW - 130f, y + 20f, 110f, 30f), "Reset All", smallBtn))
+            if (UITheme.Button(new Rect(x + PanelW - 130f, y + 20f, 110f, 30f), "Reset All", smallBtn))
                 ResetAll();
 
             float row = y + HeadH;
@@ -140,7 +155,7 @@ namespace Trickshot
             if (_mode == GameMode.Striker)
             {
                 _crossInterval = Slider(lx, ref row, lw, "Cross interval", _crossInterval, 0.4f, 2f, 1f);
-                _keeperAbility = Slider(lx, ref row, lw, "Keeper ability", _keeperAbility, 0f,   1f, 0.5f);
+                _keeperAbility = KeeperPicker(lx, ref row, lw, "Keeper", _keeperAbility);
                 _strikerSpeed  = Slider(lx, ref row, lw, "Striker speed",  _strikerSpeed,  0.5f, 1.8f, 1f);
             }
             else if (_mode == GameMode.Goalkeeper)
@@ -152,6 +167,10 @@ namespace Trickshot
             else
             {
                 _strikerSpeed = Slider(lx, ref row, lw, "Striker speed", _strikerSpeed, 0.5f, 1.8f, 1f);
+                // Every mode down here can carry an AI keeper, so this picker is shared: free kicks,
+                // the accuracy gallery, freeplay and the time trial all read it (None = no keeper is
+                // built at all, an open goal).
+                _keeperAbility = KeeperPicker(lx, ref row, lw, "Keeper", _keeperAbility);
 
                 if (_mode == GameMode.Freeplay)
                 {
@@ -171,31 +190,35 @@ namespace Trickshot
                     _timeTrialSeconds = RawSlider(lx, ref row, lw, "Round time", _timeTrialSeconds, 30f, 180f, "0", "s");
                 else if (_mode == GameMode.Accuracy)
                 {
-                    // Accuracy is a free-kick shooting gallery, so it carries the free-kick
-                    // furniture too: distance to the spot, an optional wall (0 players = none)
-                    // and an optional keeper (ability 0 = open goal, pure target practice).
+                    // Accuracy is a free-kick shooting gallery, so it carries the free-kick furniture
+                    // too - but the spot and the wall are PLACED on the map panel to the right, the
+                    // same control the multiplayer host uses, so only the wall SIZE is a number here.
+                    // The old distance / wall distance / wall offset sliders described the same three
+                    // degrees of freedom the map already covers, and described them blindly: you
+                    // dialled numbers and found out where the kick actually was once the match built.
                     _accuracySeconds = RawSlider(lx, ref row, lw, "Round time", _accuracySeconds, 30f, 180f, "0", "s");
                     _accuracyTargets = RawSlider(lx, ref row, lw, "Targets up", _accuracyTargets, 1f, 8f, "0", "");
-                    _freeKickDistance = RawSlider(lx, ref row, lw, "Free kick distance", _freeKickDistance, 11f, 35f, "0", "m");
-                    _keeperAbility = Slider(lx, ref row, lw, "Keeper ability (0 = no keeper)", _keeperAbility, 0f, 1f, 0.5f);
                     _wallCount    = RawSlider(lx, ref row, lw, "Wall players (0 = no wall)", _wallCount, 0f, 6f, "0", "");
-                    if (_wallCount >= 1f)
-                    {
-                        _wallDistance = RawSlider(lx, ref row, lw, "Wall distance", _wallDistance, 5f, 12f, "0.0", "m");
-                        _wallOffset   = RawSlider(lx, ref row, lw, "Wall offset", _wallOffset, -6f, 6f, "0.0", "m");
-                    }
                 }
                 else if (_mode == GameMode.FreeKick)
                 {
+                    // The spot and the wall are PLACED on the map panel (right of this one) instead of
+                    // being dialed in with distance/offset sliders. Only the wall size is a number.
                     _penaltyMode = Toggle(lx, ref row, lw, "Penalty mode (spot, no wall)", _penaltyMode);
                     if (!_penaltyMode)
-                    {
-                        _freeKickDistance = RawSlider(lx, ref row, lw, "Free kick distance", _freeKickDistance, 11f, 35f, "0", "m");
-                        _wallCount    = RawSlider(lx, ref row, lw, "Wall players", _wallCount, 0f, 6f, "0", "");
-                        _wallDistance = RawSlider(lx, ref row, lw, "Wall distance", _wallDistance, 5f, 12f, "0.0", "m");
-                        _wallOffset   = RawSlider(lx, ref row, lw, "Wall offset", _wallOffset, -6f, 6f, "0.0", "m");
-                    }
+                        _wallCount = RawSlider(lx, ref row, lw, "Wall players", _wallCount, 0f, 6f, "0", "");
                 }
+            }
+
+            // Both dead-ball modes get the same placement panel the multiplayer host uses, drawn on
+            // the right (the stat card owns the left). A penalty is a fixed spot with no wall, so
+            // there is nothing to place for one.
+            if (PlacesSetPiece())
+            {
+                if (!_fkInit) { SetPieceMap.DefaultPlacement(out _fkBall, out _fkWall); _fkInit = true; }
+                SetPieceMap.DrawSetupPanel(x + PanelW + 16f, y, 300f, 300f,
+                                           ref _fkBall, ref _fkWall, ref _fkEdit, ref _fkRandom,
+                                           "Random spot each attempt.");
             }
 
             DrawNav(x, y, panelH);
@@ -205,13 +228,11 @@ namespace Trickshot
         void DrawStatCard(float x, float y)
         {
             float w = 280f, h = 430f;
-            var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.9f);
-            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-            GUI.color = new Color(0.16f, 0.55f, 0.95f, 0.9f); GUI.DrawTexture(new Rect(x, y, w, 3f), Texture2D.whiteTexture);
-            GUI.color = prev;
+            UITheme.Panel(new Rect(x, y, w, h), UITheme.Blue);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.86f, 0.32f) } };
-            GUI.Label(new Rect(x + 14f, y + 8f, w - 28f, 22f), (PlayerProfile.PlayerName ?? "PLAYER").ToUpper(), title);
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
+            UITheme.Shadowed(new Rect(x + 14f, y + 8f, w - 28f, 22f),
+                             (PlayerProfile.PlayerName ?? "PLAYER").ToUpper(), title, UITheme.Gold, 0.7f, 1.5f);
 
             StatRadar.Draw(new Rect(x + 10f, y + 30f, w - 20f, 200f));
             StatRadar.DrawList(x + 24f, y + 240f, w - 48f);
@@ -223,64 +244,84 @@ namespace Trickshot
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
             float by = MenuScale.Height - 72f;    // sit a little lower, closer to the screen bottom
             float bw = 170f, edge = 24f;
-            if (GUI.Button(new Rect(edge, by, bw, 48f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
-            if (GUI.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 48f), "Start", btn)) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
+            if (UITheme.Button(new Rect(edge, by, bw, 48f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
+
+            // Start is the primary action, so it carries a standing green tint (tints MULTIPLY
+            // the plate, which is why GoodTint's components exceed 1).
+            var keep = GUI.backgroundColor;
+            GUI.backgroundColor = UITheme.GoodTint;
+            bool start = UITheme.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 48f), "Start", btn);
+            GUI.backgroundColor = keep;
+            if (start) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
         }
 
         // Scrimmage pickers: team size (per side) and the human's role.
         void ScrimmagePickers(float lx, ref float row, float lw)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
-
-            GUI.Label(new Rect(lx, row, lw, 20f), "Team size:", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), "Team size:", RowLabel());
             int[] sizes = { 3, 5, 11 };
             string[] sizeNames = { "3 v 3", "5 v 5", "11 v 11" };
             float bw = (lw - 8f * (sizes.Length - 1)) / sizes.Length;
             for (int i = 0; i < sizes.Length; i++)
             {
                 bool sel = _scrimPerSide == sizes[i];
-                var b = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (bw + 8f), row + 22f, bw, 28f), sizeNames[i], b)) _scrimPerSide = sizes[i];
+                if (UITheme.Toggle(new Rect(lx + i * (bw + 8f), row + 22f, bw, 28f), sizeNames[i], sel, PickStyle(sel)))
+                    _scrimPerSide = sizes[i];
             }
-            row += RowH;
+            EndRow(lx, ref row, lw);
 
-            GUI.Label(new Rect(lx, row, lw, 20f), "You play as:", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), "You play as:", RowLabel());
             string[] roleNames = { "Outfielder", "Goalkeeper" };
             var roles = new[] { SimConfig.ScrimRole.Outfield, SimConfig.ScrimRole.Keeper };
             float rbw = (lw - 8f) * 0.5f;
             for (int i = 0; i < roles.Length; i++)
             {
                 bool sel = _scrimRole == roles[i];
-                var b = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (rbw + 8f), row + 22f, rbw, 28f), roleNames[i], b)) _scrimRole = roles[i];
+                if (UITheme.Toggle(new Rect(lx + i * (rbw + 8f), row + 22f, rbw, 28f), roleNames[i], sel, PickStyle(sel)))
+                    _scrimRole = roles[i];
             }
-            row += RowH;
+            EndRow(lx, ref row, lw);
 
-            GUI.Label(new Rect(lx, row, lw, 20f), "Match length:", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), "Match length:", RowLabel());
             float[] mins = { 2f, 3f, 5f, 10f };
             string[] minNames = { "2 min", "3 min", "5 min", "10 min" };
             float mbw = (lw - 8f * (mins.Length - 1)) / mins.Length;
             for (int i = 0; i < mins.Length; i++)
             {
                 bool sel = Mathf.Approximately(_scrimMatchMin, mins[i]);
-                var b = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (mbw + 8f), row + 22f, mbw, 28f), minNames[i], b)) _scrimMatchMin = mins[i];
+                if (UITheme.Toggle(new Rect(lx + i * (mbw + 8f), row + 22f, mbw, 28f), minNames[i], sel, PickStyle(sel)))
+                    _scrimMatchMin = mins[i];
             }
-            row += RowH;
+            EndRow(lx, ref row, lw);
         }
+
+        // Which modes place their own dead ball. Accuracy joined Free Kick here so both dead-ball
+        // modes are set up through the identical map instead of one map and one set of sliders.
+        bool PlacesSetPiece() => _mode == GameMode.Accuracy
+                             || (_mode == GameMode.FreeKick && !_penaltyMode);
 
         // Map the sliders onto SimConfig values.
         void Apply()
         {
-            // Scrimmage only uses its two pickers.
+            // Scrimmage only uses its own pickers - but it must still WRITE the shared dead-ball
+            // statics, not skip them. GoalWidth/GoalHeight/BallSpeedMul are mutable statics that only
+            // the set-piece and accuracy paths ever assign, so returning here left whatever the last
+            // mode set: play a 1.5x-goal set piece, back out, start a scrimmage, and the scrimmage runs
+            // with a 10.98 m goal. That is not cosmetic - SimConfig.GoalWidth is read by the goal
+            // detection in BallController, by the keeper's own positioning (Goalkeeper.cs:158 and :243)
+            // and by the AI's aim (Footballer.cs:309), so a stale value mis-sizes all three at once and
+            // is a plausible contributor to "most shots go in".
+            //
+            // Scrimmage has no goal-size picker and is not getting one, so these are canonical
+            // regulation values written to close a leak rather than new settings.
             if (_mode == GameMode.Scrimmage)
             {
                 SimConfig.ScrimmagePerSide = _scrimPerSide;
                 SimConfig.ScrimmageRole = _scrimRole;
                 SimConfig.ScrimmageMatchSeconds = _scrimMatchMin * 60f;
+                SimConfig.GoalWidth  = BaseGoalWidth;
+                SimConfig.GoalHeight = BaseGoalHeight;
+                SimConfig.BallSpeedMul = 1f;
                 return;
             }
 
@@ -309,8 +350,8 @@ namespace Trickshot
                     SimConfig.FreeplayDelivery = _delivery;
                     SimConfig.FreeplayAimTarget = _aimTarget;
                 }
-                // Accuracy is a free-kick gallery: its keeper slider drives the AI keeper (0 = none).
-                if (_mode == GameMode.Accuracy) SimConfig.KeeperAbility = _keeperAbility;
+                // One keeper slider covers all of these modes (0 = no keeper is built at all).
+                SimConfig.KeeperAbility    = _keeperAbility;
                 SimConfig.TimeTrialSeconds = _timeTrialSeconds;
                 SimConfig.AccuracySeconds  = _accuracySeconds;
                 SimConfig.AccuracyTargetCount = Mathf.RoundToInt(_accuracyTargets);
@@ -319,24 +360,93 @@ namespace Trickshot
                 SimConfig.WallCount        = Mathf.RoundToInt(_wallCount);
                 SimConfig.WallDistance     = _wallDistance;
                 SimConfig.WallLateralOffset = _wallOffset;
-                if (_mode == GameMode.FreeKick && SimConfig.KeeperAbility < 0.01f)
-                    SimConfig.KeeperAbility = 0.7f;
+
+                // Publish the placed free kick. Both dead-ball modes place one now; a penalty is
+                // always the fixed 11 m spot, so it opts out.
+                bool placed = PlacesSetPiece();
+                if (placed && !_fkInit) { SetPieceMap.DefaultPlacement(out _fkBall, out _fkWall); _fkInit = true; }
+                SimConfig.SetPiecePlaced      = placed;
+                SimConfig.SetPieceBallSpot    = _fkBall;
+                SimConfig.SetPieceWallCenter  = _fkWall;
+                SimConfig.SetPieceRandomSpots = placed && _fkRandom;
             }
+        }
+
+        // ---- shared row furniture ----
+        // Reused rather than built per call so every row lines up and reads as one table.
+        static GUIStyle _rowLbl, _rowVal;
+        static GUIStyle RowLabel()
+        {
+            _rowLbl ??= new GUIStyle(GUI.skin.label) { fontSize = 15 };
+            _rowLbl.normal.textColor = UITheme.Ink;
+            return _rowLbl;
+        }
+        static GUIStyle RowValue()
+        {
+            _rowVal ??= new GUIStyle(GUI.skin.label)
+            { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
+            _rowVal.normal.textColor = UITheme.Gold;
+            return _rowVal;
+        }
+        // Selected choice buttons carry the tint; the label goes gold to match.
+        static GUIStyle PickStyle(bool sel)
+        {
+            var s = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+            if (sel) s.normal.textColor = UITheme.Gold;
+            return s;
+        }
+        // Hairline between rows, so a long settings list reads as a table instead of a wall.
+        static void EndRow(float lx, ref float row, float lw)
+        {
+            UITheme.Divider(lx, row + RowH - 5f, lw);
+            row += RowH;
+        }
+
+        // Keeper strength as five named steps instead of a bare 0..1 slider. "0.35x" told the player
+        // nothing about what they were about to face, and None is not a slider end-stop but a
+        // different mode: at 0 no goalkeeper is built at all (see GameBootstrap), so the goal is
+        // open. The values are the same 0..1 SimConfig.KeeperAbility the slider fed, so nothing
+        // downstream changes. Snapped to the nearest step on entry, so a value left over from the
+        // old slider (or from a future retune of these steps) still lands on a named button.
+        static readonly string[] KeeperNames = { "None", "Easy", "Normal", "Hard", "Insane" };
+        static readonly float[]  KeeperVals  = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+
+        float KeeperPicker(float lx, ref float row, float lw, string label, float val)
+        {
+            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
+            int cur = 0;
+            float best = float.MaxValue;
+            for (int i = 0; i < KeeperVals.Length; i++)
+            {
+                float d = Mathf.Abs(KeeperVals[i] - val);
+                if (d < best) { best = d; cur = i; }
+            }
+            float bw = (lw - 6f * (KeeperNames.Length - 1)) / KeeperNames.Length;
+            for (int i = 0; i < KeeperNames.Length; i++)
+            {
+                bool sel = i == cur;
+                var s = PickStyle(sel); s.fontSize = 13;
+                if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), KeeperNames[i], sel, s))
+                    cur = i;
+            }
+            EndRow(lx, ref row, lw);
+            return KeeperVals[cur];
         }
 
         // Multiplier slider (min..max, shown as "x") with a per-row reset to its default.
         float Slider(float lx, ref float row, float lw, string label, float val,
                      float min, float max, float def)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
             var smallBtn = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-
-            GUI.Label(new Rect(lx, row, lw, 20f), $"{label}:  {val:0.00}x", st);
             float resetW = 52f, gap = 10f, sliderW = lw - resetW - gap;
+
+            // Name on the left, value right-aligned over the track: the pair reads as a spec sheet.
+            GUI.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
+            GUI.Label(new Rect(lx, row, sliderW, 20f), $"{val:0.00}x", RowValue());
             val = GUI.HorizontalSlider(new Rect(lx, row + 24f, sliderW, 20f), val, min, max);
-            if (GUI.Button(new Rect(lx + sliderW + gap, row + 20f, resetW, 24f), "reset", smallBtn))
+            if (UITheme.Button(new Rect(lx + sliderW + gap, row + 20f, resetW, 24f), "reset", smallBtn))
                 val = def;
-            row += RowH;
+            EndRow(lx, ref row, lw);
             return val;
         }
 
@@ -344,11 +454,11 @@ namespace Trickshot
         float RawSlider(float lx, ref float row, float lw, string label, float val,
                         float min, float max, string fmt, string unit)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
             string u = string.IsNullOrEmpty(unit) ? "" : " " + unit;
-            GUI.Label(new Rect(lx, row, lw, 20f), $"{label}:  {val.ToString(fmt)}{u}", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
+            GUI.Label(new Rect(lx, row, lw, 20f), val.ToString(fmt) + u, RowValue());
             val = GUI.HorizontalSlider(new Rect(lx, row + 24f, lw, 20f), val, min, max);
-            row += RowH;
+            EndRow(lx, ref row, lw);
             return val;
         }
 
@@ -363,26 +473,23 @@ namespace Trickshot
 
         void DeliveryPicker(float lx, ref float row, float lw)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(lx, row, lw, 20f), "Ball delivery:", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), "Ball delivery:", RowLabel());
             float bw = (lw - 4f * (Deliveries.Length - 1)) / Deliveries.Length;
             for (int i = 0; i < Deliveries.Length; i++)
             {
                 bool sel = _delivery == Deliveries[i];
-                var s = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) s.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (bw + 4f), row + 22f, bw, 26f), DeliveryNames[i], s))
+                var s = PickStyle(sel); s.fontSize = 12;
+                if (UITheme.Toggle(new Rect(lx + i * (bw + 4f), row + 22f, bw, 26f), DeliveryNames[i], sel, s))
                     _delivery = Deliveries[i];
             }
-            row += RowH;
+            EndRow(lx, ref row, lw);
         }
 
         // Clickable top-down map of the penalty box; click to place where the aimed cross
         // lands. X spans the goal width; the vertical axis spans out from the goal line.
         void AimMap(float lx, ref float row, float lw)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = new Color(0.85f, 0.85f, 0.88f) } };
-            GUI.Label(new Rect(lx, row, lw, 18f), "Click to place where the cross lands:", st);
+            UITheme.Hint(new Rect(lx, row, lw, 18f), "Click to place where the cross lands:", TextAnchor.MiddleLeft);
             row += 22f;
 
             float mapW = lw, mapH = 120f;
@@ -391,11 +498,16 @@ namespace Trickshot
             float halfShown = SimConfig.GoalWidth * 0.5f + 3f;
             float depthShown = 18f;
 
-            GUI.Box(mapRect, GUIContent.none);
-            var grass = new GUIStyle(GUI.skin.box); // just use box; draw markers as small boxes
+            // Turf-coloured plate in the chosen venue's shade, darkened so markings read over it.
+            Color turf = StadiumStyle.Active != null ? StadiumStyle.Active.Grass : new Color(0.15f, 0.35f, 0.18f);
+            UITheme.Chip(mapRect, new Color(turf.r * 0.45f, turf.g * 0.45f, turf.b * 0.45f, 0.96f));
+            // Six-yard hint band and the centre line, faint, purely for orientation.
+            UITheme.Fill(new Rect(mapRect.center.x - mapW * 0.22f, mapRect.y + 1f, mapW * 0.44f, 1f), new Color(1f, 1f, 1f, 0.12f));
+            UITheme.Fill(new Rect(mapRect.center.x, mapRect.y + 8f, 1f, mapH - 10f), new Color(1f, 1f, 1f, 0.10f));
+
             // Goal (thin bar along the top edge).
             float goalPxHalf = (SimConfig.GoalWidth * 0.5f / halfShown) * (mapW * 0.5f);
-            GUI.Box(new Rect(mapRect.center.x - goalPxHalf, mapRect.y + 2f, goalPxHalf * 2f, 6f), GUIContent.none);
+            UITheme.Fill(new Rect(mapRect.center.x - goalPxHalf, mapRect.y + 2f, goalPxHalf * 2f, 6f), new Color(1f, 1f, 1f, 0.85f));
 
             // Handle a click inside the map -> world aim target.
             Event e = Event.current;
@@ -412,18 +524,22 @@ namespace Trickshot
             // Draw the current marker.
             float mfx = Mathf.InverseLerp(-halfShown, halfShown, _aimTarget.x);
             float mfy = Mathf.InverseLerp(0f, depthShown, SimConfig.GoalCenter.z - _aimTarget.z);
-            var prev = GUI.color; GUI.color = new Color(1f, 0.85f, 0.2f);
-            GUI.Box(new Rect(mapRect.x + mfx * mapW - 5f, mapRect.y + mfy * mapH - 5f, 10f, 10f), GUIContent.none);
-            GUI.color = prev;
+            float mx = mapRect.x + mfx * mapW, my = mapRect.y + mfy * mapH;
+            UITheme.Glow(new Rect(mx - 16f, my - 16f, 32f, 32f), new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, 0.55f));
+            UITheme.Fill(new Rect(mx - 7f, my - 1f, 14f, 2f), UITheme.Gold);
+            UITheme.Fill(new Rect(mx - 1f, my - 7f, 2f, 14f), UITheme.Gold);
 
             row += mapH + 12f;
         }
 
         bool Toggle(float lx, ref float row, float lw, string label, bool val)
         {
-            var st = new GUIStyle(GUI.skin.toggle) { fontSize = 15, normal = { textColor = Color.white }, onNormal = { textColor = Color.white } };
+            var st = new GUIStyle(GUI.skin.toggle) { fontSize = 15 };
+            st.normal.textColor = UITheme.Ink;
+            st.onNormal.textColor = st.onHover.textColor =
+                st.onActive.textColor = st.onFocused.textColor = UITheme.Gold;
             val = GUI.Toggle(new Rect(lx, row + 6f, lw, 26f), val, "  " + label, st);
-            row += RowH;
+            EndRow(lx, ref row, lw);
             return val;
         }
 
@@ -435,6 +551,7 @@ namespace Trickshot
             _timeTrialSeconds = 60f; _accuracySeconds = 90f; _accuracyTargets = 4f;
             _penaltyMode = false; _freeKickDistance = 20f;
             _wallCount = 4f; _wallDistance = 9.15f; _wallOffset = 0f;
+            _fkInit = false; _fkEdit = 0; _fkRandom = false;
             _delivery = SimConfig.Delivery.AutoCross; _aimTarget = SimConfig.ServeTarget;
         }
     }

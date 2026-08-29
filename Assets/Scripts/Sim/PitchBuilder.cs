@@ -48,7 +48,6 @@ namespace Trickshot
         {
             var pitchRoot = Make.Empty("FullPitch", Vector3.zero, root).transform;
 
-            var grass = Make.Mat(StadiumStyle.Active.Grass, 0.05f);
             var line  = Make.Unlit(new Color(0.95f, 0.95f, 0.95f, 1f));
 
             float attackLineZ = PitchLayout.AttackGoalLineZ;
@@ -62,6 +61,9 @@ namespace Trickshot
             float standDepth  = PitchLayout.StandFrontGap + PitchLayout.StandRows * PitchLayout.RowDepth;
             float groundHalfX = halfW + standDepth + GroundMargin;
             float groundHalfZ = PitchLayout.PitchLength * 0.5f + standDepth + GroundMargin;
+            // Mown turf, tiled to the slab. Turf keeps the tile counts integral; a fractional
+            // count wraps mid-band and paints a hard mow line straight across the pitch.
+            var grass = Turf.Ground(groundHalfX * 2f, groundHalfZ * 2f);
             var ground = Make.Box("Ground",
                 new Vector3(groundHalfX * 2f, 1f, groundHalfZ * 2f),
                 new Vector3(0f, -0.5f, centerZ), grass, pitchRoot);
@@ -90,6 +92,11 @@ namespace Trickshot
 
             // Far goal: cylindrical frame + visual net, mirror of the attacking goal.
             BuildFarGoal(pitchRoot, farLineZ);
+
+            // Every box above is static and shares one of two materials, so merge the lot into a
+            // handful of draws. The markings alone are a few thousand primitives (circles, arcs,
+            // net strings); unbatched they cost more per frame than the entire crowd does.
+            StaticBatchingUtility.Combine(pitchRoot.gameObject);
         }
 
         // ---- Straight markings ----
@@ -205,13 +212,13 @@ namespace Trickshot
             // Same layout as Arena's goal, but depth extends toward -Z (away from the
             // pitch) so the mouth faces the pitch centre. Uprights axis 1 (Y), crossbar
             // axis 0 (X), depth rails axis 2 (Z). Posts keep their capsule colliders.
-            Make.Cylinder("PostL", postR, gh, c + new Vector3(-gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("PostR", postR, gh, c + new Vector3( gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("Bar", postR, gw + postR * 2f, c + new Vector3(0f, gh, 0f), 0, frameMat, goalRoot, woodwork);
-            Make.Cylinder("BackPostL", postR, gh, c + new Vector3(-gw * 0.5f, gh * 0.5f, -gd), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("BackPostR", postR, gh, c + new Vector3( gw * 0.5f, gh * 0.5f, -gd), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("RailL", postR * 0.7f, gd, c + new Vector3(-gw * 0.5f, gh, -gd * 0.5f), 2, frameMat, goalRoot, woodwork);
-            Make.Cylinder("RailR", postR * 0.7f, gd, c + new Vector3( gw * 0.5f, gh, -gd * 0.5f), 2, frameMat, goalRoot, woodwork);
+            Make.Cylinder("PostL", postR, gh, c + new Vector3(-gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("PostR", postR, gh, c + new Vector3( gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("Bar", postR, gw + postR * 2f, c + new Vector3(0f, gh, 0f), 0, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("BackPostL", postR, gh, c + new Vector3(-gw * 0.5f, gh * 0.5f, -gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("BackPostR", postR, gh, c + new Vector3( gw * 0.5f, gh * 0.5f, -gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("RailL", postR * 0.7f, gd, c + new Vector3(-gw * 0.5f, gh, -gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("RailR", postR * 0.7f, gd, c + new Vector3( gw * 0.5f, gh, -gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
 
             // Visual net: static string grid wrapping back + sides + top. No colliders.
             var netMat = Make.Unlit(new Color(0.92f, 0.92f, 0.98f, 1f));

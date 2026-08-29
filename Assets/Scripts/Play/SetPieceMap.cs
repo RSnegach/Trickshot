@@ -91,7 +91,9 @@ namespace Trickshot
             bool moved = false;
             Event e = Event.current;
             bool hovering = rect.Contains(e.mousePosition);
-            if (hovering && e.type == EventType.MouseDown && e.button == 0)
+            // GUI.enabled is honoured by hand: the clicks below are raw Event.current, so a caller
+            // that greys the panel out (random spots on) would otherwise still be placeable.
+            if (hovering && GUI.enabled && e.type == EventType.MouseDown && e.button == 0)
             {
                 Vector3 p = MapToWorld(rect, e.mousePosition);
                 if (editing == 1) wallPos = p;
@@ -129,6 +131,72 @@ namespace Trickshot
             float boxFrontZ = SimConfig.GoalCenter.z - SimConfig.PenaltyBoxDepth;
             if (p.z > boxFrontZ) p.z = boxFrontZ;   // higher z = nearer goal = inside the box
             return p;
+        }
+
+        // Default placement: centred just outside the box at the pre-match free-kick distance, with a
+        // regulation wall between it and the goal. Both setup screens start from here.
+        public static void DefaultPlacement(out Vector3 ballSpot, out Vector3 wallPos)
+        {
+            ballSpot = ClampOutsideBox(new Vector3(0f, 0f, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance));
+            Vector3 toGoal = SimConfig.GoalCenter - ballSpot; toGoal.y = 0f;
+            wallPos = ballSpot + toGoal.normalized * SimConfig.WallDistance;
+        }
+
+        // A fresh legal free-kick spot: anywhere across the width (kept off the touchlines) between
+        // the front edge of the penalty box and the third line. Deterministic for a given
+        // System.Random, so the host can seed it and every peer generates the same schedule.
+        public static Vector3 RandomSpot(System.Random rng)
+        {
+            float boxFrontZ = SimConfig.GoalCenter.z - SimConfig.PenaltyBoxDepth;
+            float thirdBackZ = SimConfig.GoalCenter.z - PitchLayout.PitchLength / 3f;
+            float halfX = Mathf.Min(PitchLayout.HalfWidth - 2f, 24f);
+            float x = (float)(rng.NextDouble() * 2.0 - 1.0) * halfX;
+            float z = Mathf.Lerp(boxFrontZ, thirdBackZ, (float)rng.NextDouble());
+            return new Vector3(x, SimConfig.BallRadius, z);
+        }
+
+        // ---- shared FREE KICK SETUP panel ----
+        // The whole set-piece placement panel, used by BOTH setup screens (the multiplayer host's and
+        // single player's): a RANDOM SPOTS toggle, a Ball/Wall selector, the map, and a hint line, in
+        // one box `w` wide and `h + 108` tall at (px, py). Living here means multiplayer and single
+        // player place a free kick with the identical control. The ref args are the caller's
+        // placement state; `randomTip` is the line shown while random spots are on.
+        public static void DrawSetupPanel(float px, float py, float w, float h,
+                                          ref Vector3 ballSpot, ref Vector3 wallPos,
+                                          ref int editing, ref bool random, string randomTip)
+        {
+            UITheme.Panel(new Rect(px, py, w, h + 108f), UITheme.Gold);
+            UITheme.Title(new Rect(px, py + 8f, w, 26f), "FREE KICK SETUP", 18);
+
+            // RANDOM toggle (shuffle icon, like the skill-tree RANDOMIZE button). When on the spot is
+            // generated instead of placed, so manual placement is disabled.
+            var randRect = new Rect(px + 16f, py + 36f, w - 32f, 30f);
+            UITheme.Chip(randRect, random ? new Color(0.20f, 0.15f, 0.32f, 0.98f)
+                                          : new Color(0.12f, 0.13f, 0.18f, 0.96f));
+            var prev = GUI.color; GUI.color = UITheme.Gold; DrawRectOutline(randRect, 1.5f); GUI.color = prev;
+            var shuf = SkillIcons.Get("_shuffle");
+            if (shuf != null) GUI.DrawTexture(new Rect(randRect.x + 8f, randRect.y + 5f, 20f, 20f), shuf, ScaleMode.ScaleToFit, true);
+            var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = random ? UITheme.Gold : UITheme.Ink } };
+            GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), random ? "RANDOM SPOTS: ON" : "RANDOM SPOTS: OFF", randSt);
+            if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) random = !random;
+
+            // Ball / Wall edit selector (disabled while Random is on - spots are auto-generated).
+            var sel = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
+            sel.normal.textColor = UITheme.Dim;
+            var selOn = new GUIStyle(sel); selOn.normal.textColor = UITheme.Gold;
+            GUI.enabled = !random;
+            // Themed toggles (tinted plate + gold underline), so the bullet prefix is redundant.
+            if (UITheme.Toggle(new Rect(px + 16f, py + 72f, (w - 40f) * 0.5f, 28f), "Ball", editing == 0, editing == 0 ? selOn : sel)) editing = 0;
+            if (UITheme.Toggle(new Rect(px + 24f + (w - 40f) * 0.5f, py + 72f, (w - 40f) * 0.5f, 28f), "Wall", editing == 1, editing == 1 ? selOn : sel)) editing = 1;
+
+            var mapRect = new Rect(px + 16f, py + 108f, w - 32f, h - 74f);
+            Draw(mapRect, ref ballSpot, ref wallPos, editing);
+            GUI.enabled = true;
+
+            var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
+            GUI.Label(new Rect(px, py + h + 78f, w, 20f), random
+                ? randomTip
+                : "Click the map to place the " + (editing == 1 ? "wall" : "ball") + ".", tip);
         }
 
         // world <-> map: x across the width (touchline to touchline), z from the goal line (map top)

@@ -108,13 +108,25 @@ namespace Trickshot
         float Rand01() { _rng = _rng * 1664525u + 1013904223u; return (_rng >> 8) * (1f / 16777216f); }
         float RandSym() => Rand01() * 2f - 1f;
 
-        public void Build(Transform head, in HairDef def, Material mat)
+        /// <param name="head">
+        /// The transform the hair is anchored to. Its ORIGIN is taken as the head sphere's centre in
+        /// four separate places (mesh-local space, the collision centre, the outward direction in
+        /// WriteVerts, and root placement), so an anchor may be ROTATED relative to the head bone but
+        /// must never be TRANSLATED off it. A horse mane uses that: a rotation-only child tilts the
+        /// whole style back along the neck crest without moving the sphere it is combed over.
+        /// </param>
+        /// <param name="headRadius">
+        /// VISIBLE head radius in metres, already scaled. Pass 0 to derive it from the human nominal
+        /// radius times the body's girth, which is what every human body wants. A horse skull is 0.15
+        /// where a human's is 0.19, so leaving it derived would float every root 0.05 m off the head.
+        /// </param>
+        public void Build(Transform head, in HairDef def, Material mat, float headRadius = 0f)
         {
             _head = head;
             // Root + collide against the VISIBLE head radius (HeadRBase * girth), so hair sits on
             // the scalp at any body size instead of being swallowed by a scaled-up head.
             var rag = head != null ? head.GetComponentInParent<ActiveRagdoll>() : null;
-            HeadR = HeadRBase * (rag != null ? rag.GirthScale : 1f);
+            HeadR = headRadius > 0f ? headRadius : HeadRBase * (rag != null ? rag.GirthScale : 1f);
             _strandCount = Mathf.Max(1, def.strands);
             _perStrand = Mathf.Max(2, def.nodes);
             _fan = Mathf.Max(1, def.fan);

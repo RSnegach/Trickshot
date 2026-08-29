@@ -37,6 +37,13 @@ namespace Trickshot.Net
         public event Action<PeerId, byte[]> MessageReceived;
 #pragma warning restore 0067
 
+        /// <summary>
+        /// Satisfies INetTransport. Steam does not need a probe responder: the lobby IS the
+        /// advertisement, so the eventual wiring pushes these fields into SteamMatchmaking.SetLobbyData
+        /// on the host and reads them back with GetLobbyData in ListLobbies. Stored, unread for now.
+        /// </summary>
+        public Func<LobbyAdvert> AdvertProvider { get; set; }
+
         public static bool Available =>
 #if TRICKSHOT_STEAM
             true;

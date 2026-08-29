@@ -43,14 +43,14 @@ namespace Trickshot
             var woodwork = Make.PhysMat("Post", 0.75f, 0.3f, 0.3f);
 
             // Cylindrical uprights (along Y) and crossbar (along X) for round bounces.
-            Make.Cylinder("PostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("PostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("Bar", postR, gw + postR * 2f, SimConfig.GoalCenter + new Vector3(0f, gh, 0f), 0, frameMat, goalRoot, woodwork);
+            Make.Cylinder("PostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("PostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("Bar", postR, gw + postR * 2f, SimConfig.GoalCenter + new Vector3(0f, gh, 0f), 0, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
             // Back frame (visual depth), also cylindrical.
-            Make.Cylinder("BackPostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("BackPostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork);
-            Make.Cylinder("RailL", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork);
-            Make.Cylinder("RailR", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork);
+            Make.Cylinder("BackPostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("BackPostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("RailL", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("RailR", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
 
             // (Goal-line marking is drawn by PitchBuilder as part of the full pitch.)
 

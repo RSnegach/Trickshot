@@ -8,7 +8,8 @@ namespace Trickshot
     /// The crosser self-loops and serves forever, the ball lives freely, and the
     /// player controls only the striker (same control scheme as striker mode). A
     /// running goals tally is kept purely for feedback and "GOAL!" flashes on each
-    /// one, but nothing gates the next serve and there is no keeper, no MISS/SAVE.
+    /// one, but nothing gates the next serve and there are no MISS/SAVE callouts. An AI
+    /// keeper stands in goal whenever the pre-match keeper ability is above 0.
     ///
     /// Press R to recenter the striker. V toggles the ball cam.
     ///
@@ -24,6 +25,7 @@ namespace Trickshot
         BallController _ball;
         Striker _striker;
         ActiveRagdoll _strikerRagdoll;
+        Goalkeeper _keeper;        // null when pre-match keeper ability is 0 (open goal)
         GameCamera _cam;
         Transform _launchPoint;
 
@@ -38,7 +40,8 @@ namespace Trickshot
         float _goalLineZ;
 
         public void Configure(GameInput input, Crosser crosser, AimReticle reticle, BallController ball,
-                              Striker striker, ActiveRagdoll strikerRagdoll, GameCamera cam, Transform launchPoint)
+                              Striker striker, ActiveRagdoll strikerRagdoll, Goalkeeper keeper,
+                              GameCamera cam, Transform launchPoint)
         {
             _input = input;
             _crosser = crosser;
@@ -46,6 +49,7 @@ namespace Trickshot
             _ball = ball;
             _striker = striker;
             _strikerRagdoll = strikerRagdoll;
+            _keeper = keeper;
             _cam = cam;
             _launchPoint = launchPoint;
             _goalLineZ = SimConfig.GoalCenter.z;
@@ -53,7 +57,7 @@ namespace Trickshot
             // Camera follows the pelvis and is driven by mouse movement.
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
-            _striker.SetCameraYaw(() => _cam.Yaw);
+            _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
             _cam.SetMode(GameCamera.Mode.Follow);
 
             // Crosser paths have no live ball until the first serve; ball-at-feet has one
@@ -97,6 +101,12 @@ namespace Trickshot
                     _crosser.OriginOverride = null;
                     break;
             }
+            // Plant the body and arm the drift backstop. PlantAt, not SetOrigin, because the corner
+            // deliveries above own OriginOverride and SetOrigin would overwrite it with the crosser's
+            // own feet. After the switch, so the facing reads the delivery's final TargetOverride.
+            // Without a plant home the contact hop walked him off the wing ~0.6 m a serve and freeplay
+            // has no cross map to put him back with.
+            _crosser.PlantAt(SimConfig.CrosserStart);
             _crosser.Arm(SimConfig.ServeFirstDelay);
         }
 
@@ -116,6 +126,7 @@ namespace Trickshot
             if (_input.BallCamPressed) _cam.ToggleBallCam();
 
             _striker.Tick();
+            if (_keeper != null) _keeper.Tick();   // AI keeper goaltends (ability 0 = no keeper built)
 
             if (_delivery == SimConfig.Delivery.BallAtFeet)
             {
@@ -205,6 +216,7 @@ namespace Trickshot
         {
             _striker.ForceRecover();
             _strikerRagdoll.ResetTo(SimConfig.StrikerStart, Quaternion.identity);
+            if (_keeper != null) _keeper.ResetTo(SimConfig.KeeperStart);
             _cam.SetMode(GameCamera.Mode.Follow);
             _refeedTimer = 0f;
             _resolved = true;
@@ -226,6 +238,7 @@ namespace Trickshot
 
             Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
+            Hud.End();
         }
 
         static string DeliveryLabel(SimConfig.Delivery d)

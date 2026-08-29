@@ -34,6 +34,28 @@ namespace Trickshot.Net
         JerseyChunk = 15,   // client<->host: one chunk of a slot's painted-jersey PNG (too big to inline)
         BallKick = 16,      // host -> clients: the ball was struck at a world position (3D kick SFX)
         QuickChat = 17,     // client -> host request, then host -> clients relay: a quickchat message
+        PostHit = 18,       // host -> clients: the ball hit the woodwork at a world position + speed
+        MatchStats = 19,    // host -> clients, once at full time: the post-match per-player table
+    }
+
+    /// <summary>
+    /// One player's post-match line, as it crosses the wire. Every counter is a BYTE, and the host
+    /// clamps each one to that range BEFORE it computes the rating, so the number a client draws and
+    /// the rating beside it were derived from the same values - rating off the raw count and displaying
+    /// a wrapped byte would have had the two disagree.
+    ///
+    /// No NAME is sent. A human row carries its slot and the client resolves the roster name it already
+    /// has; an AI row (slot 255) is named from its team and shirt, which both peers derive identically.
+    /// Strings on a per-player table would be the biggest thing in the message and buy nothing.
+    /// </summary>
+    public struct StatRow
+    {
+        public byte slot;      // 255 = AI, no roster entry
+        public byte team;      // 0 = Home, 1 = Away
+        public byte shirt;     // 0 = keeper, 1.. = outfield
+        public byte flags;     // 1 = keeper, 2 = was net-controlled, 4 = man of the match
+        public byte goals, assists, shots, passes, passesDone, tackles, saves;
+        public byte rat10;     // rating x 10, so 60..100 fits a byte
     }
 
     // One chunk of a slot's painted-jersey PNG. Jerseys are far too big for the roster row (which
@@ -101,6 +123,20 @@ namespace Trickshot.Net
 
     public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2, Crosser = 3 }
 
+    /// <summary>
+    /// Why the host gave a joiner no slot. Rides along on AssignSlot so the joining client can say
+    /// what actually happened instead of guessing. Before this, all three refusals rendered as
+    /// "no free slot", which is a lie in two of the three cases and sends the player off to hunt
+    /// for imaginary lobby space.
+    /// </summary>
+    public enum JoinRefusal : byte
+    {
+        None = 0,           // a slot was granted
+        NoSlot = 1,         // lobby full, or the host's player cap is reached
+        MatchRunning = 2,   // the host is mid-match; join the next lobby
+        Version = 3,        // the two builds do not speak the same protocol
+    }
+
     // One player's per-tick intent, sampled from GameInput and sent to the host.
     public struct InputFrame
     {
@@ -109,12 +145,14 @@ namespace Trickshot.Net
         public float lookYaw;     // desired facing yaw (camera yaw)
         public float lookPitch;   // camera pitch (deg): set-piece vertical aim comes from this
         public bool jump, legL, legR, sprint, passGround, passLofted, tackle, reset;
+        public bool closeControl;   // dribble close-control modifier (second bit byte)
+        public bool passChip;       // chip pass button (second bit byte, bit 2)
         public byte emoteId;      // 255 = none; else Celebration.Emote to start this tick
     }
 
     // Animation state a body is in, synced so clients play the matching canned local animation on
     // the interpolated puppet (instead of a rigid stance). Discrete state, not streamed poses.
-    public enum AnimState : byte { Idle = 0, Run = 1, Jump = 2, Dive = 3, Down = 4, Kick = 5 }
+    public enum AnimState : byte { Idle = 0, Run = 1, Jump = 2, Dive = 3, Down = 4, Kick = 5, Sit = 6 }
 
     // One body's state in a snapshot (host -> clients). Compact: pos + yaw + flags.
     public struct BodyState
@@ -135,6 +173,11 @@ namespace Trickshot.Net
         public uint tick;
         public Vector3 ballPos;
         public Vector3 ballVel;
+        // Is the ball inside a shot's goal-assist window? Replicated because no ballistic solve can
+        // predict a steered ball (ApplyGoalAssist runs up to AssistMaxAccel for AssistDuration), so the
+        // scrimmage landing telegraph has to HIDE for it rather than point somewhere wrong. Written
+        // LAST on the wire, not here - see Snap.
+        public bool guided;
         public byte homeScore, awayScore;
         public ushort clockSec;   // match seconds remaining (scrimmage); 0 in modes with no clock
         public BodyState[] bodies;
@@ -187,6 +230,12 @@ namespace Trickshot.Net
         public Vector3 V3() => new Vector3(_br.ReadSingle(), _br.ReadSingle(), _br.ReadSingle());
         public Vector2 V2() => new Vector2(_br.ReadSingle(), _br.ReadSingle());
         public byte[] Bytes() { int n = (int)_br.ReadUInt32(); return n > 0 ? _br.ReadBytes(n) : System.Array.Empty<byte>(); }
+        /// <summary>
+        /// Is there at least one unread byte left? Lets a handler read a field that an older build
+        /// did not send without throwing, which is what makes a version mismatch reportable instead
+        /// of just being a malformed packet the session quietly discards.
+        /// </summary>
+        public bool More => _br.BaseStream.Position < _br.BaseStream.Length;
         public Color Col() { float r = _br.ReadByte() / 255f, g = _br.ReadByte() / 255f, b = _br.ReadByte() / 255f; return new Color(r, g, b, 1f); }
     }
 
@@ -204,6 +253,10 @@ namespace Trickshot.Net
             w.B(a.Adult);   // appended so the field order stays consistent both ways
             // Third Leg size multipliers (only meaningful when Adult). Appended after Adult.
             w.F(a.MemberLen); w.F(a.MemberGirth); w.F(a.BallSize);
+            // Species, appended LAST. The three style indices and their colours above are
+            // reinterpreted against this species (a horse's HairStyle is its mane), so a peer must
+            // read the species before it can make sense of them. See PlayerAppearance.
+            w.U8(a.SpeciesId);
         }
         public static PlayerAppearance ReadAppearance(NetReader r)
         {
@@ -214,19 +267,37 @@ namespace Trickshot.Net
             a.Accessory = r.U8();   a.AccessoryColor = r.Col();
             a.Adult = r.B();
             a.MemberLen = r.F(); a.MemberGirth = r.F(); a.BallSize = r.F();
+            a.SpeciesId = r.U8();
             return a;
         }
 
         // Hello now carries the joining player's name AND appearance so the host can store it
         // per slot and broadcast it on the roster (remote players show each other's look).
+        /// <summary>
+        /// Bumped whenever anything on the wire changes shape: a new field, a reordered struct, a
+        /// different meaning for an existing byte. Three separately downloaded platform builds make
+        /// "one player still has yesterday's copy" the single likeliest reason two people cannot
+        /// play, and a mismatch with no check is not a clean failure - it is a client reading a
+        /// struct at the wrong offsets, so bodies teleport and the ball is somewhere else. The host
+        /// compares this at Hello and refuses with JoinRefusal.Version instead.
+        /// </summary>
+        public const byte ProtocolVersion = 3;   // 3: AnimState.Sit
+
         public static byte[] Hello(string name, PlayerAppearance appearance)
         {
-            var w = new NetWriter(MsgType.Hello); w.Str(name); WriteAppearance(w, appearance); return w.ToArray();
+            var w = new NetWriter(MsgType.Hello); w.Str(name); WriteAppearance(w, appearance);
+            // LAST, not first: appending means a Hello from a build that predates the field still
+            // parses up to this point, so the host can identify the mismatch (absent = version 0)
+            // rather than failing to read the message at all.
+            w.U8(ProtocolVersion);
+            return w.ToArray();
         }
 
-        public static byte[] AssignSlot(byte slot, NetRole role)
+        public static byte[] AssignSlot(byte slot, NetRole role, JoinRefusal why = JoinRefusal.None)
         {
-            var w = new NetWriter(MsgType.AssignSlot); w.U8(slot); w.U8((byte)role); return w.ToArray();
+            var w = new NetWriter(MsgType.AssignSlot); w.U8(slot); w.U8((byte)role);
+            w.U8((byte)why);   // trailing, for the same reason as Hello's version byte
+            return w.ToArray();
         }
 
         public static byte[] Input(in InputFrame f)
@@ -239,6 +310,13 @@ namespace Trickshot.Net
             if (f.reset) bits |= 128;
             w.U8(bits);
             w.U8(f.emoteId);   // 255 = none
+            // Second bit byte, TRAILING. The first eight are full, and putting new bits after
+            // emoteId keeps the leading layout byte-for-byte identical, so ReadInput can treat
+            // it as optional (see More) instead of mis-parsing an older frame.
+            byte bits2 = 0;
+            if (f.closeControl) bits2 |= 1;
+            if (f.passChip) bits2 |= 2;
+            w.U8(bits2);
             return w.ToArray();
         }
 
@@ -250,6 +328,9 @@ namespace Trickshot.Net
             f.passGround = (bits & 16) != 0; f.passLofted = (bits & 32) != 0; f.tackle = (bits & 64) != 0;
             f.reset = (bits & 128) != 0;
             f.emoteId = r.U8();
+            byte bits2 = r.More ? r.U8() : (byte)0;
+            f.closeControl = (bits2 & 1) != 0;
+            f.passChip = (bits2 & 2) != 0;
             return f;
         }
 
@@ -262,6 +343,14 @@ namespace Trickshot.Net
             w.U8((byte)(s.bodies?.Length ?? 0));
             if (s.bodies != null)
                 foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); w.U32(b.lastInputTick); }
+            // TRAILING, after the body loop, so it costs no protocol break. It belongs to the BALL and
+            // is declared beside ballVel in the struct for readability - wire order and field order do
+            // not have to agree, and here they deliberately do not. Putting it beside ballVel ON THE
+            // WIRE would shift every byte from the scores onward and force a ProtocolVersion bump for
+            // one bit. It also cannot go inside the body loop: those records are fixed-stride with no
+            // per-record length, so r.More is TRUE mid-loop and a guard there would silently mis-parse
+            // every remaining body instead of defaulting.
+            w.B(s.guided);
             return w.ToArray();
         }
 
@@ -272,7 +361,44 @@ namespace Trickshot.Net
             s.bodies = new BodyState[n];
             for (int i = 0; i < n; i++)
                 s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8(), anim = r.U8(), lastInputTick = r.U32() };
+            // Trailing (see Snap). A sender without it reads as not guided, which is the permissive
+            // direction: the landing telegraph draws. That is correct for an older peer, which has no
+            // assist window it could be lying about.
+            s.guided = r.More && r.B();
             return s;
+        }
+
+        // The post-match table. Sent RELIABLE, exactly once, on the host's full-time edge. 12 bytes a
+        // row plus a count, so 22 players is 265 bytes - a one-shot cost, not a per-frame one.
+        public static byte[] MatchStats(StatRow[] rows)
+        {
+            var w = new NetWriter(MsgType.MatchStats);
+            int n = rows != null ? Mathf.Min(rows.Length, 255) : 0;
+            w.U8((byte)n);
+            for (int i = 0; i < n; i++)
+            {
+                var r = rows[i];
+                w.U8(r.slot); w.U8(r.team); w.U8(r.shirt); w.U8(r.flags);
+                w.U8(r.goals); w.U8(r.assists); w.U8(r.shots);
+                w.U8(r.passes); w.U8(r.passesDone); w.U8(r.tackles); w.U8(r.saves);
+                w.U8(r.rat10);
+            }
+            return w.ToArray();
+        }
+
+        public static StatRow[] ReadMatchStats(NetReader r)
+        {
+            int n = r.U8();
+            var rows = new StatRow[n];
+            for (int i = 0; i < n; i++)
+                rows[i] = new StatRow
+                {
+                    slot = r.U8(), team = r.U8(), shirt = r.U8(), flags = r.U8(),
+                    goals = r.U8(), assists = r.U8(), shots = r.U8(),
+                    passes = r.U8(), passesDone = r.U8(), tackles = r.U8(), saves = r.U8(),
+                    rat10 = r.U8(),
+                };
+            return rows;
         }
 
         public static byte[] Event(string tag) { var w = new NetWriter(MsgType.MatchEvent); w.Str(tag); return w.ToArray(); }
@@ -280,6 +406,10 @@ namespace Trickshot.Net
         // Ball-kick position (host -> clients) for the 3D kick SFX. Unreliable: a dropped one just
         // means one missed thud, cheaper than reliable for a frequent transient.
         public static byte[] BallKick(Vector3 pos) { var w = new NetWriter(MsgType.BallKick); w.V3(pos); return w.ToArray(); }
+
+        // Woodwork hit (host -> clients). Same deal, plus the impact speed so the clang is mixed and
+        // pitched identically on every peer instead of each one guessing.
+        public static byte[] PostHit(Vector3 pos, float speed) { var w = new NetWriter(MsgType.PostHit); w.V3(pos); w.F(speed); return w.ToArray(); }
 
         // Quickchat. Same wire both directions (client->host request, host->clients relay). slot =
         // sender's player slot (host stamps the authoritative value on relay). presetId 255 = use
@@ -332,7 +462,13 @@ namespace Trickshot.Net
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
         // Client -> host: updated appearance after re-customizing in the lobby.
-        public static byte[] Loadout(PlayerAppearance a) { var w = new NetWriter(MsgType.UpdateLoadout); WriteAppearance(w, a); return w.ToArray(); }
+        // Appearance plus the sender's PASSING build as a node mask (SkillTree.PackPassing). The mask
+        // is a genuine TRAILING append - Loadout wrote nothing after the appearance - so a peer that
+        // does not send it still parses, and the reader defaults it. It must NOT go inside
+        // PlayerAppearance: Hello writes the appearance and then ProtocolVersion AFTER it, so growing
+        // the appearance moves the version byte and breaks the version gate in both directions.
+        public static byte[] Loadout(PlayerAppearance a, byte passMask)
+        { var w = new NetWriter(MsgType.UpdateLoadout); WriteAppearance(w, a); w.U8(passMask); return w.ToArray(); }
         // One jersey PNG chunk (client<->host). Field order must match ReadJerseyChunk.
         public static byte[] JerseyChunk(byte slot, uint index, uint total, uint totalBytes, byte[] chunk)
         {

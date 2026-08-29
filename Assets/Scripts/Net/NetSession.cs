@@ -57,6 +57,11 @@ namespace Trickshot.Net
         // Host-side per-slot appearance (from each player's Hello). Copied into the roster rows
         // and broadcast so every client can build remote bodies with the right look.
         readonly PlayerAppearance[] _slotAppearance = new PlayerAppearance[MaxSlots];
+        // Each slot's PASSING build as a node mask (SkillTree.PackPassing). 0 = uninvested, which is
+        // also what a slot reads before its owner's loadout lands and after they leave. The host
+        // evaluates a remote player's pass off this instead of substituting a neutral constant, so
+        // "passes behave according to stats" is true for a client and not just for whoever is hosting.
+        readonly byte[] _slotPassMask = new byte[MaxSlots];
         // Per-slot painted-jersey PNG (too big for the roster row, so it rides a chunked side
         // channel keyed by slot). Null = that slot has no custom jersey (falls back to team kit).
         // The decoded Texture2D is cached lazily in _slotJerseyTex on first JerseyForSlot() use.
@@ -84,6 +89,8 @@ namespace Trickshot.Net
         public event Action<string> MatchEvent;
         // Raised on clients when the host reports the ball was struck at a world position (3D SFX).
         public event Action<Vector3> BallKicked;
+        // Raised on clients when the host reports the ball hit the woodwork: (position, impact speed).
+        public event Action<Vector3, float> PostHit;
         // Raised on every peer (host + clients) when a quickchat is delivered: (slot, presetId, custom).
         // presetId 255 => use the custom string; else it's an index into QuickChat.Phrases.
         public event Action<int, int, string> QuickChatReceived;
@@ -124,6 +131,11 @@ namespace Trickshot.Net
             for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; }
             _maxPlayers = Mathf.Clamp(maxPlayers, 1, MaxSlots);   // enforced in GrantSlot
             Transport.StartHost(_maxPlayers);
+            // Answer discovery probes with the LIVE lobby. A delegate rather than a snapshot, so the
+            // occupancy a browser sees is the occupancy at the moment it asked. Note the config
+            // arrives later, via SetConfig, and MatchConfig.publicLobby defaults to false - so
+            // between here and there the host correctly advertises nothing.
+            Transport.AdvertProvider = BuildAdvert;
             // The host takes a slot immediately. Default: host is a shooter (slot 1) so the
             // keeper (slot 0) can be a joining human or AI; a striker-only host with no
             // joiners still works (AI keeper + host shooter).
@@ -164,7 +176,11 @@ namespace Trickshot.Net
                 if (LocalSlot >= 0 && LocalSlot < MaxSlots) _slotAppearance[LocalSlot] = PlayerProfile.Appearance;
                 PushRoster();
             }
-            else Transport.Send(Transport.HostPeer, NetCodec.Loadout(PlayerProfile.Appearance), NetChannel.Reliable);
+            else Transport.Send(Transport.HostPeer,
+                                NetCodec.Loadout(PlayerProfile.Appearance, SkillTree.PackPassing()),
+                                NetChannel.Reliable);
+            if (IsHost && LocalSlot >= 0 && LocalSlot < MaxSlots)
+                _slotPassMask[LocalSlot] = SkillTree.PackPassing();
             PushLocalJersey();
         }
 
@@ -297,6 +313,79 @@ namespace Trickshot.Net
             int n = 0; for (int i = 0; i < MaxSlots; i++) if (_slotOwner[i].IsValid) n++; return n;
         }
 
+        // ---- discovery advertisement ----
+
+        /// <summary>Humans holding a slot right now, the host included.</summary>
+        public int PlayerCount => HumanCount();
+
+        /// <summary>The player cap the host chose in Host(maxPlayers).</summary>
+        public int MaxPlayers => _maxPlayers;
+
+        /// <summary>
+        /// True while an arriving human would actually be given a player slot. Deliberately mirrors
+        /// GrantSlot rather than approximating it, because the cap is not the only limit: the MODE
+        /// also decides which slots exist (SlotAllowed gates the crosser), so a lobby can be full
+        /// while sitting under its cap.
+        /// </summary>
+        public bool HasFreeSlot
+        {
+            get
+            {
+                if (!IsHost || MatchStarted) return false;
+                if (HumanCount() >= _maxPlayers) return false;
+                for (int s = 0; s < MaxSlots; s++)
+                    if (!_slotOwner[s].IsValid && SlotAllowed(s)) return true;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// The host's display name as a browser should show it. Reads the host's CURRENT slot, not
+        /// slot 1, because the host can move to another role in the lobby.
+        /// </summary>
+        public string HostName
+        {
+            get
+            {
+                if (LocalSlot >= 0 && LocalSlot < MaxSlots && !string.IsNullOrEmpty(_slotName[LocalSlot]))
+                    return _slotName[LocalSlot];
+                return PlayerProfile.PlayerName;
+            }
+        }
+
+        /// <summary>Short mode line for a browser row. Scrimmage carries its team size, since that
+        /// is what tells a joiner how big the game is.</summary>
+        public string ModeLabel()
+        {
+            var mode = (GameMode)Config.mode;
+            switch (mode)
+            {
+                case GameMode.Scrimmage:
+                    int n = Mathf.Max(1, (int)Config.perSide);
+                    return "Scrimmage " + n + "v" + n;
+                case GameMode.SetPieces: return "Set Pieces";
+                default: return mode.ToString();
+            }
+        }
+
+        /// <summary>
+        /// How this session answers "is there a game here?". Installed on the transport by Host() and
+        /// invoked once per probe, so it always reports the live lobby instead of a stale snapshot.
+        ///
+        /// `visible` is the whole gate, and it is deliberately strict: public AND joinable. A full or
+        /// already-started lobby drops off the list rather than appearing as an unjoinable row,
+        /// because a row you can click but never enter is worse than no row at all - the refusal
+        /// only surfaces after a connect attempt, which reads as the game being broken.
+        /// </summary>
+        LobbyAdvert BuildAdvert() => new LobbyAdvert
+        {
+            visible = IsHost && Config.publicLobby && HasFreeSlot,
+            name = HostName,
+            mode = ModeLabel(),
+            players = HumanCount(),
+            maxPlayers = _maxPlayers,
+        };
+
         void TryEndReplay()
         {
             if (IsHost && _skipVotes.Count >= HumanCount()) EndReplayHost();
@@ -330,6 +419,12 @@ namespace Trickshot.Net
         public void BroadcastBallKick(Vector3 pos)
         {
             if (IsHost) Transport.SendToAll(NetCodec.BallKick(pos), NetChannel.Unreliable);
+        }
+
+        // Host: same for the woodwork clang. The speed rides along so the clients' mix matches.
+        public void BroadcastPostHit(Vector3 pos, float speed)
+        {
+            if (IsHost) Transport.SendToAll(NetCodec.PostHit(pos, speed), NetChannel.Unreliable);
         }
 
         public void BroadcastEvent(string tag)
@@ -396,6 +491,26 @@ namespace Trickshot.Net
 
         // Host: push the set-pieces shootout tally to everyone (reliable), and update the
         // host's own LatestShootout + fire the event locally so its HUD reads the same value.
+        // ---- post-match stats ----
+        /// <summary>The received post-match table, or the host's own copy of what it sent.</summary>
+        public StatRow[] LatestMatchStats { get; private set; }
+        public bool HasMatchStats { get; private set; }
+
+        /// <summary>
+        /// Forget the table. Needed because NetSession OUTLIVES a match - it is created once and only
+        /// dropped on Leave - so without this a second match in the same session opens still holding the
+        /// previous one's board. Same shape as ClearSnapshotBuffer, and for the same reason.
+        /// </summary>
+        public void ClearMatchStats() { LatestMatchStats = null; HasMatchStats = false; }
+
+        /// <summary>Host: publish the final table, once, and keep a local copy so the host draws the
+        /// same board from the same data a client does.</summary>
+        public void BroadcastMatchStats(StatRow[] rows)
+        {
+            LatestMatchStats = rows; HasMatchStats = rows != null;
+            if (IsHost) Transport.SendToAll(NetCodec.MatchStats(rows), NetChannel.Reliable);
+        }
+
         public void BroadcastShootout(in ShootoutState s)
         {
             if (!IsHost) return;
@@ -529,13 +644,41 @@ namespace Trickshot.Net
             switch (r.Type)
             {
                 case MsgType.Hello:      // host: a client announced itself -> give it a slot
-                    if (IsHost) { string hn = r.Str(); var ha = NetCodec.ReadAppearance(r); GrantSlot(from, hn, ha); }
+                    if (IsHost)
+                    {
+                        string hn = r.Str();
+                        var ha = NetCodec.ReadAppearance(r);
+                        // Tolerant read: a build older than the version byte sends nothing here, and
+                        // 0 is not a valid version, so it is refused with a version message rather
+                        // than throwing out of RouteMessage and being silently dropped.
+                        byte hv = r.More ? r.U8() : (byte)0;
+                        GrantSlot(from, hn, ha, hv);
+                    }
                     break;
                 case MsgType.ReadyToggle: // host: a client set its ready state
                     if (IsHost) { int s = SlotOf(from); if (s >= 0) { _slotReady[s] = r.B(); PushRoster(); } }
                     break;
                 case MsgType.UpdateLoadout: // host: a client re-customized -> update its slot appearance
-                    if (IsHost) { var la = NetCodec.ReadAppearance(r); int s = SlotOf(from); if (s >= 0) { _slotAppearance[s] = la; PushRoster(); } }
+                    if (IsHost)
+                    {
+                        var la = NetCodec.ReadAppearance(r);
+                        // Trailing passing mask. Guarded because it IS the compatibility mechanism here,
+                        // not hygiene: this handler is reachable by a peer whose join was refused for
+                        // VERSION (GrantSlot answers a refusal with AssignSlot, and the client pushes
+                        // its loadout from that handler), so the grown message really does cross the
+                        // version boundary and an older sender must still parse.
+                        byte mask = r.More ? r.U8() : (byte)0;
+                        int s = SlotOf(from);
+                        if (s >= 0)
+                        {
+                            _slotAppearance[s] = la;
+                            // Reject an UNREACHABLE claim outright rather than trimming it: a mask with
+                            // a broken prerequisite chain could not have been bought, so it is a
+                            // modified client and gets the uninvested floor, not its best-effort build.
+                            _slotPassMask[s] = SkillTree.TryUnpackPassing(mask, out _) ? mask : (byte)0;
+                            PushRoster();
+                        }
+                    }
                     break;
                 case MsgType.JerseyChunk: // a jersey PNG chunk (client->host, or host->clients broadcast)
                     OnJerseyChunk(from, NetCodec.ReadJerseyChunk(r));
@@ -579,9 +722,29 @@ namespace Trickshot.Net
                     }
                     break;
                 case MsgType.AssignSlot:  // client: the host told us our slot
-                    AssignLocal(r.U8(), (NetRole)r.U8());
+                    // The reason byte is read tolerantly for the same reason Hello's version is:
+                    // an older host does not send it, and a missing reason must not throw.
+                    {
+                        byte aSlot = r.U8();
+                        var aRole = (NetRole)r.U8();
+                        AssignLocal(aSlot, aRole, r.More ? (JoinRefusal)r.U8() : JoinRefusal.None);
+                    }
                     // Now that we know our slot, send our painted jersey up to the host (chunked).
                     PushLocalJersey();
+                    // ...and our loadout, which nothing else sends at join: UpdateLoadout only ever
+                    // fired from the customize screens, so a player who joined and pressed Ready
+                    // delivered no stats at all and passed as uninvested for the whole match.
+                    // NOT gated on having a slot, deliberately - a spectator that later claims one has
+                    // to have already delivered its numbers, because Hello carries none. It IS gated on
+                    // the refusal reason: a version-refused peer must not send a message whose trailing
+                    // field the other build may not know how to read.
+                    if (!IsHost && RefusedBecause != JoinRefusal.Version)
+                        Transport.Send(Transport.HostPeer,
+                                       NetCodec.Loadout(PlayerProfile.Appearance, SkillTree.PackPassing()),
+                                       NetChannel.Reliable);
+                    break;
+                case MsgType.MatchStats:  // client: the post-match table, once at full time
+                    if (!IsHost) { LatestMatchStats = NetCodec.ReadMatchStats(r); HasMatchStats = LatestMatchStats != null; }
                     break;
                 case MsgType.Snapshot:    // client: newest state to interpolate toward
                 {
@@ -600,6 +763,9 @@ namespace Trickshot.Net
                     break;
                 case MsgType.BallKick:    // client: the ball was struck at a world position
                     BallKicked?.Invoke(r.V3());
+                    break;
+                case MsgType.PostHit:     // client: the ball hit the woodwork
+                    PostHit?.Invoke(r.V3(), r.F());
                     break;
                 case MsgType.QuickChat:
                 {
@@ -676,6 +842,7 @@ namespace Trickshot.Net
         static bool IsHostOnly(MsgType t)
             => t == MsgType.AssignSlot || t == MsgType.RosterSync || t == MsgType.StartMatch
                || t == MsgType.Snapshot || t == MsgType.MatchEvent || t == MsgType.BallKick
+               || t == MsgType.PostHit
                || t == MsgType.ReplayStart || t == MsgType.ReplayEnd || t == MsgType.ShootoutState;
 
         void OnConnectedToHost()
@@ -700,14 +867,30 @@ namespace Trickshot.Net
                 ResetSlotInput(slot);
             }
             _peerIdentity.Remove(p.Value);
+            // Drop their build with them, or the next occupant of that slot inherits it.
+            { int ls = SlotOf(p); if (ls >= 0 && ls < MaxSlots) _slotPassMask[ls] = 0; }
             if (IsHost) PushRoster();
         }
 
         // Host: give a newly-hello'd client the lowest free SHOOTER slot (1..N); if none,
         // and slot 0 (keeper) is free, give them the keeper; else spectator. Then re-push
         // the full roster (+ config) so everyone, including the new joiner, is in sync.
-        void GrantSlot(PeerId peer, string name, PlayerAppearance appearance)
+        void GrantSlot(PeerId peer, string name, PlayerAppearance appearance, byte version)
         {
+            // FIRST, before the peer is recorded or given anything. A build that does not share our
+            // wire format cannot be handled by any later branch: it would read every struct at the
+            // wrong offsets, so it does not fail, it plays a garbled match. Three separately
+            // downloaded platform folders make this the likeliest join failure in practice, so it
+            // gets its own reason code and its own message on the joiner's screen.
+            if (version != NetCodec.ProtocolVersion)
+            {
+                Transport.Send(peer, NetCodec.AssignSlot(255, NetRole.Spectator, JoinRefusal.Version),
+                               NetChannel.Reliable);
+                Debug.LogWarning("NetSession: refused a joiner on protocol v" + version
+                               + " (this build is v" + NetCodec.ProtocolVersion + ").");
+                return;
+            }
+
             // Remember who this peer is even if they end up slot-less, so that if they later claim a
             // free slot in the lobby they arrive under THEIR OWN name + look. Without this,
             // ApplySlotRequest's fallback reads PlayerProfile, which on the host is the HOST's
@@ -719,7 +902,8 @@ namespace Trickshot.Net
             // They can join the next lobby. (Full join-in-progress is a separate, larger feature.)
             if (MatchStarted)
             {
-                Transport.Send(peer, NetCodec.AssignSlot(255, NetRole.Spectator), NetChannel.Reliable);
+                Transport.Send(peer, NetCodec.AssignSlot(255, NetRole.Spectator, JoinRefusal.MatchRunning),
+                               NetChannel.Reliable);
                 // ALSO send them the roster/config. This used to return early, so a joiner who
                 // arrived mid-match never received a RosterSync and sat in a blank lobby forever
                 // with a default MatchConfig and no way out but Leave. With the roster in hand the
@@ -750,7 +934,9 @@ namespace Trickshot.Net
                 _slotAppearance[granted] = appearance;
                 ResetSlotInput(granted);   // a reused slot must not keep the old occupant's tick
             }
-            Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role), NetChannel.Reliable);
+            Transport.Send(peer, NetCodec.AssignSlot((byte)(granted < 0 ? 255 : granted), role,
+                                                     granted < 0 ? JoinRefusal.NoSlot : JoinRefusal.None),
+                           NetChannel.Reliable);
             PushRoster();
             // Send the new peer every ALREADY-KNOWN slot jersey. Appearance rides the roster row so
             // it reaches the joiner automatically, but jerseys are a side channel - without this a
@@ -819,12 +1005,55 @@ namespace Trickshot.Net
         /// </summary>
         public bool SlotRefused => LocalSlot < 0 || LocalSlot >= MaxSlots;
 
-        void AssignLocal(int slot, NetRole role)
+        /// <summary>
+        /// True once the host has actually ANSWERED our join with an AssignSlot, whether it granted a
+        /// slot or refused one. SlotRefused alone CANNOT be used to detect a refusal on a client,
+        /// because a brand-new session already reads as refused: the field initialisers are
+        /// LocalSlot = -1 and LocalRole = Spectator, which is bit-for-bit the state the host's
+        /// AssignSlot(255, Spectator) refusal produces. Anything watching a join in progress has to
+        /// gate on this flag, or it concludes the host refused us one frame after we pressed Join,
+        /// before a single packet could possibly have made the round trip.
+        /// </summary>
+        public bool SlotAnswered { get; private set; }
+
+        /// <summary>
+        /// Why the host refused us a slot, when SlotRefused is true. Only meaningful once
+        /// SlotAnswered is set. The UI reads this so it can name the actual cause: a full lobby, a
+        /// match already in progress and a version mismatch are three different things for the
+        /// player to do something about, and they used to all print as "no free slot".
+        /// </summary>
+        /// <summary>
+        /// One slot's passing multipliers and Maestro, DERIVED on the host from the node mask that slot
+        /// sent. Same SkillTree tables the owner's own client evaluates, so there is one source of truth
+        /// rather than a second set of numbers that could drift from it.
+        ///
+        /// A slot that has sent nothing (an AI slot, a slot whose loadout has not arrived yet, a slot
+        /// someone just left) reads as UNINVESTED. That is the floor, not a gift: the previous code
+        /// handed every networked player 1.5 accuracy they had not bought, which also deleted the stat
+        /// for anyone who HAD maxed it, since Accuracy01 clamps at 1.
+        /// </summary>
+        public void PassStatsForSlot(int slot, out float powerMul, out float accMul, out bool maestro)
+        {
+            powerMul = 1f; accMul = 1f; maestro = false;
+            if (slot < 0 || slot >= MaxSlots) return;
+            if (!SkillTree.TryUnpackPassing(_slotPassMask[slot], out var owned)) return;
+            powerMul = SkillTree.Mul("passpower", owned);
+            accMul   = SkillTree.Mul("passacc", owned);
+            maestro  = SkillTree.HasPerk("maestro", owned);
+        }
+
+        public JoinRefusal RefusedBecause { get; private set; }
+
+        // why defaults to None: every caller other than the AssignSlot handler is a GRANT
+        // (the host seating itself, or a lobby role swap), and a grant has no refusal reason.
+        void AssignLocal(int slot, NetRole role, JoinRefusal why = JoinRefusal.None)
         {
             // Keep the raw value (255 = refused/spectator) rather than clamping it here: callers
             // need to be able to tell "no slot" apart from "slot 0". Anything outside the table is
             // surfaced through SlotRefused above.
             LocalSlot = slot; LocalRole = role;
+            RefusedBecause = why;
+            SlotAnswered = true;
             SlotAssigned?.Invoke(slot, role);
         }
 

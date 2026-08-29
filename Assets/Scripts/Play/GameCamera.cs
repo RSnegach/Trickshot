@@ -196,7 +196,7 @@ namespace Trickshot
                 lookAt = Vector3.Lerp(lookAt, _ball.position, 0.35f);
             Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
             _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-14f * dt));
-            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 58f, 1f - Mathf.Exp(-5f * dt));
+            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(58f), 1f - Mathf.Exp(-5f * dt));
         }
 
         // Keeper cam: behind the keeper along his facing, with a slight clamped mouse
@@ -229,7 +229,7 @@ namespace Trickshot
             Vector3 lookAt = pivot + fwd * 4f + Vector3.up * 0.9f;
             Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
             _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-8f * dt));
-            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 60f, 1f - Mathf.Exp(-5f * dt));
+            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(60f), 1f - Mathf.Exp(-5f * dt));
         }
 
         void BroadcastUpdate()
@@ -250,8 +250,12 @@ namespace Trickshot
             Vector3 lookAt = Vector3.Lerp(focus, ballPos, 0.55f) + Vector3.up * 1.2f;
             Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
             _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-6f * dt));
-            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, 46f, 1f - Mathf.Exp(-5f * dt));
+            _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(46f), 1f - Mathf.Exp(-5f * dt));
         }
+
+        // Each camera mode has its own tuned FOV; the player's Field of View option (Camera tab
+        // in Options) shifts all of them by the same amount so the relative feel is preserved.
+        static float Fov(float baseFov) => Mathf.Clamp(baseFov + DisplaySettings.FovOffset, 34f, 78f);
 
         Vector3 GroupCenter()
         {

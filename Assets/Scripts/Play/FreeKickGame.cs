@@ -43,7 +43,8 @@ namespace Trickshot
         Phase _phase;
 
         float _liveTime, _restTimer, _cooldown;
-        bool _keeperTouched, _wallTouched;
+        bool _wallTouched;
+        readonly SaveWatch _save = new SaveWatch();   // shared SAVE / EPIC SAVE / MISS verdict
 
         int _attempts, _goals;
         string _flash = ""; float _flashTime;
@@ -58,6 +59,11 @@ namespace Trickshot
         // map of the attacking third. While open, the taker is not ticked and the camera is frozen.
         bool _mapOpen;
         int _mapEdit;           // 0 = ball, 1 = wall
+
+        // RANDOM SPOTS (pre-match toggle, the same one the multiplayer host has): instead of one
+        // placed spot, roll a fresh legal free-kick spot for every attempt. Never used for penalties.
+        bool _randomSpots;
+        System.Random _rng;
 
         // Regulation-ish penalty distance (not a pre-match field; free kicks use
         // SimConfig.FreeKickDistance instead).
@@ -82,13 +88,29 @@ namespace Trickshot
             _cam = cam;
             _goalLineZ = SimConfig.GoalCenter.z;
 
-            // Dead-ball spot: centred, in front of goal. Penalty is closer (11 m); a free
-            // kick is further out (SimConfig.FreeKickDistance). Ball rests on the ground.
-            float dist = SimConfig.PenaltyMode ? PenaltyDistance : SimConfig.FreeKickDistance;
-            _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - dist);
-            _wallCenter = _ballSpot + (SimConfig.GoalCenter - _ballSpot).normalized * SimConfig.WallDistance;
-            RecomputeStrikerBase();
             _wallActive = !SimConfig.PenaltyMode;
+            _randomSpots = _wallActive && SimConfig.SetPieceRandomSpots;
+
+            // Dead-ball spot + wall. A penalty is the fixed 11 m spot with no wall. A free kick takes
+            // the spot and wall PLACED on the pre-match map (the same control the multiplayer host
+            // uses); with nothing placed it falls back to the old centred FreeKickDistance derivation.
+            // Random spots ignore all of this and roll a fresh spot per attempt (see Arm).
+            if (SimConfig.PenaltyMode)
+            {
+                _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - PenaltyDistance);
+                _wallCenter = _ballSpot + (SimConfig.GoalCenter - _ballSpot).normalized * SimConfig.WallDistance;
+            }
+            else if (SimConfig.SetPiecePlaced)
+            {
+                _ballSpot = new Vector3(SimConfig.SetPieceBallSpot.x, SimConfig.BallRadius, SimConfig.SetPieceBallSpot.z);
+                _wallCenter = new Vector3(SimConfig.SetPieceWallCenter.x, 0f, SimConfig.SetPieceWallCenter.z);
+            }
+            else
+            {
+                _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance);
+                _wallCenter = _ballSpot + (SimConfig.GoalCenter - _ballSpot).normalized * SimConfig.WallDistance;
+            }
+            RecomputeStrikerBase();
 
             // Set pieces get the arcadey loft + curl and stat-scaled (near-zero default) assist.
             _ball.SetPieceShot = true;
@@ -96,17 +118,15 @@ namespace Trickshot
             // Camera + striker turn axis: same wiring as striker mode (mouse orbits and
             // sets the striker's facing yaw).
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
-            _striker.SetCameraYaw(() => _cam.Yaw);
+            _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
             _cam.SetMode(GameCamera.Mode.Follow);
 
-            if (_wallActive && _wall != null)
+            // Random mode rebuilds the wall off the rolled spot in Arm(), so skip the one-off build.
+            if (!_randomSpots && _wallActive && _wall != null)
                 _wall.Build(transform, _ballSpot, _wallCenter, SimConfig.WallCount);
 
             Arm();
         }
-
-        /// <summary>Wired by GameBootstrap from the striker's KickDetectors (optional).</summary>
-        public void NotifyValidTrick() => Flash("TRICK CONNECT!");
 
         void Update()
         {
@@ -153,7 +173,7 @@ namespace Trickshot
                 _attempts++;
                 _liveTime = 0f;
                 _restTimer = 0f;
-                _keeperTouched = false;
+                _save.Arm();
                 _wallTouched = false;
                 if (_wall != null) _wall.TriggerJump();
                 Flash("STRIKE!");
@@ -166,7 +186,7 @@ namespace Trickshot
             _liveTime += Time.deltaTime;
             Vector3 c = _ball.transform.position;
 
-            if (!_keeperTouched && KeeperContactedBall()) _keeperTouched = true;
+            _save.Poll(_ball, _keeperRagdoll, _keeper != null && _keeper.WasDivingSave);
             if (!_wallTouched && WallContactedBall()) _wallTouched = true;
 
             if (BallFullyInGoal(c)) { Resolve(Outcome.Goal); return; }
@@ -184,8 +204,7 @@ namespace Trickshot
 
             if (outOfPlay || dead)
             {
-                if (_keeperTouched
-                    || (_keeper != null && Vector3.Distance(c, _keeper.PelvisPos) < 2.4f))
+                if (_save.Touched)
                     Resolve(Outcome.Save);
                 else if (_wallTouched)
                     Resolve(Outcome.Blocked);
@@ -207,7 +226,7 @@ namespace Trickshot
             switch (o)
             {
                 case Outcome.Goal:    _goals++; Flash("GOAL!"); AudioManager.Instance?.OnSetPieceGoal(0); break;
-                case Outcome.Save:    Flash("SAVE!");    AudioManager.Instance?.OnSetPieceMiss(0); break;
+                case Outcome.Save:    Flash(_save.Callout()); AudioManager.Instance?.OnSetPieceMiss(0); break;
                 case Outcome.Blocked: Flash("BLOCKED!"); AudioManager.Instance?.OnSetPieceMiss(0); break;
                 default:              Flash("MISS");     AudioManager.Instance?.OnSetPieceMiss(0); break;
             }
@@ -219,16 +238,34 @@ namespace Trickshot
         // the taker armed to read the power meter + WASD spin for this attempt.
         void Arm()
         {
+            if (_randomSpots) RollRandomSpot();
             _ball.ResetTo(_ballSpot);
             _striker.ForceRecover();
             _strikerRagdoll.ResetTo(_strikerBase, Quaternion.identity);   // identity faces +Z (goal)
-            if (_keeper != null && _keeperRagdoll != null) _keeper.ResetTo(SimConfig.KeeperStart);
+            // Penalties put him ON the line; a free kick leaves him at his normal open-play depth.
+            if (_keeper != null && _keeperRagdoll != null)
+                _keeper.ResetTo(SimConfig.PenaltyMode ? SimConfig.KeeperPenaltyStart : SimConfig.KeeperStart);
             if (_wall != null) _wall.Ground();
             _taker.Begin(_input, _strikerRagdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter,
                 false, -1f,
                 () => SetPieceTaker.LookAimPoint(_ballSpot, _cam.Yaw, _cam.Pitch, SimConfig.AttackGoalCenter.z));
             _phase = Phase.Armed;
             AudioManager.Instance?.PlayWhistle();   // whistle as the shooter is set behind the ball (first arm + every reset)
+        }
+
+        // Roll the next random free-kick spot and re-derive everything hanging off it: the run-up
+        // start and a regulation wall on the ball->goal line. Same generator (and same geometry) the
+        // networked set-piece match uses for its seeded round spots.
+        void RollRandomSpot()
+        {
+            if (_rng == null) _rng = new System.Random();
+            _ballSpot = SetPieceMap.RandomSpot(_rng);
+            Vector3 toGoal = SimConfig.GoalCenter - _ballSpot; toGoal.y = 0f;
+            Vector3 dir = toGoal.sqrMagnitude > 1e-4f ? toGoal.normalized : Vector3.forward;
+            _wallCenter = _ballSpot + dir * SimConfig.WallDistance;
+            RecomputeStrikerBase();
+            if (_wallActive && _wall != null)
+                _wall.Build(transform, _ballSpot, _wallCenter, SimConfig.WallCount);
         }
 
         // Striker run-up start = RunUp metres behind the ball, along the ball->goal line so he
@@ -282,16 +319,6 @@ namespace Trickshot
                    && c.y <= SimConfig.GoalHeight - r;
         }
 
-        bool KeeperContactedBall()
-        {
-            if (_keeperRagdoll == null) return false;
-            Vector3 bp = _ball.transform.position;
-            foreach (var t in _keeperRagdoll.BoneTransforms)
-                if (t != null && Vector3.Distance(t.position, bp) < SimConfig.BallRadius + 0.28f)
-                    return true;
-            return false;
-        }
-
         bool WallContactedBall()
         {
             if (_wall == null) return false;
@@ -317,7 +344,10 @@ namespace Trickshot
             if (_input == null) return;
             Hud.Begin();
 
-            float dist = SimConfig.PenaltyMode ? PenaltyDistance : SimConfig.FreeKickDistance;
+            // Distances are measured off the live placement, not the pre-match numbers, because the
+            // spot and the wall are placed on the map (and re-rolled in random mode).
+            float dist = Flat(_ballSpot, SimConfig.GoalCenter);
+            float wallDist = Flat(_ballSpot, _wallCenter);
             int scorePct = _attempts > 0 ? Mathf.RoundToInt(100f * _goals / _attempts) : 0;
             var p = Hud.PanelStart(SimConfig.PenaltyMode ? "PENALTIES" : "FREE KICK", 4);
             Hud.Stat(ref p, "Goals", _goals.ToString());
@@ -327,11 +357,12 @@ namespace Trickshot
 
             Hud.Legend(SimConfig.PenaltyMode
                 ? "HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset"
-                : $"Wall {SimConfig.WallCount} @ {SimConfig.WallDistance:0.0}m    HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset");
+                : $"Wall {SimConfig.WallCount} @ {wallDist:0.0}m    HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawPowerMeter();
             if (_mapOpen) DrawPlacementMap();
+            Hud.End();
         }
 
         // Placement overlay: a top-down map of the attacking third. Click to place the ball/shooter
@@ -339,56 +370,48 @@ namespace Trickshot
         // EXACTLY on close. Mirrors the crossmap overlay in GameManager.
         void DrawPlacementMap()
         {
-            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.45f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = prev;
+            Hud.Scrim(0.45f);
 
             float w = 360f, h = 360f;
-            var mapRect = new Rect(Screen.width * 0.5f - w * 0.5f, Screen.height * 0.5f - h * 0.5f, w, h);
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.LowerCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(mapRect.x, mapRect.y - 60f, w, 28f), _mapEdit == 1 ? "PLACE THE WALL" : "PLACE THE SHOOTER", hdr);
+            var mapRect = new Rect(Hud.W * 0.5f - w * 0.5f, Hud.H * 0.5f - h * 0.5f, w, h);
 
-            // Ball / Wall edit toggle. Penalty mode has no wall, so only the ball is placeable.
-            var seg = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
-            var segOn = new GUIStyle(seg); segOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
+            // Ball / Wall edit toggle. Penalty mode has no wall, so only the ball is placeable, and
+            // random mode has nothing to place at all (the spot is rolled per attempt).
+            GUI.enabled = !_randomSpots;
             if (_wallActive)
             {
-                if (GUI.Button(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), _mapEdit == 0 ? "● Shooter" : "Shooter", _mapEdit == 0 ? segOn : seg)) _mapEdit = 0;
-                if (GUI.Button(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), _mapEdit == 1 ? "● Wall" : "Wall", _mapEdit == 1 ? segOn : seg)) _mapEdit = 1;
+                if (Hud.Seg(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), "Shooter", _mapEdit == 0)) _mapEdit = 0;
+                if (Hud.Seg(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), "Wall", _mapEdit == 1)) _mapEdit = 1;
             }
             else _mapEdit = 0;
 
             SetPieceMap.Draw(mapRect, ref _ballSpot, ref _wallCenter, _mapEdit);
+            GUI.enabled = true;
 
-            var tip = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
-            GUI.Label(new Rect(mapRect.x, mapRect.yMax + 6f, w, 22f),
-                      "Click to place the " + (_mapEdit == 1 ? "wall" : "shooter") + ".  M to close.", tip);
+            Hud.OverlayLabel(mapRect,
+                             _mapEdit == 1 ? "PLACE THE WALL" : "PLACE THE SHOOTER",
+                             _randomSpots
+                                 ? "Random spot every attempt."
+                                 : "Click to place the " + (_mapEdit == 1 ? "wall" : "shooter") + ".  M to close.",
+                             60f);
+
+            // Random spots on/off without leaving the match (the pre-match toggle, in place). Turning
+            // it off keeps the spot the last roll landed on, so it can be nudged from there.
+            if (_wallActive
+                && Hud.Seg(new Rect(mapRect.x + w * 0.25f, mapRect.yMax + 30f, w * 0.5f, 26f),
+                           _randomSpots ? "RANDOM SPOTS: ON" : "RANDOM SPOTS: OFF", _randomSpots))
+                _randomSpots = !_randomSpots;
         }
+
+        // Flat (XZ) distance between two world points.
+        static float Flat(Vector3 a, Vector3 b) => Vector2.Distance(new Vector2(a.x, a.z), new Vector2(b.x, b.z));
 
         // Centered power meter shown while charging: a green -> yellow -> red bar that reflects the
         // oscillating taker meter. Release (handled by the taker) commits at the shown level.
         void DrawPowerMeter()
         {
             if (!_taker.IsCharging) return;
-            float w = 320f, h = 22f;
-            float x = (Screen.width - w) * 0.5f, y = Screen.height - 90f;
-
-            var prev = GUI.color;
-            GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.85f);
-            GUI.DrawTexture(new Rect(x - 3f, y - 3f, w + 6f, h + 6f), Texture2D.whiteTexture);
-
-            float f = Mathf.Clamp01(_taker.Meter);
-            // green (low) -> yellow (mid) -> red (high).
-            Color fill = f < 0.5f ? Color.Lerp(new Color(0.2f, 0.85f, 0.3f), new Color(0.95f, 0.85f, 0.2f), f * 2f)
-                                  : Color.Lerp(new Color(0.95f, 0.85f, 0.2f), new Color(0.9f, 0.2f, 0.16f), (f - 0.5f) * 2f);
-            GUI.color = new Color(0.14f, 0.15f, 0.19f, 0.9f);
-            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-            GUI.color = fill;
-            GUI.DrawTexture(new Rect(x, y, w * f, h), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x, y - 20f, w, 18f), "POWER  (release to shoot)", lbl);
+            Hud.Meter(_taker.Meter, "POWER  (release to shoot)");
         }
     }
 }

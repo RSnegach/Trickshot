@@ -26,6 +26,7 @@ namespace Trickshot
         ActiveRagdoll _strikerRagdoll;
         Goalkeeper _keeper;
         ActiveRagdoll _keeperRagdoll;
+        readonly SaveWatch _save = new SaveWatch();   // shared SAVE / EPIC SAVE / MISS verdict
         DefensiveWall _wall;
         GameCamera _cam;
 
@@ -74,16 +75,26 @@ namespace Trickshot
             _wall = wall;
             _cam = cam;
 
-            // Dead-ball spot: centred, FreeKickDistance out from goal, resting on the ground.
-            _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance);
-            // Wall centre: WallDistance along the ball->goal line, shifted sideways by the
-            // pre-match wall offset (the wallCenter Build overload takes an explicit point, so the
-            // offset has to be baked in here).
-            Vector3 toGoalFlat = SimConfig.GoalCenter - _ballSpot; toGoalFlat.y = 0f;
-            Vector3 wallDir = toGoalFlat.sqrMagnitude > 1e-4f ? toGoalFlat.normalized : Vector3.forward;
-            Vector3 wallSide = Vector3.Cross(Vector3.up, wallDir);
-            _wallCenter = _ballSpot + wallDir * SimConfig.WallDistance
-                                    + wallSide * SimConfig.WallLateralOffset;
+            // Dead-ball spot + wall, taken from the placement map on the pre-match screen - the
+            // same SetPieceMap control the multiplayer host uses, and the same values FreeKickGame
+            // reads. This mode used to derive both from the FreeKickDistance / WallDistance /
+            // WallLateralOffset sliders instead, which is why setting up an accuracy round felt
+            // nothing like setting up a free kick despite being the same dead ball.
+            //
+            // The fallback still derives a centred spot, for any entry point that reaches this mode
+            // without going through the setup screen: a spot must always exist.
+            if (SimConfig.SetPiecePlaced)
+            {
+                _ballSpot = new Vector3(SimConfig.SetPieceBallSpot.x, SimConfig.BallRadius, SimConfig.SetPieceBallSpot.z);
+                _wallCenter = new Vector3(SimConfig.SetPieceWallCenter.x, 0f, SimConfig.SetPieceWallCenter.z);
+            }
+            else
+            {
+                _ballSpot = new Vector3(0f, SimConfig.BallRadius, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance);
+                Vector3 toGoalFlat = SimConfig.GoalCenter - _ballSpot; toGoalFlat.y = 0f;
+                Vector3 wallDir = toGoalFlat.sqrMagnitude > 1e-4f ? toGoalFlat.normalized : Vector3.forward;
+                _wallCenter = _ballSpot + wallDir * SimConfig.WallDistance;
+            }
             RecomputeStrikerBase();
             _wallActive = SimConfig.WallCount > 0;   // 0 wall players = no wall at all
 
@@ -92,7 +103,7 @@ namespace Trickshot
 
             // Camera + striker turn axis: same wiring as striker/free-kick mode.
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
-            _striker.SetCameraYaw(() => _cam.Yaw);
+            _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
             _cam.SetMode(GameCamera.Mode.Follow);
 
             if (_wallActive && _wall != null)
@@ -161,6 +172,7 @@ namespace Trickshot
                 _liveTime = 0f;
                 _restTimer = 0f;
                 _hitThisKick = false;
+                _save.Arm();
                 if (_wall != null) _wall.TriggerJump();
             }
         }
@@ -171,6 +183,7 @@ namespace Trickshot
             _liveTime += Time.deltaTime;
             Vector3 c = _ball.transform.position;
 
+            _save.Poll(_ball, _keeperRagdoll, _keeper != null && _keeper.WasDivingSave);
             if (_ball.Speed < RestSpeed) _restTimer += Time.deltaTime; else _restTimer = 0f;
 
             bool outOfPlay = c.y < -3f
@@ -183,7 +196,11 @@ namespace Trickshot
                 // Free-kick audio rules: a scored target counts as the "goal" reaction, anything
                 // else is a miss (so repeat misses boo, and hit streaks build the crowd swell).
                 if (_hitThisKick) AudioManager.Instance?.OnSetPieceGoal(0);
-                else { Flash("MISS"); AudioManager.Instance?.OnSetPieceMiss(0); }
+                else
+                {
+                    Flash(_save.Touched ? _save.Callout() : "MISS");
+                    AudioManager.Instance?.OnSetPieceMiss(0);
+                }
                 _phase = Phase.Cooldown;
                 _cooldown = ResetDelay;
             }
@@ -260,25 +277,20 @@ namespace Trickshot
             if (_finished)
             {
                 Hud.Banner("FINISHED!", "Score: " + _score + "   Best: " + SessionBest, "Press R to play again");
+                Hud.End();
                 return;
             }
 
             Hud.Flash(_flash, _flashTime / 1.2f);
             DrawPowerMeter();
+            Hud.End();
         }
 
         // Power meter while charging, mirroring the free-kick HUD.
         void DrawPowerMeter()
         {
             if (!_taker.IsCharging) return;
-            float w = 260f, h = 18f;
-            float x = Screen.width * 0.5f - w * 0.5f, y = Screen.height - 96f;
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.55f); GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-            float f = Mathf.Clamp01(_taker.Meter);
-            GUI.color = f > 0.85f ? new Color(1f, 0.35f, 0.25f) : new Color(0.3f, 0.85f, 0.4f);
-            GUI.DrawTexture(new Rect(x + 2f, y + 2f, (w - 4f) * f, h - 4f), Texture2D.whiteTexture);
-            GUI.color = prev;
+            Hud.Meter(_taker.Meter, "POWER  (release to shoot)");
         }
     }
 }

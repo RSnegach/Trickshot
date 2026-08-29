@@ -92,8 +92,8 @@ namespace Trickshot
         enum Phase { Armed, Live, Settle }
         Phase _phase = Phase.Armed;
         float _liveTime, _restTimer, _settle;
-        bool _keeperTouched;
-        bool _saveWasEpic;   // latched at keeper contact: human keeper + (fast shot OR high dive)
+        // Shared SAVE / EPIC SAVE / MISS verdict, off the ball's real contact log.
+        readonly SaveWatch _save = new SaveWatch();
         QuickChatFeed _qcFeed;   // multiplayer quickchat feed + custom-text entry
 
         // The set-piece taker for the active shooter (HOST only drives the scripted launch). The
@@ -154,6 +154,7 @@ namespace Trickshot
             _ball.SetPieceShot = true;   // arcadey loft + curl + stat-scaled assist
             _s.MatchEvent += OnMatchEvent;
             _s.BallKicked += OnBallKicked;
+            _s.PostHit += OnPostHit;
             _s.ShootoutUpdated += OnShootoutUpdated;
             _qcFeed = gameObject.AddComponent<QuickChatFeed>();
             _qcFeed.Bind(_s);
@@ -183,7 +184,7 @@ namespace Trickshot
                 {
                     _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
                     _camTarget = me.ragdoll.Pelvis.transform;   // FollowActiveShooter tracks this
-                    if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw);
+                    if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
                 }
             }
 
@@ -255,7 +256,13 @@ namespace Trickshot
                 if (hostSim)
                 {
                     if (isLocal) striker.Init(_input, ragdoll);
-                    else { b.netInput = new NetInputSource(); striker.Init(b.netInput, ragdoll); }
+                    else
+                    {
+                        b.netInput = new NetInputSource(); striker.Init(b.netInput, ragdoll);
+                        // Remote striker aim off the wire, same as the set-piece taker cone.
+                        striker.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f,
+                                             () => b.netInput != null ? b.netInput.LookPitch : 0f);
+                    }
                     AttachKick(ragdoll, striker);
                 }
                 else
@@ -278,8 +285,8 @@ namespace Trickshot
             else
             {
                 var kc = go.AddComponent<KeeperController>();
-                if (isLocal) kc.Init(_input, ragdoll);
-                else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll); }
+                if (isLocal) kc.Init(_input, ragdoll, _ball);
+                else { b.netInput = new NetInputSource(); kc.Init(b.netInput, ragdoll, _ball); }
                 // Local keeper reads the cone yaw (KeeperLookYaw) so body + camera lock-step, exactly
                 // like single-player. _cam.Yaw is stale in KeeperFollow mode. Remote keepers read the
                 // yaw streamed over the wire (also the cone yaw; see SampleFrame below).
@@ -302,15 +309,8 @@ namespace Trickshot
         {
             var rng = new System.Random(unchecked((int)seed));
             var spots = new Vector3[count];
-            float boxFrontZ = SimConfig.GoalCenter.z - SimConfig.PenaltyBoxDepth;   // must be outside (<=)
-            float thirdBackZ = SimConfig.GoalCenter.z - PitchLayout.PitchLength / 3f;
-            float halfX = Mathf.Min(PitchLayout.HalfWidth - 2f, 24f);               // keep off the touchline
             for (int i = 0; i < count; i++)
-            {
-                float x = (float)(rng.NextDouble() * 2.0 - 1.0) * halfX;
-                float z = Mathf.Lerp(boxFrontZ, thirdBackZ, (float)rng.NextDouble());   // outside box .. third line
-                spots[i] = new Vector3(x, SimConfig.BallRadius, z);
-            }
+                spots[i] = SetPieceMap.RandomSpot(rng);   // same generator single player's random spots use
             return spots;
         }
 
@@ -327,10 +327,10 @@ namespace Trickshot
 
         void AttachKick(ActiveRagdoll ragdoll, Striker striker)
         {
-            AddDet(ragdoll.Rb(Bone.FootR), striker, ragdoll);
-            AddDet(ragdoll.Rb(Bone.CalfR), striker, ragdoll);
-            AddDet(ragdoll.Rb(Bone.FootL), striker, ragdoll);
-            AddDet(ragdoll.Rb(Bone.CalfL), striker, ragdoll);
+            // Layout-driven: a biped's feet and calves, a quadruped's front hooves.
+            var strike = ragdoll.StrikeBones;
+            for (int i = 0; i < strike.Length; i++)
+                AddDet(ragdoll.Rb(strike[i]), striker, ragdoll);
         }
         void AddDet(Rigidbody rb, Striker striker, ActiveRagdoll ragdoll)
         {
@@ -345,6 +345,7 @@ namespace Trickshot
         }
         // Client: 3D kick thud at the host-reported contact point (10 m rolloff, per-player).
         void OnBallKicked(Vector3 pos) => AudioManager.Instance?.PlayBallKick(pos);
+        void OnPostHit(Vector3 pos, float speed) => AudioManager.Instance?.PlayPostHit(pos, speed);
         // Clients (and the host) learn the active shooter + over-state from the synced tally.
         // The client needs _activeShooter so LocalIsActiveShooter gates its own prediction; the
         // host already set these authoritatively before broadcasting (harmless to re-apply).
@@ -429,7 +430,10 @@ namespace Trickshot
                 // Shooter left: mark finished so the rotation skips them, then remove the body.
                 if (_s.IsHost)
                 {
-                    _taken[i] = ShotsEach;
+                    // Mark BOTH completion conditions. ShooterDone measures a different one per mode,
+                    // and clearing the body is what actually makes it stick (see ShooterDone).
+                    _taken[i] = Mathf.Max(ShotsEach, _accKicks);
+                    _turnPlayed[i] = true;
                     bool wasActive = i == _activeShooter;
                     if (b.ragdoll != null) Destroy(b.ragdoll.gameObject);
                     _bodies[i] = null;
@@ -464,7 +468,7 @@ namespace Trickshot
             _activeShooter = _shooterSlots[idx];
             _phase = Phase.Armed;
             _liveTime = _restTimer = _settle = 0f;
-            _keeperTouched = false;
+            _save.Disarm();
 
             // Random mode: this shooter's round index = how many they've already taken (0..9). Move
             // the ball spot + wall to that round's shared spot before placing bodies/ball/wall.
@@ -542,6 +546,15 @@ namespace Trickshot
         // done when they have taken at least one kick and their clock has run out.
         bool ShooterDone(int slot)
         {
+            // A slot with no body can never take a turn, so it is done by definition. This test has to
+            // come FIRST, and it is the fix for a real stall: the leave handler marked a departed
+            // shooter finished by writing _taken = ShotsEach (10), but in Accuracy "done" is measured
+            // against _accKicks - which the host can set as high as 100 - or against _turnPlayed for a
+            // timed turn, neither of which that write satisfies. So AdvanceTurn kept handing the ball
+            // to a player who had already quit: HostDriveActiveShooter bails on the null body, nothing
+            // moves, and the match sat there until the turn clock ran out (or forever, in kicks mode).
+            var b = (slot >= 0 && slot < _bodies.Length) ? _bodies[slot] : null;
+            if (b == null || !b.isShooter) return true;
             if (!AccuracyMode) return _taken[slot] >= ShotsEach;
             if (!_accByTime) return _taken[slot] >= _accKicks;
             return _turnPlayed[slot];
@@ -835,8 +848,8 @@ namespace Trickshot
                 case Phase.Armed:
                     if (_ball.Speed > KickSpeed)
                     {
-                        _phase = Phase.Live; _liveTime = _restTimer = 0f; _keeperTouched = false;
-                        _saveWasEpic = false;
+                        _phase = Phase.Live; _liveTime = _restTimer = 0f;
+                        _save.Arm();
                         _hitThisKick = false;   // fresh attempt: re-arm the one-target-per-kick latch
                         if (_wall != null) _wall.TriggerJump();
                         Flash("STRIKE!");
@@ -845,16 +858,10 @@ namespace Trickshot
 
                 case Phase.Live:
                     _liveTime += Time.deltaTime;
-                    if (!_keeperTouched && KeeperContactedBall(c))
-                    {
-                        _keeperTouched = true;
-                        // EPIC SAVE criteria, latched at the contact frame (before the touch slows
-                        // the ball), and only for a HUMAN keeper: shot arriving at least
-                        // KeeperEpicSaveSpeed, OR the save made in a high dive. Same rule as KeeperGame.
-                        var kb = _bodies[0];
-                        if (kb != null && kb.keeper != null)
-                            _saveWasEpic = _ball.Speed >= SimConfig.KeeperEpicSaveSpeed || kb.keeper.IsHighDive;
-                    }
+                    // Keeper contact, from the ball's touch log: real PhysX contacts with the impact
+                    // speed recorded at the contact, so a fast shot cannot slip between two frames of a
+                    // proximity check and EPIC reads the arrival speed rather than the post-touch one.
+                    _save.Poll(_ball, KeeperRagdoll(), KeeperHighDive());
                     // Accuracy scores TARGETS (banked by OnAccuracyScored as they're struck), so a
                     // ball entering the goal isn't itself a score - the attempt just runs to rest.
                     if (!AccuracyMode && BallInGoal(c)) { ResolveAttempt(true); break; }
@@ -882,7 +889,7 @@ namespace Trickshot
             if (AccuracyMode)
             {
                 if (goal) AudioManager.Instance?.OnSetPieceGoal(_activeShooter);
-                else { _s.BroadcastEvent("MISS"); AudioManager.Instance?.OnSetPieceMiss(_activeShooter); }
+                else { Announce(_save.Touched ? _save.Callout() : "MISS"); AudioManager.Instance?.OnSetPieceMiss(_activeShooter); }
                 BroadcastShootout();
                 bool kicksDone = !_accByTime && _taken[_activeShooter] >= _accKicks;
                 if (kicksDone) { EndActiveTurn(); return; }
@@ -893,8 +900,8 @@ namespace Trickshot
                 return;
             }
 
-            if (goal) { _scored[_activeShooter]++; _s.BroadcastEvent("GOAL!"); }
-            else _s.BroadcastEvent(_keeperTouched ? (_saveWasEpic ? "EPIC SAVE!" : "SAVED!") : "MISS");
+            if (goal) { _scored[_activeShooter]++; Announce("GOAL!"); }
+            else Announce(_save.Touched ? _save.Callout() : "MISS");
             BroadcastShootout();
             _phase = Phase.Settle;
             _advanceAfterReplay = true;
@@ -1047,6 +1054,12 @@ namespace Trickshot
             _s.BroadcastSnapshot(new Snapshot
             {
                 tick = _tick, ballPos = _ball.transform.position, ballVel = _ball.Rb.linearVelocity,
+                // Populated here too even though only the scrimmage driver draws a landing telegraph
+                // today. It is a field on the shared Snapshot, and a wire field whose meaning depends on
+                // which driver sent it is a trap: these are the SHOT modes, so leaving it false would
+                // have made "not guided" mean "no assist" in one driver and "nobody filled this in" in
+                // the others, on nearly every ball.
+                guided = _ball.Guided,
                 homeScore = 0, awayScore = 0, bodies = list.ToArray(),
             });
         }
@@ -1058,14 +1071,20 @@ namespace Trickshot
                    && Mathf.Abs(c.x) <= halfW - r && c.y >= r && c.y <= SimConfig.GoalHeight - r;
         }
 
-        bool KeeperContactedBall(Vector3 bp)
+        // Slot 0 is the keeper: its ragdoll, and whether it is mid big-reach right now (human
+        // keeper or AI Clanker - both get EPIC SAVE, the callout is about the stop, not who made it).
+        ActiveRagdoll KeeperRagdoll() => _bodies[0] != null ? _bodies[0].ragdoll : null;
+        bool KeeperHighDive()
         {
             var kb = _bodies[0];
-            if (kb == null || kb.ragdoll == null) return false;
-            foreach (var t in kb.ragdoll.BoneTransforms)
-                if (t != null && Vector3.Distance(t.position, bp) < SimConfig.BallRadius + 0.28f) return true;
-            return false;
+            if (kb == null) return false;
+            if (kb.keeper != null) return kb.keeper.IsHighDive;
+            return kb.ai != null && kb.ai.WasDivingSave;
         }
+
+        // Broadcast a callout AND flash it locally: BroadcastEvent only fires MatchEvent on clients,
+        // so without the local flash the host is the one player who never sees its own verdict.
+        void Announce(string tag) { _s.BroadcastEvent(tag); Flash(tag); }
 
         static void LockCursor() => GameInput.CaptureCursor(true);
 
@@ -1074,7 +1093,7 @@ namespace Trickshot
             if (_s != null)
             {
                 _s.MatchEvent -= OnMatchEvent;
-                _s.BallKicked -= OnBallKicked;
+                _s.BallKicked -= OnBallKicked; _s.PostHit -= OnPostHit;
                 _s.ShootoutUpdated -= OnShootoutUpdated;
                 _s.ReplayStarted -= OnReplayStarted;
                 _s.ReplayEnded -= OnReplayEnded;
@@ -1124,7 +1143,7 @@ namespace Trickshot
                      (_localSlot == _activeShooter ? "YOUR SHOT" : RosterName(_activeShooter) + " to shoot"));
 
             Hud.Legend(youAre == "Keeper"
-                ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   V ball cam"
+                ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   E/Q throw   V ball cam"
                 : "HOLD Space power   Mouse aim   WASD spin   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
@@ -1138,28 +1157,14 @@ namespace Trickshot
 
             // Quickchat feed + custom-text box (multiplayer).
             if (_qcFeed != null) _qcFeed.Draw();
+            Hud.End();
         }
 
         // Centered power meter shown while the LOCAL player is charging their set-piece shot.
         void DrawPowerMeter()
         {
             if (_localIsKeeper || !LocalIsActiveShooter() || !_taker.IsCharging) return;
-            float w = 320f, h = 22f;
-            float x = (Screen.width - w) * 0.5f, y = Screen.height - 92f;
-
-            var prev = GUI.color;
-            GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.88f);
-            GUI.DrawTexture(new Rect(x - 3f, y - 3f, w + 6f, h + 6f), Texture2D.whiteTexture);
-            float f = Mathf.Clamp01(_taker.Meter);
-            Color fill = f < 0.5f ? Color.Lerp(new Color(0.2f, 0.85f, 0.3f), new Color(0.95f, 0.85f, 0.2f), f * 2f)
-                                  : Color.Lerp(new Color(0.95f, 0.85f, 0.2f), new Color(0.9f, 0.2f, 0.16f), (f - 0.5f) * 2f);
-            GUI.color = new Color(0.14f, 0.15f, 0.19f, 0.9f);
-            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
-            GUI.color = fill;
-            GUI.DrawTexture(new Rect(x, y, w * f, h), Texture2D.whiteTexture);
-            GUI.color = prev;
-            var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x, y - 20f, w, 18f), "POWER  (release to shoot)", lbl);
+            Hud.Meter(_taker.Meter, "POWER  (release to shoot)");
         }
 
         // Scoreboard: a clean dark card, per-shooter rows with the name, the running goal count,
@@ -1170,64 +1175,105 @@ namespace Trickshot
             if (st.scored == null) return;
 
             // Palette.
-            Color cPanel  = new Color(0.06f, 0.07f, 0.10f, 0.90f);
-            Color cHeadBar = new Color(0.10f, 0.12f, 0.17f, 0.95f);
             Color cActive = new Color(0.16f, 0.32f, 0.52f, 0.55f);
-            Color cGold   = new Color(1f, 0.86f, 0.32f);
-            Color cGoal   = new Color(0.24f, 0.85f, 0.36f);
-            Color cMiss   = new Color(0.85f, 0.26f, 0.22f);
+            Color cGoal   = UITheme.Green;
+            Color cMiss   = UITheme.Red;
             Color cEmpty  = new Color(1f, 1f, 1f, 0.14f);
 
             int rows = 0;
             for (int i = 1; i < NetSession.CrosserSlot; i++) if (_bodies[i] != null && _bodies[i].isShooter) rows++;
             if (rows == 0) { if (st.over) DrawWinnerBanner(); return; }
 
-            float pad = 12f, headH = 34f, rowH = 34f, w = 340f;
-            float x = Screen.width - w - 22f, y = 84f;
-            float panelH = headH + rows * rowH + pad * 2f;
+            // How many attempts this FORMAT gives each shooter. 0 = unbounded (a timed accuracy turn
+            // ends on the clock, not on a kick count). The board used to draw a ten-pip strip in every
+            // mode, because ShotsEach was the only count it knew: in Accuracy that is simply the wrong
+            // number - the host can set 1 to 100 kicks - and the pips also read as goal/miss, which
+            // Accuracy does not have, since one kick there banks a variable number of target points.
+            int attempts = AccuracyMode ? (_accByTime ? 0 : _accKicks) : ShotsEach;
+            bool pips = attempts > 0 && attempts <= 12;   // beyond that a pip is a sliver; use a bar
 
-            var prev = GUI.color;
-            // Card + header bar.
-            GUI.color = cPanel;
-            GUI.DrawTexture(new Rect(x - pad, y - pad, w + pad * 2f, panelH), Texture2D.whiteTexture);
-            GUI.color = cHeadBar;
-            GUI.DrawTexture(new Rect(x - pad, y - pad, w + pad * 2f, headH), Texture2D.whiteTexture);
-            GUI.color = prev;
+            float pad = 12f, headH = 34f, colH = 17f, rowH = 34f, w = 340f;
+            float x = Hud.W - w - 22f, y = 84f;
+            float panelH = headH + colH + rows * rowH + pad * 2f;
 
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = cGold } };
-            GUI.Label(new Rect(x, y - pad, w, headH),
-                      AccuracyMode
-                          ? (_accByTime ? "  ACCURACY   " + _accTurnSeconds.ToString("0") + "s each"
-                                        : "  ACCURACY   " + _accKicks + " kicks each")
-                          : "  SHOOTOUT   best of " + ShotsEach, hdr);
+            // Themed card + gold section header (Hud.Card draws the header bar and its divider).
+            Hud.Card(new Rect(x - pad, y - pad, w + pad * 2f, panelH),
+                     AccuracyMode
+                         ? (_accByTime ? "ACCURACY   " + _accTurnSeconds.ToString("0") + "s each"
+                                       : "ACCURACY   " + _accKicks + " kicks each")
+                         : "SHOOTOUT   best of " + ShotsEach);
 
-            var nameSt  = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
-            var goalsSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = Color.white } };
+            var nameSt  = Hud.RowName;
+            var goalsSt = Hud.RowValue;
+            var colSt = new GUIStyle(GUI.skin.label)
+            { fontSize = 11, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Faint } };
 
-            float ry = y - pad + headH;
+            // Best score on the board, so the leader can be marked. Ties mark everyone on it, which is
+            // correct - there is no leader until somebody breaks it.
+            int best = 0;
+            for (int i = 1; i < NetSession.CrosserSlot; i++)
+                if (_bodies[i] != null && _bodies[i].isShooter && i < st.scored.Length)
+                    best = Mathf.Max(best, st.scored[i]);
+
+            // Column labels. Accuracy banks POINTS off targets and set pieces count GOALS, so the
+            // score column is named for what it actually holds in this mode.
+            float cScoreX = x + w * 0.44f, cScoreW = w * 0.15f;
+            float cTakenX = x + w * 0.59f, cTakenW = w * 0.14f;
+            float progX   = x + w * 0.75f, progW  = w * 0.25f;
+            float cy = y - pad + headH;
+            GUI.Label(new Rect(cScoreX, cy, cScoreW, colH), AccuracyMode ? "PTS" : "GLS", colSt);
+            GUI.Label(new Rect(cTakenX, cy, cTakenW, colH), "KCK", colSt);
+
+            float ry = cy + colH;
             for (int i = 1; i < NetSession.CrosserSlot; i++)
             {
                 if (_bodies[i] == null || !_bodies[i].isShooter) continue;
                 bool active = i == _activeShooter && !st.over;
-                if (active) { GUI.color = cActive; GUI.DrawTexture(new Rect(x - pad, ry, w + pad * 2f, rowH), Texture2D.whiteTexture); GUI.color = prev; }
+                // Lit band plus a gold spine on whoever is up, instead of a text arrow.
+                if (active)
+                {
+                    UITheme.Fill(new Rect(x - pad, ry, w + pad * 2f, rowH), cActive);
+                    UITheme.Fill(new Rect(x - pad, ry, 2.5f, rowH), UITheme.Gold);
+                }
+                else UITheme.Divider(x, ry + rowH - 1f, w);
 
                 int sc = i < st.scored.Length ? st.scored[i] : 0;
                 int tk = i < st.taken.Length ? st.taken[i] : 0;
 
-                GUI.Label(new Rect(x, ry, w * 0.42f, rowH), (active ? "▸ " : "  ") + RosterName(i), nameSt);
-                GUI.Label(new Rect(x + w * 0.42f, ry, w * 0.14f, rowH), sc.ToString(), goalsSt);
+                GUI.Label(new Rect(x, ry, w * 0.44f, rowH), "  " + RosterName(i), nameSt);
+                // Leader's score goes gold. RowValue is shared, so put the colour back after.
+                Color keepC = goalsSt.normal.textColor;
+                if (best > 0 && sc == best) goalsSt.normal.textColor = UITheme.Gold;
+                GUI.Label(new Rect(cScoreX, ry, cScoreW, rowH), sc.ToString(), goalsSt);
+                goalsSt.normal.textColor = keepC;
+                GUI.Label(new Rect(cTakenX, ry, cTakenW, rowH),
+                          attempts > 0 ? tk + "/" + attempts : tk.ToString(), goalsSt);
 
-                // Pip strip on the right: fill green up to `sc`, red for missed attempts, dim rest.
-                float pipsX = x + w * 0.58f, pipsW = w * 0.42f;
-                float gap = 3f, pipW = (pipsW - gap * (ShotsEach - 1)) / ShotsEach, pipH = 10f;
-                float py = ry + (rowH - pipH) * 0.5f;
-                for (int s = 0; s < ShotsEach; s++)
+                float py = ry + (rowH - 10f) * 0.5f;
+                if (pips)
                 {
-                    Color pc = s < sc ? cGoal : (s < tk ? cMiss : cEmpty);
-                    GUI.color = pc;
-                    GUI.DrawTexture(new Rect(pipsX + s * (pipW + gap), py, pipW, pipH), Texture2D.whiteTexture);
+                    // One pip per attempt. Set pieces know whether each one went in, so green/red
+                    // tells the whole story. Accuracy does not - a kick banks 0..n points - so the
+                    // strip there just shows kicks used against kicks left.
+                    float gap = 3f, pipW = (progW - gap * (attempts - 1)) / attempts;
+                    for (int s = 0; s < attempts; s++)
+                    {
+                        Color pc = AccuracyMode
+                                 ? (s < tk ? UITheme.Gold : cEmpty)
+                                 : (s < sc ? cGoal : (s < tk ? cMiss : cEmpty));
+                        var pr = new Rect(progX + s * (pipW + gap), py, pipW, 10f);
+                        UITheme.Fill(pr, pc);
+                        if (!AccuracyMode && s < sc)
+                            UITheme.Fill(new Rect(pr.x, pr.y, pr.width, 1f), new Color(1f, 1f, 1f, 0.35f));
+                    }
                 }
-                GUI.color = prev;
+                else if (attempts > 0)
+                {
+                    // Too many attempts to pip: a plain fill bar of the same information.
+                    UITheme.Fill(new Rect(progX, py, progW, 10f), cEmpty);
+                    float f = Mathf.Clamp01(tk / (float)attempts);
+                    if (f > 0f) UITheme.Fill(new Rect(progX, py, progW * f, 10f), UITheme.Gold);
+                }
                 ry += rowH;
             }
 
@@ -1236,12 +1282,8 @@ namespace Trickshot
 
         void DrawWinnerBanner()
         {
-            var prev = GUI.color;
-            GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.82f);
-            GUI.DrawTexture(new Rect(0, Screen.height * 0.4f - 8f, Screen.width, 76f), Texture2D.whiteTexture);
-            GUI.color = prev;
-            var banner = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(0, Screen.height * 0.4f, Screen.width, 60f), WinnerText(), banner);
+            // The shared end-of-round card, so full time looks the same in every mode.
+            Hud.Banner(WinnerText(), null, null);
         }
     }
 }

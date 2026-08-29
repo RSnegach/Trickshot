@@ -25,11 +25,6 @@ namespace Trickshot
         OptionsMenu _options;
         bool _optionsOpen;
 
-        // Vignette textures for legibility over the animated backdrop: a faint full-screen tint
-        // and a soft dark disc drawn behind the title + button column. Built lazily, freed on destroy.
-        Texture2D _tintTex;
-        Texture2D _vignetteTex;
-
         public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null,
                          GameInput input = null)
         {
@@ -44,26 +39,28 @@ namespace Trickshot
         {
             if (_chosen) return;
 
-            float w = 320f, h = 66f, gap = 20f;
-            float cx = Screen.width * 0.5f - w * 0.5f;
+            // Fit to the window (see MenuScale); virtual coordinates from here on.
+            MenuScale.Begin();
 
-            // Darken behind the menu so the white title and buttons read over the moving scene,
-            // while the pitch stays visible at the screen edges.
-            DrawVignette();
+            float w = 320f, h = 66f, gap = 20f;
+            float cx = MenuScale.Width * 0.5f - w * 0.5f;
+
+            // Darken behind the menu so the white title and buttons read over the moving scene.
+            // Ramped from nothing at the top, because the top of the frame is sky and this used to
+            // be a flat 0.30 over it: measured, the backdrop was reaching the screen at 0.70 of its
+            // authored brightness at the edges and 0.35 down the middle. Ramped it comes to 0.95 at
+            // the top corners and 0.64 at the column, and the title's own bloom plus the button
+            // plates carry the local contrast that the flat dim was being asked for.
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
 
             // Options overlay takes over the whole menu while open (same panel as the pause menu).
             if (_optionsOpen && _options != null)
             {
                 _options.Draw(() => _optionsOpen = false);
+                MenuScale.End();
                 return;
             }
 
-            var title = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 54, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = Color.white }
-            };
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
 
             if (!_inChallenges)
@@ -71,29 +68,31 @@ namespace Trickshot
                 // Row count grows by one when Options is available, so keep the column centered.
                 bool hasOptions = _options != null;
                 float rows = hasOptions ? 5f : 4f;
-                float cy = Screen.height * 0.5f - (h * rows + gap * (rows - 1f)) * 0.5f;
-                GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "TRICKSHOT", title);
-                if (GUI.Button(new Rect(cx, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
-                if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Mode", btn)) _inChallenges = true;
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Multiplayer", btn))
+                float cy = MenuScale.Height * 0.5f - (h * rows + gap * (rows - 1f)) * 0.5f;
+                UITheme.Title(new Rect(0, cy - 110f, MenuScale.Width, 80f), "TRICKSHOT");
+                if (UITheme.Button(new Rect(cx, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Mode", btn)) _inChallenges = true;
+                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Multiplayer", btn))
                 {
                     _chosen = true; enabled = false; _onMultiplayer?.Invoke();
                 }
-                if (hasOptions && GUI.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Options", btn))
+                if (hasOptions && UITheme.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Options", btn))
                     _optionsOpen = true;
             }
             else
             {
-                float cy = Screen.height * 0.5f - (h * 3f + gap * 2.5f);
-                GUI.Label(new Rect(0, cy - 110f, Screen.width, 80f), "MODE", title);
-                if (GUI.Button(new Rect(cx, cy, w, h), "Scrimmage", btn)) Choose(GameMode.Scrimmage);
-                if (GUI.Button(new Rect(cx, cy + (h + gap), w, h), "Freeplay", btn)) Choose(GameMode.Freeplay);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Time Trial", btn)) Choose(GameMode.TimeTrial);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
-                if (GUI.Button(new Rect(cx, cy + (h + gap) * 5f, w, h), "Back", btn)) _inChallenges = false;
+                float cy = MenuScale.Height * 0.5f - (h * 3f + gap * 2.5f);
+                UITheme.Title(new Rect(0, cy - 110f, MenuScale.Width, 80f), "MODE");
+                if (UITheme.Button(new Rect(cx, cy, w, h), "Scrimmage", btn)) Choose(GameMode.Scrimmage);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap), w, h), "Freeplay", btn)) Choose(GameMode.Freeplay);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Time Trial", btn)) Choose(GameMode.TimeTrial);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
+                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 5f, w, h), "Back", btn)) _inChallenges = false;
             }
+
+            MenuScale.End();
         }
 
         void Choose(GameMode m)
@@ -103,49 +102,8 @@ namespace Trickshot
             _onChoose?.Invoke(m);   // may destroy this object; do nothing after
         }
 
-        // A faint even tint over the whole screen plus a soft radial dark patch centered on the
-        // menu column. The radial patch is a small texture stretched by GUI, so its bilinear
-        // filtering does the smoothing for free.
-        void DrawVignette()
-        {
-            if (_tintTex == null)
-            {
-                _tintTex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-                _tintTex.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.28f));
-                _tintTex.Apply();
-                _tintTex.hideFlags = HideFlags.HideAndDontSave;
-            }
-            if (_vignetteTex == null)
-            {
-                const int N = 64;
-                _vignetteTex = new Texture2D(N, N, TextureFormat.RGBA32, false);
-                var px = new Color[N * N];
-                float c = (N - 1) * 0.5f;
-                for (int y = 0; y < N; y++)
-                    for (int x = 0; x < N; x++)
-                    {
-                        float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c; // 0 center -> 1 edge
-                        float a = Mathf.Clamp01(1f - d);
-                        a = a * a;                       // tighter falloff, transparent by the rim
-                        px[y * N + x] = new Color(0f, 0f, 0f, a * 0.62f);
-                    }
-                _vignetteTex.SetPixels(px);
-                _vignetteTex.Apply();
-                _vignetteTex.wrapMode = TextureWrapMode.Clamp;
-                _vignetteTex.hideFlags = HideFlags.HideAndDontSave;
-            }
-
-            // Even tint everywhere.
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _tintTex);
-            // Dark disc behind the column: tall enough for title + up to six buttons, centered.
-            float vw = 720f, vh = Screen.height * 1.15f;
-            GUI.DrawTexture(new Rect(Screen.width * 0.5f - vw * 0.5f, Screen.height * 0.5f - vh * 0.5f, vw, vh), _vignetteTex);
-        }
-
         void OnDestroy()
         {
-            if (_tintTex != null) Destroy(_tintTex);
-            if (_vignetteTex != null) Destroy(_vignetteTex);
             _options?.Dispose();   // abort any in-flight rebind so the op isn't orphaned
         }
     }

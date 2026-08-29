@@ -21,6 +21,17 @@ namespace Trickshot
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoStart()
         {
+            // Keep the player loop running while the window is not focused. This is a MULTIPLAYER
+            // correctness requirement, not a convenience: a paused loop stops pumping the UDP
+            // transport, so keepalives stop going out and every peer trips the 5s timeout. A host
+            // who clicked another window used to end the match for everyone. Set here as well as in
+            // PlayerSettings (see Assets/Editor/BuildAll.cs) so the editor behaves like a build.
+            Application.runInBackground = true;
+
+            // Resolution / window mode / vsync / UI scale, as the player last set them (Options ->
+            // Camera). Runs before anything draws so the first frame is already the right size.
+            DisplaySettings.ApplyOnBoot();
+
             if (FindAnyObjectByType<GameBootstrap>() != null) return;
             var go = new GameObject("GameBootstrap");
             go.AddComponent<GameBootstrap>();
@@ -29,6 +40,7 @@ namespace Trickshot
         Transform _root;
         Camera _cam;
         GameObject _camGo;
+        Light _sun;         // the one directional light; SkyDome aims it per venue
 
         void Awake()
         {
@@ -36,20 +48,28 @@ namespace Trickshot
             _root = new GameObject("Trickshot").transform;
 
             // Lights
-            MakeSun(_root);
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.55f, 0.6f, 0.7f);
-            RenderSettings.ambientEquatorColor = new Color(0.4f, 0.42f, 0.4f);
-            RenderSettings.ambientGroundColor = new Color(0.2f, 0.22f, 0.2f);
+            // Ambient comes from the sky now (SkyDome sets AmbientMode.Skybox), so the three
+            // hand-picked Trilight colours that used to live here are gone.
+            _sun = MakeSun(_root);
 
             // Camera
             _camGo = new GameObject("MainCamera");
             _camGo.tag = "MainCamera";
             _cam = _camGo.AddComponent<Camera>();
             _cam.backgroundColor = new Color(0.5f, 0.62f, 0.78f);
-            _cam.clearFlags = CameraClearFlags.SolidColor;
             _cam.nearClipPlane = 0.05f;
-            _cam.farClipPlane = 400f;
+            // 600, up from 400, for the same reason as the menu camera: every walled venue now gets
+            // SurroundBuilder.Skyline, whose furthest buildings sit ~341 m from the pitch centre, and a
+            // match camera can be most of a pitch length away from that centre - so 400 was close
+            // enough to the far buildings to clip them in and out as play moved up and down the pitch.
+            // Near clip is left at 0.05 here: unlike the menu reel, a match camera really can end up
+            // close to a body.
+            // 900, matching the menu. The far mountain range this was widened for is gone; the hills
+            // that remain reach ~776 m from the pitch centre and a match camera can sit most of a pitch
+            // length away from that again.
+            _cam.farClipPlane = 900f;
+            // Real sky, venue sun, matching haze. Re-applied whenever a mode picks a venue.
+            SkyDome.Apply(_cam, _sun);
             _camGo.AddComponent<AudioListener>();
 
             // A client losing the host (host quit / timed out) can happen on ANY screen, including
@@ -87,6 +107,7 @@ namespace Trickshot
             foreach (var ui in FindObjectsByType<HostSetupUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<MultiplayerHubUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<CustomizeUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<SpeciesSelectUI>()) Destroy(ui.gameObject);
         }
 
         // ---- Screen flow: main menu -> pre-match settings -> match (+ pause menu) ----
@@ -177,13 +198,49 @@ namespace Trickshot
         // appearance to the session on the way out: the initial Hello / host self-set captured it
         // BEFORE this screen, so without this push remote players (and the roster) keep the
         // default look and cosmetics never show in the match.
+        // Does the lobby's chosen mode offer the species screen (see PicksSpecies)? With no session
+        // it does, so a torn-down lobby cannot skip a step by accident.
+        bool LobbyPicksSpecies()
+        {
+            var s = Trickshot.Net.Multiplayer.Session;
+            return s == null || PicksSpecies((GameMode)s.Config.mode);
+        }
+
         void ShowLobbyCustomize()
+        {
+            // Humans only in scrimmage, exactly as in single player: skip to the body screen and pin
+            // the species, then resync so the roster shows Human rather than whatever the player was
+            // last set to in another mode.
+            if (!LobbyPicksSpecies())
+            {
+                Species.ApplySelection(Species.HumanId);
+                Trickshot.Net.Multiplayer.Session?.UpdateLocalAppearance();
+                LobbyCustomizeBody();
+                return;
+            }
+
+            // Species first, same as the single-player path, so CustomizeUI can read the species once
+            // on Init and build its tab set from it. Picking a species writes the appearance's species
+            // byte immediately, so backing straight out to the lobby has to resync too or the roster
+            // keeps the stale species.
+            var sp = new GameObject("SpeciesSelectUI");
+            System.Action resync = () => Trickshot.Net.Multiplayer.Session?.UpdateLocalAppearance();
+            sp.AddComponent<SpeciesSelectUI>().Init(
+                onPicked: () => { Destroy(sp); LobbyCustomizeBody(); },
+                onBack:   () => { resync(); Destroy(sp); ShowLobby(); });
+        }
+
+        void LobbyCustomizeBody()
         {
             var go = new GameObject("CustomizeUI");
             System.Action resync = () => Trickshot.Net.Multiplayer.Session?.UpdateLocalAppearance();
             go.AddComponent<CustomizeUI>().Init(
                 onDone: () => { resync(); Destroy(go); ShowLobby(); },
-                onBack: () => { resync(); Destroy(go); ShowLobby(); });
+                // Straight back to the lobby when the species screen was skipped: routing through
+                // ShowLobbyCustomize would skip forward to this same screen again and Back would
+                // look broken.
+                onBack: () => { resync(); Destroy(go);
+                                if (LobbyPicksSpecies()) ShowLobbyCustomize(); else ShowLobby(); });
         }
 
         // Apply the host's synced config, then build the chosen mode with the session live.
@@ -200,6 +257,15 @@ namespace Trickshot
                 // This peer plays whatever slot the host assigned it (keeper slot 0 -> keeper).
                 SimConfig.ScrimmageRole = s.LocalRole == Trickshot.Net.NetRole.Keeper
                     ? SimConfig.ScrimRole.Keeper : SimConfig.ScrimRole.Outfield;
+                // Canonical goal size, written on EVERY peer. This branch used to leave GoalWidth and
+                // GoalHeight alone while the set-piece and accuracy branches below assign them, and
+                // they are mutable statics - so a host who last played a 1.5x set piece and a client
+                // who did not were building the goal frame and the goal-detection plane at DIFFERENT
+                // sizes in the same match. That is a genuine desync, not just a local mis-size, and it
+                // resolves to "the host and the client disagree about whether that was a goal".
+                SimConfig.GoalWidth  = 7.32f;
+                SimConfig.GoalHeight = 2.44f;
+                SimConfig.BallSpeedMul = 1f;
             }
             else if (mode == GameMode.SetPieces)
             {
@@ -240,10 +306,37 @@ namespace Trickshot
         // a KeeperController never reads); every other mode walks the full flow.
         static bool CustomizeSkipsSkill(GameMode mode) => mode == GameMode.Goalkeeper;
 
+        // Scrimmage is HUMANS ONLY for now, so it skips the species screen and pins the selection
+        // back to Human on the way past. A quadruped in a team match leans on team AI, keeper poses
+        // and a ball-strike model that all assume a biped, and none of that has been done for one;
+        // offering the pick and then playing a horse badly is worse than not offering it. Everything
+        // else about the species is untouched, so restoring the pick is this one predicate.
+        static bool PicksSpecies(GameMode mode) => mode != GameMode.Scrimmage;
+
         void AfterStadium(GameMode mode)
         {
-            if (UsesCustomPlayer(mode)) ShowCustomize(mode);
-            else ShowPrematch(mode);
+            if (!UsesCustomPlayer(mode)) { ShowPrematch(mode); return; }
+            if (!PicksSpecies(mode))
+            {
+                // Pin it here rather than trusting whatever the last mode left selected: the species
+                // byte persists in the profile, so picking a horse in Striker and then starting a
+                // scrimmage would otherwise carry the horse in with no screen to change it back.
+                Species.ApplySelection(Species.HumanId);
+                ShowCustomize(mode);
+                return;
+            }
+            ShowSpeciesSelect(mode);
+        }
+
+        // Species is the first step of the customize flow: it decides which appearance tabs exist,
+        // what the body sliders measure, whether adult mode is offered and whether there is an
+        // Instinct skill tab, so it has to be settled before CustomizeUI initializes.
+        void ShowSpeciesSelect(GameMode mode)
+        {
+            var go = new GameObject("SpeciesSelectUI");
+            go.AddComponent<SpeciesSelectUI>().Init(
+                onPicked: () => { Destroy(go); ShowCustomize(mode); },
+                onBack:   () => { Destroy(go); ShowStadiumSelect(mode); });
         }
 
         void ShowCustomize(GameMode mode)
@@ -253,7 +346,11 @@ namespace Trickshot
             cu.SkipSkill = CustomizeSkipsSkill(mode);
             cu.Init(
                 onDone: () => { Destroy(go); ShowPrematch(mode); },
-                onBack: () => { Destroy(go); ShowStadiumSelect(mode); });
+                // Back goes to whichever screen actually preceded this one. Sending scrimmage to the
+                // species screen it never saw would both show a screen that is meant to be gone and
+                // strand Back in a loop between the two.
+                onBack: () => { Destroy(go);
+                                if (PicksSpecies(mode)) ShowSpeciesSelect(mode); else ShowStadiumSelect(mode); });
         }
 
         void ShowPrematch(GameMode mode)
@@ -303,6 +400,28 @@ namespace Trickshot
             ShowMainMenu();
         }
 
+        // Pause -> Restart Match: rebuild the same mode with the same settings, skipping the
+        // pre-match screen. Deferred to the next frame because the request comes from the pause
+        // menu's OnGUI and the outgoing match root (which owns that menu) is only destroyed at the
+        // end of this frame; building the replacement here would run both for a frame.
+        GameMode _restartMode;
+        bool _restartPending;
+
+        void RestartMatch(GameMode mode)
+        {
+            _restartMode = mode;
+            _restartPending = true;
+        }
+
+        void Update()
+        {
+            if (!_restartPending) return;
+            _restartPending = false;
+            TearDownMatch();
+            BuildMode(_restartMode);
+            GameInput.CaptureCursor(true);   // straight back into play, not into a menu
+        }
+
         // Pause -> Match Setup: tear the match down and reopen the pre-match config for the
         // same mode. Start rebuilds the match; Back walks to the previous pregame screen.
         void ReturnToMatchSetup(GameMode mode)
@@ -337,13 +456,17 @@ namespace Trickshot
             var pauseGo = new GameObject("PauseMenu");
             pauseGo.transform.SetParent(root, false);
             System.Action onLeave = Trickshot.Net.Multiplayer.IsClient ? LeaveNetworkedMatch : (System.Action)null;
-            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput(), onLeave);
+            // Restart is single-player only: the net protocol has no match reset, so restarting
+            // mid-session would strand every client.
+            System.Action onRestart = Trickshot.Net.Multiplayer.IsActive ? (System.Action)null : () => RestartMatch(mode);
+            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput(),
+                                                   onLeave, onRestart, mode);
 
             // Networked match: pump the transport every frame for the match's lifetime.
             if (Trickshot.Net.Multiplayer.IsActive)
                 pauseGo.AddComponent<Trickshot.Net.NetPump>();
 
-            _cam.backgroundColor = StadiumStyle.Active.Sky;
+            SkyDome.Apply(_cam, _sun);
 
             // Default the aim-target to the training goal; scrimmage repoints it.
             SimConfig.AttackGoalCenter = SimConfig.GoalCenter;
@@ -495,8 +618,12 @@ namespace Trickshot
             reticle.Init(Make.Glow(new Color(1f, 0.85f, 0.2f)));
 
             // Player striker: scaled to the customized build and wearing the painted jersey.
-            // Striker mode is shooting-on-goal, so dribbling stays OFF (default).
-            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out _);
+            // Dribbling is OFF in Striker mode: no capture, no first touch, no carry - the ball
+            // is only ever struck or volleyed. The component stays bound (Striker null-checks it
+            // and its speed/turn penalties are Carrying-gated) but FixedUpdate returns at once.
+            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
+            dribble.Enabled = false;
+            ball.NoCarry = true;   // and a dead touch is pushed clear of his feet, never parked there
 
             // AI keeper: an active-ragdoll goaltender (with gloves) that shuffles + dives.
             Goalkeeper keeper = null;
@@ -527,9 +654,6 @@ namespace Trickshot
             var gm = gmGo.AddComponent<GameManager>();
             gm.Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
             LockCursor();
-
-            foreach (var kd in striker.GetComponentsInChildren<KickDetector>())
-                kd.OnValidTrick += gm.NotifyValidTrick;
 
             if (EnableSniper)
             {
@@ -636,7 +760,7 @@ namespace Trickshot
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
             gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
             ball.SetCamera(gameCam);
-            striker.SetCameraYaw(() => gameCam.Yaw);
+            striker.SetCameraYaw(() => gameCam.Yaw, () => gameCam.Pitch);
 
             // Wall object is always created; AccuracyGame only BUILDS blockers when WallCount > 0.
             var wall = new DefensiveWall();
@@ -655,9 +779,17 @@ namespace Trickshot
             BuildCrosser(root, ball, out var crosser, out var crosserRagdoll, out var launch, out var reticle);
             BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
 
-            // Freeplay is the open sandbox: enable dribbling there. Time Trial is score-on-goal,
-            // so it leaves it off (the ball never sticks to the feet).
-            dribble.Enabled = mode == GameMode.Freeplay;
+            // NO carry in the volley challenge modes either. The capture gate was taking a
+            // settling cross and leashing it to his boots, which turned the volley he was lining
+            // up into a point-blank dribble poke. The ball is now only ever struck where it lies,
+            // and a mistimed dead touch is pushed clear instead of trapped (NoCarry).
+            // Reversible in two lines: Enabled = true, NoCarry = false.
+            dribble.Enabled = false;
+            ball.NoCarry = true;
+
+            // Both challenge modes honour the pre-match keeper ability slider now: 0 leaves the goal
+            // open (BuildAiKeeper returns null), anything else puts an AI keeper on the line.
+            var keeper = BuildAiKeeper(root, ball, out _);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
             ball.SetCamera(gameCam);   // auto ball-cam on a shot
@@ -665,9 +797,9 @@ namespace Trickshot
             var go = new GameObject(mode + "Game");
             go.transform.SetParent(root, true);
             if (mode == GameMode.Freeplay)
-                go.AddComponent<FreeplayGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
+                go.AddComponent<FreeplayGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
             else
-                go.AddComponent<TimeTrialGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, gameCam, launch);
+                go.AddComponent<TimeTrialGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
 
             LockCursor();
             ball.ResetTo(launch.position);
@@ -687,16 +819,13 @@ namespace Trickshot
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
             gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
             ball.SetCamera(gameCam);   // auto ball-cam on a shot
-            striker.SetCameraYaw(() => gameCam.Yaw);
+            striker.SetCameraYaw(() => gameCam.Yaw, () => gameCam.Pitch);
 
             var wall = new DefensiveWall();
             var go = new GameObject("FreeKickGame");
             go.transform.SetParent(root, true);
             var fk = go.AddComponent<FreeKickGame>();
             fk.Configure(GetInput(), ball, striker, ragdoll, keeper, keeperRagdoll, wall, gameCam);
-
-            foreach (var kd in striker.GetComponentsInChildren<KickDetector>())
-                kd.OnValidTrick += fk.NotifyValidTrick;
 
             LockCursor();
         }
@@ -716,7 +845,7 @@ namespace Trickshot
             // sized to this (centred) field. Point the shared PitchLayout contract at it first,
             // then build the shell + crowd (skip PitchBuilder - scrimmage lays its own ground).
             PitchLayout.ConfigureScrimmage(arena.halfLength * 2f, arena.halfWidth * 2f, 0f);
-            _cam.backgroundColor = StadiumStyle.Active.Sky;
+            SkyDome.Apply(_cam, _sun);
             StadiumBuilder.Build(root);
             _crowd = Crowd.Create(root);
             CrowdCheer.Register(_crowd);
@@ -786,7 +915,10 @@ namespace Trickshot
                 var kGo = new GameObject("HumanKeeper");
                 kGo.transform.SetParent(root, true);
                 humanKeeperRag = kGo.AddComponent<ActiveRagdoll>();
-                var facing = Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up);
+                // +Z, i.e. OUT toward the pitch. The away goal is at -Z and its mouth opens toward
+                // +Z (ScrimmageArena), so the -1 this used to pass pointed him at the back of his own
+                // net - and the follow camera below matched it, so the player looked at netting.
+                var facing = Quaternion.LookRotation(new Vector3(0f, 0f, 1f), Vector3.up);
                 // Human keeper wears the player's customized kit (homeTorso == the painted jersey)
                 // + skin + cosmetics + gloves, same as the striker path. Position/facing stay
                 // mode-specific (defends the away goal).
@@ -795,11 +927,14 @@ namespace Trickshot
                                            PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
                                            withGloves: true, appearance: PlayerProfile.Appearance);
                 humanKeeperCtrl = kGo.AddComponent<KeeperController>();
-                humanKeeperCtrl.Init(GetInput(), humanKeeperRag);
+                humanKeeperCtrl.Init(GetInput(), humanKeeperRag, ball);
+                // Distribute into THIS pitch. The default is the 24 x 34 training arena, which on an
+                // 11-a-side scrimmage (68 x 104) would clamp every play-out to the same short punt.
+                humanKeeperCtrl.AimBounds = new Vector2(arena.halfWidth - 1f, arena.halfLength - 1f);
                 // 5th arg (goal Transform) is only used by the unused Broadcast cam; pass null.
                 gameCam.Init(_cam, ball.transform, humanKeeperRag.Pelvis.transform, null, null);
                 gameCam.SetKeeperFollow(humanKeeperRag.Pelvis.transform,
-                    () => Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up), () => GetInput().Look);
+                    () => Quaternion.LookRotation(new Vector3(0f, 0f, 1f), Vector3.up), () => GetInput().Look);
                 humanKeeperCtrl.SetLookYawSource(() => gameCam.KeeperLookYaw);
             }
             else
@@ -854,7 +989,7 @@ namespace Trickshot
             var f = go.AddComponent<Footballer>();
             // Home (team 0) attacks +Z (HomeGoal), Away attacks -Z, in every role.
             float attackZ = team == 0 ? 1f : -1f;
-            f.Init(game, ball, ragdoll, team, keeper, attackZ, Vector3.zero);
+            f.Init(game, ball, ragdoll, team, keeper, attackZ, Vector3.zero, index);
             return f;
         }
 
@@ -875,7 +1010,7 @@ namespace Trickshot
                                 PlayerProfile.HeightScale, PlayerProfile.GirthScale, PlayerProfile.MassMul,
                                 withGloves: true, appearance: PlayerProfile.Appearance);
             var keeper = keeperGo.AddComponent<KeeperController>();
-            keeper.Init(GetInput(), ragdoll);
+            keeper.Init(GetInput(), ragdoll, ball);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
 
@@ -907,12 +1042,13 @@ namespace Trickshot
 
         void AttachKickDetectors(ActiveRagdoll ragdoll, Striker striker, BallController ball)
         {
-            // BOTH legs get detectors so a bicycle scored off either foot classifies (the
-            // right foot is the strong-side default, but a left-foot bike must count too).
-            AddDetector(ragdoll.Rb(Bone.FootR), striker, ragdoll, ball);
-            AddDetector(ragdoll.Rb(Bone.CalfR), striker, ragdoll, ball);
-            AddDetector(ragdoll.Rb(Bone.FootL), striker, ragdoll, ball);
-            AddDetector(ragdoll.Rb(Bone.CalfL), striker, ragdoll, ball);
+            // The striking bones come from the body's layout, so a quadruped detects off its FRONT
+            // hooves instead of the biped's feet. BOTH sides are always listed so a bicycle scored
+            // off either limb classifies (the right side is the strong-side default, but a
+            // left-footed bike must count too). See BodyLayoutDef.StrikeBones.
+            var strike = ragdoll.StrikeBones;
+            for (int i = 0; i < strike.Length; i++)
+                AddDetector(ragdoll.Rb(strike[i]), striker, ragdoll, ball);
         }
 
         void AddDetector(Rigidbody rb, Striker striker, ActiveRagdoll ragdoll, BallController ball)
@@ -931,7 +1067,7 @@ namespace Trickshot
             Physics.defaultContactOffset = 0.005f;
         }
 
-        void MakeSun(Transform root)
+        Light MakeSun(Transform root)
         {
             var go = new GameObject("Sun");
             go.transform.SetParent(root, false);
@@ -941,6 +1077,7 @@ namespace Trickshot
             l.intensity = 1.15f;
             l.shadows = LightShadows.Soft;
             go.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
+            return l;
         }
     }
 }

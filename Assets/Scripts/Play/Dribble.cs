@@ -3,37 +3,92 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Arcade close-control dribbling for the player striker. A soft magnet: whenever the
-    /// ball is near the striker's feet and slow (and he is grounded, not mid-trick), it
-    /// sticks to a CARRY POINT just in front of him and travels with his run, arcade-style.
+    /// Ball control the way football games actually do it: DISCRETE TOUCHES on a free ball,
+    /// not a leash. This replaced a continuous spring "soft magnet", and the difference is the
+    /// whole feel of the game.
     ///
-    ///  - Capture is automatic - no button. Walk near a loose/slow ball and it joins you.
-    ///  - The carry point sits a short way ahead at a walk and is pushed FURTHER ahead
-    ///    when sprinting (a heavier touch you have to chase), tighter when you slow down.
-    ///  - A KICK releases the leash and strikes the ball: either the leg button (LMB/RMB)
-    ///    or a genuinely fast leg swing into the ball. The shot flies in the facing/aim
-    ///    direction with real power (scaled by ShotPowerMul + Shooting nodes).
-    ///  - The Control "trap" stat (First Touch / Cushion) tightens everything: closer
-    ///    carry and a wider capture net, so a Control build glues the ball to their feet.
+    /// WHY A SPRING IS WRONG. A spring holds the ball at a point every single frame. That has
+    /// no touches in it, so it has no rhythm, no error, and nothing a defender can poke away -
+    /// the ball is welded to a moving anchor, and the player is a forklift. Every real football
+    /// game instead leaves the ball a plain rigidbody and has the carrier KICK it, once per
+    /// stride, hard enough to arrive where the next stride wants it. Between those kicks nobody
+    /// owns the ball: it rolls, it slows down, it can be intercepted mid-roll.
     ///
-    /// While carrying, this component tells the BallController to skip its own strike/trap
-    /// contact logic (BallController.DribbleHold), so the run-cycle foot taps never fight
-    /// the magnet. Physics only: it steers the ball's velocity with a capped spring, never
-    /// teleports it, so collisions with keepers/walls still knock it loose naturally.
+    /// THE MECHANISM, in full:
+    ///  - CADENCE. A touch lands once per step, and the step comes from Gait.Cadence - the same
+    ///    function that drives the visible legs - so contact happens when a foot is actually
+    ///    there. Faster running = more frequent touches.
+    ///  - PACE SETS THE TOUCH. At a walk the ball is knocked barely a stride ahead (close
+    ///    control). At full sprint it is knocked a long way out and the player runs onto it -
+    ///    the KNOCK-ON. Top speed therefore costs control, which is the trade every football
+    ///    game makes and the reason sprinting past a defender is a gamble.
+    ///  - CLOSE CONTROL (modifier key). Shortest touches, more of them, reduced pace, much
+    ///    quicker turn. For beating a man in a tight space. Sprint is ignored while it is held.
+    ///  - EARLY TOUCHES. If the ball drops level with the feet or drifts out to one side, a
+    ///    corrective touch fires immediately instead of waiting for cadence. This is what makes
+    ///    the carry self-correct rather than drift away.
+    ///  - TURNING. Facing change since the last touch shortens the push toward the body, so a
+    ///    sharp turn drags the ball around you instead of squirting it off at the old angle -
+    ///    and scatters the touch more, because that is a hard thing to do.
+    ///  - FIRST TOUCH. Taking possession cushions whatever pace the ball arrived with. How dead
+    ///    that touch is comes straight off the Control stat.
+    ///  - ERROR. Every touch is scattered a few degrees, scaled by pace, turn sharpness and
+    ///    (inversely) Control. A raw build sprays the ball; a Control build keeps it glued.
+    ///
+    /// Possession is never granted for a ball that is airborne, genuinely fast, or closing on
+    /// the feet faster than a trap could cushion, so a served cross or a struck shot is never
+    /// swallowed. Exactly one body can carry at a time (see the static holder), which is both
+    /// physically true and what lets every body in a match run this component at once.
+    ///
+    /// Collision between the ball and the CARRIER'S OWN colliders is suspended for the duration
+    /// of a carry. That is deliberate: the ragdoll's legs are physics bodies swinging at gait
+    /// speed, so leaving them live would punt the ball on random frames and fight every touch.
+    /// The touch model supplies those impulses instead. The ball still collides with everything
+    /// else - ground, walls, keepers, other players - so it can be tackled and intercepted.
+    ///
+    /// SHOOTING AND VOLLEYING ARE NEVER SUPPRESSED GLOBALLY. Carry ownership is registered on the
+    /// ball itself (BallController.DribbleCarrier), so only the CARRIER'S own contacts skip the
+    /// strike path - every other body strikes as normal, which is what lets a defender shoot or
+    /// volley the ball straight off a carrier's feet. And a capture is refused outright while a
+    /// leg button is held, so a ball you are lining up to strike is never trapped out from under
+    /// you at the last moment.
     /// </summary>
     public class Dribble : MonoBehaviour
     {
-        GameInput _input;
+        /// <summary>
+        /// Raised when a carried ball is STRUCK at goal, with the striker's body. Exists so match-stat
+        /// tracking can count a human's shots without Dribble having to know what a ScrimmageGame is.
+        /// Subscribers must unsubscribe: it is static, so a driver that forgets keeps a dead match alive.
+        /// </summary>
+        public static System.Action<ActiveRagdoll> ShotFired;
+
+        IStrikerInput _input;
         Striker _striker;
         ActiveRagdoll _ragdoll;
         BallController _ball;
 
         bool _carrying;
-        float _cooldown;        // after a shot, don't re-capture for a moment
+        float _cooldown;          // after a shot, don't re-capture for a moment
+        float _touchTimer;        // counts down to the next touch
+        Vector3 _lastTouchFace;   // facing at the last touch, for measuring turn sharpness
 
-        // Master switch: dribbling is only ENABLED in modes that want it (a real match).
-        // Shooting-on-goal modes (Striker, challenges, keeper) leave this false so the ball
-        // never snaps to the feet. Off by default; the mode builder opts in.
+        // Exactly ONE body holds the ball at a time - it is one ball. Tracking the holder
+        // statically is what makes it safe to leave this component enabled on every body in a
+        // match: whoever gets there first carries, and nobody else can capture underneath them.
+        static Dribble _holder;
+
+        /// <summary>Whoever is carrying the ball right now, or null.</summary>
+        public static Dribble Holder => _holder;
+
+        /// <summary>Drop the ball from whoever is carrying it (tackle, whistle, reset).</summary>
+        public static void ReleaseHolder()
+        {
+            if (_holder != null) _holder.ForceRelease();
+        }
+
+        // Master switch: dribbling is only ENABLED in modes where the ball is live. Dead-ball
+        // galleries (free kick, penalty, accuracy) leave it false. Off by default; the mode
+        // builder opts in.
         public bool Enabled = false;
 
         // Set-piece suspension: a free kick / penalty (or any dead-ball setup) turns this on
@@ -43,7 +98,10 @@ namespace Trickshot
 
         public bool Carrying => _carrying;
 
-        public void Init(GameInput input, Striker striker, ActiveRagdoll ragdoll, BallController ball)
+        /// <summary>Close-control modifier held (shortest touches, less pace, sharper turns).</summary>
+        public bool CloseControl => _input != null && _input.CloseControlHeld;
+
+        public void Init(IStrikerInput input, Striker striker, ActiveRagdoll ragdoll, BallController ball)
         {
             _input = input;
             _striker = striker;
@@ -51,145 +109,338 @@ namespace Trickshot
             _ball = ball;
         }
 
-        // Tightness 0..1 from the Control trap stat: closer carry + bigger capture net.
+        /// <summary>
+        /// Swap the input source at runtime, the same way Striker.SetInput does. The HOST binds a
+        /// remote player's NetInputSource here; without this, every body in a networked match
+        /// read the local device and one player's sprint/shoot reached everyone's ball.
+        /// </summary>
+        public void SetInput(IStrikerInput input) => _input = input;
+
+        // Tightness 0..1 from the Control trap stat: shorter touches, wider capture net,
+        // deader first touch, less scatter.
         float Tightness => PlayerProfile.DribbleTightness;
-
-        // Where the ball wants to sit: in front of the feet along the facing, further out
-        // when sprinting, pulled closer by Control. Height rides at the ball radius.
-        Vector3 CarryPoint()
-        {
-            float sprintT = _input != null && _input.SprintHeld ? 1f : 0f;
-            float dist = Mathf.Lerp(SimConfig.DribbleNearDistance, SimConfig.DribbleSprintDistance, sprintT);
-            dist *= 1f - SimConfig.DribbleTrapTightenMax * Tightness;   // Control pulls it in
-
-            Vector3 feet = _ragdoll.Pelvis.position;
-            feet.y = 0f;
-            Vector3 p = feet + _striker.FacingForward * dist;
-            p.y = SimConfig.BallRadius;
-            return p;
-        }
 
         float CaptureRadius => SimConfig.DribbleCaptureRadius + SimConfig.DribbleTrapCaptureBonus * Tightness;
 
+        // Flat position of the feet.
+        Vector3 Feet()
+        {
+            Vector3 f = _ragdoll.Pelvis.position;
+            f.y = 0f;
+            return f;
+        }
+
+        void OnDisable()
+        {
+            // Never leave a destroyed/disabled body as the holder: a stale static reference would
+            // lock possession out for every body in the NEXT match.
+            if (_holder == this) _holder = null;
+            if (_carrying) StopCarry();
+        }
+
         void FixedUpdate()
         {
-            if (_ball == null || _ragdoll == null || _ragdoll.Pelvis == null) return;
+            // A torn-down body must not stay the carrier: that would keep ball ownership (and so
+            // the strike skip, and the ignored collision) alive on a corpse forever.
+            if (_ball == null || _ragdoll == null || _ragdoll.Pelvis == null) { StopCarry(); return; }
 
             // Off entirely unless the mode enables dribbling, and never during a set piece
-            // (free kick / penalty) - the ball must stay parked at the spot, not snap to the
-            // feet. Drop any carry and bail so nothing captures.
+            // (free kick / penalty) - the ball must stay parked at the spot.
             if (!Enabled || SetPieceActive) { StopCarry(); return; }
 
-            if (_cooldown > 0f) _cooldown -= Time.fixedDeltaTime;
+            float dt = Time.fixedDeltaTime;
+            if (_cooldown > 0f) _cooldown -= dt;
 
-            // Can't dribble airborne or mid-trick (dive/bicycle own the body + ball).
+            // No carrying airborne or mid-trick (dive/bicycle own the body and the ball).
             bool canDribble = _ragdoll.IsGrounded && !_striker.IsBusy && _striker.ControlEnabled;
             if (!canDribble) { StopCarry(); return; }
 
-            Vector3 carry = CarryPoint();
-            Vector3 ballPos = _ball.Rb.position;
-            float distToCarry = Vector3.Distance(ballPos, carry);
+            Vector3 feet = Feet();
+            Vector3 face = _striker.FacingForward;
+            Vector3 ballFlat = _ball.Rb.position; ballFlat.y = 0f;
+            float ballDist = Vector3.Distance(ballFlat, feet);
 
             if (_carrying)
             {
-                // A kick (leg button, or a genuinely fast leg swing into the ball) releases
-                // the leash and strikes the ball as a shot.
-                if (WantsKick())
-                {
-                    ReleaseShot();
-                    return;
-                }
-                // Ball knocked too far away (keeper punch, wall, bad bounce) -> lose it.
-                if (distToCarry > SimConfig.DribbleReleaseRadius)
-                {
-                    StopCarry();
-                    return;
-                }
-                Follow(carry);
+                // A leg button strikes the ball as a real shot and ends the carry.
+                if (WantsKick()) { ReleaseShot(); return; }
+
+                // Knocked away (tackle, keeper, wall, bad bounce) or lifted off the deck:
+                // possession is gone. No leash pulls it back.
+                if (ballDist > SimConfig.DribbleLoseRadius || !BallIsLow()) { StopCarry(); return; }
+
+                TickCarry(dt, feet, face);
             }
-            else
+            else if (CanCapture(feet, ballDist))
             {
-                // Auto-capture: near the carry point, slow enough, off cooldown.
-                if (_cooldown <= 0f
-                    && distToCarry <= CaptureRadius
-                    && _ball.Rb.linearVelocity.magnitude <= SimConfig.DribbleCaptureMaxSpeed)
-                {
-                    StartCarry();
-                    Follow(carry);
-                }
+                StartCarry();
             }
+        }
+
+        // The ball is on the deck (or skipping along it) rather than in flight.
+        bool BallIsLow() => _ball.Rb.position.y <= SimConfig.BallRadius * SimConfig.DribbleMaxBallHeight;
+
+        /// <summary>
+        /// Can this body take the ball right now? Near the feet, low, off cooldown, nobody else
+        /// already on it, and not arriving faster RELATIVE TO THIS PLAYER than a trap could
+        /// cushion. That last test is the one that keeps a served cross or a struck shot from
+        /// being swallowed while still letting a carrier take a ball rolling along at their pace.
+        /// </summary>
+        bool CanCapture(Vector3 feet, float ballDist)
+        {
+            if (_cooldown > 0f) return false;
+            // A HELD LEG BUTTON means the player is lining up a strike, so never trap the ball out
+            // from under them. This matters most in the 0.25m-0.48m band where a ball is high
+            // enough to volley (VolleyMinBallHeight) but still low enough to capture: without this
+            // veto, a ball dropping through that band while you hold the leg up is swallowed as a
+            // dribble touch and the volley never fires.
+            if (_input != null && (_input.LeftLegHeld || _input.RightLegHeld)) return false;
+            if (_holder != null && _holder != this) return false;
+            if (ballDist > CaptureRadius) return false;
+            if (!BallIsLow()) return false;
+
+            var rb = _ball.Rb;
+            if (rb.linearVelocity.magnitude > SimConfig.DribbleCaptureMaxSpeed) return false;
+
+            Vector3 ballVel = rb.linearVelocity; ballVel.y = 0f;
+            Vector3 myVel = _ragdoll.MoveInput; myVel.y = 0f;
+            return (ballVel - myVel).magnitude <= SimConfig.DribbleCaptureApproachMax;
+        }
+
+        // One carried step: touch on cadence, or early if the ball is no longer where it should
+        // be. Between touches this does nothing but keep the rolling spin looking right.
+        void TickCarry(float dt, Vector3 feet, Vector3 face)
+        {
+            _touchTimer -= dt;
+
+            Vector3 ballFlat = _ball.Rb.position; ballFlat.y = 0f;
+
+            if (_touchTimer > 0f && !NeedsCorrectiveTouch(feet, face, ballFlat))
+            {
+                RollSpin(_ball);
+                return;
+            }
+
+            PushTouch(feet, face);
+        }
+
+        /// <summary>
+        /// Is the ball no longer where the carry wants it, so a touch is due NOW rather than on
+        /// the next stride? True when it has fallen level with the feet, or drifted off the
+        /// running line. The lateral band opens out with how far ahead the ball is, because a
+        /// sprint knock-on lands metres away and its own aim scatter would otherwise read as
+        /// "wide" on every single touch. Shared with the AI carrier.
+        /// </summary>
+        public static bool NeedsCorrectiveTouch(Vector3 feet, Vector3 face, Vector3 ballFlat)
+        {
+            Vector3 toBall = ballFlat - feet; toBall.y = 0f;
+            float ahead = Vector3.Dot(toBall, face);
+            if (ahead < SimConfig.BallRadius + SimConfig.DribblePushMinAhead) return true;
+
+            float side = Vector3.Dot(toBall, Vector3.Cross(Vector3.up, face));
+            float tol = SimConfig.DribbleSideTolerance + SimConfig.DribbleSideToleranceFrac * ahead;
+            return Mathf.Abs(side) > tol;
+        }
+
+        // Work out this touch's cadence, distance and scatter from pace / Control / turn
+        // sharpness, then hand it to the shared touch primitive.
+        void PushTouch(Vector3 feet, Vector3 face)
+        {
+            bool close = CloseControl;
+            float speed = _ragdoll.GroundSpeed;
+            float sprint01 = Sprint01(speed);
+
+            float interval = StrideInterval(_ragdoll, close);
+
+            float dist = TouchDistance(speed, Tightness, close);
+
+            // Turning: drag the ball in toward the body, and scatter the touch more.
+            float turn01 = _lastTouchFace.sqrMagnitude > 1e-4f
+                         ? Mathf.Clamp01(Vector3.Angle(_lastTouchFace, face) / SimConfig.DribbleTurnTightenDeg)
+                         : 0f;
+            dist *= Mathf.Lerp(1f, SimConfig.DribbleTurnTightenMul, turn01);
+
+            // Control cuts the base scatter outright and blunts the pace/turn penalties.
+            float t = Tightness;
+            float err = SimConfig.DribbleTouchErrorDeg * (1f - t)
+                      + SimConfig.DribbleTouchErrorSpeedDeg * sprint01 * (1f - 0.6f * t)
+                      + SimConfig.DribbleTurnErrorDeg * turn01 * (1f - 0.6f * t);
+            if (close) err *= SimConfig.DribbleCloseErrorMul;
+
+            Vector3 myVel = _ragdoll.MoveInput; myVel.y = 0f;
+            Touch(_ball, feet, face, myVel, interval, dist, err);
+
+            _touchTimer = interval;
+            _lastTouchFace = face;
+        }
+
+        /// <summary>
+        /// How far in front of the feet a carrier at this pace knocks the ball. Walk -> sprint
+        /// (the knock-on), pulled in by the Control stat, pulled in much further by close
+        /// control. Shared with the AI carrier so bots and humans knock it the same distance.
+        /// </summary>
+        public static float TouchDistance(float groundSpeed, float tightness, bool closeControl)
+        {
+            float d = Mathf.Lerp(SimConfig.DribbleNearDistance, SimConfig.DribbleSprintDistance,
+                                 Sprint01(groundSpeed));
+            d *= 1f - SimConfig.DribbleTrapTightenMax * Mathf.Clamp01(tightness);
+            if (closeControl) d *= SimConfig.DribbleCloseDistMul;
+            return d;
+        }
+
+        // 0 at a walk, 1 at full sprint. Same breakpoints the gait uses, so the touch model and
+        // the legs agree on what "sprinting" means.
+        static float Sprint01(float speed)
+            => Mathf.Clamp01(Mathf.InverseLerp(SimConfig.StrikerMoveSpeed * 0.9f,
+                                               SimConfig.StrikerMoveSpeed * SimConfig.StrikerSprintMul,
+                                               speed));
+
+        /// <summary>
+        /// Seconds between touches for this body: one per STEP, taken from the same gait cadence
+        /// that drives the visible legs (a full cycle is 2pi, so a step is pi). Clamped so a
+        /// standstill does not stall the carry and a sprint does not machine-gun it.
+        /// </summary>
+        public static float StrideInterval(ActiveRagdoll ragdoll, bool closeControl)
+        {
+            var p = Gait.For(ragdoll.Plan);
+            float sprint01;
+            float cadence = Gait.Cadence(ragdoll.GroundSpeed, ragdoll.HeightScale, p, out sprint01);
+            float step = cadence > 0.01f ? Mathf.PI / cadence : SimConfig.DribbleTouchIntervalMax;
+            step *= SimConfig.DribbleTouchStrideFrac;
+            if (closeControl) step *= SimConfig.DribbleCloseIntervalMul;
+            return Mathf.Clamp(step, SimConfig.DribbleTouchIntervalMin, SimConfig.DribbleTouchIntervalMax);
+        }
+
+        /// <summary>
+        /// THE touch primitive - the single place a carried ball is ever kicked, used by the
+        /// player's carry and by the AI carrier so bots and humans control the ball identically.
+        ///
+        /// Aims the ball at where the carrier will want it one touch from now: their feet
+        /// advanced by their own velocity, plus `touchDist` along their facing. The velocity is
+        /// whatever covers that gap in `interval`, over-hit slightly for what rolling friction
+        /// will eat, scattered by `errorDeg`, capped so a touch can never become a pass, and
+        /// given a few centimetres of hop so it reads as a kick rather than a slide.
+        /// </summary>
+        public static void Touch(BallController ball, Vector3 feet, Vector3 face, Vector3 carrierVel,
+                                 float interval, float touchDist, float errorDeg)
+        {
+            var rb = ball.Rb;
+            Vector3 ballFlat = rb.position; ballFlat.y = 0f;
+
+            face.y = 0f;
+            face = face.sqrMagnitude > 1e-4f ? face.normalized : Vector3.forward;
+            carrierVel.y = 0f;
+
+            // Where the ball should be by the next touch: ahead of where the carrier will be.
+            Vector3 target = feet + carrierVel * interval + face * touchDist;
+
+            Vector3 want = (target - ballFlat) / Mathf.Max(0.05f, interval) * SimConfig.DribbleRollLossComp;
+            if (errorDeg > 0.01f)
+                want = Quaternion.AngleAxis(Random.Range(-errorDeg, errorDeg), Vector3.up) * want;
+
+            // DEADBAND, not a floor. If the ball is already sitting where the next stride wants
+            // it, kill it dead under the studs. Clamping up to a minimum instead would have a
+            // standing player quietly walking the ball away from himself, one nudge per step.
+            float need = want.magnitude;
+            if (need < SimConfig.DribbleTouchMinSpeed)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                return;
+            }
+
+            Vector3 dir = want / need;
+            Vector3 push = dir * Mathf.Min(need, SimConfig.DribbleTouchMaxSpeed);
+
+            rb.linearVelocity = new Vector3(push.x, SimConfig.DribbleTouchHop, push.z);
+            RollSpin(ball);
+
+            // NO SuppressStrike here, deliberately. The carrier's gait does swing physics legs
+            // through the ball, but those contacts are already handled two ways that cost nobody
+            // else anything: the carrier's own colliders are ignored for the whole carry, and the
+            // ball skips the strike path for the CARRIER'S body specifically. Suppressing strikes
+            // globally on every touch (the old behaviour) also killed everyone else's shot and
+            // volley, on this ball, for as long as anyone was dribbling it.
+        }
+
+        // Rolling spin about the axis perpendicular to travel, for looks.
+        static void RollSpin(BallController ball)
+        {
+            var rb = ball.Rb;
+            Vector3 flat = rb.linearVelocity; flat.y = 0f;
+            if (flat.sqrMagnitude <= 0.04f) return;
+            rb.angularVelocity = Vector3.Cross(Vector3.up, flat.normalized) * (flat.magnitude * SimConfig.DribbleSpinScale);
         }
 
         void StartCarry()
         {
             _carrying = true;
-            _ball.DribbleHold = true;   // BallController skips its strike/trap logic while held
-            IgnoreStrikerCollision(true);  // the SPRING owns the ball; feet can't punt it
+            _holder = this;
+            _ball.SetDribbleCarrier(_ragdoll);   // only THIS body's contacts stop being strikes
+            IgnoreStrikerCollision(true);        // the touch model owns the ball; swinging legs don't
+
+            // FIRST TOUCH. Cushion whatever pace it arrived with - dead at the feet for a Control
+            // build, bouncing away off the shin for a raw one - then settle briefly before the
+            // first pushing touch, so taking the ball reads as a trap and not a snap.
+            var rb = _ball.Rb;
+            float keep = Mathf.Lerp(SimConfig.DribbleFirstTouchKeepRaw,
+                                    SimConfig.DribbleFirstTouchKeepSkilled, Tightness);
+            Vector3 kept = rb.linearVelocity; kept.y = 0f;
+            kept *= keep;
+
+            float err = SimConfig.DribbleTouchErrorDeg * (1f - Tightness);
+            if (kept.sqrMagnitude > 0.04f && err > 0.01f)
+                kept = Quaternion.AngleAxis(Random.Range(-err, err), Vector3.up) * kept;
+
+            rb.linearVelocity = new Vector3(kept.x, 0f, kept.z);
+            RollSpin(_ball);
+
+            _touchTimer = SimConfig.DribbleFirstTouchSettle;
+            _lastTouchFace = _striker != null ? _striker.FacingForward : Vector3.forward;
         }
 
         void StopCarry()
         {
             if (!_carrying) return;
             _carrying = false;
-            _ball.DribbleHold = false;
+            if (_holder == this) _holder = null;
+            // Clear the claim only if it is still OURS, so releasing never steals another body's.
+            if (_ball != null && _ball.DribbleCarrier == _ragdoll) _ball.SetDribbleCarrier(null);
             IgnoreStrikerCollision(false);
         }
 
-        // Toggle physical collision between the ball and the striker's own body colliders.
-        // While carrying, the run/walk gait would otherwise boot the held ball around; with
-        // collisions off, only the follow spring moves it, so the carry stays glued.
-        void IgnoreStrikerCollision(bool ignore)
+        // Toggle physical collision between the ball and this body's own colliders. See the
+        // class note: the gait's legs would otherwise punt the ball on random frames.
+        void IgnoreStrikerCollision(bool ignore) => SetCarryCollision(_ball, _ragdoll, ignore);
+
+        /// <summary>
+        /// Suspend (or restore) collision between the ball and ONE body's own colliders for the
+        /// duration of a carry. Shared with the AI carrier so a bot's swinging legs don't fight
+        /// its own touches either. See the class note for why a carry needs this.
+        /// </summary>
+        public static void SetCarryCollision(BallController ball, ActiveRagdoll ragdoll, bool ignore)
         {
-            var ballCol = _ball.GetComponent<Collider>();
+            if (ball == null || ragdoll == null) return;
+            var ballCol = ball.GetComponent<Collider>();
             if (ballCol == null) return;
-            var own = _ragdoll.OwnColliders;
+            var own = ragdoll.OwnColliders;
             for (int i = 0; i < own.Count; i++)
                 if (own[i] != null) Physics.IgnoreCollision(ballCol, own[i], ignore);
         }
 
-        // Spring the ball toward the carry point with a capped acceleration, plus a little
-        // lead velocity so it travels ahead with the run instead of trailing. Rolling spin
-        // is set to match the carry speed for looks.
-        void Follow(Vector3 carry)
-        {
-            var rb = _ball.Rb;
-            Vector3 toCarry = carry - rb.position;
-
-            // Feed-forward the striker's INTENDED horizontal velocity (MoveInput, the clean
-            // target the locomotion steers toward - smoother than the noisy pelvis velocity)
-            // so the ball keeps pace with the moving carry point instead of trailing.
-            Vector3 strikerVel = _ragdoll.MoveInput; strikerVel.y = 0f;
-            Vector3 lead = strikerVel * SimConfig.DribbleLeadSpeedFrac;
-
-            Vector3 relVel = rb.linearVelocity - lead;
-            Vector3 accel = toCarry * SimConfig.DribbleFollowAccel - relVel * SimConfig.DribbleFollowDamp;
-            // Don't fight gravity on the vertical axis with the spring; let it rest on the
-            // ground. Only steer horizontally + gently seat it to carry height.
-            accel = Vector3.ClampMagnitude(accel, SimConfig.DribbleMaxAccel);
-            rb.AddForce(accel, ForceMode.Acceleration);
-
-            // Rolling spin about the axis perpendicular to travel, for looks.
-            Vector3 flatVel = rb.linearVelocity; flatVel.y = 0f;
-            if (flatVel.sqrMagnitude > 0.04f)
-            {
-                Vector3 spinAxis = Vector3.Cross(Vector3.up, flatVel.normalized);
-                rb.angularVelocity = spinAxis * (flatVel.magnitude * SimConfig.DribbleSpinScale);
-            }
-        }
-
-        // A kick request: a leg button (LMB/RMB) pressed this frame. ONLY the button
-        // breaks the leash - the run/walk gait swings the feet past any speed threshold,
-        // so a fast-swing test would boot the ball just from moving. Button-only means
-        // walking and running with the ball is a pure carry; you shoot only on purpose.
+        // A kick request: a leg button (LMB/RMB) pressed this frame. ONLY the button releases
+        // the ball as a shot - the gait swings the feet past any speed threshold, so a
+        // fast-swing test would boot the ball just from running. Button-only means carrying is
+        // a pure carry and you shoot on purpose.
         bool WantsKick()
         {
             return _input != null && (_input.LeftClickPressed || _input.RightClickPressed);
         }
 
-        // Release the leash and launch the ball as a shot along the facing/aim direction,
-        // scaled by the striker's shot power. Routes through BallController.DribbleShot so
-        // it shares the facing-gated goal assist + ball-cam pulse with normal strikes. Then
-        // hold off re-capture so the same touch doesn't immediately re-grab the ball.
+        // End the carry and launch the ball as a shot along the facing/aim direction, scaled by
+        // the striker's shot power. Routes through BallController.DribbleShot so it shares the
+        // facing-gated goal assist + ball-cam pulse with normal strikes. Then hold off
+        // re-capture so the same touch doesn't immediately re-take the ball.
         void ReleaseShot()
         {
             float speed = SimConfig.DribbleShotSpeed * PlayerProfile.ShotPowerMul;
@@ -202,18 +453,24 @@ namespace Trickshot
             // Ball-cam ONLY for a shot facing AWAY from goal (over-shoulder).
             bool camShouldCut = dot < SimConfig.ShotCamFaceAwayDot;
 
-            StopCarry();   // drop the leash BEFORE the shot so DribbleHold doesn't block it
+            StopCarry();   // end the carry BEFORE the shot, so our own carry claim can't block it
+            // A shot, for whoever is counting. Dribble holds no reference to a game driver and should
+            // not gain one for a statistic, so it announces instead - and only when the strike is
+            // actually goal-directed, or a backward tap-out would be filed as a shot on goal. Every
+            // human body has its own Dribble, so this covers the single-player striker and every
+            // networked slot alike.
+            if (facingGoal) ShotFired?.Invoke(_ragdoll);
             // Scrimmage: a deliberate shot leaves the ground and follows set-piece flight (arced, no
             // controllable spin). Elsewhere it's the usual flat dribble drive.
             if (_ball.ScrimmageLoftKicks)
-                _ball.LaunchLofted(_striker.FacingForward, speed, facingGoal, camShouldCut);
+                _ball.LaunchLofted(_striker.FacingForward, speed, facingGoal, camShouldCut, _ragdoll);
             else
                 _ball.DribbleShot((_striker.FacingForward + Vector3.up * SimConfig.DribbleShotLift).normalized,
-                                  speed, facingGoal, camShouldCut);
+                                  speed, facingGoal, camShouldCut, _ragdoll);
             _cooldown = SimConfig.DribbleRecaptureCooldown;
         }
 
-        // Cut the leash on hard resets.
+        // Give up the ball on hard resets, tackles and passes.
         public void ForceRelease()
         {
             StopCarry();

@@ -55,6 +55,12 @@ namespace Trickshot
 
         float _phaseTime;      // time in the current Runup/Struck/Settle phase
         float _gaitPhase;
+        // Which foot this taker kicks with. Footedness is authored (PlayerProfile.LeftFooted, set on
+        // the customize screen) but is NOT on the wire, so the host animating a REMOTE shooter has no
+        // way to know theirs - Begin takes an override for that case, the same shape _combinedOverride
+        // already uses for the skill stat, and falls back to the local profile.
+        bool _leftFooted;
+        float _hopGrace;       // counts down after the contact hop before the upright lock re-engages
         bool _launched;
         bool _charged;         // the player has begun holding Space this attempt (gates commit)
         float _releaseTime;    // seconds Space has read UP since the last held frame (debounce vs a 1-frame input drop)
@@ -78,9 +84,12 @@ namespace Trickshot
         // `combinedOverride` >= 0 forces the skill stat (used in MP where a remote shooter's skill
         // tree is not synced to the host: pass a neutral value). < 0 = derive from the local
         // PlayerProfile (single-player and the local shooter).
+        // `leftFootedOverride`: -1 = use the local PlayerProfile (single player and the local
+        // shooter), 0 = right footed, 1 = left footed. Same -1-means-local idiom as combinedOverride.
         public void Begin(IStrikerInput input, ActiveRagdoll ragdoll, BallController ball,
                           Vector3 ballSpot, Vector3 goalCenter, bool displayOnly = false,
-                          float combinedOverride = -1f, System.Func<Vector3> aimPoint = null)
+                          float combinedOverride = -1f, System.Func<Vector3> aimPoint = null,
+                          int leftFootedOverride = -1)
         {
             _input = input; _ragdoll = ragdoll; _ball = ball;
             _ballSpot = ballSpot; _goalCenter = goalCenter;
@@ -91,6 +100,8 @@ namespace Trickshot
             _meter = 0f; _meterDir = 1f; _pegTime = 0f;
             _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
             _spin = BallController.SetPieceSpin.None;
+            _leftFooted = leftFootedOverride < 0 ? KickSwing.LocalFoot : leftFootedOverride == 1;
+            _hopGrace = 0f;
             _phaseTime = 0f; _plantTime = 0f; _gaitPhase = 0f; _launched = false; _charged = false;
             _releaseTime = 0f;
             _spaceHeldTime = 0f;
@@ -326,8 +337,10 @@ namespace Trickshot
                 // Planted beside the ball: stop, play the cosmetic swing, then launch at contact.
                 // _plantTime accrues only after arrival, so the swing starts when he reaches the
                 // ball, not when the runup began.
+                if (_plantTime <= 0f) _plantFacing = _ragdoll.FacingRotation;   // the arrival frame
                 _ragdoll.MoveInput = Vector3.zero;
                 _plantTime += Time.deltaTime;
+                // 0..1 across the swing time, so contact lands exactly on the KickSwing clock's 1.
                 float swing = Mathf.Clamp01(_plantTime / SimConfig.SetPieceSwingTime);
                 ApplySwingPose(swing);
                 if (!_launched && swing >= 1f)
@@ -343,6 +356,11 @@ namespace Trickshot
                                              _committedOvercharge, _committedPowerStat,
                                              _committedAim);
                     }
+                    // The strike lifts him off the plant leg, toward goal. Fired even when display
+                    // only: it is the animation, not the shot, and a predicting client must show the
+                    // same body the host does.
+                    KickSwing.Hop(_ragdoll, _goalCenter - _ballSpot, _leftFooted);
+                    _hopGrace = SimConfig.KickHopGrace;
                     JustStruck = true;
                     _state = State.Struck;
                     _phaseTime = 0f;
@@ -352,14 +370,22 @@ namespace Trickshot
 
         // Time since the taker reached the plant (drives the swing timer, separate from the runup).
         float _plantTime;
+        // Facing captured on arrival at the plant, so the swing's address angle is an offset from the
+        // run-in line rather than an absolute heading.
+        Quaternion _plantFacing = Quaternion.identity;
 
+        // Play the swing OUT: the follow-through and then the rebalance onto the landing. This used to
+        // hold ApplySwingPose(1f) - the contact pose, frozen - for a quarter of a second and then drop
+        // straight to a stand, so the taker locked mid-kick and popped upright. The clock now runs on
+        // past contact at the same rate the swing did, and the phase ends when the body is square.
         void TickStruck()
         {
             _phaseTime += Time.deltaTime;
-            // Hold the follow-through pose a beat, then settle.
             _ragdoll.ClearPoseOverrides();
-            ApplySwingPose(1f);
-            if (_phaseTime > 0.25f) { _state = State.Settle; _phaseTime = 0f; }
+            _ragdoll.MoveInput = Vector3.zero;
+            float t = 1f + _phaseTime / SimConfig.SetPieceSwingTime;
+            ApplySwingPose(t);
+            if (KickSwing.Finished(t)) { _state = State.Settle; _phaseTime = 0f; }
         }
 
         void TickSettle()
@@ -391,18 +417,22 @@ namespace Trickshot
             _ragdoll.SetPose(RagdollPose.Stand, 5f);
         }
 
-        // Cosmetic right-leg kick swing (modelled on Crosser.ApplyKickPose). swing: 0 drawn back
-        // -> 1 followed through (contact).
-        void ApplySwingPose(float swing)
+        // The full kick, on this taker's own foot: windup, strike, follow-through, rebalance. See
+        // KickSwing, which the AI crosser and the menu shooter play too. `t` is the KickSwing clock -
+        // 1 is contact, and it keeps going after that.
+        //
+        // Also re-engages the upright lock that the contact hop released, once he is back on the turf.
+        // Same grace-then-relock shape Striker.NormalJump uses.
+        void ApplySwingPose(float t)
         {
-            if (swing <= 0.001f) return;
-            float s = swing * 2f - 1f;
-            _ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(s * SimConfig.CrosserSwingThigh, 0f, 0f));
-            _ragdoll.SetPoseOverride(Bone.CalfR, new Vector3((1f - swing) * SimConfig.CrosserSwingCalf, 0f, 0f));
-            _ragdoll.SetPoseOverride(Bone.Torso, new Vector3(SimConfig.CrosserPlantLean * swing, 0f, 0f));
-            _ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(-s * 35f, 0f, 0f));
-            _ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(s * 25f, 0f, 0f));
-            _ragdoll.SetPose(RagdollPose.Stand, 5f);
+            if (_hopGrace > 0f) _hopGrace = Mathf.Max(0f, _hopGrace - Time.deltaTime);
+            if (_hopGrace <= 0f && _ragdoll.IsGrounded && !_ragdoll.UprightLock)
+                _ragdoll.UprightLock = true;
+            // Same body-yaw substitute the crosser uses, off the facing captured on arrival at the
+            // plant, so the address angle is an offset from the line he ran in on.
+            float yaw = KickSwing.YawOffset(t, _leftFooted, SimConfig.SetPieceSwingTime);
+            _ragdoll.FacingRotation = _plantFacing * Quaternion.Euler(0f, yaw, 0f);
+            KickSwing.Pose(_ragdoll, t, _leftFooted, SimConfig.SetPieceSwingTime);
         }
 
         // Make the BALL ignore this body during the kick so the aesthetic runup foot passes THROUGH

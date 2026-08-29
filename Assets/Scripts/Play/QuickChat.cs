@@ -13,40 +13,62 @@ namespace Trickshot
     /// </summary>
     public static class QuickChat
     {
-        // 25 curated phrases. Edit freely; order is the phrase INDEX used on the wire, so appending
-        // is safe but reordering changes what an in-flight preset id means (matches the emote-enum
-        // caution). Kept clean so presets bypass the censor.
+        // 25 curated phrases. Order is the phrase INDEX used on the wire, so appending is safe but
+        // REORDERING changes what an in-flight preset id means (same caution as the emote enum). Kept
+        // clean so presets bypass the censor.
+        //
+        // REWRITTEN, because the previous set was Rocket League's almost item for item - "Nice shot!",
+        // "What a save!", "Close one!", "No problem.", "Calculated.", "Savage!", "One. More. Game.",
+        // "Centering!", "Take the shot!". Beyond the obvious problem with shipping someone else's
+        // wordlist, it was wrong for the game: a car-football wheel is built around shooting and saving
+        // because that is the whole sport there, whereas most of what footballers actually shout is
+        // INFORMATION - where the pressure is, whether you have time, where you want it.
+        //
+        // So this set leads with calls a team-mate can act on, and keeps praise and commiseration short.
+        // Nothing here is a catchphrase; it is all things said on a pitch.
+        //
+        // Replacing the list wholesale remaps anyone's saved wheel slots (they are stored by index) and
+        // invalidates a preset id already in flight. Both are acceptable pre-release and neither can
+        // crash: the loader clamps to Phrases.Length - 1.
         public static readonly string[] Phrases =
         {
-            "Nice shot!",        // 0
-            "What a save!",      // 1
-            "Great pass!",       // 2
-            "Thanks!",           // 3
-            "Close one!",        // 4
-            "No problem.",       // 5
-            "Wow!",              // 6
-            "Calculated.",       // 7
-            "$#@%!",             // 8  (already masked - a mock-swear)
-            "Whew!",             // 9
-            "Defending...",      // 10
-            "Go for it!",        // 11
-            "Centering!",        // 12
-            "Take the shot!",    // 13
-            "Nice one!",         // 14
-            "Well played.",      // 15
-            "Sorry!",            // 16
-            "My fault.",         // 17
-            "OMG!",              // 18
-            "Sííí!",             // 19
-            "That was epic!",    // 20
-            "GG",                // 21
-            "Rematch?",          // 22
-            "One. More. Game.",  // 23
-            "Savage!",           // 24
+            // ---- calls: information a team-mate can act on ----
+            "Man on!",           // 0
+            "Time!",             // 1
+            "Square!",           // 2
+            "Through!",          // 3
+            "In behind!",        // 4
+            "Hit it!",           // 5
+            "Switch it!",        // 6
+            "Hold it up!",       // 7
+            "Push up!",          // 8
+            "Drop in!",          // 9
+            "Away!",             // 10
+            "Keeper's!",         // 11
+            // ---- praise ----
+            "Get in!",           // 12
+            "Top corner.",       // 13
+            "Big hands!",        // 14
+            "Class.",            // 15
+            "Well in.",          // 16
+            // ---- reaction ----
+            "Woodwork.",         // 17
+            "So close.",         // 18
+            "Unlucky.",          // 19
+            // ---- owning it ----
+            "My ball.",          // 20
+            "My fault.",         // 21
+            "On me.",            // 22
+            // ---- after the whistle ----
+            "Good game.",        // 23
+            "Again?",            // 24
         };
 
         // Default phrase index bound to keys 1..6 (index 0 = key 1).
-        static readonly int[] DefaultSlots = { 0, 2, 1, 4, 3, 11 };
+        // The six on the wheel out of the box: four calls, one for a goal, one for a miss. Weighted
+        // toward things said DURING play, because that is when a wheel is reachable.
+        //   Man on! / Square! / Through! / Hit it! / Get in! / Unlucky.
+        static readonly int[] DefaultSlots = { 0, 2, 3, 5, 12, 19 };
 
         const string PrefPrefix = "trickshot.quickchat.";
         const int SlotCount = 6;

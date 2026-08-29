@@ -9,8 +9,8 @@ namespace Trickshot
     ///
     ///  - Outfield role: the human controls the Home teammate NEAREST the ball (FIFA-style
     ///    auto-switch, plus F to switch manually). The controlled player uses the normal
-    ///    Striker control scheme (WASD + mouse + dribble + shoot); Q ground-passes and E
-    ///    lofts a pass to the teammate nearest the aim.
+    ///    Striker control scheme (WASD + mouse + dribble + shoot); E ground-passes and Q
+    ///    chips one, weighted for the range and led onto the receiver's run (see Passing).
     ///  - Keeper role: the human controls the Home keeper (KeeperController) the whole
     ///    match; every outfielder is AI.
     ///
@@ -96,6 +96,12 @@ namespace Trickshot
             if (homeKeeper != null) _all.Add(homeKeeper);
             if (awayKeeper != null) _all.Add(awayKeeper);
 
+            BuildLandingReticle();
+            BuildStatRows();
+            // A human's shots come in by event (see Dribble.ShotFired). Static, so it MUST come back off
+            // in OnDestroy or a finished match keeps counting into a dead table.
+            Dribble.ShotFired += OnDribbleShot;
+
             _clock = SimConfig.ScrimmageMatchSeconds;
 
             // Outfield role: the human controls ONE fixed Home player for the whole match
@@ -110,13 +116,17 @@ namespace Trickshot
         // ------------------------------------------------------------- lifecycle
         void Kickoff()
         {
+            DropTouchState();
             foreach (var f in _all) if (f != null) f.ResetTo(f == _homeKeeper || f == _awayKeeper ? KeeperSpot(f) : SpawnSpot(f));
             if (_humanKeeper != null && _humanKeeperRagdoll != null)
             {
-                // Human keeper defends the -Z (Away) goal - 1m in front of that line.
+                // Human keeper defends the -Z (Away) goal - 1m in front of that line, looking OUT
+                // up +Z. The +Z matters: it has to agree with the facing GameBootstrap builds him
+                // with, the _faceDir his controller resolves, and the follow camera's base rotation,
+                // or every kickoff snaps his bones to face his own netting and he spins on the spot.
                 _humanKeeper.ForceRecover();
                 _humanKeeperRagdoll.ResetTo(new Vector3(0f, 0f, AwayGoal.z + 1.0f),
-                                            Quaternion.LookRotation(new Vector3(0f, 0f, -1f), Vector3.up));
+                                            Quaternion.LookRotation(new Vector3(0f, 0f, 1f), Vector3.up));
             }
             _ball.ResetTo(new Vector3(0f, SimConfig.ScrimKickoffBallHeight, 0f));
             _resolved = false;
@@ -168,6 +178,15 @@ namespace Trickshot
             if (_input == null) return;
             if (PauseMenu.Paused) return;
 
+            // Landing telegraph, BEFORE every early return below. It has to be: this method returns at
+            // full time, on a reset and on the frame the clock expires, and the disc would have been
+            // left frozen on the turf after the whistle with nothing left to hide it. It is about the
+            // BALL, not about whether play is live, and DriveLandingReticle does its own full-time test.
+            // Rb.position, not transform.position - the ball interpolates, so the transform lags by up
+            // to a render frame and the disc would visibly jitter against the ball it is predicting.
+            if (_ball != null)
+                DriveLandingReticle(_ball.Rb.position, _ball.Rb.linearVelocity, _ball.Guided);
+
             // Full time: play is frozen. R starts a fresh match (rematch).
             if (_fullTime)
             {
@@ -192,6 +211,7 @@ namespace Trickshot
 
             StuckBallWatchdog();
             UpdatePossession();
+            TrackTouches();
 
             // --- Human control --- (skipped in net-host mode: the driver ticks every human slot's
             // Striker/KeeperController from networked input, not this single-human path.)
@@ -214,23 +234,29 @@ namespace Trickshot
                     _controlled.Ragdoll.MoveInput = Vector3.zero;   // stand still while choosing
 
                 bool down = _controlled != null && _controlled.IsDown;
+
+                // OUTSIDE the gate on purpose. The bar has to be stepped every frame even while he is
+                // down or mid-emote, because that is the only place the charge is DISARMED: leaving it
+                // inside meant a knockdown froze a half-full bar and its fired latch, and the release
+                // that would have cleared them was swallowed. Blocked frames disarm instead of charge.
+                HandlePassInput(blocked: emoting || down);
+
                 if (!emoting && !down)
                 {
                     // No switching: the human controls ONE fixed player the whole match;
                     // every other outfielder is AI.
                     if (_humanStriker != null) _humanStriker.Tick();
 
-                    // Passing: hold Q/E to charge (tap = soft, hold = hard), release to
-                    // pass, WHEN you have the ball. Pressing without the ball is an instant
-                    // call for a pass from an AI teammate (no charge).
-                    HandlePassInput();
-
                     // Tackle (C): lunge forward to win the ball off an opponent.
                     if (_input.TacklePressed) TryHumanTackle();
 
-                    // Slide tackle: hold BOTH legs (LMB+RMB) and run into an opponent to
-                    // fell them (and yourself), like a sliding challenge.
-                    if (_input.LeftLegHeld && _input.RightLegHeld) TrySlideTackle();
+                    // Slide tackle contact. WHETHER he is sliding is the Striker's call now
+                    // (LMB+RMB pushed forward, see Striker.UpdateSit); this only resolves who he
+                    // takes down. Reading the state instead of re-testing the buttons and a speed
+                    // threshold means the tackle and the animation can no longer disagree - the old
+                    // pair of gates could both miss, which is how you got a slide pose that felled
+                    // nobody, or a felling with no slide.
+                    if (_humanStriker != null && _humanStriker.IsSliding) TrySlideTackle();
                 }
             }
 
@@ -251,6 +277,7 @@ namespace Trickshot
             }
 
             ResolveTackleWindow();
+            ResolveDiveHits();
 
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
 
@@ -267,8 +294,9 @@ namespace Trickshot
         void TrySlideTackle()
         {
             if (_slideCooldown > 0f || _controlled == null || _controlled.Ragdoll == null) return;
-            Vector3 vel = _controlled.Ragdoll.Pelvis.linearVelocity; vel.y = 0f;
-            if (vel.magnitude < SimConfig.SlideTackleMinSpeed) return;
+            // No speed test any more. Striker.IsSliding already decided he is committed to a slide,
+            // and SlideFriction bleeds his velocity off as he skids - so re-checking speed here would
+            // have made the back half of every slide unable to fell anybody.
 
             Vector3 me = _controlled.Pos; me.y = 0f;
             Footballer victim = null; float best = SimConfig.SlideTackleRange;
@@ -290,11 +318,55 @@ namespace Trickshot
             Vector3 b = _ball.transform.position; b.y = 0f;
             if (Vector3.Distance(victim.Pos, b) <= SimConfig.BallRadius + 1.3f)
             {
-                _ball.DribbleHold = false;
+                Dribble.ReleaseHolder();
+                _ball.SetDribbleCarrier(null);
                 Vector3 fwd = new Vector3(0f, 0f, _controlled.AttackZ);
-                _ball.KickTo(fwd * SimConfig.TackleKnock + Vector3.up * 0.4f);
+                _ball.KickTo(fwd * SimConfig.TackleKnock + Vector3.up * 0.4f, _controlled.Ragdoll);
             }
             Flash("SLIDE TACKLE!");
+        }
+
+        // Diving header contact: a body in MID-FLIGHT of a diving header that reaches an opponent
+        // fells them, the same knockdown a slide tackle applies (Knockdown.Fell owns the limp,
+        // the tumble and the automatic get-up, so there is nothing to time here).
+        //
+        // Deliberately driven off _all rather than off the local human, so ONE code path covers
+        // the single-player human, the host's own slot and every remote human slot - the host
+        // ticks all of their Strikers, so IsDiving is live for all of them on the host. AI bodies
+        // never dive (their Striker is not ticked) so they drop out on the IsDiving test. And
+        // because ScrimmageGame only exists on the host in net play, this is host-authoritative
+        // without a wire message: the victim's down state already streams via BodyState.down.
+        void ResolveDiveHits()
+        {
+            foreach (var d in _all)
+            {
+                if (d == null || d.Ragdoll == null) continue;
+                var st = d.Strk;
+                if (st == null || !st.IsDiving || !st.DiveHitPending) continue;
+                if (d.Ragdoll.IsGrounded) continue;   // the flight phase connects, not the prone slide after it
+
+                // Opponents only. TeamList returns outfielders, so a keeper cannot be flattened -
+                // the same exemption the slide tackle gets from scanning _away.
+                Vector3 me = d.Pos; me.y = 0f;
+                Footballer victim = null; float best = SimConfig.DiveHeaderKnockRange;
+                foreach (var f in TeamList(d.Team == 0 ? 1 : 0))
+                {
+                    if (f == null || f.IsDown) continue;   // already down; re-felling would restart the timer
+                    Vector3 fp = f.Pos; fp.y = 0f;
+                    float dd = Vector3.Distance(me, fp);
+                    if (dd < best) { best = dd; victim = f; }
+                }
+                if (victim == null || victim.Knock == null) continue;
+
+                st.DiveHitPending = false;
+                // If the victim was mid-dive itself (two divers meeting), tear that state down
+                // first: its DiveYawLock would otherwise survive and fight the knockdown recovery,
+                // and its prone timer stops counting while the controller is suspended.
+                if (victim.Strk != null && victim.Strk.IsDiving) victim.Strk.ForceRecover();
+                Vector3 dir = victim.Pos - d.Pos; dir.y = 0f;
+                victim.Knock.Fell(dir);
+                if (d == _controlled) Flash("FLATTENED HIM!");
+            }
         }
 
         void TryHumanTackle()
@@ -333,13 +405,22 @@ namespace Trickshot
         // tackler's forward, and fell the player who was on the ball. Cancels dribble hold.
         void WinBall(Footballer tackler)
         {
-            var d = tackler != null ? tackler.GetComponent<Dribble>() : null;
-            if (d != null) d.ForceRelease();
-            _ball.DribbleHold = false;
+            // Credit the tackle against whoever was ACTUALLY carrying, read before the release below
+            // clears it. NoteTackle rejects a win with no carrier, which is what stops the column being
+            // farmed off loose balls (see NoteTackle).
+            NoteTackle(tackler != null ? tackler.Ragdoll : null, _ball != null ? _ball.DribbleCarrier : null);
+            // Drop the ball from whoever is ACTUALLY carrying it. Releasing the TACKLER'S own
+            // Dribble (the old behaviour) released the wrong body and only worked by accident,
+            // because clearing the hold used to kill the leash globally. The second call covers an
+            // AI carrier, which claims the ball directly instead of through a Dribble component.
+            Dribble.ReleaseHolder();
+            _ball.SetDribbleCarrier(null);
 
             Vector3 dir = tackler != null ? (tackler.Ragdoll.FacingRotation * Vector3.forward) : Vector3.forward;
             dir.y = 0f;
-            _ball.KickTo(dir.normalized * SimConfig.TackleKnock + Vector3.up * 0.5f);
+            // Scoped to the tackler: the felled carrier and everyone else can strike the loose ball.
+            _ball.KickTo(dir.normalized * SimConfig.TackleKnock + Vector3.up * 0.5f,
+                         tackler != null ? tackler.Ragdoll : null);
 
             // Fell the opponent who was on the ball (nearest opponent of the tackler's team).
             var victim = NearestOpponentToBall(tackler != null ? tackler.Team : 0);
@@ -380,13 +461,11 @@ namespace Trickshot
         // SetWheelOpen), so there's a pointer to click with.
         void DrawEmoteWheel()
         {
-            float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
+            float cx = Hud.W * 0.5f, cy = Hud.H * 0.5f;
             float rad = 210f;   // wide enough that labels don't overlap
 
             // Dim backdrop (also swallows stray clicks outside the buttons).
-            var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.5f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = prev;
+            Hud.Scrim(0.55f);
 
             int pages = Celebration.Pages.Length;
             _wheelPage = ((_wheelPage % pages) + pages) % pages;
@@ -400,7 +479,7 @@ namespace Trickshot
                 float sy = cy - Mathf.Cos(ang) * rad;
                 float bw = 132f, bh = 42f;
                 var r = new Rect(sx - bw * 0.5f, sy - bh * 0.5f, bw, bh);
-                if (GUI.Button(r, page[i].name, lbl))
+                if (UITheme.Button(r, page[i].name, lbl))
                 {
                     if (_controlledCeleb != null) _controlledCeleb.Play(page[i].e);
                     SetWheelOpen(false);
@@ -413,15 +492,9 @@ namespace Trickshot
             if (GUI.Button(new Rect(cx - rad - 96f, cy - 26f, 52f, 52f), "‹", arrow)) _wheelPage--;
             if (GUI.Button(new Rect(cx + rad + 44f, cy - 26f, 52f, 52f), "›", arrow)) _wheelPage++;
 
-            var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Hud.Dim } };
             GUI.Label(new Rect(cx - 160f, cy - 20f, 320f, 22f), "Click an emote  ·  B to close", hint);
-            float dotW = 16f, gap = 8f, totalW = pages * dotW + (pages - 1) * gap;
-            for (int d = 0; d < pages; d++)
-            {
-                var dr = new Rect(cx - totalW * 0.5f + d * (dotW + gap), cy + 8f, dotW, dotW);
-                var pc = GUI.color; GUI.color = d == _wheelPage ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 1f, 1f, 0.35f);
-                GUI.DrawTexture(dr, Texture2D.whiteTexture); GUI.color = pc;
-            }
+            Hud.PageDots(cx, cy + 16f, pages, _wheelPage);
         }
 
         void UpdatePossession()
@@ -450,7 +523,7 @@ namespace Trickshot
 
             // Camera follows the controlled body; the striker turns to the camera yaw.
             _cam.SetFollow(f.Ragdoll.Pelvis.transform, () => _input.Look);
-            if (_humanStriker != null) _humanStriker.SetCameraYaw(() => _cam.Yaw);
+            if (_humanStriker != null) _humanStriker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
         }
 
         Footballer ClosestToBall(List<Footballer> team)
@@ -466,109 +539,800 @@ namespace Trickshot
             return best;
         }
 
-        // Does the controlled player actually have the ball right now? (Dribbling it, or it
-        // is right at their feet.) Only then does Q/E play a pass.
-        bool ControlledHasBall()
+        // Can the controlled player play a pass right now, and would it be a FIRST-TIME one?
+        //
+        // The old gate demanded a nearly-settled ball (Speed < 8), which made a one-two
+        // impossible: the return ball had to be trapped before it could be played on. Now a
+        // loose or arriving ball at the feet is playable, at an accuracy cost.
+        bool ControlledCanPass(out bool firstTime)
         {
+            firstTime = false;
             if (_controlled == null) return false;
-            if (_humanDribble != null && _humanDribble.Carrying) return true;
-            Vector3 me = _controlled.Pos; me.y = 0f;
+            return Passing.CanPlay(_ball, _controlled.Pos,
+                                   _humanDribble != null && _humanDribble.Carrying, false, out firstTime);
+        }
+
+        // ============================================================= match stats
+        /// <summary>
+        /// One player's match record. Keyed by ActiveRagdoll rather than Footballer, because the human
+        /// keeper in single player is a KeeperController body with no Footballer at all and still needs
+        /// a row.
+        ///
+        /// The display NAME is captured when the row is built, never resolved at draw time: a networked
+        /// player who leaves mid-match can no longer be looked up in the roster, and their row would
+        /// otherwise decay to "Player 5" on the post-match board.
+        /// </summary>
+        public class PlayerStat
+        {
+            public string name;
+            public int team;                 // 0 = Home, 1 = Away
+            public int slot = 255;           // networked player slot; 255 = AI, no roster entry
+            public int shirt;                // 0 = keeper, 1.. = outfield
+            public bool keeper;
+            public bool netControlled;       // a networked human slot - see the TKL note below
+            public int goals, assists, shots, passes, passesDone, tackles, saves, conceded;
+            public float rating;             // 6.0..10.0, one decimal; set by FinalizeRatings
+            public float rawRating;          // pre-clamp, pre-round: what MOTM is actually chosen on
+            public bool motm;
+            public bool frozen;              // a departed human's row stops accruing
+        }
+
+        readonly List<PlayerStat> _stats = new List<PlayerStat>();
+        readonly Dictionary<ActiveRagdoll, PlayerStat> _statOf = new Dictionary<ActiveRagdoll, PlayerStat>();
+
+        /// <summary>Every player's match record, Home first then Away, keepers first within a team.</summary>
+        public List<PlayerStat> Stats => _stats;
+        public bool FullTime => _fullTime;
+
+        // Touch attribution. A tiny amount of state rather than a ball-contact ledger: with goals,
+        // assists, pass completion and the save gate as the only consumers, "who touched it last and
+        // who before that" plus one pending pass and one armed shot covers all of them.
+        // RECENT TOUCH HISTORY, newest last. Two entries (last + previous) was not enough and it showed:
+        // a scrappy goal off a rebound in the box has the defending KEEPER as the newest toucher and
+        // another defender before him, so a two-deep look found nobody on the scoring team and the goal
+        // went uncredited - the G column then disagreed with the scoreboard on screen. A short window
+        // fixes it, and it is also what makes the assist the previous SCORING-SIDE touch rather than
+        // whoever happened to be second-newest.
+        struct TouchRec { public PlayerStat who; public bool intent; public float at; }
+        const int TouchHistory = 10;
+        readonly List<TouchRec> _touches = new List<TouchRec>(TouchHistory);
+        PlayerStat _lastTouch, _prevTouch;
+        bool _lastWasIntent;              // the last touch was a pass/shot, not an incidental contact
+        PlayerStat _passBy; float _passAt;          // a pass awaiting a receiver
+        PlayerStat _shotBy; float _shotAt; bool _shotSpent;   // a shot a keeper could still save
+
+        // Carry is INTENT: claiming the ball is how a pass is received. Leaving it out made pass
+        // completion read zero across the board, because a team-mate who takes a pass and simply runs
+        // with it never passes, shoots or tackles, so nothing ever resolved the pass.
+        enum Touch { Contact, Carry, Pass, Shot, Tackle, Keeper }
+        ActiveRagdoll _prevCarrier;
+
+        void BuildStatRows()
+        {
+            _stats.Clear(); _statOf.Clear();
+            for (int t = 0; t < 2; t++)
+            {
+                var keeper = t == 0 ? _homeKeeper : _awayKeeper;
+                if (keeper != null) AddRow(keeper.Ragdoll, (t == 0 ? "H" : "A") + " GK", t, true, false, 0);
+                // The SP human keeper has no Footballer, so his row is added against his own ragdoll.
+                if (t == 0 && _role == SimConfig.ScrimRole.Keeper && _humanKeeperRagdoll != null)
+                    AddRow(_humanKeeperRagdoll, PlayerProfile.PlayerName ?? "YOU", 0, true, false, 0);
+                var list = t == 0 ? _home : _away;
+                for (int i = 0; i < list.Count; i++)
+                    if (list[i] != null) AddRow(list[i].Ragdoll, StatName(list[i], t, i + 1, false), t, false, false, i + 1);
+            }
+        }
+
+        void AddRow(ActiveRagdoll rag, string name, int team, bool keeper, bool net, int shirt)
+        {
+            if (rag == null || _statOf.ContainsKey(rag)) return;
+            var s = new PlayerStat { name = name, team = team, keeper = keeper, netControlled = net, shirt = shirt };
+            _stats.Add(s); _statOf[rag] = s;
+        }
+
+        /// <summary>Attach a networked slot to a row, so a client can resolve its roster name.</summary>
+        public void MarkStatSlot(ActiveRagdoll rag, int slot, string name)
+        {
+            if (rag == null || !_statOf.TryGetValue(rag, out var s)) return;
+            s.slot = slot;
+            s.netControlled = true;
+            if (!string.IsNullOrEmpty(name)) s.name = name;
+        }
+
+        /// <summary>The final table, packed for the wire. Host only; call after full time.</summary>
+        public Trickshot.Net.StatRow[] WireStats()
+        {
+            var rows = new Trickshot.Net.StatRow[_stats.Count];
+            for (int i = 0; i < _stats.Count; i++)
+            {
+                var s = _stats[i];
+                byte flags = 0;
+                if (s.keeper) flags |= 1;
+                if (s.netControlled) flags |= 2;
+                if (s.motm) flags |= 4;
+                rows[i] = new Trickshot.Net.StatRow
+                {
+                    slot = (byte)Mathf.Clamp(s.slot, 0, 255),
+                    team = (byte)Mathf.Clamp(s.team, 0, 1),
+                    shirt = (byte)Mathf.Clamp(s.shirt, 0, 255),
+                    flags = flags,
+                    goals = (byte)s.goals, assists = (byte)s.assists, shots = (byte)s.shots,
+                    passes = (byte)s.passes, passesDone = (byte)s.passesDone,
+                    tackles = (byte)s.tackles, saves = (byte)s.saves,
+                    rat10 = (byte)Mathf.Clamp(Mathf.RoundToInt(s.rating * 10f), 0, 255),
+                };
+            }
+            return rows;
+        }
+
+        /// <summary>Unpack a received table into rows the shared board renderer can draw.</summary>
+        public static List<PlayerStat> FromWire(Trickshot.Net.StatRow[] rows, System.Func<int, string> nameOfSlot)
+        {
+            var list = new List<PlayerStat>();
+            if (rows == null) return list;
+            for (int i = 0; i < rows.Length; i++)
+            {
+                var r = rows[i];
+                bool keeper = (r.flags & 1) != 0;
+                string nm = r.slot != 255 && nameOfSlot != null ? nameOfSlot(r.slot) : null;
+                if (string.IsNullOrEmpty(nm))
+                    nm = (r.team == 0 ? "H" : "A") + (keeper ? " GK" : r.shirt.ToString());
+                list.Add(new PlayerStat
+                {
+                    name = nm, team = r.team, slot = r.slot, shirt = r.shirt,
+                    keeper = keeper,
+                    netControlled = (r.flags & 2) != 0,
+                    motm = (r.flags & 4) != 0,
+                    goals = r.goals, assists = r.assists, shots = r.shots,
+                    passes = r.passes, passesDone = r.passesDone,
+                    tackles = r.tackles, saves = r.saves,
+                    rating = r.rat10 / 10f,
+                });
+            }
+            return list;
+        }
+
+        void OnDestroy() { Dribble.ShotFired -= OnDribbleShot; }
+        void OnDribbleShot(ActiveRagdoll rag) => NoteShot(rag);
+
+        // Terse: the board is a table of numbers, so a name is a shirt, not a sentence. The controlled
+        // outfielder takes the player's own name; everyone else is their kit letter and number.
+        string StatName(Footballer f, int team, int shirt, bool keeper)
+        {
+            if (f == _controlled && _role == SimConfig.ScrimRole.Outfield)
+                return PlayerProfile.PlayerName ?? "YOU";
+            return (team == 0 ? "H" : "A") + shirt + (keeper ? " GK" : "");
+        }
+
+        /// <summary>An AI body played a pass (Footballer's own pass path, not the human solver).</summary>
+        public void NoteAiPass(ActiveRagdoll rag) => NotePass(rag);
+
+        /// <summary>A shot was struck: the AI's Shoot(), or a human's dribble release.</summary>
+        public void NoteShotBy(ActiveRagdoll rag) => NoteShot(rag);
+
+        /// <summary>Mark a row as driven by a networked human (its TKL is unreachable - see NoteTackle).</summary>
+        public void MarkStatNetControlled(ActiveRagdoll rag)
+        { if (rag != null && _statOf.TryGetValue(rag, out var s)) s.netControlled = true; }
+
+        /// <summary>Stop a row accruing: its human left and an AI took the body over mid-match.</summary>
+        public void FreezeStatRow(ActiveRagdoll rag)
+        { if (rag != null && _statOf.TryGetValue(rag, out var s)) s.frozen = true; }
+
+        PlayerStat Row(ActiveRagdoll rag)
+        {
+            if (rag == null) return null;
+            if (!_statOf.TryGetValue(rag, out var s)) return null;
+            return s.frozen ? null : s;
+        }
+
+        // Dead-ball frames must not feed the stats. The post-goal freeze is 3 s and the kickoff freeze
+        // 1.2 s, and everything except TrackGoals and the clock keeps running underneath them.
+        bool StatsFrozen => _fullTime || _resolved || _kickoffTimer > 0f;
+
+        /// <summary>
+        /// Note that a body touched the ball. Resolves a pending pass, advances the last/previous
+        /// toucher pair, arms a shot, and banks a keeper's save.
+        /// </summary>
+        void NoteTouch(ActiveRagdoll rag, Touch kind)
+        {
+            if (StatsFrozen) return;
+            var s = Row(rag);
+            if (s == null) return;
+            float now = Time.time;
+
+            // Resolve a pending pass. Only an INTENT-bearing touch may resolve one: the pass spawn
+            // teleports the ball 0.85 m off the passer and can land inside a pressing defender, so an
+            // incidental Contact would score that teleport as a completed pass to the wrong team.
+            if (_passBy != null && s != _passBy && now - _passAt >= SimConfig.StatPassSpawnIgnore
+                && now - _passAt <= SimConfig.StatPassResolveWindow)
+            {
+                if (kind != Touch.Contact)
+                {
+                    if (s.team == _passBy.team) _passBy.passesDone++;
+                    _passBy = null;              // an opponent taking it is simply not completed
+                }
+                else if (s.team != _passBy.team) _passBy = null;   // dead: intercepted by a deflection
+            }
+
+            if (s != _lastTouch) { _prevTouch = _lastTouch; _lastTouch = s; _lastWasIntent = kind != Touch.Contact; }
+            else if (kind != Touch.Contact) _lastWasIntent = true;
+
+            // Only record a NEW toucher, or a repeat that carries intent: otherwise the proximity pass
+            // fills the whole window with one player standing near the ball and pushes out the history
+            // that a goal needs.
+            if (_touches.Count == 0 || _touches[_touches.Count - 1].who != s || kind != Touch.Contact)
+            {
+                if (_touches.Count >= TouchHistory) _touches.RemoveAt(0);
+                _touches.Add(new TouchRec { who = s, intent = kind != Touch.Contact, at = now });
+            }
+
+            if (kind == Touch.Shot) { _shotBy = s; _shotAt = now; _shotSpent = false; }
+
+            // A keeper touch is a SAVE only against a live opponent shot, and it CONSUMES that shot.
+            // Without consuming it, a ball pinballing off the keeper banks one save per parry cooldown.
+            if (kind == Touch.Keeper && s.keeper && _shotBy != null && !_shotSpent
+                && _shotBy.team != s.team && now - _shotAt <= SimConfig.StatSaveShotWindow
+                && _ball != null && _ball.Speed >= SimConfig.StatSaveMinBallSpeed)
+            { s.saves++; _shotSpent = true; }
+        }
+
+        /// <summary>A pass was struck: count it and arm it for a completion.</summary>
+        void NotePass(ActiveRagdoll rag)
+        {
+            if (StatsFrozen) return;
+            var s = Row(rag);
+            if (s == null) return;
+            s.passes++;
+            _passBy = s; _passAt = Time.time;
+            NoteTouch(rag, Touch.Pass);
+        }
+
+        /// <summary>A shot was struck.</summary>
+        void NoteShot(ActiveRagdoll rag)
+        {
+            if (StatsFrozen) return;
+            var s = Row(rag);
+            if (s == null) return;
+            s.shots++;
+            NoteTouch(rag, Touch.Shot);
+        }
+
+        /// <summary>
+        /// A tackle WON the ball. Gated on there having been a carrier to win it from: WinBall fires on
+        /// proximity plus a cooldown and PossessionTeam is a bare nearest-player test with no
+        /// hysteresis, so without this gate the column was farmable by standing near a loose ball and
+        /// mashing tackle. BallController.DribbleCarrier is the authoritative answer and was never
+        /// consulted.
+        /// </summary>
+        void NoteTackle(ActiveRagdoll tackler, ActiveRagdoll carrier)
+        {
+            if (StatsFrozen || carrier == null) return;
+            var t = Row(tackler); var c = Row(carrier);
+            if (t == null || c == null || t.team == c.team) return;
+            t.tackles++;
+            NoteTouch(tackler, Touch.Tackle);
+        }
+
+        /// <summary>
+        /// Credit a goal, an assist, and the conceding keeper. Prefers the most recent INTENT touch on
+        /// the scoring team over whatever touched the ball last: a deflection off a defender or keeper is
+        /// the newest contact before most goals, and crediting that would leave the scorer uncredited and
+        /// make the G column disagree with the scoreboard.
+        /// </summary>
+        void AttributeGoal(bool awayScored)
+        {
+            int scoring = awayScored ? 1 : 0;
+            float now = Time.time;
+            int scorerIdx = -1;
+
+            // Newest INTENT touch by the scoring side inside the window. Intent first, because the
+            // newest touch before most goals is a deflection off a defender or a keeper's fingertips,
+            // and crediting that leaves the player who actually struck it with nothing.
+            for (int i = _touches.Count - 1; i >= 0; i--)
+            {
+                var t = _touches[i];
+                if (now - t.at > SimConfig.StatGoalCreditWindow) break;
+                if (t.who != null && !t.who.frozen && t.who.team == scoring && t.intent) { scorerIdx = i; break; }
+            }
+            // Nothing deliberate on the scoring side: fall back to any touch of theirs, so a goal that
+            // went in off a shin is still somebody's.
+            if (scorerIdx < 0)
+                for (int i = _touches.Count - 1; i >= 0; i--)
+                {
+                    var t = _touches[i];
+                    if (now - t.at > SimConfig.StatGoalCreditWindow) break;
+                    if (t.who != null && !t.who.frozen && t.who.team == scoring) { scorerIdx = i; break; }
+                }
+            PlayerStat scorer = scorerIdx >= 0 ? _touches[scorerIdx].who : null;
+
+            if (scorer != null)
+            {
+                scorer.goals++;
+                // A headed, volleyed or bicycled goal never went through a shot hook, so G could exceed
+                // SHT and the table would contradict itself. A goal IS a shot.
+                if (scorer.goals > scorer.shots) scorer.shots = scorer.goals;
+
+                // Assist: the scoring side's previous DIFFERENT toucher, searched back from the scorer
+                // rather than from the end of the history, and abandoned if an opponent touched the ball
+                // in between (that is a turnover, not a pass).
+                for (int i = scorerIdx - 1; i >= 0; i--)
+                {
+                    var t = _touches[i];
+                    if (now - t.at > SimConfig.StatGoalCreditWindow) break;
+                    if (t.who == null || t.who == scorer) continue;
+                    if (t.who.team != scoring) break;
+                    t.who.assists++;
+                    break;
+                }
+            }
+
+            // The CONCEDING keeper is the one defending the goal that was hit. Home attacks +Z in every
+            // role (see Footballer.AttackZ), so an Away goal is conceded by Home's keeper.
+            int conceding = awayScored ? 0 : 1;
+            for (int i = 0; i < _stats.Count; i++)
+                if (_stats[i].keeper && _stats[i].team == conceding) _stats[i].conceded++;
+
+            DropTouchState();
+        }
+
+        // Forget the ball's history. Called wherever the ball is TELEPORTED rather than played: a
+        // kickoff, a goal, the stuck-ball watchdog and the out-of-play reset all move it, and a pending
+        // pass or a last-toucher that survives one of those resolves against a completely different
+        // phase of play.
+        void DropTouchState()
+        {
+            _touches.Clear();
+            _lastTouch = _prevTouch = null;
+            _lastWasIntent = false;
+            _prevCarrier = null;
+            _passBy = null;
+            _shotBy = null; _shotSpent = true;
+        }
+
+        // Proximity fallback, once a frame. The intent sites note themselves, so this only has to catch
+        // what nothing else reports: deflections, headers, a ball rebounding off a body.
+        void TrackTouches()
+        {
+            if (StatsFrozen || _ball == null) return;
             Vector3 b = _ball.transform.position; b.y = 0f;
-            return Vector3.Distance(me, b) <= SimConfig.BallRadius + 1.1f && _ball.Speed < 8f;
+            float best = SimConfig.StatTouchRadius; ActiveRagdoll near = null;
+            for (int i = 0; i < _all.Count; i++)
+            {
+                var f = _all[i];
+                if (f == null || f.Ragdoll == null) continue;
+                Vector3 p = f.Pos; p.y = 0f;
+                float d = Vector3.Distance(p, b);
+                if (d < best) { best = d; near = f.Ragdoll; }
+            }
+            if (_humanKeeperRagdoll != null && _humanKeeperRagdoll.Pelvis != null)
+            {
+                Vector3 p = _humanKeeperRagdoll.Pelvis.position; p.y = 0f;
+                float d = Vector3.Distance(p, b);
+                if (d < best) { best = d; near = _humanKeeperRagdoll; }
+            }
+            // A CARRIER CHANGE is a reception. Polled off BallController.DribbleCarrier, which is the
+            // authoritative answer for both the human's Dribble and an AI's direct claim, so one site
+            // covers every way a player can take the ball.
+            var carrier = _ball.DribbleCarrier;
+            if (carrier != _prevCarrier)
+            {
+                _prevCarrier = carrier;
+                if (carrier != null) NoteTouch(carrier, Touch.Carry);
+            }
+
+            if (near == null) return;
+            var s = Row(near);
+            // A keeper reaching the ball is a keeper touch, which is what the save gate reads.
+            NoteTouch(near, s != null && s.keeper ? Touch.Keeper : Touch.Contact);
+        }
+
+        /// <summary>
+        /// Turn the counters into a 6.0-10.0 rating and pick the man of the match. Called once, at full
+        /// time.
+        ///
+        /// VOLUME TERMS ARE NORMALISED by match length. Length is a pre-match option spanning 2 to 10
+        /// minutes, so an unnormalised sum rated a long match far above a short one for identical play.
+        /// Goals, assists, goals conceded and the clean sheet are match EVENTS and stay raw.
+        /// </summary>
+        void FinalizeRatings()
+        {
+            float lenMul = SimConfig.RatingRefSeconds
+                         / Mathf.Max(30f, SimConfig.ScrimmageMatchSeconds);
+
+            for (int i = 0; i < _stats.Count; i++)
+            {
+                var s = _stats[i];
+                // Clamp to the WIRE range first, then rate off the clamped values. Rating from a raw
+                // count and shipping a byte would have the client draw a wrapped number beside a rating
+                // that was computed from a different one.
+                s.goals = Mathf.Clamp(s.goals, 0, 255);
+                s.assists = Mathf.Clamp(s.assists, 0, 255);
+                s.shots = Mathf.Clamp(s.shots, 0, 255);
+                s.passes = Mathf.Clamp(s.passes, 0, 255);
+                s.passesDone = Mathf.Clamp(s.passesDone, 0, 255);
+                s.tackles = Mathf.Clamp(s.tackles, 0, 255);
+                s.saves = Mathf.Clamp(s.saves, 0, 255);
+
+                float raw = SimConfig.RatingBase;
+                int lost = Mathf.Max(0, s.passes - s.passesDone);
+
+                if (s.keeper)
+                {
+                    // A keeper is rated on a DIFFERENT term set, not a modified one: saves and goals
+                    // conceded replace goals/shots/tackles outright. Conceding is keeper-only on
+                    // purpose - charging outfielders for it would rate a whole losing side down for
+                    // team failure.
+                    raw += SimConfig.RatingSave * s.saves * lenMul;
+                    raw -= SimConfig.RatingConcede * s.conceded;
+                    if (s.conceded == 0 && s.saves >= SimConfig.RatingCleanSheetMinSaves)
+                        raw += SimConfig.RatingCleanSheet;
+                }
+                else
+                {
+                    raw += SimConfig.RatingGoal * s.goals;
+                    raw += SimConfig.RatingAssist * s.assists;
+                    raw += SimConfig.RatingShot * s.shots * lenMul;
+                    // TKL is unreachable for a networked human (net-host skips the local tackle block
+                    // entirely), so rating one on it would make the man of the match structurally an AI.
+                    if (!s.netControlled) raw += SimConfig.RatingTackle * s.tackles * lenMul;
+                }
+                raw += SimConfig.RatingPassDone * s.passesDone * lenMul;
+                raw -= SimConfig.RatingPassLost * lost * lenMul;
+
+                // Floor(x*10 + 0.5), NOT Mathf.Round: Round is half-to-EVEN, so a raw of 7.25 - which
+                // is a common exact value here, not a corner case - displayed as 7.2 and the sequence
+                // was visibly non-monotone.
+                s.rating = Mathf.Clamp(Mathf.Floor(raw * 10f + 0.5f) / 10f,
+                                       SimConfig.RatingMin, SimConfig.RatingMax);
+                s.motm = false;
+                s.rawRating = raw;
+            }
+
+            // MOTM on the UNROUNDED value. The display band holds only 41 steps, so on the rounded one
+            // a goalless match resolves by build order rather than by merit. Nobody is named if nobody
+            // beat a neutral performance - and then the line simply is not drawn.
+            PlayerStat best = null;
+            for (int i = 0; i < _stats.Count; i++)
+            {
+                var s = _stats[i];
+                if (s.frozen || s.rawRating <= SimConfig.RatingBase) continue;
+                if (best == null || s.rawRating > best.rawRating) best = s;
+            }
+            if (best != null) best.motm = true;
+
+            // INVARIANT: each team's goals must sum to its score. If they do not, a goal went
+            // uncredited and the board contradicts its own header - which is exactly the bug a two-deep
+            // touch history used to produce. Loud, because it is silent otherwise.
+            int hg = 0, ag = 0;
+            for (int i = 0; i < _stats.Count; i++)
+                if (_stats[i].team == 0) hg += _stats[i].goals; else ag += _stats[i].goals;
+            if (hg != _homeScore || ag != _awayScore)
+                Debug.LogWarning($"[scrim stats] goals do not match the score: credited {hg}-{ag}, "
+                               + $"scoreboard {_homeScore}-{_awayScore}. A goal was not attributed.");
+        }
+
+        // ============================================================= post-match board
+        // Two team cards side by side, up to 11 rows each, no scroll and no pagination: 34 header + 17
+        // column row + 11 x 22 rows + 24 pad = 317 tall against the 542 the smallest supported canvas
+        // gives, and 2 x 400 + 16 = 816 wide against 914. An 11-a-side match is the worst case and it
+        // fits with room.
+        //
+        // Numbers only. No legend, no explanation of what a column means, no prose.
+        static GUIStyle _colSt, _motmSt;
+
+        /// <summary>Full-time per-player stats and ratings. Call inside Hud.Begin/End.</summary>
+        public void DrawPostMatch() => DrawStatsBoard(_stats, _homeScore, _awayScore);
+
+        /// <summary>
+        /// The post-match board. STATIC and row-driven, so the host draws it from its live stats and a
+        /// client draws it from the table it received through one implementation - two renderers would
+        /// drift the moment either was touched.
+        /// </summary>
+        public static void DrawStatsBoard(List<PlayerStat> stats, int homeScore, int awayScore)
+        {
+            if (_colSt == null)
+                _colSt = new GUIStyle(GUI.skin.label)
+                { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Faint } };
+            if (_motmSt == null)
+                _motmSt = new GUIStyle(GUI.skin.label)
+                { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+                  normal = { textColor = UITheme.Gold } };
+
+            if (stats == null) return;
+            const float cw = 400f, gap = 16f, rowH = 22f, headH = 34f, colH = 17f, pad = 12f;
+            int rows = 0;
+            for (int t = 0; t < 2; t++)
+            {
+                int n = 0;
+                for (int i = 0; i < stats.Count; i++) if (stats[i].team == t) n++;
+                rows = Mathf.Max(rows, n);
+            }
+            float cardH = headH + colH + rows * rowH + pad;
+            float x0 = Hud.W * 0.5f - (cw * 2f + gap) * 0.5f;
+            float y0 = Mathf.Max(52f, Hud.H * 0.5f - cardH * 0.5f - 18f);
+
+            // Score in the card titles, so the header carries the result without a sentence.
+            DrawTeamCard(stats, x0, y0, cw, cardH, 0, "HOME  " + homeScore, rowH, headH, colH);
+            DrawTeamCard(stats, x0 + cw + gap, y0, cw, cardH, 1, "AWAY  " + awayScore, rowH, headH, colH);
+
+            // Man of the match, only if somebody actually beat a neutral performance. Nobody clears it
+            // in a nothing-happened match, and then the line is simply absent rather than a placeholder.
+            for (int i = 0; i < stats.Count; i++)
+                if (stats[i].motm)
+                {
+                    GUI.Label(new Rect(x0, y0 + cardH + 8f, cw * 2f + gap, 22f),
+                              "MOTM   " + stats[i].name + "   " + stats[i].rating.ToString("0.0"), _motmSt);
+                    break;
+                }
+        }
+
+        static void DrawTeamCard(List<PlayerStat> stats, float x, float y, float w, float h, int team,
+                                 string title, float rowH, float headH, float colH)
+        {
+            Hud.Card(new Rect(x, y, w, h), title);
+
+            // Column x offsets inside the card. PLAYER is left-aligned, every number centred.
+            float lx = x + 12f;
+            float wName = 130f, wRat = 46f, wNum = 32f, wPas = 56f;
+            float xRat = lx + wName, xG = xRat + wRat, xA = xG + wNum, xSht = xA + wNum;
+            float xPas = xSht + wNum, xTkl = xPas + wPas, xSav = xTkl + wNum;
+
+            float cy = y + headH;
+            GUI.Label(new Rect(xRat, cy, wRat, colH), "RAT", _colSt);
+            GUI.Label(new Rect(xG,   cy, wNum, colH), "G",   _colSt);
+            GUI.Label(new Rect(xA,   cy, wNum, colH), "A",   _colSt);
+            GUI.Label(new Rect(xSht, cy, wNum, colH), "SHT", _colSt);
+            GUI.Label(new Rect(xPas, cy, wPas, colH), "PAS", _colSt);
+            GUI.Label(new Rect(xTkl, cy, wNum, colH), "TKL", _colSt);
+            GUI.Label(new Rect(xSav, cy, wNum, colH), "SAV", _colSt);
+
+            var nameSt = Hud.RowName;
+            var valSt  = new GUIStyle(_colSt) { fontSize = 13, normal = { textColor = UITheme.Ink } };
+
+            float ry = cy + colH;
+            for (int i = 0; i < stats.Count; i++)
+            {
+                var s = stats[i];
+                if (s.team != team) continue;
+
+                if (s.motm)
+                {
+                    UITheme.Fill(new Rect(x, ry, w, rowH), new Color(0.20f, 0.17f, 0.05f, 0.55f));
+                    UITheme.Fill(new Rect(x, ry, 2.5f, rowH), UITheme.Gold);
+                }
+                else UITheme.Divider(lx, ry + rowH - 1f, w - 24f);
+
+                GUI.Label(new Rect(lx + 6f, ry, wName, rowH), s.name, nameSt);
+
+                // Rating carries the only colour: green for a strong game, red for a poor one, so the
+                // column reads at a glance without a key.
+                var rs = new GUIStyle(valSt) { fontStyle = FontStyle.Bold };
+                rs.normal.textColor = s.rating >= 7.5f ? UITheme.Green
+                                    : s.rating <= 6.2f ? UITheme.Red : UITheme.Ink;
+                GUI.Label(new Rect(xRat, ry, wRat, rowH), s.rating.ToString("0.0"), rs);
+
+                GUI.Label(new Rect(xG,   ry, wNum, rowH), s.goals.ToString(), valSt);
+                GUI.Label(new Rect(xA,   ry, wNum, rowH), s.assists.ToString(), valSt);
+                // A keeper's shots and tackles are not a keeper statistic; a dash beats a zero that
+                // looks like a failure to do something he was never doing.
+                GUI.Label(new Rect(xSht, ry, wNum, rowH), s.keeper ? "-" : s.shots.ToString(), valSt);
+                GUI.Label(new Rect(xPas, ry, wPas, rowH), s.passesDone + "/" + s.passes, valSt);
+                // TKL is unreachable for a networked human: net-host mode skips the local tackle block
+                // entirely, so a number here would only ever be an AI's and the column would read as
+                // though the humans never tackled.
+                GUI.Label(new Rect(xTkl, ry, wNum, rowH),
+                          s.keeper || s.netControlled ? "-" : s.tackles.ToString(), valSt);
+                GUI.Label(new Rect(xSav, ry, wNum, rowH), s.keeper ? s.saves.ToString() : "-", valSt);
+
+                ry += rowH;
+            }
         }
 
         // ------------------------------------------------------------- passing
-        // Charge state: how long each pass key has been held (only meaningful with the ball).
-        float _groundCharge, _loftedCharge;
+        // The pass power bar: one charge per pass button. Replaces the old pair of bare float timers,
+        // which had no notion of a hold being ARMED and so could not tell a charge from a hold carried
+        // in off a call-for-pass (see Passing.Bar).
+        readonly Passing.Bar _bar = new Passing.Bar();
 
-        void HandlePassInput()
+        /// <summary>The local player's pass bar, for the HUD to draw.</summary>
+        public Passing.Bar PassBar => _bar;
+
+        // Scrimmage-only landing telegraph: a disc on the turf under where an airborne ball will come
+        // down. Built here rather than passed in, so the networked host gets one too without a second
+        // wiring site that could be forgotten.
+        AimReticle _landing;
+
+        /// <summary>Point the landing disc at the live ball, or hide it. Safe to call every frame.</summary>
+        public void DriveLandingReticle(Vector3 ballPos, Vector3 ballVel, bool guided)
+        {
+            if (_landing == null) return;
+            if (_fullTime || guided
+                || ballPos.y - SimConfig.BallRadius < SimConfig.ScrimReticleMinHeight
+                || !BallController.PredictLanding(ballPos, ballVel, out Vector3 land, out float t)
+                || t < SimConfig.ScrimReticleMinTime || t > SimConfig.ScrimReticleMaxTime)
+            {
+                _landing.Hide();
+                return;
+            }
+            // Clamp onto the playing surface. The box is SEALED, so a ball heading for a wall does not
+            // land where the parabola says, and a disc off the turf has no ground under it. A deliberate
+            // inaccuracy that is more accurate than the alternative.
+            land.x = Mathf.Clamp(land.x, -HalfWidth, HalfWidth);
+            land.z = Mathf.Clamp(land.z, -HalfLength, HalfLength);
+            _landing.Show(land);
+        }
+
+        void BuildLandingReticle()
+        {
+            var go = new GameObject("LandingReticle");
+            go.transform.SetParent(transform, false);
+            _landing = go.AddComponent<AimReticle>();
+            _landing.Init(Make.Unlit(SimConfig.ScrimReticleTint));
+            _landing.Hide();
+        }
+
+        void HandlePassInput(bool blocked)
         {
             if (_controlled == null || _humanStriker == null) return;
-            bool haveBall = ControlledHasBall();
 
-            // Without the ball, a PRESS is an instant call for a pass (no charge).
-            if (!haveBall)
+            bool firstTime = false;
+            bool haveBall = !blocked && ControlledCanPass(out firstTime);
+
+            // Step all three buttons whatever the state. With haveBall false this DISARMS and zeroes
+            // every charge, which is the whole reason it runs unconditionally.
+            bool fired = Passing.StepAll(_bar, _input, haveBall, true, out Passing.PassKind kind, out float c01);
+
+            // Aiming holds the RUN, not the camera: the mouse points the pass while he keeps running
+            // where he was going (see Striker.LockRun). Released the moment nothing is charging, so the
+            // heading eases back on its own.
+            if (_humanStriker != null)
             {
-                _groundCharge = _loftedCharge = 0f;
-                if (_input.PassGroundPressed) CallForPass(lofted: false);
-                else if (_input.PassLoftedPressed) CallForPass(lofted: true);
+                if (_bar.AnyArmed) _humanStriker.LockRun(_cam != null ? _cam.Yaw : 0f);
+                else _humanStriker.ReleaseRun();
+            }
+
+            if (haveBall)
+            {
+                if (fired) PlayPass(kind, c01, firstTime);
                 return;
             }
 
-            // With the ball: charge while held, fire on release, power scaled by hold time.
-            if (_input.PassGroundHeld) _groundCharge += Time.deltaTime;
-            if (_input.PassGroundReleased) { PlayPass(false, ChargeMul(_groundCharge), _humanDribble); _groundCharge = 0f; }
-
-            if (_input.PassLoftedHeld) _loftedCharge += Time.deltaTime;
-            if (_input.PassLoftedReleased) { PlayPass(true, ChargeMul(_loftedCharge), _humanDribble); _loftedCharge = 0f; }
+            // No ball: a PRESS is an instant call for a pass instead. The call and the charge share a
+            // button deliberately, and Passing.Bar arming only on a press taken WITH the ball is what
+            // keeps the pair safe - otherwise holding the call button through the ball's arrival would
+            // slide straight into a charge and, at full, fire a maximum-range pass never asked for.
+            if (blocked) return;
+            if (_input.PassGroundPressed) CallForPass(lofted: false);
+            else if (_input.PassLoftedPressed) CallForPass(lofted: true);
         }
 
-        // 0..PassMaxCharge seconds held -> a speed factor between min (tap) and max (hold).
-        float ChargeMul(float held)
-            => Mathf.Lerp(SimConfig.PassChargeMinMul, SimConfig.PassChargeMaxMul,
-                          Mathf.Clamp01(held / SimConfig.PassMaxCharge));
+        // Terse, because it sits on the HUD next to the player's name.
+        public static string PassKindName(Passing.PassKind k)
+            => k == Passing.PassKind.Chip ? "CHIP" : k == Passing.PassKind.Air ? "LOFT" : "PASS";
 
-        // Call for a pass: the AI teammate on the ball passes it to the controlled player.
+        // Keep an aim point on the playing surface. The scrimmage box is SEALED (ScrimmageArena builds
+        // walls, lintels and a lid), so an aim past a wall is a pass into a wall: the charge bands are
+        // already sized to the smallest pitch, and this catches the rest.
+        Vector3 ClampAim(Vector3 aim)
+        {
+            aim.x = Mathf.Clamp(aim.x, -HalfWidth + 0.5f, HalfWidth - 0.5f);
+            aim.z = Mathf.Clamp(aim.z, -HalfLength + 0.5f, HalfLength - 0.5f);
+            return aim;
+        }
+
+        // Call for a pass: the AI teammate on the ball plays it to the controlled player, led
+        // onto his run so it arrives in front of him rather than behind.
         void CallForPass(bool lofted)
         {
+            // Rolling 3-per-3s gate, shared with every other call producer. Overflow is dropped,
+            // not queued: a call released later would be aimed at a run that has already ended.
+            if (!CallLimiter.Allow()) return;
             var carrier = TeammateOnBall();
             if (carrier == null || carrier == _controlled) { Flash("CALLING"); return; }
-            Vector3 lead = _controlled.Ragdoll.Pelvis.linearVelocity * SimConfig.PassLeadFrac;
-            Vector3 dir = (_controlled.Pos + lead) - _ball.transform.position; dir.y = 0f;
-            if (dir.sqrMagnitude < 0.01f) dir = carrier.Ragdoll.FacingRotation * Vector3.forward;
-            // The AI carrier plays it; use its own passing accuracy for the scatter.
-            LaunchPass(_ball.transform.position, dir.normalized, lofted, 1f,
-                       carrier.GetComponent<Dribble>(), PlayerProfile.PassAccuracyMul);
+            Vector3 from = _ball.transform.position;
+            Vector3 aim = Passing.Lead(from, _controlled.Pos, _controlled.Vel, lofted, 0.6f, 1f, 1f);
+            LaunchPass(aim, lofted ? Passing.PassKind.Air : Passing.PassKind.Ground, 0.6f,
+                       carrier.GetComponent<Dribble>(), carrier.Ragdoll,
+                       PlayerProfile.PassAccuracyMul, false);
             Flash(lofted ? "CALL: LOFTED" : "CALL: PASS");
         }
 
-        // The controlled player plays a pass along the aim (auto-aimed to the best teammate
-        // in that cone), charged by `chargeMul`, scattered by the player's passing accuracy.
-        void PlayPass(bool lofted, float chargeMul, Dribble carry)
+        // The controlled player plays a pass STRAIGHT DOWN THE LOOK RAY, at the range the bar charged
+        // to. This replaces Passing.BestTarget, which picked the best TEAMMATE inside an aim cone: the
+        // ball goes where the camera points and it is on the player to point it. BestTarget is not
+        // deleted - the AI and call-for-pass still use it, because neither has a camera to read.
+        //
+        // Removing the target snap also removed the safety net that made a scattered pass often still
+        // find a body, which is why PassScatterMaxDeg had to come down with it (see SimConfig).
+        void PlayPass(Passing.PassKind kind, float charge01, bool firstTime)
         {
-            Footballer target = BestPassTarget(_ball.transform.position, _humanStriker.FacingForward);
-            Vector3 dir = _humanStriker.FacingForward;
-            if (target != null)
-            {
-                Vector3 lead = target.Ragdoll.Pelvis.linearVelocity * SimConfig.PassLeadFrac;
-                Vector3 to = (target.Pos + lead) - _ball.transform.position; to.y = 0f;
-                if (to.sqrMagnitude > 0.01f) dir = to.normalized;
-            }
-            LaunchPass(_ball.transform.position, dir, lofted, chargeMul, carry, PlayerProfile.PassAccuracyMul);
-            Flash(lofted ? "LOFTED PASS" : "PASS");
+            // A first-time ball had no window to charge in - it arrived and was struck - so credit it a
+            // floor instead of the near-zero the bar actually holds. See PassFirstTimeChargeFloor.
+            if (firstTime) charge01 = Mathf.Max(charge01, SimConfig.PassFirstTimeChargeFloor);
+            Vector3 from = _ball.transform.position;
+            float yaw = _cam != null ? _cam.Yaw : _controlled.Ragdoll.FacingRotation.eulerAngles.y;
+            Vector3 aim = ClampAim(Passing.LookAim(from, yaw, kind, charge01, PlayerProfile.PassPowerMul));
+            LaunchPass(aim, kind, charge01, _humanDribble, _controlled.Ragdoll,
+                       PlayerProfile.PassAccuracyMul, firstTime);
+            Flash(kind == Passing.PassKind.Chip ? "CHIP" : kind == Passing.PassKind.Air ? "LOFT" : "PASS");
         }
 
-        // Common launch: applies pass power (trait + charge), then a random angle + power
-        // SCATTER inversely scaled by passing accuracy so low-passing players misplace it.
-        void LaunchPass(Vector3 from, Vector3 dir, bool lofted, float chargeMul, Dribble carry, float accMul)
+        // Common launch. Everything about the weight, arc, lead and error lives in Passing, so a
+        // human pass, an AI pass and a keeper's throw all behave the same way.
+        void LaunchPass(Vector3 aim, Passing.PassKind kind, float charge01, Dribble carry, ActiveRagdoll passer,
+                        float accMul, bool firstTime)
         {
-            // Accuracy 0..1: PassAccuracyMul is 1.0 with no nodes, up to ~1.85 fully invested;
-            // Maestro = pinpoint. Higher accuracy -> less scatter.
-            float acc = Mathf.Clamp01((accMul - 1f) / 0.85f);
-            if (PlayerProfile.PerkMaestro) acc = 1f;
-            float scatterDeg = SimConfig.PassScatterMaxDeg * (1f - acc);
-            float wobble = SimConfig.PassPowerWobble * (1f - acc);
-
-            // Random yaw error about up, plus a small power wobble. Harder charge scatters
-            // a touch more (a firm pass is harder to place).
-            float ang = Random.Range(-scatterDeg, scatterDeg) * (0.7f + 0.3f * chargeMul);
-            dir = Quaternion.AngleAxis(ang, Vector3.up) * dir;
-
-            float power = (lofted ? SimConfig.PassLoftedSpeed : SimConfig.PassGroundSpeed)
-                          * PlayerProfile.PassPowerMul * chargeMul
-                          * (1f + Random.Range(-wobble, wobble));
-            Vector3 v = dir * power;
-            if (lofted) v += Vector3.up * (power * SimConfig.PassLoftedArc);
             if (carry != null) carry.ForceRelease();
+            NotePass(passer);
+            Vector3 from = _ball.transform.position;
+            float acc = Passing.Accuracy01(accMul, PlayerProfile.PerkMaestro);
+            float dist = Vector3.Distance(from, aim);
+            float press = Passing.Pressure01(from, TeamList(_controlled != null && _controlled.Team == 0 ? 1 : 0));
+            Passing.Launch(_ball, aim, kind, charge01, PlayerProfile.PassPowerMul, passer,
+                           Passing.ScatterDeg(acc, dist, press, charge01, firstTime),
+                           Passing.Wobble(acc, firstTime));
+        }
 
-            // Nudge the ball clear of the PASSER before launching. Without this a lofted pass
-            // rises straight into the passer's own torso/head (the ball sits at their feet) and
-            // gets batted back down - so an "aerial" pass came out along the ground. Move it a
-            // little forward along the pass dir, and for a loft lift it above the body too.
-            Vector3 spawn = from + dir * SimConfig.PassSpawnForward;
-            if (lofted) spawn += Vector3.up * SimConfig.PassSpawnLift;
-            _ball.ResetTo(spawn);
-            _ball.KickTo(v);
+        /// <summary>
+        /// Networked pass entry point: run one body's pass input on the HOST. Same solver as the
+        /// local path, driven off that slot's net input instead of the local device.
+        /// </summary>
+        public void TickNetPass(Footballer f, Striker striker, Dribble carry, IStrikerInput input,
+                                Passing.Bar bar, float lookYaw, bool blocked,
+                                float powerMul, float accMul, bool maestro)
+        {
+            if (f == null || striker == null || input == null || _ball == null || bar == null) return;
+
+            bool canPlay = Passing.CanPlay(_ball, f.Pos, carry != null && carry.Carrying, blocked,
+                                           out bool firstTime);
+            // No early return on a ball-less frame. The bar must still be STEPPED, because that is the
+            // only place it disarms; returning here left a charge and its fired latch frozen until the
+            // player next had the ball - and with fire-at-full a frozen near-full bar is a misfire.
+
+            // FRESH is what makes fire-at-full safe over the wire. The host feeds this slot's newest
+            // frame every tick whether or not one arrived, so a client that goes quiet - paused, typing
+            // in quickchat, or dropping packets - leaves its held bits pinned true forever. Charging on
+            // a repeat would fill the bar and play a pass the player never asked for.
+            bool fresh = input.Fresh;
+
+            bool fired = Passing.StepAll(bar, input, canPlay, fresh, out Passing.PassKind kind, out float c01);
+
+            // Hold this body's run while its owner is aiming, exactly as the local path does - the
+            // remote player is looking around to point their pass and their run should not follow it.
+            if (bar.AnyArmed) striker.LockRun(lookYaw);
+            else striker.ReleaseRun();
+
+            if (canPlay && fired)
+                NetPass(f, striker, carry, kind, c01, firstTime, lookYaw, powerMul, accMul, maestro);
+        }
+
+        // The passer's OWN stats, supplied per caller exactly as lookYaw is: the host-local slot passes
+        // its live PlayerProfile, a remote slot passes what NetSession derived from that slot's node
+        // mask. Threading it rather than looking it up keeps this class free of any notion of slots,
+        // which is what lets the sim run with no local player at all.
+        void NetPass(Footballer f, Striker striker, Dribble carry, Passing.PassKind kind, float charge01,
+                     bool firstTime, float lookYaw, float powerMul, float accMul, bool maestro)
+        {
+            // Same first-time floor as the local path (see PlayPass), so a networked player is not the
+            // only one whose first-time balls all arrive as dinks.
+            if (firstTime) charge01 = Mathf.Max(charge01, SimConfig.PassFirstTimeChargeFloor);
+            Vector3 from = _ball.transform.position;
+            var opps  = TeamList(f.Team == 0 ? 1 : 0);
+            // Same look-ray aim as the local path, off the yaw the client already sends every frame
+            // (InputFrame.lookYaw), so a remote pass goes where that player was actually looking.
+            Vector3 aim = ClampAim(Passing.LookAim(from, lookYaw, kind, charge01, powerMul));
+            if (carry != null) carry.ForceRelease();
+            NotePass(f.Ragdoll);
+            // Maestro is carried separately and not folded into accMul, because it is not a bigger
+            // number - Accuracy01 SHORT-CIRCUITS to exactly 1 on the perk, while a maxed 1.86 build only
+            // reaches 1 through Clamp01. Deriving it from the multiplier would have left a 7 SP capstone
+            // silently inert on every networked pass.
+            float acc = Passing.Accuracy01(accMul, maestro);
+            float dist = Vector3.Distance(from, aim);
+            float press = Passing.Pressure01(from, opps);
+            Passing.Launch(_ball, aim, kind, charge01, powerMul, f.Ragdoll,
+                           Passing.ScatterDeg(acc, dist, press, charge01, firstTime),
+                           Passing.Wobble(acc, firstTime));
         }
 
         // The Home teammate (not the controlled player) currently on the ball, if any.
@@ -586,31 +1350,33 @@ namespace Trickshot
             return best;
         }
 
-        Footballer BestPassTarget(Vector3 from, Vector3 aim)
+        // Last line of defence. The arena is sealed, but a physics tunnelling event, a bad
+        // teleport, or a ball welded to a body that got destroyed could still put it outside the
+        // box - and once out, nothing brings it back and the match is over as a contest.
+        bool OutOfPlay()
         {
-            Footballer best = null; float bestScore = -1f;
-            foreach (var f in _home)
-            {
-                if (f == null || f == _controlled) continue;
-                Vector3 to = f.Pos - from; to.y = 0f;
-                float dist = to.magnitude;
-                if (dist < 1.5f || dist > SimConfig.PassMaxRange) continue;
-                float dot = Vector3.Dot(aim, to.normalized);
-                if (dot < SimConfig.PassAimConeDot) continue;
-                // Prefer teammates most in-line with the aim, then closer.
-                float score = dot - dist * 0.01f;
-                if (score > bestScore) { bestScore = score; best = f; }
-            }
-            return best;
+            Vector3 c = _ball.transform.position;
+            float zLimit = HalfLength + SimConfig.GoalDepth + 2.5f;
+            if (Mathf.Abs(c.x) <= HalfWidth + 2.5f && Mathf.Abs(c.z) <= zLimit
+                && c.y > -2f && c.y < 60f) return false;
+
+            _stuckTimer = 0f;
+            Vector3 spot = new Vector3(Mathf.Clamp(c.x, -HalfWidth + 3f, HalfWidth - 3f),
+                                       SimConfig.ScrimKickoffBallHeight,
+                                       Mathf.Clamp(c.z, -HalfLength + 3f, HalfLength - 3f));
+            _ball.ResetTo(spot);
+            Flash("BALL IN");
+            return true;
         }
 
         // If the ball goes nearly still for a while (jammed against a wall / corner) with no
-        // goal, nudge it back to centre so play resumes. Belt-and-braces; the full walls
-        // already keep it in.
+        // goal, nudge it back to centre so play resumes. The sealed box (walls + over-bar
+        // lintels + lid) is what actually keeps it in; this only unjams it.
         float _stuckTimer;
         void StuckBallWatchdog()
         {
             if (_kickoffTimer > 0f) { _stuckTimer = 0f; return; }
+            if (OutOfPlay()) return;
             Vector3 c = _ball.transform.position;
             bool nearWall = Mathf.Abs(c.x) > HalfWidth - 1.2f || Mathf.Abs(c.z) > HalfLength - 1.2f;
             bool slow = _ball.Speed < SimConfig.ScrimStuckSpeed;
@@ -654,6 +1420,9 @@ namespace Trickshot
         int _celebRr;   // rotates the auto-celebration so it isn't always the same emote
         void OnGoal(bool awayScored)
         {
+            // Credit it BEFORE _resolved goes up: _resolved is part of StatsFrozen, so attributing
+            // after it would find the tracker already refusing to answer.
+            AttributeGoal(awayScored);
             _resolved = true;
             if (awayScored) { _awayScore++; Flash("AWAY SCORES!"); }
             else
@@ -683,6 +1452,10 @@ namespace Trickshot
         // Full time: stop the ball + all controllers, cancel any pending kickoff, freeze.
         void EndMatch()
         {
+            // Rate BEFORE _fullTime goes up, for the same reason OnGoal attributes early: _fullTime is
+            // part of StatsFrozen. Update also returns on the clock check well above TrackTouches, so
+            // this frame never got a proximity pass - one frame of touches is not worth a special case.
+            FinalizeRatings();
             _fullTime = true;
             CancelInvoke(nameof(Kickoff));
             _ball.Rb.linearVelocity = Vector3.zero;
@@ -708,44 +1481,50 @@ namespace Trickshot
         {
             if (_input == null) return;
             if (_netHost) return;   // the NetScrimmageMatch driver draws the networked HUD
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            var score = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
 
-            GUI.Label(new Rect(0, 10, Screen.width, 34), $"HOME  {_homeScore} - {_awayScore}  AWAY", score);
-            int mm = Mathf.FloorToInt(_clock / 60f), ss = Mathf.FloorToInt(_clock % 60f);
-            var clock = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
-            GUI.Label(new Rect(0, 40, Screen.width, 22), $"{mm}:{ss:00}", clock);
+            // Scale + fit to the window (see MenuScale). Virtual coordinates from here on: use
+            // Hud.W / Hud.H, and pair EVERY exit path with Hud.End().
+            Hud.Begin();
 
-            string help = _role == SimConfig.ScrimRole.Keeper
-                ? "Keeper:  A/D move   Space/LMB/RMB dive   Reset: R"
-                : "Move WASD   Shoot LMB/RMB   Q pass   E lofted   C tackle   B emote   V ball cam   R reset";
-            GUI.Label(new Rect(8, Screen.height - 26, Screen.width - 16, 22), help, st);
-
-            // Full-time banner + rematch prompt.
+            // FULL TIME: the board owns the screen. The live furniture is suppressed rather than drawn
+            // under it - a scoreboard and a control legend behind a stats table is just clutter, and the
+            // board already carries both scores in its card titles.
             if (_fullTime)
             {
-                var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.55f);
-                GUI.DrawTexture(new Rect(0, Screen.height * 0.5f - 90f, Screen.width, 180f), Texture2D.whiteTexture);
-                GUI.color = prev;
-                string winner = _homeScore > _awayScore ? "HOME WINS" : _awayScore > _homeScore ? "AWAY WINS" : "DRAW";
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 70f, Screen.width, 44f), "FULL TIME", big);
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 20f, Screen.width, 40f), $"{winner}   {_homeScore} - {_awayScore}", score);
-                GUI.Label(new Rect(0, Screen.height * 0.5f + 30f, Screen.width, 30f), "Press R for a rematch   |   Esc for the menu", st2Centered());
+                DrawPostMatch();
+                Hud.Legend("R rematch   Esc menu");
+                Hud.End();
                 return;
             }
 
-            if (_flashTime > 0f)
-            {
-                // Shared styled callout (big, colour-coded, shadowed) - same look as every other mode.
-                Hud.Begin();
-                Hud.Flash(_flash, _flashTime / 1.6f);
-            }
+            // Broadcast score bug: team blocks either side of the score, clock underneath.
+            Hud.Scoreboard("HOME", UITheme.Blue, _homeScore, _awayScore, "AWAY", UITheme.Red, _clock);
+
+            string help = _role == SimConfig.ScrimRole.Keeper
+                ? "Keeper:  A/D move   Space/LMB/RMB dive   E/Q throw   Reset: R"
+                : "WASD move   LMB/RMB shoot   E pass   Q loft   X chip   C tackle   B emote   V ball cam   R reset";
+            // Shared banner renderer: it shrinks the font and wraps if the line would run off
+            // the right edge, so the controls stay readable and fully on-screen at any resolution.
+            Hud.Legend(help);
+
+            // Pass power bar, bottom left. Only while a charge is actually armed, so it is not a
+            // permanent fixture: an empty bar on screen at all times reads as a broken one.
+            if (_role != SimConfig.ScrimRole.Keeper && _bar.Showing(out Passing.PassKind bk, out float bt))
+                Hud.PowerBar(PlayerProfile.PlayerName, bt, PassKindName(bk));
+
+            // Shared styled callout (big, colour-coded, shadowed) - same look as every other mode.
+            if (_flashTime > 0f) Hud.Flash(_flash, _flashTime / 1.6f);
+
+            // Player indicator: one coloured chevron over the human's head. Single player, so there is
+            // exactly one human and it takes slot 0's colour. In Keeper role the human is a bare
+            // ActiveRagdoll, not a Footballer (see the AI loop above), so pick the body per role.
+            var meRag = _role == SimConfig.ScrimRole.Keeper
+                        ? _humanKeeperRagdoll
+                        : (_controlled != null ? _controlled.Ragdoll : null);
+            Hud.PlayerMarker(meRag, Hud.SlotColor(0));
 
             if (_wheelOpen) DrawEmoteWheel();
+            Hud.End();
         }
-
-        static GUIStyle st2Centered() => new GUIStyle(GUI.skin.label)
-        { fontSize = 15, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
     }
 }

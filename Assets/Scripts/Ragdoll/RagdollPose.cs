@@ -67,6 +67,51 @@ namespace Trickshot
             (Bone.CalfL,  new Vector3(75f, 0f, 0f)),
         });
 
+        // Sitting on his backside, legs out in front. A NEGATIVE X on a thigh throws its lower
+        // end forward (the same sign RaiseLeg uses to lift a leg), so -88 puts the thighs flat
+        // out ahead; the knees stay a hair short of locked and the heels rest with the toes up.
+        // Z is the LATERAL axis: +Z swings a limb toward his RIGHT and -Z toward his LEFT, so an
+        // OUTWARD spread is -Z on a left limb and +Z on a right one. (The KeeperPose header used
+        // to state that backwards; it now carries the derivation.) The pelvis entry stays zero -
+        // it is the free root.
+        public static readonly Vector3[] Sit = Set(New(), new (Bone, Vector3)[]
+        {
+            (Bone.Torso,  new Vector3(-12f, 0f, 0f)),      // lean back off the hips
+            (Bone.Head,   new Vector3(-5f, 0f, 0f)),
+            (Bone.ThighL, new Vector3(-88f, 0f, -6f)),     // legs straight out front, slight splay
+            (Bone.ThighR, new Vector3(-88f, 0f, 6f)),
+            (Bone.CalfL,  new Vector3(12f, 0f, 0f)),
+            (Bone.CalfR,  new Vector3(12f, 0f, 0f)),
+            (Bone.FootL,  new Vector3(-18f, 0f, 0f)),      // heels down, toes up
+            (Bone.FootR,  new Vector3(-18f, 0f, 0f)),
+            (Bone.UpperArmL, new Vector3(32f, 0f, -22f)),  // hands propped back and a little out
+            (Bone.UpperArmR, new Vector3(32f, 0f, 22f)),
+            (Bone.ForearmL,  new Vector3(-10f, 0f, 0f)),
+            (Bone.ForearmR,  new Vector3(-10f, 0f, 0f)),
+        });
+
+        // Sliding challenge: leading leg speared straight out in front, trailing leg folded under the
+        // hips, trunk reclined so he goes down onto his backside and skids. Same sign conventions the
+        // Sit block derives: a NEGATIVE X throws a thigh's lower end forward, a POSITIVE X on a calf
+        // folds the knee, and +Z swings a limb toward his RIGHT (so an outward arm is -Z on the left
+        // and +Z on the right). The hips are dropped separately through EmoteHeightOffset, exactly as
+        // the sit does it - without that he plays this pose while still standing at full height.
+        public static readonly Vector3[] Slide = Set(New(), new (Bone, Vector3)[]
+        {
+            (Bone.Torso,  new Vector3(-26f, 0f, 0f)),      // reclined back onto the hip
+            (Bone.Head,   new Vector3(-10f, 0f, 0f)),
+            (Bone.ThighR, new Vector3(-82f, 0f, 4f)),      // leading leg out straight
+            (Bone.CalfR,  new Vector3(8f, 0f, 0f)),        // near-locked, toe leading
+            (Bone.FootR,  new Vector3(-20f, 0f, 0f)),
+            (Bone.ThighL, new Vector3(-28f, 0f, -6f)),     // trailing leg folded beneath him
+            (Bone.CalfL,  new Vector3(96f, 0f, 0f)),
+            (Bone.FootL,  new Vector3(-8f, 0f, 0f)),
+            (Bone.UpperArmL, new Vector3(18f, 0f, -38f)),  // arms out wide, riding the slide
+            (Bone.UpperArmR, new Vector3(18f, 0f, 38f)),
+            (Bone.ForearmL,  new Vector3(-16f, 0f, 0f)),
+            (Bone.ForearmR,  new Vector3(-16f, 0f, 0f)),
+        });
+
         static Vector3[] New()
         {
             return new Vector3[(int)Bone.Count]; // all zero

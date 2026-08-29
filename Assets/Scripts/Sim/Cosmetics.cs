@@ -20,6 +20,31 @@ namespace Trickshot
         // front of the face, +X is to the side. These are facing-independent (local to the head).
         const float HeadR = 0.19f;
 
+        // How far back a HORSE's hair anchor is tilted about X, degrees. A mane is the same hair
+        // catalog as a human's, so the only difference is which way "down" points: on a horse the
+        // strands have to fall along the CREST of the neck, not off the front of the face. The neck
+        // is decor "D_Neck" in BodyLayout, pitched by exactly this euler, so a style whose flow is
+        // (0,-1,0) drapes straight down the crest. KEEP THESE TWO NUMBERS EQUAL.
+        const float ManeTiltDeg = 38.9f;
+
+        // A horse TAIL's dock radius, per unit of each body scale. HairSim roots every strand on a
+        // SPHERE about its anchor's origin, so a tail hung on the PELVIS needs that box expressed as a
+        // radius. The horse pelvis is a Box of (0.30g, 0.30h, 0.32g), i.e. half extents
+        // (0.15g, 0.15h, 0.16g), and BackCluster's mid root direction is (0, 0.549, -0.836). That
+        // direction leaves the TOP face at 0.15/0.549 = 0.273 per unit HEIGHT and the REAR face at
+        // 0.16/0.836 = 0.191 per unit GIRTH, so whichever comes first is the real surface and the
+        // smaller of the two is the radius. KEEP THESE IN STEP WITH THE PELVIS DIMS IN BodyLayout.Horse.
+        //
+        // Taking the min rather than just girth-scaling is what holds the dock on the rump at both ends
+        // of BOTH sliders. A pure girth radius floats it about 0.07 m clear of a max-weight,
+        // min-height rump, because that build is a wide flat slab where the TOP face binds instead.
+        const float TailDockPerHeight = 0.273f;
+        const float TailDockPerGirth  = 0.191f;
+        // Tail length in metres at unit height scale. HairSim never scales def.length itself, so this
+        // is multiplied by the body's height scale at build time - which the MANE deliberately is not.
+        // 0.55 puts the tip about level with the hocks on a default horse.
+        const float TailLen = 0.55f;
+
         // Head girth scale for the CURRENT AttachAppearance pass. The head's visible radius is
         // HeadR * girth, but cosmetics parent to the head BONE (localScale=1), so their fixed
         // literal offsets/sizes must be multiplied by this to track the head as it grows/shrinks
@@ -72,13 +97,33 @@ namespace Trickshot
         public static void AttachAppearance(ActiveRagdoll rag, PlayerAppearance a)
         {
             if (rag == null) return;
+
+            // ADULT MODE FIRST, above the species guards below. It is not a head cosmetic and it is
+            // not human-only: any species whose SpeciesDef.AllowsAdult is set gets it, which now
+            // includes both quadrupeds. It used to sit at the BOTTOM of this method, underneath two
+            // early returns that dropped out for everything except a human - so the flag, the age
+            // gate, the Third Leg tab and the networked dims all worked for a horse and nothing was
+            // ever built.
+            AttachAdult(rag, a);
+            // The HAIR catalog is shared with the horse, whose MANE slot is human hair by design (see
+            // SpeciesCosmetics.UsesHumanHair): same styles, same cards, same atlas, combed back along
+            // the neck crest instead of standing off the crown. Nothing else here is shared, and the
+            // guard lower down says why. Every other species draws from its decor table only.
+            bool human = a.SpeciesId == Species.HumanId;
+            bool mane  = a.SpeciesId == Species.HorseId;
+            if (!human && !mane) return;
             var head = rag.Phys(Bone.Head);
             if (head == null) return;
 
             // Every cosmetic this pass scales by the head's girth so it tracks the head as weight
             // changes the visible head radius (HeadR * girth). Read once here; Ball/Blk/BeardMesh/
             // CrownPatch multiply their fixed literals by it.
-            _cosScale = rag.GirthScale;
+            //
+            // A horse's skull is a different SIZE, not just a different girth (0.15 m radius against
+            // the human 0.19), so it scales by the ratio of its visible radius to the human nominal.
+            // That ratio IS girth on a human, but it is computed only off the human path so the human
+            // number stays exactly rag.GirthScale rather than a round trip through a divide.
+            _cosScale = human ? rag.GirthScale : rag.HeadVisualRadius / HeadR;
 
             // Hair (index 0 = bald -> nothing). A non-bald style is a SOFT DYNAMIC HairSim: a
             // child of the head carrying the line-mesh + the Verlet strand sim (built like the
@@ -113,12 +158,86 @@ namespace Trickshot
                 {
                     var go = new GameObject("HairSim");
                     go.transform.SetParent(head, false);
+                    // ROTATION ONLY, never a translation. HairSim treats its anchor's ORIGIN as the
+                    // head sphere's centre in four places (mesh-local space, the collision centre, the
+                    // outward direction in WriteVerts, root placement), so moving the anchor off the
+                    // skull breaks all four at once. Tilting it is free: it turns every style's root
+                    // scatter and flow direction together, which is exactly the knob a mane needs.
+                    go.transform.localPosition = Vector3.zero;
+                    go.transform.localRotation = mane ? Quaternion.Euler(ManeTiltDeg, 0f, 0f)
+                                                      : Quaternion.identity;
+                    go.transform.localScale = Vector3.one;
+                    // Pass the body's real head radius rather than letting HairSim assume the human
+                    // 0.19: on a horse that assumption floats every root ~0.04 m off the skull.
+                    go.AddComponent<HairSim>().Build(head, entry.Def, mat, rag.HeadVisualRadius);
+                }
+            }
+
+            // ---- HORSE TAIL ---------------------------------------------------------------------
+            // The second HairSim on the body, and the only cosmetic here that does NOT hang off the
+            // head. Same catalog material, atlas and cards as the mane, on the hips. It replaces the
+            // old D_Tail capsule in BodyLayout, which was a rigid cone that could not swing.
+            //
+            // Outside the hair block above ON PURPOSE, so it is not gated by the mane style: a horse
+            // always has a tail, including a bald-maned one. See the BodyLayout comment where D_Tail
+            // used to be for why the tail is one fixed style rather than the player's pick.
+            if (mane)
+            {
+                var pelvis = rag.Phys(Bone.Pelvis);
+                if (pelvis != null)
+                {
+                    // Its own material rather than a hoisted share with the mane above. Same colour and
+                    // same shader, so identical on screen, and it keeps the human hair path untouched.
+                    var tailMat = Make.Hair(a.HairColor);
+                    rag.RegisterCosmeticMaterial(tailMat);
+
+                    var go = new GameObject("TailSim");
+                    go.transform.SetParent(pelvis, false);
+                    // ROTATION-ONLY still applies, and here the rotation is NONE. BackCluster already
+                    // roots up-and-back where a dock belongs, so there is nothing to tilt. That makes
+                    // this the cleaner of the two anchors: HairSim writes its verts in the space of the
+                    // transform it is HANDED while the mesh renders under this child, so an untilted
+                    // child renders exactly where the sim put it, whereas the mane's tilted child
+                    // renders rotated off its own collision sphere. It is still a child object and not
+                    // the pelvis itself only because HairSim RequireComponents a MeshFilter, and the
+                    // pelvis transform already carries one.
                     go.transform.localPosition = Vector3.zero;
                     go.transform.localRotation = Quaternion.identity;
                     go.transform.localScale = Vector3.one;
-                    go.AddComponent<HairSim>().Build(head, entry.Def, mat);
+
+                    // No crown patch, unlike the mane: the dock sits against the solid coat-coloured
+                    // pelvis box, so there is no bare scalp for the gaps between clumps to show.
+                    float dockR = Mathf.Min(TailDockPerHeight * rag.HeightScale,
+                                            TailDockPerGirth * rag.GirthScale) + 0.01f;
+
+                    var def = new HairSim.HairDef
+                    {
+                        root         = HairSim.RootMode.BackCluster,
+                        strands      = 46,
+                        nodes        = 10,
+                        length       = TailLen * rag.HeightScale,
+                        fan          = 5,
+                        staticToHead = false,     // a tail that cannot swing is a stick
+                        // Deliberately floppy, so GRAVITY sets the hang and the gait swings it. flow is
+                        // the styled REST direction the stiffness holds toward, not the final shape, so
+                        // a low stiffness plus a rearward flow reads as a tail set out at the dock and
+                        // falling from there. The -0.30 of rear bias is also what keeps the hair clear
+                        // of the hind legs, whose rear faces sit about 0.07 ahead of the dock.
+                        stiffness    = 0.16f,
+                        flow         = new Vector3(0f, -1f, -0.30f),
+                        curl         = 0.012f,
+                        jitter       = 0.10f,
+                        thickness    = 0.07f,     // a tail clump is thicker than a hair clump
+                    };
+                    go.AddComponent<HairSim>().Build(pelvis, def, tailMat, dockR);
                 }
             }
+
+            // Everything below is HUMAN-ONLY, and not by taste. On an animal, StyleB and StyleC are
+            // MARKINGS and TACK: those indices address the species' own lists (SpeciesCosmetics) and
+            // the species' decor table, NOT _facial and _accessories. Running these builders would
+            // draw a beard picked by a marking index. Animal geometry comes from BodyLayout.Decor.
+            if (!human) return;
             // Facial hair (index 0 = clean-shaven -> nothing). Beard styles wear the textured
             // hair-card material (strand look + sheen); Stubble/Clean use a flat material.
             if (a.FacialStyle > 0 && a.FacialStyle < _facial.Count)
@@ -140,24 +259,29 @@ namespace Trickshot
                     acc.Build(head, mat);
                 }
             }
+        }
 
-            // Adult-mode appendage: a collider-less Verlet pendulum on the bottom-front of the
-            // pelvis (skin-tinted, girth-scaled). Purely cosmetic; it pushes out of player bodies
-            // but never the ball. Only when the flag is set.
-            if (a.Adult)
-            {
-                var pelvis = rag.Phys(Bone.Pelvis);
-                if (pelvis != null)
-                {
-                    var go = new GameObject("AnatomySim");
-                    go.transform.SetParent(pelvis, false);
-                    go.transform.localPosition = Vector3.zero;
-                    go.transform.localRotation = Quaternion.identity;
-                    go.transform.localScale = Vector3.one;
-                    go.AddComponent<AnatomySim>().Build(pelvis, a.Skin, rag.GirthScale,
-                                                        a.MemberLen, a.MemberGirth, a.BallSize);
-                }
-            }
+        // Adult-mode appendage: a collider-less Verlet pendulum under the pelvis (skin/coat-tinted,
+        // build-scaled). Purely cosmetic; it pushes out of player bodies but never the ball.
+        //
+        // Gated on the SPECIES capability rather than an id list, so it follows AllowsAdult exactly
+        // like the toggle, the age prompt, the Third Leg tab and the networked dims already do.
+        // AnatomySim measures its own anchors off the built colliders for a quadruped, so a horse and
+        // an elephant land correctly under the belly without a per-species table here.
+        static void AttachAdult(ActiveRagdoll rag, PlayerAppearance a)
+        {
+            if (!a.Adult) return;
+            var def = Species.ById(a.SpeciesId);
+            if (!def.AllowsAdult) return;
+            var pelvis = rag.Phys(Bone.Pelvis);
+            if (pelvis == null) return;
+            var go = new GameObject("AnatomySim");
+            go.transform.SetParent(pelvis, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            go.AddComponent<AnatomySim>().Build(rag, pelvis, a.Skin, def.AdultScale, def.AdultGrowth,
+                                                a.MemberLen, a.MemberGirth, a.BallSize);
         }
 
         // ---- collider-less piece helpers ------------------------------------

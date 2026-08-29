@@ -28,26 +28,52 @@ namespace Trickshot
         BallController _ball;
         ScrimmageGame _game;
 
-        // Attack direction (world Z sign), assigned at Init - NOT derived from team, because
-        // in keeper role Home defends the +Z goal (so attacks -Z), the opposite of outfield
-        // role. The goal this player attacks is the one at that Z end; own goal is the other.
+        // Attack direction (world Z sign), assigned at Init. The goal this player attacks is the one
+        // at that Z end; own goal is the other.
+        //
+        // This used to claim it was NOT derived from team, "because in keeper role Home defends the +Z
+        // goal, the opposite of outfield role". That is false and was actively misleading:
+        // GameBootstrap sets `attackZ = team == 0 ? 1f : -1f` with no role branch at all, the human
+        // keeper is built at the -Z (Away) goal, and ScrimmageGame's own kickoff comment says so in as
+        // many words. Home attacks +Z in every role.
         public float AttackZ = 1f;
         public Vector3 TargetGoal => AttackZ > 0f ? _game.HomeGoal : _game.AwayGoal;   // HomeGoal is +Z
         public Vector3 OwnGoal    => AttackZ > 0f ? _game.AwayGoal : _game.HomeGoal;
 
         Vector3 _homeSpot;            // formation anchor (kickoff / rest position)
         float _gaitPhase;
+        float _gaitWeight;
+        readonly Vector3[] _gaitScratch = new Vector3[(int)Bone.Count];
         float _kickCooldown;
+        float _carryTouchTimer;   // counts down to this bot's next dribble touch
+        bool _carryColl;          // ball<->own-body collision currently suspended for a carry
 
         Knockdown _knock;
         public Knockdown Knock => _knock != null ? _knock : (_knock = GetComponent<Knockdown>());
         public bool IsDown => Knock != null && Knock.Down;
 
+        Striker _strk;
+        // The Striker on this body. Every scrimmage footballer has one (GameBootstrap
+        // BuildFootballer and NetScrimmageMatch SpawnBody both add it), but it is only ticked
+        // while a human drives the body, so an AI body's trick state stays inert.
+        public Striker Strk => _strk != null ? _strk : (_strk = GetComponent<Striker>());
+
         public Vector3 Pos => Ragdoll != null && Ragdoll.Pelvis != null ? Ragdoll.Pelvis.position : transform.position;
 
-        public void Init(ScrimmageGame game, BallController ball, ActiveRagdoll ragdoll, int team, bool keeper, float attackZ, Vector3 homeSpot)
+        // Where this player is heading, for leading a pass. MoveInput IS the desired world
+        // horizontal velocity, which tracks intent better than the pelvis rigidbody (that one
+        // jitters with every ragdoll correction).
+        public Vector3 Vel => Ragdoll != null ? Ragdoll.MoveInput : Vector3.zero;
+
+        /// <summary>How fast this body runs, as a multiple of SimConfig.AiOutfieldSpeed. Derived from
+        /// team + shirt so every peer agrees without syncing it (see SimConfig.AiPace).</summary>
+        public float PaceMul { get; private set; } = 1f;
+
+        public void Init(ScrimmageGame game, BallController ball, ActiveRagdoll ragdoll, int team, bool keeper, float attackZ, Vector3 homeSpot,
+                         int shirt = 0)
         {
             _game = game; _ball = ball; Ragdoll = ragdoll; Team = team; IsKeeper = keeper; AttackZ = attackZ; _homeSpot = homeSpot;
+            PaceMul = SimConfig.AiPace(team, shirt, keeper);
             Ragdoll.FacingRotation = Quaternion.LookRotation(new Vector3(0f, 0f, AttackZ), Vector3.up);
         }
 
@@ -55,9 +81,12 @@ namespace Trickshot
         public void AiTick(bool isClosest)
         {
             if (Ragdoll == null || Ragdoll.Pelvis == null || _ball == null) return;
-            if (IsDown) return;   // knocked over: the Knockdown component owns the body
+            // Knocked over: the Knockdown component owns the body. Give the ball back first -
+            // a felled bot must not keep carry ownership (nor keep the ball phasing through it).
+            if (IsDown) { SetCarryCollision(false); return; }
             Ragdoll.ClearPoseOverrides();
             if (_kickCooldown > 0f) _kickCooldown -= Time.deltaTime;
+            if (_carryTouchTimer > 0f) _carryTouchTimer -= Time.deltaTime;
 
             Vector3 me = Pos; me.y = 0f;
             Vector3 ball = _ball.transform.position; ball.y = 0f;
@@ -100,7 +129,7 @@ namespace Trickshot
             // Carrying the ball uses a slightly different drive (nudges the ball ahead); everything
             // else is a plain run to the target.
             if (_carrying) DriveCarry(me, target, ball);
-            else Drive(me, target);
+            else { SetCarryCollision(false); Drive(me, target); }
             _carrying = false;   // reset each tick; OnBallAct re-sets it when it chooses to carry
         }
 
@@ -145,39 +174,51 @@ namespace Trickshot
             return push;
         }
 
-        // AI keeper: hover just in front of the OWN goal line, shadow the ball's x within
-        // the goal width, and rush out to clear if the ball gets close to the goal.
+        // AI keeper. This is the SAME brain as the striker-mode Goalkeeper, pointed at this end of
+        // the pitch, so a scrimmage keeper positions on the angle, comes off his line, sweeps up
+        // loose balls, catches what he can hold, dives at what he cannot, and plays it out.
+        //
+        // What used to be here shadowed the ball's x on a fixed line 1 m off his goal and hoofed
+        // anything that came within 3.5 m of him. That is a wall with legs, not a goalkeeper.
         public void AiKeeperTick()
         {
             if (Ragdoll == null || Ragdoll.Pelvis == null || _ball == null) return;
-            Ragdoll.ClearPoseOverrides();
+            // Knocked over: hand the ball back and let Knockdown own the body.
+            if (IsDown) { if (_gk != null) _gk.DropBall(); return; }
             if (_kickCooldown > 0f) _kickCooldown -= Time.deltaTime;
+            Keeper.Tick();
+        }
 
-            Vector3 me = Pos; me.y = 0f;
-            Vector3 ball = _ball.transform.position; ball.y = 0f;
-            float half = SimConfig.GoalWidth * 0.5f;
-            float guardZ = OwnGoal.z + AttackZ * 1.0f;   // 1m in front of the line, toward the pitch
+        Goalkeeper _gk;
 
-            float distToBall = Vector3.Distance(me, ball);
-            bool ballNearGoal = Mathf.Abs(ball.z - OwnGoal.z) < 8f && Mathf.Abs(ball.x) < half + 3f;
-
-            Vector3 target;
-            if (ballNearGoal && distToBall < 3.5f)
+        /// <summary>The goalkeeping brain, built on first use (only keepers ever get one).</summary>
+        public Goalkeeper Keeper
+        {
+            get
             {
-                target = ball;   // rush + clear
-                if (distToBall < SimConfig.BallRadius + 1.0f && _kickCooldown <= 0f)
+                if (_gk == null)
                 {
-                    _kickCooldown = SimConfig.AiKickCooldown;
-                    Vector3 up = new Vector3(0f, 0f, AttackZ);           // clear up the pitch
-                    Vector3 side = new Vector3(Mathf.Sign(ball.x == 0 ? 1f : ball.x), 0f, 0f) * 0.4f;
-                    _ball.KickTo((up + side).normalized * (SimConfig.AiKickBoneImpulse + 4f) + Vector3.up * 2f);
+                    _gk = gameObject.AddComponent<Goalkeeper>();
+                    _gk.Init(Ragdoll, _ball, OwnGoal, AttackZ);
+                    _gk.Sweeper = true;         // full match: off his line, sweeping, distributing
+                    _gk.DistributeTarget = DistributeAim;
                 }
+                return _gk;
             }
-            else
-            {
-                target = new Vector3(Mathf.Clamp(ball.x, -half, half), 0f, guardZ);
-            }
-            Drive(me, target);
+        }
+
+        /// <summary>True while this keeper has the ball in his gloves.</summary>
+        public bool KeeperHoldingBall => _gk != null && _gk.HasBall;
+
+        // Where a gathered ball gets played: the best pass on, else straight upfield.
+        Vector3 DistributeAim(Vector3 from)
+        {
+            Vector3 upfield = new Vector3(0f, 0f, AttackZ);
+            var mates = _game.TeamList(Team);
+            var opps  = _game.TeamList(Team == 0 ? 1 : 0);
+            if (Passing.BestTarget(from, upfield, AttackZ, true, 0.7f, 1f, mates, opps, this, out var opt))
+                return opt.aim;
+            return from + upfield * SimConfig.KeeperDistributeRange;
         }
 
         // Steer toward a target with the run gait; face travel direction.
@@ -186,13 +227,15 @@ namespace Trickshot
             Vector3 to = target - me; to.y = 0f;
             float dist = to.magnitude;
             Vector3 dir = dist > 0.05f ? to / dist : Vector3.zero;
-            float speed = dist > 0.4f ? SimConfig.AiOutfieldSpeed : 0f;
+            float speed = dist > 0.4f ? SimConfig.AiOutfieldSpeed * PaceMul : 0f;
             Ragdoll.MoveInput = dir * speed;
 
             if (dir.sqrMagnitude > 0.01f)
                 Ragdoll.FacingRotation = Quaternion.LookRotation(dir, Vector3.up);
 
-            RunGait(speed / Mathf.Max(0.1f, SimConfig.AiOutfieldSpeed));
+            // Normalised against THIS body's top speed, not the shared base, or a quick player's gait
+            // would run past 1 and a slow one would never reach a full stride.
+            RunGait(speed / Mathf.Max(0.1f, SimConfig.AiOutfieldSpeed * PaceMul));
         }
 
         // AI tackle: lunge at the ball and, if it reaches, win it off the opponent.
@@ -225,17 +268,29 @@ namespace Trickshot
                 return;
             }
 
-            // PASS: a forward teammate in a clear lane gets a leading chip.
-            var mate = BestOpenMate(ball, out Vector3 lead);
-            if (mate != null)
+            // PASS: through the shared pass model, so a bot's pass has the same weight, lead and
+            // error as a human's - and can be a ball into space rather than always at feet.
+            if (_kickCooldown <= 0f)
             {
-                _kickCooldown = SimConfig.AiKickCooldown;
-                Vector3 to = lead - ball; to.y = 0f;
-                float d = to.magnitude;
-                Vector3 pdir = to / Mathf.Max(0.01f, d);
-                Vector3 v = pdir * Mathf.Clamp(d * 1.15f, 9f, SimConfig.PassGroundSpeed + 7f) + Vector3.up * 1.4f;
-                _ball.KickTo(v);
-                return;
+                var mates = _game.TeamList(Team);
+                var opps  = _game.TeamList(Team == 0 ? 1 : 0);
+                Vector3 aimDir = new Vector3(0f, 0f, AttackZ);
+                // Chip it when the route out is crowded, roll it when it isn't.
+                bool loft = !Passing.LaneClear(ball, ball + aimDir * 9f, opps, SimConfig.PassLaneRadius);
+                float charge = SimConfig.AiPassCharge;
+                if (Passing.BestTarget(ball, aimDir, AttackZ, loft, charge, 1f, mates, opps, this, out var opt))
+                {
+                    _kickCooldown = SimConfig.AiKickCooldown;
+                    SetCarryCollision(false);   // hand the ball back before striking it
+                    if (_game != null) _game.NoteAiPass(Ragdoll);
+                    float acc = SimConfig.AiPassAccuracy;
+                    float d = Vector3.Distance(ball, opt.aim);
+                    float press = Passing.Pressure01(ball, opps);
+                    Passing.Launch(_ball, opt.aim, loft, charge, 1f, Ragdoll,
+                                   Passing.ScatterDeg(acc, d, press, charge, false),
+                                   Passing.Wobble(acc, false));
+                    return;
+                }
             }
 
             // CARRY: dribble toward goal, steering around the nearest defender in the way.
@@ -260,58 +315,16 @@ namespace Trickshot
             float aimY = Mathf.Clamp(SimConfig.GoalHeight * 0.55f + Random.Range(-0.3f, 0.3f),
                                      0.4f, SimConfig.GoalHeight - 0.2f);
             Vector3 aim = new Vector3(aimX, aimY, TargetGoal.z);
+            if (_game != null) _game.NoteShotBy(Ragdoll);
             // Flight time scales a little with distance so near shots stay flat-ish, far ones arc more.
             float dist = Vector3.Distance(ball, aim);
             float t = Mathf.Clamp(dist / 22f, 0.35f, 0.9f);
             _ball.LaunchTo(aim, t, Vector3.zero, 0f);
         }
 
-        // A teammate ahead toward goal, within pass range, whose passing LANE is not blocked by an
-        // opponent. Returns the best one + a lead point (ahead of them along their travel). Null if none.
-        Footballer BestOpenMate(Vector3 ball, out Vector3 lead)
-        {
-            lead = ball;
-            var team = _game.TeamList(Team);
-            var opp = _game.TeamList(Team == 0 ? 1 : 0);
-            Footballer best = null; float bestScore = 0.45f;
-            foreach (var f in team)
-            {
-                if (f == null || f == this || f.IsKeeper || f.IsDown) continue;
-                Vector3 fp = f.Pos; fp.y = 0f;
-                Vector3 to = fp - ball; to.y = 0f;
-                float d = to.magnitude;
-                if (d < 5f || d > SimConfig.PassMaxRange) continue;
-                if ((fp.z - ball.z) * AttackZ < 2f) continue;         // must be forward
-                if (!LaneClear(ball, fp, opp)) continue;              // no opponent sitting in the lane
-                float fwdness = Vector3.Dot(to.normalized, new Vector3(0f, 0f, AttackZ));
-                if (fwdness > bestScore)
-                {
-                    bestScore = fwdness; best = f;
-                    // Lead the runner: nudge the target ahead of them toward goal.
-                    lead = fp + new Vector3(0f, 0f, AttackZ) * (SimConfig.AiOutfieldSpeed * SimConfig.AiPassLeadTime);
-                }
-            }
-            return best;
-        }
-
-        // True if no opponent is within AiLaneCheckRadius of the segment ball->mate (a clear lane).
+        // Lane checks live in Passing now, so a bot and a human read the same blocked lane.
         bool LaneClear(Vector3 a, Vector3 b, System.Collections.Generic.List<Footballer> opp)
-        {
-            Vector3 ab = b - a; ab.y = 0f;
-            float len2 = ab.sqrMagnitude;
-            if (len2 < 0.01f) return true;
-            for (int i = 0; i < opp.Count; i++)
-            {
-                var o = opp[i];
-                if (o == null || o.IsKeeper || o.IsDown) continue;
-                Vector3 p = o.Pos; p.y = 0f;
-                float u = Mathf.Clamp01(Vector3.Dot(p - a, ab) / len2);
-                Vector3 closest = a + ab * u;
-                if ((p - closest).sqrMagnitude < SimConfig.AiLaneCheckRadius * SimConfig.AiLaneCheckRadius)
-                    return false;
-            }
-            return true;
-        }
+            => Passing.LaneClear(a, b, opp, SimConfig.AiLaneCheckRadius);
 
         // A sideways steer offset to dribble AROUND the nearest opponent between the ball and goal.
         Vector3 DefenderAvoidOffset(Vector3 ball, Vector3 gdir)
@@ -342,41 +355,60 @@ namespace Trickshot
             Vector3 to = target - me; to.y = 0f;
             float dist = to.magnitude;
             Vector3 dir = dist > 0.05f ? to / dist : new Vector3(0f, 0f, AttackZ);
-            Ragdoll.MoveInput = dir * SimConfig.AiCarrySpeed;
+            Ragdoll.MoveInput = dir * (SimConfig.AiCarrySpeed * PaceMul);
             Ragdoll.FacingRotation = Quaternion.LookRotation(dir, Vector3.up);
             RunGait(1f);
 
-            // If the ball has fallen behind/beside the run, give it a gentle forward nudge so it
-            // stays ahead of the feet. Gated by the touch cooldown so it isn't a continuous boot.
-            if (_kickCooldown <= 0f)
-            {
-                Vector3 ballAhead = ball - me; ballAhead.y = 0f;
-                bool ballLagging = Vector3.Dot(ballAhead, dir) < SimConfig.BallRadius + 0.15f;
-                if (ballLagging)
-                {
-                    Vector3 flat = _ball.Rb.linearVelocity; flat.y = 0f;
-                    if (flat.magnitude < SimConfig.AiCarryNudge)
-                        _ball.KickTo(dir * SimConfig.AiCarryNudge);
-                    _kickCooldown = 0.18f;   // short: keeps the carry lively without booting it away
-                }
-            }
+            // Bots dribble through the SAME touch primitive the human carrier uses (see Dribble):
+            // one kick per stride toward where the next stride wants the ball, with the ball a free
+            // rolling rigidbody in between. That is what makes an AI carry poachable.
+            // A human carrier owns the ball outright, so stand off while one is on it.
+            if (Dribble.Holder != null) { SetCarryCollision(false); return; }
+            SetCarryCollision(true);
+
+            // Touch on cadence, or EARLY if the ball has fallen level with the feet or drifted off
+            // the running line - literally the same corrective test the player's carry uses.
+            if (_carryTouchTimer > 0f && !Dribble.NeedsCorrectiveTouch(me, dir, ball)) return;
+
+            float interval = Dribble.StrideInterval(Ragdoll, false);
+            float touchDist = Dribble.TouchDistance(Ragdoll.GroundSpeed, SimConfig.AiDribbleTightness, false);
+            Dribble.Touch(_ball, me, dir, Ragdoll.MoveInput, interval, touchDist, SimConfig.AiTouchErrorDeg);
+            _carryTouchTimer = interval;
         }
 
-        // Cosmetic alternating-leg run + arm pump (same shape as the striker gait).
+        // Suspend/restore ball collision with this bot's own limbs while it carries, exactly as a
+        // human carry does. Latched so it isn't re-applied over every collider every tick.
+        void SetCarryCollision(bool on)
+        {
+            if (_carryColl == on) return;
+            _carryColl = on;
+            Dribble.SetCarryCollision(_ball, Ragdoll, on);
+            if (_ball == null) return;
+            // Register the carry on the ball as well, so this bot's own gait taps are not read as
+            // strikes while EVERY other body can still tackle, shoot or volley it off its feet.
+            if (on) _ball.SetDribbleCarrier(Ragdoll);
+            else if (_ball.DribbleCarrier == Ragdoll) _ball.SetDribbleCarrier(null);
+        }
+
+        void OnDisable() => SetCarryCollision(false);
+
+        // Cosmetic run, from the SHARED gait table (Gait), so a bot's legs move exactly like a
+        // player's on the same body plan. Fades on a weight rather than early-returning: the old
+        // version left its last pose frozen on the bones the moment the bot stopped moving.
         void RunGait(float amount)
         {
-            if (amount < 0.05f) { _gaitPhase = 0f; return; }
-            _gaitPhase += Time.deltaTime * SimConfig.StrideRateMax * amount;
-            float s = Mathf.Sin(_gaitPhase);
-            float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
-            Ragdoll.SetPoseOverride(Bone.ThighL, new Vector3(-s * SimConfig.GaitThighSwing - liftL * SimConfig.GaitThighLift, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.CalfL,  new Vector3(liftL * SimConfig.GaitKneeBend, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.ThighR, new Vector3(s * SimConfig.GaitThighSwing - liftR * SimConfig.GaitThighLift, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.CalfR,  new Vector3(liftR * SimConfig.GaitKneeBend, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.UpperArmR, new Vector3(s * SimConfig.ArmPumpSwing, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.ForearmR,  new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.UpperArmL, new Vector3(-s * SimConfig.ArmPumpSwing, 0f, 0f));
-            Ragdoll.SetPoseOverride(Bone.ForearmL,  new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f));
+            var p = Gait.For(Ragdoll.Plan);
+            float speed = Ragdoll.GroundSpeed;
+            _gaitWeight = Gait.Weight(_gaitWeight, speed, amount >= 0.05f, Time.deltaTime);
+
+            float sprint01;
+            _gaitPhase += Time.deltaTime * Gait.Cadence(speed, Ragdoll.HeightScale, p, out sprint01);
+            if (_gaitPhase > Mathf.PI * 2f) _gaitPhase -= Mathf.PI * 2f;
+
+            var over = _gaitScratch;
+            for (int i = 0; i < over.Length; i++) over[i] = Vector3.zero;
+            Gait.Pose(over, p, _gaitPhase, _gaitWeight, sprint01, 0f, 0f);
+            for (int i = 0; i < over.Length; i++) Ragdoll.SetPoseOverride((Bone)i, over[i]);
             Ragdoll.SetPose(RagdollPose.Stand, 5f);
         }
 
@@ -384,7 +416,13 @@ namespace Trickshot
         {
             _homeSpot = spot;
             _kickCooldown = 0f;
+            _carryTouchTimer = 0f;
+            SetCarryCollision(false);
             _gaitPhase = 0f;
+            _gaitWeight = 0f;
+            // A keeper must let go of a held ball on a reset, or he stays welded to a ball the
+            // match has already moved on from.
+            if (_gk != null) { _gk.ResetTo(spot); return; }
             Ragdoll.ResetTo(spot, Quaternion.LookRotation(new Vector3(0f, 0f, AttackZ), Vector3.up));
         }
     }

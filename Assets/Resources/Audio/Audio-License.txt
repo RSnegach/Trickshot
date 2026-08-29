@@ -1,0 +1,19 @@
+post_hit.wav is derived from Kenney's Impact Sounds pack.
+
+Source:  https://kenney.nl/assets/impact-sounds
+License: CC0 1.0 Universal (public domain dedication)
+         https://creativecommons.org/publicdomain/zero/1.0/
+
+CC0 means no rights reserved: commercial use, modification and redistribution are all
+permitted, and no attribution is required. Kenney asks for a credit and does not require
+one; this file is that credit, and the record of what was changed.
+
+Original: impactMetal_medium_000.ogg
+
+Modified from the original: vari-speeded down 2.2x so the modal cluster and ring length
+match a full size aluminium crossbar rather than a hand sized pipe, mixed with a
+synthesized 80 Hz thump for the ball's own contribution, high-passed at 45 Hz, and
+written out as 44.1 kHz mono 16-bit. See Tools/postprep.py for the exact chain and for
+why each step is there.
+
+The other clips in this folder predate this file and their provenance is not recorded.

@@ -22,6 +22,7 @@ namespace Trickshot
         BallController _ball;
         Striker _striker;
         ActiveRagdoll _strikerRagdoll;
+        Goalkeeper _keeper;        // null when pre-match keeper ability is 0 (open goal)
         GameCamera _cam;
         Transform _launchPoint;
 
@@ -36,7 +37,8 @@ namespace Trickshot
         float _goalLineZ;
 
         public void Configure(GameInput input, Crosser crosser, AimReticle reticle, BallController ball,
-                              Striker striker, ActiveRagdoll strikerRagdoll, GameCamera cam, Transform launchPoint)
+                              Striker striker, ActiveRagdoll strikerRagdoll, Goalkeeper keeper,
+                              GameCamera cam, Transform launchPoint)
         {
             _input = input;
             _crosser = crosser;
@@ -44,6 +46,7 @@ namespace Trickshot
             _ball = ball;
             _striker = striker;
             _strikerRagdoll = strikerRagdoll;
+            _keeper = keeper;
             _cam = cam;
             _launchPoint = launchPoint;
             _goalLineZ = SimConfig.GoalCenter.z;
@@ -51,7 +54,7 @@ namespace Trickshot
             // Camera follows the pelvis and is driven by mouse movement.
             _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
-            _striker.SetCameraYaw(() => _cam.Yaw);
+            _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
 
             _cam.SetMode(GameCamera.Mode.Follow);
             StartRun();
@@ -64,6 +67,13 @@ namespace Trickshot
             _goals = 0;
             _crosses = 0;
             _timeLeft = SimConfig.TimeTrialSeconds;
+            // Plant him at the start of every run: without a plant home the contact hop walks him
+            // ~0.6 m down the delivery line per serve and nothing brings him back, and time trial has
+            // no cross map to place him with. PlantAt, not SetOrigin - this mode sets neither
+            // TargetOverride nor OriginOverride anywhere, and GameBootstrap parks the ball at the
+            // launch point after Arm, so claiming the origin would teleport the ball 1.6 m on the
+            // first serve of every run.
+            _crosser.PlantAt(SimConfig.CrosserStart);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;   // no live ball yet
         }
@@ -77,9 +87,10 @@ namespace Trickshot
 
             if (_finished)
             {
-                // Summary screen: only R (restart) is live. The striker still ticks so
+                // Summary screen: only R (restart) is live. The striker + keeper still tick so
                 // the world isn't locked, but no serving and no scoring.
                 _striker.Tick();
+                if (_keeper != null) _keeper.Tick();
                 if (_input.ResetPressed) StartRun();
                 if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
                 return;
@@ -89,6 +100,7 @@ namespace Trickshot
             if (_input.ResetPressed) { Recenter(); return; }
 
             _striker.Tick();
+            if (_keeper != null) _keeper.Tick();   // AI keeper goaltends (ability 0 = no keeper built)
 
             // Count the clock down in real time (guarded against pause above; there is no
             // slow-mo in this mode, so scaled delta is fine).
@@ -164,7 +176,11 @@ namespace Trickshot
         {
             _striker.ForceRecover();
             _strikerRagdoll.ResetTo(SimConfig.StrikerStart, Quaternion.identity);
+            if (_keeper != null) _keeper.ResetTo(SimConfig.KeeperStart);
             _cam.SetMode(GameCamera.Mode.Follow);
+            // Same reasoning as GameManager's R: this recentres striker and keeper, so recentre the
+            // crosser as well rather than leaving up to 0.6 m of accumulated drift in place.
+            _crosser.PlantAt(SimConfig.CrosserStart);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;
         }
@@ -189,9 +205,11 @@ namespace Trickshot
             if (_finished)
             {
                 Hud.Banner("TIME!", $"Goals: {_goals}   ({conversion}% conversion)", "Press R to play again");
+                Hud.End();
                 return;
             }
             Hud.Flash(_flash, _flashTime / 1.6f);
+            Hud.End();
         }
     }
 }

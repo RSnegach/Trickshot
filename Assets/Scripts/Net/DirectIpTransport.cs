@@ -28,14 +28,29 @@ namespace Trickshot.Net
     ///   [1] Reliable   : [kind][seq u32][payload]         (in-order + acked; lobby/score/replay)
     ///   [2] Ack        : [kind][cumAck u32]
     ///   [3] Ping       : [kind]                           (keepalive for disconnect detection)
+    ///   [4] Probe      : discovery, see LobbyProbe        (from a stranger; no peer relationship)
+    ///   [5] ProbeReply : discovery, see LobbyProbe        (sent only; dropped if received)
     /// The app payload delivered to MessageReceived is the SAME byte[] NetCodec produced, so
     /// NetReader / MsgType are untouched.
+    ///
+    /// Kinds 0-3 are peer traffic and go through the peer table. Kinds 4-5 deliberately do NOT:
+    /// they are exchanged with machines that are not peers and must never become peers. See the
+    /// interception at the top of HandlePacket.
     /// </summary>
     public class DirectIpTransport : INetTransport
     {
         const byte FrameUnreliable = 0, FrameReliable = 1, FrameAck = 2, FramePing = 3;
         const float KeepaliveInterval = 1.0f;   // ping cadence
         const float PeerTimeout = 5.0f;          // no packet this long -> peer is gone
+        // How long the receive thread is allowed to sit blocked before it comes back around to
+        // re-check _running. See OpenSocket: on macOS/Linux this is the ONLY thing that lets the
+        // thread be stopped at all. Shutdown waits a small multiple of it.
+        const int SocketWakeMs = 200;
+        // SIO_UDP_CONNRESET. A Winsock ioctl, not a portable one (see OpenSocket).
+        const int SioUdpConnReset = unchecked((int)0x9800000C);
+        // Cap on distinct receive-thread faults reported to the main thread. A genuinely broken
+        // socket would otherwise log a warning per loop iteration for the rest of the session.
+        const int MaxRxErrorsLogged = 8;
 
         public bool IsHost { get; private set; }
         public bool IsRunning { get; private set; }
@@ -48,6 +63,12 @@ namespace Trickshot.Net
         public event Action Disconnected;
         public event Action<PeerId, byte[]> MessageReceived;
 
+        /// <summary>
+        /// Set by a HOST session to describe itself to browsers (see INetTransport). Read on the
+        /// main thread only, from inside Poll, so the provider may safely touch session state.
+        /// </summary>
+        public Func<LobbyAdvert> AdvertProvider { get; set; }
+
         UdpClient _udp;
         Thread _rxThread;
         volatile bool _running;
@@ -55,6 +76,7 @@ namespace Trickshot.Net
         // Background thread -> main thread. Only the rx thread enqueues; only Poll drains.
         readonly ConcurrentQueue<(IPEndPoint from, byte[] data)> _inbox = new ConcurrentQueue<(IPEndPoint, byte[])>();
         readonly ConcurrentQueue<string> _rxErrors = new ConcurrentQueue<string>();   // logged on main thread
+        int _rxErrCount;              // rx thread only: bounds the above (MaxRxErrorsLogged)
 
         // Peer registry (main thread only). Keyed by the encoded ulong of the endpoint, which
         // is a perfect key for an IPv4:port pair and sidesteps IPEndPoint equality quirks.
@@ -98,6 +120,22 @@ namespace Trickshot.Net
             try
             {
                 _udp = new UdpClient(port);           // IPv4, binds the port
+                // The receive thread has to be able to NOTICE that _running went false. On Windows,
+                // Close()ing a socket while another thread is blocked in Receive() throws out of
+                // that Receive at once; on macOS and Linux, closing a descriptor does NOT reliably
+                // wake a thread parked in recvfrom(). Without a timeout that thread stays blocked
+                // forever, Shutdown's Join expires, the handle leaks, and the port stays bound - so
+                // hosting a second session in the same process fails to bind and looks like
+                // "multiplayer stopped working" on exactly those two platforms. A finite block means
+                // the loop always comes back to re-check the flag. Timing out is normal, not a fault.
+                _udp.Client.ReceiveTimeout = SocketWakeMs;
+                // Windows only: without this, a peer that has gone away makes the OS translate the
+                // resulting ICMP port-unreachable into WSAECONNRESET on the NEXT Receive, i.e. an
+                // error raised against an unrelated packet. The loop survives it either way, but
+                // suppressing it keeps a normal departure from looking like a socket fault. The
+                // ioctl is a Winsock concept and throws on Unix, hence the local guard.
+                try { _udp.Client.IOControl(SioUdpConnReset, new byte[] { 0, 0, 0, 0 }, null); }
+                catch { }
                 _running = true;
                 _rxThread = new Thread(ReceiveLoop) { IsBackground = true, Name = "TrickshotUDP" };
                 _rxThread.Start();
@@ -114,8 +152,11 @@ namespace Trickshot.Net
             if (!IsRunning && !_running) return;
             _running = false;
             IsRunning = false;
-            try { _udp?.Close(); } catch { }         // unblocks the blocking Receive()
-            try { _rxThread?.Join(200); } catch { }
+            try { _udp?.Close(); } catch { }         // unblocks the blocking Receive() on Windows
+            // Long enough for the receive timeout to expire and the loop to see _running == false,
+            // which is how the thread exits on macOS/Linux where Close() does not wake it. On
+            // Windows the Close above has already thrown it out, so this returns immediately.
+            try { _rxThread?.Join(SocketWakeMs * 3); } catch { }
             _udp = null; _rxThread = null;
             Disconnected?.Invoke();
         }
@@ -132,9 +173,24 @@ namespace Trickshot.Net
                     // Copy the endpoint (Receive reuses/rewrites `any` in place).
                     _inbox.Enqueue((new IPEndPoint(any.Address, any.Port), data));
                 }
-                catch (SocketException) { if (!_running) break; }        // Close() during Receive
+                catch (SocketException se)
+                {
+                    // TimedOut is ReceiveTimeout firing on a quiet socket, which is what makes this
+                    // loop interruptible on macOS/Linux, and ConnectionReset is a peer that left
+                    // (see OpenSocket). Neither is an error and neither should be logged. Anything
+                    // else is either the socket being closed under us - _running is already false,
+                    // so we leave - or a real fault, reported a bounded number of times.
+                    if (se.SocketErrorCode == SocketError.TimedOut) continue;
+                    if (se.SocketErrorCode == SocketError.ConnectionReset) continue;
+                    if (!_running) break;
+                    if (_rxErrCount++ < MaxRxErrorsLogged) _rxErrors.Enqueue(se.Message);
+                }
                 catch (ObjectDisposedException) { break; }               // socket disposed
-                catch (Exception e) { _rxErrors.Enqueue(e.Message); if (!_running) break; }
+                catch (Exception e)
+                {
+                    if (_rxErrCount++ < MaxRxErrorsLogged) _rxErrors.Enqueue(e.Message);
+                    if (!_running) break;
+                }
             }
         }
 
@@ -215,6 +271,24 @@ namespace Trickshot.Net
             if (data == null || data.Length < 1) return;
             ulong epKey = SafeEncode(from);
             if (epKey == 0) return;                 // non-IPv4 / unencodable source
+
+            // ---- discovery: answered OUT OF BAND, before any peer bookkeeping ----
+            // A probe arrives from a machine we have no relationship with: someone merely looking at
+            // a list of games. Letting it fall through to the peer-resolution branch below would be
+            // a real bug, not a cosmetic one: the host would mint a PeerId for every browser on the
+            // network and fire PeerJoined, the session answers PeerJoined with a genuine slot
+            // assignment, and so idle browsers would fill the lobby without anybody having joined it.
+            // Answer and return. Note it deliberately does NOT touch _lastRecv - a probe is not
+            // liveness for a peer, because there is no peer.
+            if (LobbyProbe.IsProbe(data))
+            {
+                if (IsHost) AnswerProbe(from);
+                return;
+            }
+            // A reply is ours to send, never to receive here: a browser listens for replies on its
+            // own throwaway socket. Drop it explicitly so a stray or spoofed one cannot reach the
+            // peer-minting branch either.
+            if (data[0] == LobbyProbe.FrameProbeReply) return;
 
             // Resolve (or, host-side, create) the sending peer.
             if (!_peerByEp.TryGetValue(epKey, out var peer))
@@ -331,12 +405,32 @@ namespace Trickshot.Net
             return rel;
         }
 
-        // ---- discovery (none for direct IP) ----
+        // ---- discovery ----
+
+        /// <summary>
+        /// Answer one probe. Runs on the main thread (called from Poll via HandlePacket), so the
+        /// provider is free to read live session state.
+        /// </summary>
+        void AnswerProbe(IPEndPoint to)
+        {
+            var provider = AdvertProvider;
+            if (provider == null) return;           // not advertising (no session, or not a host)
+            LobbyAdvert ad;
+            try { ad = provider(); } catch { return; }
+            // A private session says NOTHING. Silence is the honest implementation: shipping a
+            // "private" flag inside the reply would still put the session on every browser's list
+            // and then trust the browser to hide it.
+            if (!ad.visible) return;
+            RawSend(LobbyProbe.BuildReply(ad), to);
+        }
+
         public void ListLobbies(Action<List<LobbyInfo>> onResults)
         {
-            // Direct IP has no discovery service: you join by typing the host's IP. Return an
-            // empty list synchronously; SessionBrowserUI shows the join-by-IP field instead.
-            onResults?.Invoke(new List<LobbyInfo>());
+            // Direct IP has no matchmaker to ask, so discovery is an active sweep this machine runs
+            // itself: enumerate the tailnet from the local Tailscale client, probe each peer by
+            // unicast, and broadcast on the LAN for good measure. Results are asynchronous and
+            // delivered from TailnetDiscovery.Poll() on the main thread.
+            TailnetDiscovery.Sweep(onResults);
         }
 
         // ---- framing helpers ----

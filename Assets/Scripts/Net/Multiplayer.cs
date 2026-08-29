@@ -116,9 +116,22 @@ namespace Trickshot.Net
         {
             if (_hostLostFired) return;
             _hostLostFired = true;
+
+            // A client that never got an AssignSlot was never IN a session, so this is a FAILED
+            // CONNECT, not a lost host, and it must NOT raise the event. The handler is
+            // GameBootstrap.OnHostConnectionLost, which calls DestroyNetworkedUI() and destroys the
+            // SessionBrowserUI outright - and that browser is the screen currently mid-connect, the
+            // only thing that knows WHY the join failed. An unreachable host (firewall dropping
+            // inbound UDP 7777, Tailscale down, wrong 100.x, host left the lobby) sends nothing back,
+            // so the transport drops it at PeerTimeout = 5s and lands here, which destroyed the
+            // browser before its own 8s deadline could render the message naming those exact causes.
+            // The player just got teleported to the main menu with no explanation at all. Instead:
+            // drop the dead session quietly and let the browser observe Session == null and report it.
+            bool wasInSession = Session == null || Session.SlotAnswered;
+
             var handler = HostConnectionLost;
             End();                 // drop our dead session (also clears the pump next frame)
-            handler?.Invoke();     // let the game unwind the match/UI
+            if (wasInSession) handler?.Invoke();   // let the game unwind the match/UI
         }
 
         // Safety net: guarantee the transport (its UDP socket + background receive thread) is
@@ -132,10 +145,29 @@ namespace Trickshot.Net
             Application.quitting += End;
         }
 
-        // Browse joinable lobbies without joining. Uses a transient transport instance to
-        // query (loopback reads the shared bus; Steam issues RequestLobbyList).
+        // Browse joinable lobbies without joining.
+        //
+        // Deliberately does NOT go through a live session's transport: browsing happens BEFORE there
+        // is a session, and a client's transport is bound to one host anyway. Direct IP therefore runs
+        // discovery as a standalone sweep (enumerate the tailnet, probe each peer, broadcast on the
+        // LAN) on its own throwaway socket, which is also why it cannot collide with a host running on
+        // this same machine on port 7777. Results arrive asynchronously, via BrowsePoll.
+        //
+        // Loopback still queries a transient transport, because there the "network" IS the static bus
+        // and reading it is instant.
         public static void Browse(System.Action<System.Collections.Generic.List<LobbyInfo>> onResults)
-            => NewTransport().ListLobbies(onResults);
+        {
+            if (SteamTransport.Available) { new SteamTransport().ListLobbies(onResults); return; }
+            if (!UseDirectIp) { new LocalTransport().ListLobbies(onResults); return; }
+            TailnetDiscovery.Sweep(onResults);
+        }
+
+        /// <summary>
+        /// Pump discovery. The session browser calls this every frame while it is open, because a sweep
+        /// finishes on a worker thread and its results have to be handed to the UI on the main thread.
+        /// Harmless when nothing is sweeping.
+        /// </summary>
+        public static void BrowsePoll() => TailnetDiscovery.Poll();
 
         public static bool SteamLinked => SteamTransport.Available;
 

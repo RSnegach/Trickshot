@@ -129,5 +129,9 @@
   "127": "GameObject",
   "128": "Refs",
   "129": "Rigidbody",
-  "130": "RuntimeInitializeOnLoadMethod"
+  "130": "RuntimeInitializeOnLoadMethod",
+  "131": "string",
+  "132": "Texture2D",
+  "133": "uint",
+  "134": "Vector3"
 }

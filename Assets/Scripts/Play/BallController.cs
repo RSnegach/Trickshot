@@ -48,19 +48,49 @@ namespace Trickshot
                                    // over-the-bar loft is not predicted back down onto goal height.
         float _bikeCamCooldown;    // guard so one bicycle flip cuts to ball-cam only once
         float _kickSfxCooldown;    // guard so one contact (several bones) plays only one kick thud
+        float _postSfxCooldown;    // same, for the woodwork: a deflection can clip the post and the
+                                   // bar within a frame or two, which should be one clang not three
 
         // Camera to pulse into ball-cam on a genuine shot (optional; null in modes that
         // don't want it). Set by the mode builder.
         GameCamera _cam;
         public void SetCamera(GameCamera cam) => _cam = cam;
 
-        // Dribble hand-off. While the Dribble component is carrying the ball it OWNS it:
-        // the striker's own strike/trap contact logic is skipped so the run cycle's foot
-        // taps don't fight the soft-magnet. Dribble toggles this on capture/release. After
-        // a dribble shot a brief suppression stops the launching foot from re-striking.
-        public bool DribbleHold { get; set; }   // true while the Dribble component is carrying
+        // Dribble hand-off, scoped to the CARRIER'S OWN BODY. While someone carries, THAT body's
+        // contacts skip the strike/trap logic, because its gait swings real legs through the ball
+        // and those taps must not become shots. Every OTHER body strikes normally, which is what
+        // lets a defender poke, shoot or volley the ball straight off a carrier's feet.
+        //
+        // This used to be a plain global bool plus a global strike suppression re-armed on EVERY
+        // dribble touch. That deadened shooting and volleying for everyone while anyone (a bot
+        // included) had the ball, and kept them dead for up to two thirds of a second AFTER
+        // possession was lost - so tackling a carrier and shooting the loose ball did nothing.
+        public ActiveRagdoll DribbleCarrier { get; private set; }
+
+        /// <summary>Is any body carrying the ball right now.</summary>
+        public bool DribbleHold => DribbleCarrier != null;
+
+        /// <summary>Claim carry ownership of the ball, or clear it with null.</summary>
+        public void SetDribbleCarrier(ActiveRagdoll carrier) => DribbleCarrier = carrier;
+
         float _strikeSuppress;                   // >0: skip striker strike logic (post-shot settle)
         public void SuppressStrike(float t) => _strikeSuppress = Mathf.Max(_strikeSuppress, t);
+
+        // Post-launch settle scoped to the body that JUST launched the ball. A kicking foot must
+        // not re-strike its own shot or pass, but that is the ONLY body that needs holding off.
+        // Suppressing globally (the old behaviour) also killed the rebound volley, the block and
+        // the first-time shot for EVERY other player for up to half a second after every shot,
+        // pass and tackle. Set pieces still use the global window on purpose.
+        ActiveRagdoll _selfSuppressBody;
+        float _selfSuppress;
+
+        /// <summary>Block strikes from ONE body for t seconds. A null body falls back to global.</summary>
+        public void SuppressStrikeFor(ActiveRagdoll body, float t)
+        {
+            if (body == null) { SuppressStrike(t); return; }
+            _selfSuppressBody = body;   // newest launcher wins; only one foot is ever mid-follow-through
+            _selfSuppress = t;
+        }
 
         // Toggle physical collision between the ball and every collider of `ragdoll`. Set-piece
         // takers ignore the taker's body during the aesthetic runup so the run-in foot passes
@@ -88,6 +118,12 @@ namespace Trickshot
         // session; loose-ball trapping / open-play contacts are unaffected (they stay grounded).
         public bool ScrimmageLoftKicks { get; set; }
 
+        // NO-CARRY modes (Striker, Freeplay, Time Trial): no Dribble is enabled anywhere, so a
+        // dead touch has nothing to hand the ball to and used to leave it resting between the
+        // striker's boots. While true a dead touch is pushed clear of the body instead (see the
+        // deadTrap branch in OnCollisionEnter). Set by GameBootstrap / NetStrikerMatch.
+        public bool NoCarry { get; set; }
+
         // Shared, ball-side trick-bonus guard. Each leg bone carries its OWN KickDetector
         // (foot + calf, both legs), and Unity fires each collider's callback independently,
         // so a per-detector cooldown can't stop the calf AND the foot of the same flip from
@@ -99,7 +135,97 @@ namespace Trickshot
         {
             if (_trickBonusCooldown > 0f) return false;
             _trickBonusCooldown = SimConfig.BicycleWindow;
+            // Arm the post-bonus ceiling clamp (see FixedUpdate). Three steps, because the bonus is a
+            // VelocityChange added from a collision callback: callbacks fire after that step has already
+            // integrated, so the impulse lands on the NEXT integration and is first visible to the
+            // FixedUpdate after that. One step would clamp a velocity that has not been boosted yet.
+            _trickCeilTimer = Time.fixedDeltaTime * 3f;
             return true;
+        }
+
+        // Countdown for the post-trick-bonus speed clamp.
+        float _trickCeilTimer;
+
+        // Keep a bicycle UNDER the bar.
+        //
+        // Trading vertical for goalward pace (SimConfig.BicycleVKeep*/BicycleBonusLift*) lowers the
+        // average bike but does not bound the worst one, because the launch is a solve plus an
+        // AddForce bonus on top and a steep contact can still clear the crossbar. So this is the
+        // last word, and it is geometric rather than statistical: solve the flight time to the
+        // goal-line plane the ball is actually heading at, then cap the rise so it arrives at most
+        // BicycleBarClear under the bar. A shot already on target is untouched - vy only ever comes
+        // down - and drag lengthens the real flight, which lands the ball lower than the vacuum
+        // solve says, so the error is always in the wanted direction.
+        //
+        // It lives here rather than in the strike solve for the same reason the ceiling clamp above
+        // does: the trick bonus is a VelocityChange applied from a collision callback AFTER the
+        // strike, so capping earlier would cap a number that is about to have lift added to it.
+        // Re-running it on each of the three window steps costs nothing and cannot over-tighten:
+        // once the velocity is ON the capped parabola, every later point of that same parabola
+        // solves back to the velocity it already has.
+        //
+        // GoalHeight and AttackGoalCenter are the live statics match setup writes, so a rescaled or
+        // relocated goal is handled with no extra work, and Sign(v.z) means it serves either end of a
+        // scrimmage pitch. NOT SimConfig.GoalCenter: that one is readonly at FieldLength*0.5 = 17 m,
+        // which is nowhere near a scrimmage goal line (24, 34 or 52 m out).
+        void CapUnderCrossbar()
+        {
+            Vector3 v = Rb.linearVelocity;
+            if (v.y <= 0f) return;                        // already falling
+            if (Mathf.Abs(v.z) < 1f) return;              // not travelling at either goal
+
+            float goalZ = Mathf.Sign(v.z) * Mathf.Abs(SimConfig.AttackGoalCenter.z);
+            float t = (goalZ - Rb.position.z) / v.z;      // time to the goal-line plane
+            if (t <= 0.05f) return;                       // on top of the line, or already past it
+
+            float g     = Mathf.Abs(Physics.gravity.y);
+            float want  = Mathf.Max(0.3f, SimConfig.GoalHeight - SimConfig.BicycleBarClear);
+            float vyMax = (want - Rb.position.y + 0.5f * g * t * t) / t;
+            if (v.y <= vyMax) return;
+
+            v.y = Mathf.Max(0f, vyMax);
+            Rb.linearVelocity = v;
+        }
+
+        // The fastest a struck ball may ever leave: the open-play strike ceiling at FULL swing, on
+        // the current build, clamped to the best human. Same three terms the strike path builds its
+        // own shotCeil from, before the per-contact factors are folded in.
+        //
+        // Exists because the bicycle bonus (KickDetector.ValidHitBonus) is a VelocityChange added
+        // after the strike has already been clamped, so it was the one power source in the game that
+        // sat outside every ceiling. It cost a human nothing, since a bike's post-solve strike lands
+        // below the cap and the bonus filled real headroom, but a quadruped's front-leg bounce arrives
+        // AT the cap and the bonus stacked on top of the maximum. Clamping there against THIS instead
+        // of the local shotCeil is deliberate: shotCeil carries the swing-speed and weak-foot factors,
+        // both of which are <= 1, so a soft-swung bike would lose its whole bonus to the clamp.
+        public static float StrikeSpeedCeiling
+            => SimConfig.StrikeHorizMax
+               * Mathf.Min(PlayerProfile.ShotPowerMul, PlayerProfile.HumanShotPowerMax)
+               * (PlayerProfile.PerkCannon ? SimConfig.CannonCapMul : 1f);
+
+        // ---- Body-touch log: every ball-vs-player contact, newest last, written from
+        // OnCollisionEnter (real PhysX contacts, and the ball is ContinuousDynamic so nothing
+        // tunnels). Modes read this to decide SAVE vs MISS. They used to poll bone-to-ball distance
+        // once a frame, which blinks past a fast shot (30 m/s covers half a metre between frames),
+        // or guess from where the ball came to rest, which calls a parried-clear save a miss.
+        struct BodyTouch { public ActiveRagdoll body; public float time; public float speed; }
+        readonly BodyTouch[] _touchLog = new BodyTouch[8];
+        int _touchNext;
+
+        // Impact speed of the newest contact with `body` at or after `since`, or false if none.
+        // Ring order does not matter: take the newest qualifying entry.
+        public bool BodyTouchedSince(ActiveRagdoll body, float since, out float impactSpeed, out float touchTime)
+        {
+            impactSpeed = 0f; touchTime = 0f;
+            if (body == null) return false;
+            bool found = false;
+            for (int i = 0; i < _touchLog.Length; i++)
+            {
+                var t = _touchLog[i];
+                if (t.body != body || t.time < since || t.time < touchTime) continue;
+                impactSpeed = t.speed; touchTime = t.time; found = true;
+            }
+            return found;
         }
 
         void Awake()
@@ -189,8 +315,11 @@ namespace Trickshot
             // strike launch); the scripted set-piece speed is rebuilt from the two set-piece constants.
             // Cannon lifts the top of the range. Height is never touched by any of this.
             float capMul = PlayerProfile.PerkCannon ? SimConfig.CannonCapMul : 1f;
+            // SetPieceSpeedCeilMul lifts the TOP of the stat band only: at 0 power stat the ceiling is
+            // still SetPieceMinStatSpeed, so the stat scaling is the same lerp it always was.
             float statCeil = Mathf.Lerp(SimConfig.SetPieceMinStatSpeed,
-                                        SimConfig.SetPieceMaxSpeed * capMul, powerStat01);
+                                        SimConfig.SetPieceMaxSpeed * capMul * SimConfig.SetPieceSpeedCeilMul,
+                                        powerStat01);
             float launch = Mathf.Lerp(statCeil * SimConfig.SetPieceLaunchFloorFrac, statCeil, power01);
 
             // Goal-ward flat direction (fall back to +Z toward goal).
@@ -271,7 +400,11 @@ namespace Trickshot
             // apex so the power STAT / a clean bar can never send it over the bar.
             float tActual = Mathf.Clamp(horizDist / flatSpeed, 0.2f, 2.5f);
             float vy = (aim.y - p0.y) / tActual + 0.5f * gMag * tActual;
-            float allowedApex = Mathf.Max(0.3f, SimConfig.GoalHeight - p0.y + SimConfig.SetPieceApexMargin);
+            // The cap is what a steep camera angle runs into, so SetPieceApexCeilMul is the height
+            // ceiling: aiming higher keeps buying height for longer before it clips. Pitch still owns
+            // where inside that range the shot lands (vy is solved from aim.y above, untouched).
+            float allowedApex = Mathf.Max(0.3f, (SimConfig.GoalHeight - p0.y + SimConfig.SetPieceApexMargin)
+                                                * SimConfig.SetPieceApexCeilMul);
             float vyMax = Mathf.Sqrt(2f * gMag * allowedApex);
             if (vy > vyMax) vy = vyMax;
 
@@ -315,11 +448,16 @@ namespace Trickshot
             if (!forceOffTarget && (spin == SetPieceSpin.CurveLeft || spin == SetPieceSpin.CurveRight))
             {
                 float side = spin == SetPieceSpin.CurveRight ? 1f : -1f;
-                float w = SimConfig.SetPieceCurl * swerve * 0.5f;                  // out-speed, accuracy-driven
+                // SetPieceCurveMaxMul raises the A/D bend ceiling. It scales the out-bias AND the
+                // return accel (which is derived from w), so the banana arc gets wider while still
+                // netting zero sideways displacement - more curve never means a wider miss. Accuracy
+                // and the WASD hold scale into it exactly as before via `swerve`. W/S are untouched.
+                float w = SimConfig.SetPieceCurl * swerve * 0.5f * SimConfig.SetPieceCurveMaxMul;   // out-speed, accuracy-driven
                 flatDir = (flatDir * flatSpeed + shotRight * (side * w)).normalized;   // launch angled out
                 _curlAccel = shotRight * (-side * 2f * w / Mathf.Max(0.1f, tActual)); // curl back to aim
                 _curlRemaining = tActual;
-                Rb.angularVelocity = Vector3.up * (side * SimConfig.SetPieceCurl * spinCharge01);
+                // Cosmetic roll follows the bend so the visual spin still reads at the new ceiling.
+                Rb.angularVelocity = Vector3.up * (side * SimConfig.SetPieceCurl * SimConfig.SetPieceCurveMaxMul * spinCharge01);
             }
             else if (!forceOffTarget && spin == SetPieceSpin.TopSpin)
             {
@@ -389,6 +527,24 @@ namespace Trickshot
 
         void FixedUpdate()
         {
+            // Post-bonus ceiling. The bicycle bonus is added to the ball AFTER the strike has been
+            // clamped, so it was the one power source that could push a shot past the game's ceiling.
+            // It has to be enforced here rather than at the AddForce: the impulse is not in the
+            // velocity yet at that point, and the ball's own strike callback may write velocity either
+            // before or after the detector's callback runs. Reading it a couple of steps later is the
+            // only place the final number exists, whatever the order was.
+            //
+            // What this equalizes: a human's bike leaves the boot below the ceiling, so the bonus fills
+            // real headroom and mostly survives; a quadruped's front-leg contact already arrives AT the
+            // ceiling, so its bonus was landing on top of the maximum. Both now top out at the same
+            // speed, and it is the human-clamped one.
+            if (_trickCeilTimer > 0f)
+            {
+                _trickCeilTimer -= Time.fixedDeltaTime;
+                Rb.linearVelocity = Vector3.ClampMagnitude(Rb.linearVelocity, StrikeSpeedCeiling);
+                CapUnderCrossbar();
+            }
+
             if (_curlRemaining > 0f)
             {
                 Rb.AddForce(_curlAccel, ForceMode.Acceleration);
@@ -407,8 +563,14 @@ namespace Trickshot
 
             if (_assistCooldown > 0f) _assistCooldown -= Time.fixedDeltaTime;
             if (_strikeSuppress > 0f) _strikeSuppress -= Time.fixedDeltaTime;
+            if (_selfSuppress > 0f)
+            {
+                _selfSuppress -= Time.fixedDeltaTime;
+                if (_selfSuppress <= 0f) _selfSuppressBody = null;
+            }
             if (_bikeCamCooldown > 0f) _bikeCamCooldown -= Time.fixedDeltaTime;
             if (_kickSfxCooldown > 0f) _kickSfxCooldown -= Time.fixedDeltaTime;
+            if (_postSfxCooldown > 0f) _postSfxCooldown -= Time.fixedDeltaTime;
             if (_trickBonusCooldown > 0f) _trickBonusCooldown -= Time.fixedDeltaTime;
 
             if (_assistRemaining > 0f)
@@ -417,6 +579,59 @@ namespace Trickshot
                 ApplyGoalAssist();
                 if (_assistRemaining <= 0f) _accuracyMul = 1f;
             }
+
+            ApplyRollingResistance();
+        }
+
+        // ROLLING RESISTANCE - the one thing missing from a ball on the turf.
+        //
+        // Coulomb friction cannot slow a rolling sphere: once it rolls without slipping the contact
+        // patch has zero relative velocity, so the ball/turf averaged friction (0.225 on the training
+        // pitch, 0.4 in scrimmage) produces no decelerating force, and PhysX has no rolling-friction
+        // coefficient for a sphere. That left Rigidbody damping as the only damper, and both terms are
+        // 0.02 - about 2% per second - so a loose ball rolled the length of the pitch at very nearly the
+        // speed it was struck and a keeper closing at StrikerMoveSpeed could never catch it.
+        //
+        // Deliberately NOT fixed by raising BallDrag. Every flight path in the game is a vacuum solve
+        // (LaunchTo, LaunchSetPiece, the set-piece/volley ballistic blend, CapUnderCrossbar,
+        // ApplyGoalAssist's vertical predictor, Goalkeeper's dive prediction), so global drag would
+        // land every cross, chip pass, free kick and penalty short of where it was solved to.
+        //
+        // Four gates, so this only ever bites on a ball that is actually ROLLING:
+        //   - grounded: centre at or below VolleyMinBallHeight, the same "off the turf" line the volley
+        //     gate uses. A ball in flight sits above it.
+        //   - not bouncing: |vy| within BallRollMaxVy. A low skimming bounce keeps its pace.
+        //   - loose, not struck: flat speed within BallRollSpeed, far below StrikeHorizMax and
+        //     DribbleShotSpeed, so no shot or lofted set piece is ever damped at launch.
+        //   - no live assist window: a guided shot is still in flight and owns its own velocity.
+        // Kinematic guard because the MP client ball and a replay body are kinematic and must not be
+        // written; the rest of FixedUpdate's timers still tick for them.
+        void ApplyRollingResistance()
+        {
+            if (Rb.isKinematic) return;
+            if (_assistRemaining > 0f) return;
+            if (Rb.position.y > SimConfig.VolleyMinBallHeight) return;
+
+            Vector3 v = Rb.linearVelocity;
+            if (Mathf.Abs(v.y) > SimConfig.BallRollMaxVy) return;
+
+            Vector3 flat = new Vector3(v.x, 0f, v.z);
+            float speed = flat.magnitude;
+            if (speed > SimConfig.BallRollSpeed) return;
+
+            // Kill the last of it rather than letting the ball creep for seconds. Vertical is left
+            // alone so a settling ball still sinks onto the turf normally.
+            if (speed <= SimConfig.BallRollStop)
+            {
+                Rb.linearVelocity = new Vector3(0f, v.y, 0f);
+                Rb.angularVelocity *= 0.5f;
+                return;
+            }
+
+            // Constant deceleration, which is what rolling resistance actually is, so the ball stops
+            // instead of asymptoting. One step at 50Hz removes BallRollDecel*0.02 = 0.064 m/s, well
+            // under BallRollStop, so this can never push the roll into reverse.
+            Rb.AddForce(flat / speed * -SimConfig.BallRollDecel, ForceMode.Acceleration);
         }
 
         // Bend the ball's horizontal velocity slightly toward the goal without changing
@@ -487,9 +702,34 @@ namespace Trickshot
                 return;
             }
 
+            // Woodwork: clang, then let it bounce. Nothing here touches velocity - the frame's own
+            // bouncy material already gives the deflection. Broadcast as well as played, because a
+            // client's ball is kinematic and never generates this collision locally.
+            if (c.collider.GetComponentInParent<GoalFrame>() != null)
+            {
+                if (_postSfxCooldown <= 0f)
+                {
+                    _postSfxCooldown = 0.09f;
+                    Vector3 postPos = c.contactCount > 0 ? c.GetContact(0).point : Rb.position;
+                    float postSpeed = c.relativeVelocity.magnitude;
+                    AudioManager.Instance?.PlayPostHit(postPos, postSpeed);
+                    if (Trickshot.Net.Multiplayer.IsHost)
+                        Trickshot.Net.Multiplayer.Session.BroadcastPostHit(postPos, postSpeed);
+                }
+                return;
+            }
+
             // Was this a striker limb? (KickDetector lives on limbs, or any ActiveRagdoll bone.)
             var ragdoll = c.collider.GetComponentInParent<ActiveRagdoll>();
             if (ragdoll == null) return;
+
+            // Log the contact before any of the striker-only early-returns below, so a keeper /
+            // defender touch is recorded even though none of the strike logic runs for it.
+            // relativeVelocity is the IMPACT speed (OnCollisionEnter runs after the solver, so
+            // Rb.linearVelocity is already post-bounce) - that is what the EPIC SAVE gate wants.
+            _touchLog[_touchNext] = new BodyTouch { body = ragdoll, time = Time.time,
+                                                    speed = c.relativeVelocity.magnitude };
+            _touchNext = (_touchNext + 1) % _touchLog.Length;
 
             // Ball hit a PLAYER body (any keeper/striker/footballer) -> 3D kick thud at the contact
             // point. One per contact (cooldown swallows the extra bones of a single touch). In MP the
@@ -524,10 +764,16 @@ namespace Trickshot
                 if (_cam != null) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
             }
 
-            // While the ball is being dribbled (or just after a dribble shot), the Dribble
-            // component owns the ball's motion. Skip the strike/trap logic so the run-cycle
-            // foot contacts don't fight the soft-magnet or double-hit a released shot.
-            if (DribbleHold || _strikeSuppress > 0f) return;
+            // The CARRIER'S OWN contacts are not strikes: the touch model owns the ball for that
+            // body, and its gait swings physics legs through it every stride. Anyone ELSE hitting
+            // the ball IS a genuine strike - a tackle, a poke, a first-time shot, a volley - so it
+            // falls straight through to the logic below. Only the brief post-shot suppression is
+            // global, and that exists to stop a launching foot re-hitting its own shot.
+            if (ragdoll == DribbleCarrier || _strikeSuppress > 0f) return;
+
+            // The body that just launched the ball cannot re-strike its own shot/pass for a moment.
+            // Scoped to THAT body, so a rebound off the keeper is still volleyable by anyone else.
+            if (_selfSuppress > 0f && ragdoll == _selfSuppressBody) return;
 
             // Where on the ball was it struck (offset from centre), for set-piece spin. Unit
             // vector from ball centre toward the contact point. Captured now while `c` is live.
@@ -540,9 +786,19 @@ namespace Trickshot
 
             // Which body part struck the ball. The collider lives ON the P_<Bone> object
             // (its visual child collider is destroyed at build), so read the collider's
-            // OWN transform name, not its parent (parent is the next bone up the chain).
+            // OWN transform, not its parent (parent is the next bone up the chain).
+            //
+            // Resolve WHICH ROLE it plays from the BONE, not from the object's name. The quadruped
+            // repose keeps all 13 bone names and changes what they ARE, so a name prefix lies: a
+            // horse kicks with the UpperArm/Forearm bones, which no leg-shaped prefix matches.
+            // Null = not one of the body's parts (a keeper glove hitbox), which classifies as a
+            // body touch exactly as an unrecognised name did.
+            //
+            // The name is still read, but only for the L/R suffix, which is honest under either
+            // plan (the left front leg is "P_ForearmL" just as the left foot is "P_FootL").
             string part = c.collider.transform.name;   // e.g. "P_Head", "P_FootR", "P_Torso"
-            bool header = part == "P_Head";
+            Bone? struck = ragdoll.BoneOf(c.collider.transform);
+            bool header = struck == Bone.Head;
             if (!header && _assistCooldown > 0f) return;
             Vector3 v = Rb.linearVelocity;
 
@@ -569,7 +825,14 @@ namespace Trickshot
 
             // From here the striker is the human player, so all traits/skills apply.
             // Build trait * Shooting tree: heavier/taller + shot nodes hit harder.
-            float shotMul = PlayerProfile.ShotPowerMul;
+            //
+            // CLAMPED to the best a human can reach, because every ceiling downstream of here is
+            // RELATIVE to shotMul and so scales with the very build it is meant to bound: a species
+            // whose build traits or species-gated nodes push ShotPowerMul past a human's best would
+            // otherwise raise its own top speed with it. The clamp cannot touch a human by
+            // construction (it is their own maximum) and only binds on a species that exceeds it, so
+            // a light animal is not held to a light human's output.
+            float shotMul = Mathf.Min(PlayerProfile.ShotPowerMul, PlayerProfile.HumanShotPowerMax);
             // Cannon capstone raises the speed ceiling so shots can fly much faster.
             float capMul = PlayerProfile.PerkCannon ? SimConfig.CannonCapMul : 1f;
 
@@ -577,8 +840,18 @@ namespace Trickshot
             // side, weak + less powerful on the other); the HEAD uses heading rules;
             // anything else (torso, arms, pelvis) is a scrappy touch that mostly kills the
             // ball so it drops at the player's feet (a trap), imparting almost no power.
-            bool isLeg = part.StartsWith("P_Foot") || part.StartsWith("P_Calf") || part.StartsWith("P_Thigh");
-            bool leftSide = part.EndsWith("L");
+            // A KICKING limb per this body's plan: a biped's thigh/calf/foot, a quadruped's two
+            // FRONT legs. The layout owns the set (BodyLayoutDef.LegBones); for a human it is
+            // exactly what the old name-prefix test matched.
+            bool isLeg = struck.HasValue && ragdoll.IsLegBone(struck.Value);
+            // Which SIDE was struck, resolved from the BONE rather than from the collider's name.
+            // The name test only ever worked because a bone's part is named "P_<Bone>". Species
+            // DECOR breaks that: a hoof or a foot pad is a child object of a bone with its own
+            // name, so an unsuffixed left-side appendage would score as the RIGHT (strong) side
+            // and the volley gate below would then poll LegRaiseHeld for the wrong leg, so a
+            // legitimate volley would never fire. Falls back to the name when the bone is unknown
+            // (a keeper glove), which is exactly where the old answer was already correct.
+            bool leftSide = struck.HasValue ? IsLeftBone(struck.Value) : part.EndsWith("L");
             bool deadTrap = false;
             bool volley = false;   // flying ball + swinging leg -> free-kick launch (set in the isLeg branch)
             if (header)
@@ -600,6 +873,11 @@ namespace Trickshot
                     _accuracyMul = 1f + (headAcc - 1f) * f;
                     shotMul *= 1f + (headPow - 1f) * f;
                 }
+                // Same ceiling as the shot, re-applied because headPow just multiplied on top of an
+                // already-clamped shotMul. Bound is the product of the two human maxima, so a human
+                // maxing both trees is still exactly at their own limit and unaffected.
+                shotMul = Mathf.Min(shotMul,
+                                    PlayerProfile.HumanShotPowerMax * PlayerProfile.HumanHeaderPowerMax);
             }
             else if (isLeg)
             {
@@ -644,13 +922,26 @@ namespace Trickshot
                 // pelvis recline + air-pitch lean): a bike is its own trick shot and must NOT
                 // feel like a set piece/volley - it keeps the plain amplified-strike path + its
                 // own trick bonus (KickDetector) and ball-cam.
-                if (!deadTrap && !bicycleAttempt && Rb.position.y > SimConfig.VolleyMinBallHeight
+                // EXCLUDE a set piece as well. A set-piece mode already takes the launch path
+                // below via SetPieceShot, and the volley-only tuning (reduced side curl, forward
+                // bottom drive, imprecise in-frame aim) must never reach a free kick or penalty.
+                // Without this a taker holding a leg button on a ball bouncing off the wall would
+                // strike with volley rules mid free kick.
+                if (!deadTrap && !bicycleAttempt && !SetPieceShot
+                    && Rb.position.y > SimConfig.VolleyMinBallHeight
                     && striker.LegRaiseHeld(leftSide))
                     volley = true;
             }
             else
             {
-                // Body / arms / pelvis: kill it. Low accuracy, and treat as a dead trap.
+                // Anything that is neither the head nor a kicking limb on this plan: a torso or
+                // pelvis on either body, a biped's arms, a quadruped's HIND legs (which sit behind
+                // it under the repose). Kill it. Low accuracy, and treat as a dead trap.
+                //
+                // Note this branch has no SetPieceShot escape hatch, unlike the leg path above, so
+                // whatever lands here traps even on a free kick. That is why the front-leg
+                // classification had to be fixed rather than worked around: a quadruped's every
+                // hoof contact, free kicks and penalties included, used to arrive here.
                 _accuracyMul = SimConfig.BodyAccuracy;
                 shotMul *= SimConfig.BodyPowerMul;
                 deadTrap = true;
@@ -661,6 +952,29 @@ namespace Trickshot
             // The Control tree's first-touch nodes deaden it further (ball settles closer).
             if (deadTrap)
             {
+                // NO-CARRY MODE: there is no dribble to hand the ball to, so trapping it just
+                // parked it between his boots and every follow-up swing was point blank. Push the
+                // ball AWAY from the pelvis instead, with a floor on the outward speed, and lock
+                // this body out briefly so the trailing leg of the same stride cannot re-glue it.
+                if (NoCarry)
+                {
+                    Vector3 away = Rb.position - (ragdoll.Pelvis != null ? ragdoll.Pelvis.position : Rb.position);
+                    away.y = 0f;
+                    if (away.sqrMagnitude < 1e-4f)
+                        away = faceFwd.sqrMagnitude > 0.01f ? faceFwd : Vector3.forward;
+                    away.y = 0f; away.Normalize();
+
+                    Vector3 keep = Rb.linearVelocity * SimConfig.NoCarryTouchKeep;
+                    float outward = keep.x * away.x + keep.z * away.z;
+                    if (outward < SimConfig.NoCarryTouchMinSpeed)
+                        keep += away * (SimConfig.NoCarryTouchMinSpeed - outward);
+                    Rb.linearVelocity = keep;
+                    Rb.angularVelocity *= 0.3f;
+                    _assistCooldown = 0.25f;
+                    SuppressStrikeFor(ragdoll, SimConfig.NoCarryTouchSuppress);
+                    return;
+                }
+
                 float trap = SimConfig.DeadTouchPower / PlayerProfile.TrapMul;   // Control tree deadens further
                 Rb.linearVelocity *= trap;
                 Rb.angularVelocity *= 0.3f;
@@ -699,10 +1013,42 @@ namespace Trickshot
                 // pace/vertical (a more dangerous header).
                 bool aerial = PlayerProfile.PerkAerial;
                 float goalBias = !facingGoal ? 0f : (aerial ? SimConfig.AerialGoalBias : SimConfig.HeaderGoalBias);
+
                 float vKeep = aerial ? SimConfig.AerialPaceKeep : SimConfig.HeaderVerticalKeep;
 
+                // NOTE, since it is the obvious thing to reach for and it does not work: added
+                // UPWARD loft is not available to any species, however much an elephant's aid pose
+                // looks like it is asking for it.
+                //
+                //   The redirect SCALES the incoming vertical, and the incoming term spans about
+                //   -4 m/s across cross distance and swings 7.5 m/s across the ball-velocity slider,
+                //   which is wider than the whole under-bar budget. So a constant added loft is a
+                //   scoop at one setting and a spike into the turf at another, and the Aerial perk's
+                //   higher keep (0.5 vs 0.35) makes the capstone REDUCE it, which is backwards.
+                //
+                //   Sizing it as a target apex instead, clamped under the live bar, is well defined
+                //   but delivers nothing. The ball must FIT under the bar while touching the animal,
+                //   so the contact surface has a hard ceiling of 2.44 - 2*0.11 = 2.22 m, and an
+                //   elephant at the top of its Weight slider already heads from about 2.06 m. The
+                //   clamp would have almost nothing to aim into. And over the bar is not cosmetic:
+                //   the +Z end of the arena has no wall, so a high header scores as a MISS.
+                //
+                // What IS species-specific is two trims that both point the other way, DOWN and
+                // SLOWER, so none of the above applies to them: HeaderAction.PaceMul and .DownDeg,
+                // read from the striker's own species rather than the local profile because the body
+                // that headed the ball may be a remote peer or an AI. Both are 1 / 0 on a biped, so
+                // the human response is untouched to the bit.
+                var hdr = Species.ById(ragdoll.SpeciesId).Header;
+
+                float headVy = v.y * vKeep;
+
                 Vector3 flatIn = new Vector3(v.x, 0f, v.z);
-                float inSpeed = flatIn.magnitude;
+                // PACE. `v` is read POST-SOLVE, so flatIn is the bounce off the head and carries the
+                // head's own speed into the contact, not just the ball's incoming pace. That is the
+                // term a quadruped inflates: see HeaderAction.PaceMul for the two reasons (a head on a
+                // twice-as-long lever, and a barrel drive-compensated 14x to 28x that will not give).
+                // Zero is treated as unset so a species added without a value keeps its header.
+                float inSpeed = flatIn.magnitude * (hdr.PaceMul > 0f ? hdr.PaceMul : 1f);
                 // Facing goal: bias toward it (falling back to toGoal if no incoming line).
                 // Not facing: keep the ball's own incoming line, or the head's facing dir
                 // if it arrived nearly straight down.
@@ -712,12 +1058,59 @@ namespace Trickshot
                 else
                     dir = flatIn.sqrMagnitude > 0.01f ? flatIn.normalized : faceFwd.normalized;
 
+                float headCeil = SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul * shotMul * capMul;
                 float speed = Mathf.Max(SimConfig.HeaderMinSpeed,
                                         inSpeed * SimConfig.HeaderPowerMul) * shotMul;
-                speed = Mathf.Min(speed, SimConfig.StrikeHorizMax * SimConfig.HeaderPowerMul * shotMul * capMul);
+                speed = Mathf.Min(speed, headCeil);
 
                 Vector3 flat = dir * speed;
-                Rb.linearVelocity = new Vector3(flat.x, v.y * vKeep, flat.z);
+                // Named headOut, not outV: the shot-cam block further down this same method already
+                // owns `outV` at the method scope, and C# treats that as covering this nested block.
+                Vector3 headOut = new Vector3(flat.x, headVy, flat.z);
+
+                // AIM DOWN. A body that heads from a standing height a person has to jump for sends
+                // the ball flat and long from up there, which is how a horse or an elephant ended up
+                // clearing everything. Tilt the whole vector down about the axis across its own
+                // direction, which PRESERVES SPEED: this re-aims the header, it does not weaken it
+                // (PaceMul above is the part that does). Clamped at HeaderMaxDiveDeg so a ball that
+                // arrived falling steeply is not driven straight into the turf.
+                if (hdr.DownDeg > 0f)
+                {
+                    float mag = headOut.magnitude;
+                    if (mag > 0.01f)
+                    {
+                        float horiz = new Vector2(headOut.x, headOut.z).magnitude;
+                        float pitch = Mathf.Atan2(headOut.y, horiz) * Mathf.Rad2Deg;
+                        float want  = Mathf.Max(pitch - hdr.DownDeg, -SimConfig.HeaderMaxDiveDeg);
+                        // Already steeper than the clamp: leave it alone rather than pulling it UP,
+                        // which a plain Max on the target would do to a near-vertical drop.
+                        if (want < pitch)
+                        {
+                            float r = want * Mathf.Deg2Rad;
+                            Vector3 fd = horiz > 0.01f ? new Vector3(headOut.x, 0f, headOut.z) / horiz : dir;
+                            headOut = fd * (mag * Mathf.Cos(r)) + Vector3.up * (mag * Mathf.Sin(r));
+                        }
+                    }
+                }
+
+                // The ceiling has to bound the WHOLE vector, not just the horizontal. `speed` was
+                // clamped to headCeil above, but headVy was bolted on afterwards and never was, so the
+                // ball could leave faster than the ceiling by its vertical component alone. That gap is
+                // species-skewed rather than neutral: headVy is the post-solve v.y off a head sitting
+                // at quadruped height on a barrel carrying ~8x a human torso's inertia, so it is
+                // reliably larger there. Applied last, after the tilt, which is magnitude-preserving,
+                // so this is the final word on what gets written and the aim survives untouched.
+                headOut = Vector3.ClampMagnitude(headOut, headCeil);
+
+                // Species trim on the finished vector, applied after the clamp so it lowers the
+                // MAXIMUM and not merely the sub-maximum headers. 1 on every biped, so the human
+                // header is bit-identical to before. Scaling the vector rather than headCeil keeps the
+                // whole band consistent: a header that came in under the cap loses the same 10% as one
+                // that was pinned to it, and the direction is untouched either way.
+                float hdrSpeedMul = hdr.SpeedMul > 0f ? hdr.SpeedMul : 1f;
+                if (hdrSpeedMul != 1f) headOut *= hdrSpeedMul;
+
+                Rb.linearVelocity = headOut;
 
                 // Swerve toward goal via curl + spin - only when facing the goal. A header
                 // while turned away flies straight (no goal-ward curl).
@@ -765,11 +1158,35 @@ namespace Trickshot
                     else if (inFlat.sqrMagnitude > 0.01f)          shotDir = inFlat.normalized;
                     else                                           shotDir = faceFwd.sqrMagnitude > 0.01f ? faceFwd.normalized : Vector3.forward;
 
+                    // ---- A VOLLEY LEAVES DOWN THE CAMERA LOOK RAY ----
+                    // Direction is the camera YAW and the loft is its PITCH, so aiming high lofts
+                    // the shot and aiming at the turf drives it low. This replaces the "straight at
+                    // the goal centre when facing it" rule for volleys ONLY: a scripted set piece
+                    // (SetPieceShot, i.e. free kick / penalty) still uses the aim above, and a
+                    // striker with no bound camera (an AI body) falls through unchanged.
+                    bool lookVolley = volley && striker.HasLookAim;
+                    float lookYaw = 0f, lookPitch = 0f, lookSlope = SimConfig.SetPieceLoft;
+                    if (lookVolley)
+                    {
+                        lookYaw = striker.LookYaw; lookPitch = striker.LookPitch;
+                        Vector3 lookDir = Quaternion.Euler(lookPitch, lookYaw, 0f) * Vector3.forward;
+                        Vector3 lookFlat = new Vector3(lookDir.x, 0f, lookDir.z);
+                        if (lookFlat.sqrMagnitude > 1e-4f)
+                        {
+                            shotDir = lookFlat.normalized;
+                            // Rise per unit of ground travel, clamped: the floor keeps a flat-aimed
+                            // volley off the turf, the cap stops a near-vertical aim ballooning.
+                            lookSlope = Mathf.Clamp(lookDir.y / lookFlat.magnitude,
+                                                    SimConfig.VolleyLookMinLoft, SimConfig.VolleyLookSlopeMax);
+                        }
+                        else lookVolley = false;   // degenerate ray (looking dead up): keep the old aim
+                    }
+
                     // Scripted launch speed: a power-scaled floor, hard-capped (Cannon raises it).
                     float launch = Mathf.Min(SimConfig.SetPieceBaseSpeed * shotMul,
                                              SimConfig.SetPieceMaxSpeed * capMul);
                     flat = shotDir * launch;
-                    vy   = launch * SimConfig.SetPieceLoft;
+                    vy   = launch * (lookVolley ? lookSlope : SimConfig.SetPieceLoft);
 
                     // Strike frame: right = across the shot, up = world up. side>0 = struck on
                     // the ball's right, vert>0 = struck high.
@@ -814,15 +1231,77 @@ namespace Trickshot
                                     + shotRight * (latSign * halfInside * combined)
                                     + Vector3.up * aimY;
 
+                    if (lookVolley)
+                    {
+                        // AIM = where the LOOK RAY crosses the goal plane. Accuracy only TIGHTENS it:
+                        // a raw striker scatters around that point, a maxed one lands on it. A ray that
+                        // is genuinely OFF FRAME is left where it is, so a bad aim is a real miss
+                        // instead of being dragged back between the posts by the assist.
+                        Vector3 aimP = SetPieceTaker.LookAimPoint(Rb.position, lookYaw, lookPitch,
+                                                                  SimConfig.AttackGoalCenter.z);
+                        float lookScatter = SimConfig.VolleyAimScatter
+                                            * (1f - combined * SimConfig.VolleyAimTighten);
+                        aimP += shotRight * (Random.Range(-1f, 1f) * halfInside * lookScatter)
+                                + Vector3.up * (Random.Range(-1f, 1f) * SimConfig.GoalHeight * lookScatter);
+
+                        float aimLat = Vector3.Dot(aimP - SimConfig.AttackGoalCenter, shotRight);
+                        bool onFrame = Mathf.Abs(aimLat) <= SimConfig.GoalWidth * 0.5f + SimConfig.VolleyLookOffFrame
+                                       && aimP.y <= SimConfig.GoalHeight + SimConfig.VolleyLookOffFrame;
+                        if (onFrame)
+                            aimP.y = Mathf.Clamp(aimP.y, SimConfig.BallRadius,
+                                                 SimConfig.GoalHeight - SimConfig.VolleyBarClear);
+                        _assistTarget = aimP;
+                    }
+                    else if (volley)
+                    {
+                        // VOLLEY AIM (free kicks keep the corner aim above, untouched). The corner
+                        // solve was too precise: every volley rifled the same top corner. Aim instead
+                        // at a random point inside a window bounded by the LIVE goal opening - always
+                        // UNDER the crossbar and BETWEEN the posts, both scaled by the match-setup
+                        // goal size (GoalWidth / GoalHeight are mutable statics the setup writes).
+                        // Skill still reads: it pulls the aim toward the struck side and shrinks the
+                        // scatter, but never to zero, so the same contact never repeats exactly.
+                        float scatter = SimConfig.VolleyAimScatter
+                                        * (1f - combined * SimConfig.VolleyAimTighten);
+
+                        float latPull = latSign * halfInside * SimConfig.VolleyAimLatFrac * combined;
+                        float lat = Mathf.Clamp(latPull + Random.Range(-1f, 1f) * halfInside * scatter,
+                                                -halfInside, halfInside);
+
+                        // Struck LOW -> aim the upper window, struck HIGH -> the lower one, otherwise
+                        // mid. Raw players sit mid-goal; skill leans it toward the picked band.
+                        float loF = SimConfig.VolleyAimLowFrac, hiF = SimConfig.VolleyAimTopFrac;
+                        float midF = 0.5f * (loF + hiF);
+                        float bandF = vert <= SimConfig.SetPieceLowStrike ? hiF
+                                    : (vert >= SimConfig.SetPieceTopThresh ? loF : midF);
+                        float yFrac = Mathf.Lerp(midF, bandF, combined) + Random.Range(-1f, 1f) * scatter;
+                        float volleyY = Mathf.Clamp(yFrac, loF, hiF) * SimConfig.GoalHeight;
+
+                        _assistTarget = SimConfig.AttackGoalCenter + shotRight * lat
+                                        + Vector3.up * volleyY;
+                    }
+
                     if (Mathf.Abs(side) >= SimConfig.SetPieceSideThresh)
                     {
                         // Side spin: bend the SAME way the ball was struck (Coriolis feel) -
                         // struck on the right curls right, struck left curls left - scaled by how
                         // far off-centre the contact was. Lateral accel across the shot.
                         float s = Mathf.Sign(side) * Mathf.Clamp01(Mathf.Abs(side));
-                        _curlAccel = shotRight * (s * curlMag);
-                        _curlRemaining = SimConfig.AssistDuration + 0.5f;
-                        Rb.angularVelocity = Vector3.up * (s * curlMag);
+                        // A VOLLEY bends far less than a free kick and for a shorter window: at full
+                        // curl over AssistDuration+0.5s a side contact accrued more lateral speed than
+                        // it had forward pace, so the ball slid sideways and stopped closing on goal.
+                        // The pace it loses to the bend is handed back as goalward speed.
+                        // The curve comes off the CONTACT SIDE (above) and its magnitude scales with
+                        // the SKILL stat: a raw striker gets the base bend, a fully invested one up to
+                        // VolleyCurveStatMul x it. Free kicks keep the flat curlMag.
+                        float curveStat = 1f + (SimConfig.VolleyCurveStatMul - 1f) * combined;
+                        float bend = volley ? curlMag * SimConfig.VolleyCurlMul * curveStat : curlMag;
+                        _curlAccel = shotRight * (s * bend);
+                        _curlRemaining = volley ? SimConfig.AssistDuration * SimConfig.VolleyCurlTimeMul
+                                                : SimConfig.AssistDuration + 0.5f;
+                        Rb.angularVelocity = Vector3.up
+                                             * (s * (volley ? curlMag * SimConfig.VolleySpinMul * curveStat : curlMag));
+                        if (volley) flat = shotDir * (launch * SimConfig.VolleySidePaceMul);
                     }
                     else if (vert >= SimConfig.SetPieceTopThresh)
                     {
@@ -831,6 +1310,14 @@ namespace Trickshot
                         _curlAccel = Vector3.down * (curlMag * SimConfig.SetPieceTopSpinMul);
                         _curlRemaining = SimConfig.AssistDuration + 0.5f;
                         Rb.angularVelocity = shotRight * curlMag;
+                    }
+                    else if (volley && vert <= SimConfig.SetPieceKnuckleVert)
+                    {
+                        // VOLLEY, struck under the ball: NO chip and NO knuckle. It just drives
+                        // forward at a modest loft, power-scaled like every other volley (launch
+                        // already carries shotMul). The chip/knuckle pair below is free-kick only.
+                        vy   = launch * SimConfig.VolleyBottomLoft;
+                        flat = shotDir * (launch * SimConfig.VolleyBottomPaceMul);
                     }
                     else if (vert <= SimConfig.SetPieceKnuckleVert)
                     {
@@ -906,9 +1393,34 @@ namespace Trickshot
                     // (scaled by the striker's shot-power trait), clear any curl carried from the
                     // serve, and damp the spin so a struck shot flies mostly straight.
                     flat = new Vector3(v.x, 0f, v.z);
-                    flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost * shotMul,
-                                                  SimConfig.StrikeHorizMax * shotMul * capMul);
+                    float shotCeil = SimConfig.StrikeHorizMax * shotMul * capMul;
+                    flat = Vector3.ClampMagnitude(flat * SimConfig.StrikeHorizBoost * shotMul, shotCeil);
                     vy = v.y;
+                    // Bound the WHOLE vector at that same ceiling, for the reason the header block
+                    // spells out: vy passes through untouched, so a ball struck upward left faster than
+                    // the ceiling by its vertical component alone. A quadruped strikes with a front leg
+                    // of roughly 2x a human foot's mass from a taller body, so its post-solve v.y is
+                    // the larger one and the bypass favoured it. Scale flat and vy TOGETHER so only the
+                    // speed is bounded and the launch angle is preserved. Deliberately inside this
+                    // else: the set-piece branch above owns its own absolute cap and a derived apex
+                    // ceiling, and must not be re-clamped against an open-play number.
+                    // BICYCLE: kill the high looper. Trade vertical for goalward pace, both scaled
+                    // by a Shooting+Control blend, so an invested player drives the bike in low and
+                    // a raw one still loops it. Applied BEFORE the whole-vector clamp below, which
+                    // then bounds it at the same ceiling every other strike is held to - this lowers
+                    // the launch angle, it does not raise the ceiling.
+                    if (bicycleAttempt)
+                    {
+                        float bike = PlayerProfile.BicycleSkill01;
+                        vy   *= Mathf.Lerp(SimConfig.BicycleVKeepRaw, SimConfig.BicycleVKeepSkilled, bike);
+                        flat *= Mathf.Lerp(SimConfig.BicyclePaceRaw,  SimConfig.BicyclePaceSkilled,  bike);
+                    }
+                    float total = Mathf.Sqrt(flat.sqrMagnitude + vy * vy);
+                    if (total > shotCeil && total > 0.001f)
+                    {
+                        float k = shotCeil / total;
+                        flat *= k; vy *= k;
+                    }
                     _curlAccel = Vector3.zero;
                     _curlRemaining = 0f;
                     _wiggleRemaining = 0f;
@@ -942,7 +1454,8 @@ namespace Trickshot
         // velocity, then folds into the SAME systems a normal strike uses: the facing-
         // gated goal assist and the 2s ball-cam pulse. Suppresses re-strike/re-capture so
         // the launching foot doesn't immediately re-hit the ball.
-        public void DribbleShot(Vector3 dir, float speed, bool facingGoal, bool camShouldCut)
+        public void DribbleShot(Vector3 dir, float speed, bool facingGoal, bool camShouldCut,
+                                ActiveRagdoll shooter = null)
         {
             Rb.linearVelocity = dir * speed;
             Rb.angularVelocity = Vector3.zero;
@@ -966,8 +1479,9 @@ namespace Trickshot
                 if (flat.magnitude >= SimConfig.ShotCamMinSpeed) _cam.PulseBallCam(SimConfig.ShotCamSeconds);
             }
 
-            _assistCooldown = 0.4f;
-            SuppressStrike(SimConfig.DribbleRecaptureCooldown);
+            // Hold off THIS shooter only. No _assistCooldown write and no global suppression: both
+            // used to blank out everyone else's shot and volley on the rebound for ~0.4s.
+            SuppressStrikeFor(shooter, SimConfig.DribbleRecaptureCooldown);
         }
 
         // Scrimmage deliberate LMB/RMB shot: launch AIRBORNE like a set piece (arced, no controllable
@@ -975,7 +1489,8 @@ namespace Trickshot
         // aim direction (the striker's facing); the ball is lofted along it at a fixed launch angle,
         // scaled by shot power. Same facing-gated goal assist as DribbleShot (horizontal steer only
         // when facing goal; vertical steer stays off so the loft survives). No curl/wiggle ever.
-        public void LaunchLofted(Vector3 dir, float speed, bool facingGoal, bool camShouldCut)
+        public void LaunchLofted(Vector3 dir, float speed, bool facingGoal, bool camShouldCut,
+                                 ActiveRagdoll shooter = null)
         {
             dir.y = 0f;
             if (dir.sqrMagnitude < 1e-4f) dir = transform.forward;
@@ -1018,14 +1533,16 @@ namespace Trickshot
             LastShotType = ShotType.Normal;
             _trail.emitting = true;
             _trail.Clear();
-            _assistCooldown = 0.4f;
-            SuppressStrike(SimConfig.DribbleRecaptureCooldown);
+            // Shooter-scoped, same reasoning as DribbleShot.
+            SuppressStrikeFor(shooter, SimConfig.DribbleRecaptureCooldown);
         }
 
         // Generic kick/pass: set the ball's velocity directly and clear curl/spin. Used by
         // AI footballers and the passing system (no aim assist - AI/passes aim themselves).
-        // Suppresses the strike/dribble hooks briefly so the kicking foot doesn't re-hit it.
-        public void KickTo(Vector3 velocity)
+        // Briefly blocks the KICKER'S OWN re-strike so its foot doesn't hit the ball twice. Pass
+        // the kicking body: without it the block is global and a receiver cannot first-time a
+        // short pass, which killed one-twos.
+        public void KickTo(Vector3 velocity, ActiveRagdoll kicker = null)
         {
             Rb.linearVelocity = velocity;
             Rb.angularVelocity = Vector3.zero;
@@ -1034,7 +1551,7 @@ namespace Trickshot
             _wiggleRemaining = 0f;
             _assistRemaining = 0f;
             _accuracyMul = 1f;
-            SuppressStrike(0.3f);
+            SuppressStrikeFor(kicker, 0.3f);
         }
 
         public void ResetTo(Vector3 pos)
@@ -1053,7 +1570,10 @@ namespace Trickshot
             _assistFlatOff = false;
             _assistVertOff = false;
             _strikeSuppress = 0f;
-            DribbleHold = false;   // never leave the leash flag stuck after a reset (would disable strikes)
+            _selfSuppress = 0f;
+            _selfSuppressBody = null;
+            Dribble.ReleaseHolder();   // nobody is carrying a ball that just teleported...
+            DribbleCarrier = null;     // ...and drop the claim even if the carrier was a bot
             LastShotWasTrick = false;
             LastShotType = ShotType.Normal;
             _trail.emitting = false;
@@ -1061,5 +1581,63 @@ namespace Trickshot
         }
 
         public float Speed => Rb.linearVelocity.magnitude;
+
+        /// <summary>
+        /// A shot's goal-assist window is live, so the ball is being STEERED and no ballistic solve
+        /// predicts where it lands. Read by the scrimmage landing reticle, which hides while it is true.
+        /// </summary>
+        public bool Guided => _assistRemaining > 0f;
+
+        /// <summary>
+        /// Where an airborne ball will come down, and in how long. Closed form, no stepping.
+        ///
+        /// Solves for the ball CENTRE reaching its RESTING height (y = BallRadius), not the turf at
+        /// y = 0. Solving to 0 puts the answer materially long - the ball stops falling 0.22 m early,
+        /// which at a typical descent is a fifth of a metre of consistent overshoot.
+        ///
+        ///     BallRadius = pos.y + vy*t - 0.5*G*t^2   =>   t = ( vy + sqrt(vy^2 + 2*G*h) ) / G
+        ///
+        /// with h = pos.y - BallRadius. For h &gt; 0 the discriminant exceeds vy^2, so the numerator is
+        /// positive whether the ball is rising or falling and this root is always the DESCENDING one;
+        /// there is no no-solution branch to write. h &lt;= 0 is rejected before the sqrt.
+        ///
+        /// WHY A VACUUM SOLVE IS THE RIGHT ONE HERE, not an approximation to apologise for. Every flight
+        /// path this project launches is itself a vacuum solve: LaunchTo computes v0 from
+        /// (target - p0 - 0.5*g*t^2)/t with no drag term. Modelling the 0.02 linear damping would make
+        /// the predictor disagree with the launch by the same ~1.5% in the OPPOSITE direction, and the
+        /// disc would sit short of where the ball really lands. There is no Magnus force in the project
+        /// (angularVelocity is written for cosmetic roll and never read back), and passes carry zero curl
+        /// and zero wiggle. Gravity is read from Physics.gravity because this project runs 2x gravity.
+        ///
+        /// The one force this CANNOT model is ApplyGoalAssist, which steers a shot with up to
+        /// AssistMaxAccel for AssistDuration. Callers must check <see cref="Guided"/> and hide instead:
+        /// its inputs are private, and on a client the ball is a kinematic puppet with no such state at
+        /// all, so a stepped predictor could not agree between host and client either.
+        /// </summary>
+        public static bool PredictLanding(Vector3 pos, Vector3 vel, out Vector3 land, out float time)
+        {
+            land = pos; time = 0f;
+            float g = Mathf.Abs(Physics.gravity.y);
+            if (g < 0.01f) g = Mathf.Abs(SimConfig.Gravity);
+
+            float h = pos.y - SimConfig.BallRadius;
+            if (h <= 0.0001f) return false;                 // already at rest height: nothing to predict
+
+            float t = (vel.y + Mathf.Sqrt(vel.y * vel.y + 2f * g * h)) / g;
+            if (t <= 0.0001f || float.IsNaN(t)) return false;
+
+            time = t;
+            land = new Vector3(pos.x + vel.x * t, SimConfig.BallRadius, pos.z + vel.z * t);
+            return true;
+        }
+
+        /// <summary>
+        /// The five left-side bones, spelled out instead of testing the enum's name, so this costs
+        /// no allocation on a collision path. Bone has 13 members and is fixed, so the list cannot
+        /// silently fall out of date.
+        /// </summary>
+        static bool IsLeftBone(Bone b)
+            => b == Bone.ThighL || b == Bone.CalfL || b == Bone.FootL
+            || b == Bone.UpperArmL || b == Bone.ForearmL;
     }
 }

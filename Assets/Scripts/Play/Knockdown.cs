@@ -16,12 +16,30 @@ namespace Trickshot
 
         public bool Down => _down;
 
+        Striker _strk;
+        // Lazy, because Knockdown also sits on bodies with no Striker. Used only to tear down a
+        // gesture the fall has to override (the seated hip drop, a trick in flight).
+        Striker Strk => _strk != null ? _strk : (_strk = GetComponent<Striker>());
+
         public void Init(ActiveRagdoll ragdoll) => _ragdoll = ragdoll;
 
         // Fell over. dir is the horizontal push direction (whoever knocked them over).
         public void Fell(Vector3 dir)
         {
             if (_ragdoll == null || _ragdoll.Pelvis == null) return;
+
+            // Tear down any gesture that owns the body FIRST, before the teardown below, or it
+            // undoes it. Two things bite here:
+            //   - EmoteHeightOffset. A seated (or mid-emote) body has it non-zero, which hands the
+            //     whole-body carry servo off and PD-drives the pelvis to a fixed height every frame.
+            //     Knockdown never cleared it, so a felled sitter was pinned at seat height while limp,
+            //     fighting the tumble impulse below.
+            //   - the Striker's own trick/sit latch. Tick is suspended while down, so the latch would
+            //     survive the fall and re-assert the moment he gets up.
+            var st = Strk;
+            if (st != null && (st.IsSitting || st.IsBusy)) st.ForceRecover();
+            _ragdoll.EmoteHeightOffset = 0f;
+
             _down = true;
             _timer = SimConfig.KnockdownTime;
 

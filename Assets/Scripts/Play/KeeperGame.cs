@@ -18,8 +18,7 @@ namespace Trickshot
 
         float _liveTime, _restTimer;
         bool _resolved;
-        bool _keeperTouched;    // did the ball contact the keeper this attempt
-        bool _touchedEpic;       // latched at contact: shot fast enough OR a high dive -> EPIC SAVE
+        readonly SaveWatch _save = new SaveWatch();   // shared SAVE / EPIC SAVE / MISS verdict
 
         int _goals, _saves, _shots;
         string _flash = ""; float _flashTime;
@@ -53,14 +52,13 @@ namespace Trickshot
 
             _keeper.Tick();
 
-            // Continuous rapid fire: the server self-loops and fires every ~2s no matter
+            // Continuous rapid fire: the server self-loops on KeeperServeInterval no matter
             // what happened to the last ball. A fire opens a fresh (unresolved) attempt.
             if (_server.Tick())
             {
                 _shots++;
                 _resolved = false;
-                _keeperTouched = false;
-                _touchedEpic = false;
+                _save.Arm();
                 _liveTime = 0f;
                 _restTimer = 0f;
                 Flash("SHOT!");
@@ -74,7 +72,7 @@ namespace Trickshot
         {
             _server.Arm(delay);
             _resolved = true;   // nothing live until the first fire
-            _keeperTouched = false;
+            _save.Disarm();
         }
 
         // Non-blocking outcome watcher: flags a goal/save/miss once per served ball for
@@ -85,14 +83,9 @@ namespace Trickshot
             _liveTime += Time.deltaTime;
             Vector3 c = _ball.transform.position;
 
-            if (!_keeperTouched && KeeperContactedBall())
-            {
-                _keeperTouched = true;
-                // EPIC SAVE criteria, latched at the contact frame (before the ball is slowed by
-                // the touch): the shot was travelling at least KeeperEpicSaveSpeed, OR the save was
-                // made in a HIGH dive. Those are the only two criteria.
-                _touchedEpic = _ball.Speed >= SimConfig.KeeperEpicSaveSpeed || _keeper.IsHighDive;
-            }
+            // EPIC SAVE criteria are latched at the contact by SaveWatch: the shot arrived at
+            // KeeperEpicSaveSpeed or better, OR the save was made in a HIGH dive.
+            _save.Poll(_ball, _keeperRagdoll, _keeper != null && _keeper.IsHighDive);
 
             float r = SimConfig.BallRadius, halfW = SimConfig.GoalWidth * 0.5f;
             bool inGoal = c.z - r >= _goalLineZ && c.z <= _goalLineZ + SimConfig.GoalDepth
@@ -106,29 +99,18 @@ namespace Trickshot
 
             if (wide || dead)
             {
-                if (_keeperTouched || Vector3.Distance(c, _keeperRagdoll.Pelvis.position) < 2.4f)
-                    OnSave();
-                else
-                    OnMiss();
+                if (_save.Touched) OnSave(); else OnMiss();
             }
-        }
-
-        bool KeeperContactedBall()
-        {
-            foreach (var t in _keeperRagdoll.BoneTransforms)
-                if (t != null && Vector3.Distance(t.position, _ball.transform.position) < SimConfig.BallRadius + 0.28f)
-                    return true;
-            return false;
         }
 
         void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); }
         // EPIC SAVE when the shot was hit hard enough OR stopped in a high dive (latched at
         // contact); otherwise a plain SAVE.
-        void OnSave() { _resolved = true; _saves++; Flash(_touchedEpic ? "EPIC SAVE!" : "SAVE!"); CrowdCheer.Celebrate(); }
+        void OnSave() { _resolved = true; _saves++; Flash(_save.Callout()); CrowdCheer.Celebrate(); }
         void OnMiss() { _resolved = true; Flash("MISS"); }
 
         // R only: full reset of keeper + serve loop (not per-ball, which would yank the
-        // player-controlled keeper around every 2s).
+        // player-controlled keeper around on every serve).
         void FullReset()
         {
             _keeper.ForceRecover();
@@ -151,8 +133,9 @@ namespace Trickshot
             Hud.Stat(ref p, "Shots faced", _shots.ToString());
             Hud.Stat(ref p, "Save %", savePct + "%");
 
-            Hud.Legend("WASD move   A/D+Space dive   LMB/RMB lunge save   LMB+RMB split   Space jump   R reset");
+            Hud.Legend("WASD move   A/D+Space dive   LMB/RMB lunge save   LMB+RMB split   Space jump   E/Q throw   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
+            Hud.End();
         }
     }
 }

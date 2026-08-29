@@ -1,0 +1,18 @@
+Grass_Detail.jpg and Grass_DetailNormal.png are derived from ambientCG Grass005.
+
+Source:  https://ambientcg.com/view?id=Grass005
+License: CC0 1.0 Universal (public domain dedication)
+         https://creativecommons.org/publicdomain/zero/1.0/
+
+CC0 means no rights reserved: commercial use, modification and redistribution are
+all permitted, and no attribution is required.
+
+Grass005 is a short clean lawn. It replaced Grass001, which is wild meadow: broad
+dock leaves and seed heads, which stretched across a football pitch read as weeds.
+
+Modified from the originals: resized 2K to 1K; the colour map mean-normalised per
+channel to mid grey so it modulates the pitch colour instead of replacing it, with
+the ambient occlusion folded into it because the Standard shader samples its own
+occlusion map at the main tiling and so cannot carry a detail-scale one; the
+NormalGL map renormalised after the resize. The roughness and displacement maps
+are unused. See Tools/grassprep.py.

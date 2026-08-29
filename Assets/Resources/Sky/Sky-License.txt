@@ -1,0 +1,34 @@
+The .jpg panoramas in this folder are derived from Poly Haven HDRIs.
+
+Source:  https://polyhaven.com/hdris
+License: CC0 1.0 Universal (public domain dedication)
+         https://creativecommons.org/publicdomain/zero/1.0/
+
+CC0 means no rights reserved: commercial use, modification and redistribution are
+all permitted, and no attribution is required. This file is here for the record,
+not because anything obliges it.
+
+Originals (4K .hdr), tone-mapped locally:
+  kloofendal_48d_partly_cloudy_puresky
+  kloofendal_overcast_puresky
+  qwantani_late_afternoon_puresky
+  qwantani_noon_puresky
+  qwantani_sunset_puresky
+
+Modified from the originals: tone-mapped from linear HDR to 8-bit sRGB and saved
+as JPEG. See Tools/skyprep.py for the exact curve and for why (the game renders in
+gamma colour space with no post-processing stack, so HDR range would only clip).
+
+Added later, with DIFFERENT provenance - worth stating plainly rather than filing
+them alongside the five above as if they matched:
+  qwantani_mid_morning_puresky
+  kloppenheim_06_puresky
+  qwantani_puresky
+
+These two were NOT tone-mapped here. They are Poly Haven's own 8192x4096 tone-mapped
+JPEG exports, downscaled to 4096x2048 (Lanczos) and re-encoded at JPEG q90 to match
+the size of the rest of the folder. So their tone curve is Poly Haven's, not
+Tools/skyprep.py's, and the two sets are not guaranteed to grade identically.
+See Tools/skyfetch.py, which also measures each candidate over the band the menu
+camera can actually see (elevation 0 to +8 degrees) - that measurement, not overall
+image quality, is what these were chosen on.

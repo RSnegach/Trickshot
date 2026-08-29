@@ -62,6 +62,41 @@ namespace Trickshot.Net
         // Request the list of joinable lobbies. Results arrive via the callback (async on
         // Steam; near-immediate on loopback). Each entry is (lobby handle, display label).
         void ListLobbies(Action<System.Collections.Generic.List<LobbyInfo>> onResults);
+
+        // How this session describes itself to anything looking for a game. A HOST assigns a
+        // function here (NetSession does it in Host()); the transport calls it to answer a
+        // discovery probe, so the answer is always built from the LIVE session and can never be a
+        // stale copy of the occupancy. Returning visible == false means "do not answer at all",
+        // which is what makes a private lobby actually private rather than merely flagged.
+        //
+        // It belongs on the transport rather than beside the discovery code because it is per
+        // transport: direct IP answers a UDP probe with it, Steam would push the same fields into
+        // SetLobbyData, and the loopback transport ignores it.
+        Func<LobbyAdvert> AdvertProvider { get; set; }
+    }
+
+    /// <summary>
+    /// What a host publishes about itself so a browser can list it. Built fresh per request from the
+    /// live session (NetSession.BuildAdvert) so a browser sees real occupancy, not a stale copy.
+    ///
+    /// It lives HERE, next to the interface member that consumes it, and not beside the UDP discovery
+    /// code where it started. Two reasons. It is part of the INetTransport contract - direct IP answers
+    /// a UDP probe with it, Steam would push the same fields into SetLobbyData - so gating out or
+    /// deleting UDP discovery for a Steam build must not take the interface's own type with it. And it
+    /// was declared in a file that is not committed, which meant three TRACKED files depended on a type
+    /// no clean clone had.
+    /// </summary>
+    public struct LobbyAdvert
+    {
+        public bool visible;      // false = do not advertise at all (private lobby / not ready)
+        public string name;       // host player name
+        public string mode;       // short mode line, e.g. "Scrimmage 3v3"
+        public int players;
+        public int maxPlayers;
+        // The build this host is running, so an incompatible one can be filtered out BEFORE a connect.
+        // Steam can do that server-side with AddRequestLobbyListStringFilter; today a version mismatch
+        // is only discovered after a full handshake, when the host answers Hello with a refusal.
+        public string build;
     }
 
     // A discoverable session in the browser.

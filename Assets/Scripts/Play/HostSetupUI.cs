@@ -24,7 +24,10 @@ namespace Trickshot
         // Set-pieces host settings (goal size %, keeper ability). Ball/player speed intentionally
         // NOT exposed - kept fixed so multiplayer stays balanced.
         int _goalPct = 100;        // 80 / 100 / 125
-        int _keeperPct = 50;       // 0 / 30 / 60 / 90 (AI keeper strength if no human GK)
+        // AI keeper strength, if no human takes the gloves. One of KeeperPcts; 50 = Normal.
+        // Worth noting that 50 was NOT one of the old 0/30/60/90 steps, so this picker used to open
+        // with no button lit at all - the five named steps include it, so it now shows Normal.
+        int _keeperPct = 50;
         // Host-placed free-kick spot + wall (world x/z). Lazily defaulted the first frame the
         // Set Pieces map is shown (centre spot at FreeKickDistance, wall at WallDistance toward
         // goal). _fkEdit selects which marker a map click moves: 0 = ball, 1 = wall.
@@ -60,15 +63,17 @@ namespace Trickshot
             float w = 480f, panelH = Modes[_mode] == GameMode.Accuracy ? 610f : 470f;
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
-            var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
-            GUI.DrawTexture(new Rect(x, y, w, panelH), Texture2D.whiteTexture); GUI.color = prev;
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 640f);
+            UITheme.Panel(new Rect(x, y, w, panelH), UITheme.Blue);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(x, y + 12f, w, 36f), "HOST SETUP", title);
+            UITheme.Title(new Rect(x, y + 12f, w, 36f), "HOST SETUP", 28);
 
             float lx = x + 30f, lw = w - 60f, row = y + 60f;
+            UITheme.Divider(lx, row - 8f, lw);
             Picker(lx, ref row, lw, "Mode", ModeNames, ref _mode);
-            Picker(lx, ref row, lw, "Stadium", StadiumNames(), ref _stadium);
+            // PickerVals, not Picker: the names are filtered to the OFFERED venues, so the button
+            // position is no longer the All index, and Create() sends _stadium as the wire byte.
+            PickerVals(lx, ref row, lw, "Stadium", StadiumNames(), StadiumStyle.PickableIndices(), ref _stadium);
             if (Modes[_mode] == GameMode.Scrimmage)
             {
                 PickerVals(lx, ref row, lw, "Team size", new[] { "3 v 3", "5 v 5", "11 v 11" }, new[] { 3, 5, 11 }, ref _perSide);
@@ -78,13 +83,13 @@ namespace Trickshot
             {
                 // Balance-safe knobs only: goal size + AI keeper strength.
                 PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
-                PickerVals(lx, ref row, lw, "Keeper ability", new[] { "None", "Low", "Med", "High" }, new[] { 0, 30, 60, 90 }, ref _keeperPct);
+                PickerVals(lx, ref row, lw, "Keeper", KeeperNames, KeeperPcts, ref _keeperPct);
             }
             else if (Modes[_mode] == GameMode.Accuracy)
             {
                 // Free kicks at pop-up targets; shooters take turns and compare target points.
                 PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
-                PickerVals(lx, ref row, lw, "Keeper ability", new[] { "None", "Low", "Med", "High" }, new[] { 0, 30, 60, 90 }, ref _keeperPct);
+                PickerVals(lx, ref row, lw, "Keeper", KeeperNames, KeeperPcts, ref _keeperPct);
                 PickerVals(lx, ref row, lw, "Wall players", new[] { "None", "2", "3", "4", "5" }, new[] { 0, 2, 3, 4, 5 }, ref _accWall);
                 PickerVals(lx, ref row, lw, "Targets up", new[] { "2", "3", "4", "6", "8" }, new[] { 2, 3, 4, 6, 8 }, ref _accTargets);
                 // Turn format: a fixed kick count, or a timed round each.
@@ -96,7 +101,12 @@ namespace Trickshot
                 else
                     PickerVals(lx, ref row, lw, "Kicks each", new[] { "1", "3", "5", "10", "25", "50", "100" }, new[] { 1, 3, 5, 10, 25, 50, 100 }, ref _accKicks);
             }
-            Toggle(lx, ref row, lw, "Public (anyone can join)", ref _publicLobby);
+            // This toggle now DOES something. It used to be carried on the wire and ignored; it decides
+            // whether the host answers discovery probes at all, so off means the lobby appears in
+            // nobody's Find a Session list and the invite code is the only way in. Labelled by that
+            // effect rather than by the old "anyone can join", which was never true either way - the
+            // invite code always worked.
+            Toggle(lx, ref row, lw, "List in Find a Session", ref _publicLobby);
             // (Striker AI is chosen per-slot in the lobby now, not here.)
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
@@ -106,14 +116,18 @@ namespace Trickshot
             // lower, clamped so it can never run off the bottom of the screen.
             float by = Mathf.Min(MenuScale.Height - 52f,
                                  Mathf.Max(MenuScale.Height - 100f, y + panelH + 14f));
-            if (GUI.Button(new Rect(x + 30f, by, 160f, 44f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
-            if (GUI.Button(new Rect(x + w - 190f, by, 160f, 44f), "Create", btn)) Create();
+            if (UITheme.Button(new Rect(x + 30f, by, 160f, 44f), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
+            var keep = GUI.backgroundColor; GUI.backgroundColor = UITheme.GoodTint;
+            bool create = UITheme.Button(new Rect(x + w - 190f, by, 160f, 44f), "Create", btn);
+            GUI.backgroundColor = keep;
+            if (create) Create();
 
             // Why Create failed (port already in use), instead of silently hosting nothing.
             if (!string.IsNullOrEmpty(_hostError))
             {
                 var err = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true, alignment = TextAnchor.UpperCenter,
-                                                        normal = { textColor = new Color(1f, 0.5f, 0.45f) } };
+                                                        normal = { textColor = UITheme.Red } };
+                UITheme.Chip(new Rect(x + 24f, by - 50f, w - 48f, 44f), new Color(0.22f, 0.07f, 0.07f, 0.9f), UITheme.Red);
                 GUI.Label(new Rect(x + 24f, by - 46f, w - 48f, 40f), _hostError, err);
             }
 
@@ -128,50 +142,13 @@ namespace Trickshot
 
         void DrawFreeKickSetup(float px, float py)
         {
-            if (!_fkInit)
-            {
-                // Default just outside the box (free kicks are taken from outside it).
-                _fkBall = SetPieceMap.ClampOutsideBox(new Vector3(0f, 0f, SimConfig.GoalCenter.z - SimConfig.FreeKickDistance));
-                Vector3 toGoal = SimConfig.GoalCenter - _fkBall; toGoal.y = 0f;
-                _fkWall = _fkBall + toGoal.normalized * SimConfig.WallDistance;
-                _fkInit = true;
-            }
+            // Default just outside the box (free kicks are taken from outside it).
+            if (!_fkInit) { SetPieceMap.DefaultPlacement(out _fkBall, out _fkWall); _fkInit = true; }
 
-            float w = 300f, h = 300f;
-            var prev = GUI.color; GUI.color = new Color(0.07f, 0.08f, 0.11f, 0.92f);
-            GUI.DrawTexture(new Rect(px, py, w, h + 108f), Texture2D.whiteTexture); GUI.color = prev;
-
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(px, py + 8f, w, 26f), "FREE KICK SETUP", hdr);
-
-            // RANDOM toggle (shuffle icon, like the skill-tree RANDOMIZE button). When on, every
-            // shooter shoots from a fresh random outside-box spot each of the 10 rounds; manual
-            // placement is disabled.
-            var randRect = new Rect(px + 16f, py + 36f, w - 32f, 30f);
-            GUI.color = _fkRandom ? new Color(0.30f, 0.24f, 0.42f) : new Color(0.16f, 0.17f, 0.22f);
-            GUI.DrawTexture(randRect, Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(randRect, 1.5f); GUI.color = prev;
-            var shuf = SkillIcons.Get("_shuffle");
-            if (shuf != null) GUI.DrawTexture(new Rect(randRect.x + 8f, randRect.y + 5f, 20f, 20f), shuf, ScaleMode.ScaleToFit, true);
-            var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _fkRandom ? new Color(1f, 0.9f, 0.3f) : Color.white } };
-            GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), _fkRandom ? "RANDOM SPOTS: ON" : "RANDOM SPOTS: OFF", randSt);
-            if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) _fkRandom = !_fkRandom;
-
-            // Ball / Wall edit selector (disabled while Random is on - spots are auto-generated).
-            var sel = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
-            var selOn = new GUIStyle(sel); selOn.normal.textColor = new Color(1f, 0.9f, 0.3f);
-            GUI.enabled = !_fkRandom;
-            if (GUI.Button(new Rect(px + 16f, py + 72f, (w - 40f) * 0.5f, 28f), _fkEdit == 0 ? "● Ball" : "Ball", _fkEdit == 0 ? selOn : sel)) _fkEdit = 0;
-            if (GUI.Button(new Rect(px + 24f + (w - 40f) * 0.5f, py + 72f, (w - 40f) * 0.5f, 28f), _fkEdit == 1 ? "● Wall" : "Wall", _fkEdit == 1 ? selOn : sel)) _fkEdit = 1;
-
-            var mapRect = new Rect(px + 16f, py + 108f, w - 32f, h - 74f);
-            SetPieceMap.Draw(mapRect, ref _fkBall, ref _fkWall, _fkEdit);
-            GUI.enabled = true;
-
-            var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.9f) } };
-            GUI.Label(new Rect(px, py + h + 78f, w, 20f), _fkRandom
-                ? "Random spot each round (same for all shooters)."
-                : "Click the map to place the " + (_fkEdit == 1 ? "wall" : "ball") + ".", tip);
+            // The panel itself lives in SetPieceMap so single player's pre-match screen draws the
+            // identical control.
+            SetPieceMap.DrawSetupPanel(px, py, 300f, 300f, ref _fkBall, ref _fkWall, ref _fkEdit, ref _fkRandom,
+                                       "Random spot each round.");
         }
 
         void Create()
@@ -193,8 +170,7 @@ namespace Trickshot
             if (Multiplayer.Session == null || !Multiplayer.Session.Active)
             {
                 Multiplayer.End();
-                _hostError = "Couldn't open port " + NetEndpoint.DefaultPort + ". Another copy of the "
-                           + "game may still be hosting - close it (or restart) and try again.";
+                _hostError = "Couldn't open port " + NetEndpoint.DefaultPort + ". Close the other copy.";
                 return;
             }
             _hostError = "";
@@ -230,58 +206,72 @@ namespace Trickshot
         }
 
         // ---- small pickers ----
+        // One label style and one button style for every row, so the list reads as a table.
+        static GUIStyle _rowLbl;
+        static GUIStyle RowLabel()
+        {
+            _rowLbl ??= new GUIStyle(GUI.skin.label) { fontSize = 15 };
+            _rowLbl.normal.textColor = UITheme.Ink;
+            return _rowLbl;
+        }
+        static GUIStyle PickStyle(bool sel)
+        {
+            var s = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+            if (sel) s.normal.textColor = UITheme.Gold;
+            return s;
+        }
+
         void Picker(float lx, ref float row, float lw, string label, string[] names, ref int idx)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
             float bw = (lw - 6f * (names.Length - 1)) / names.Length;
             for (int i = 0; i < names.Length; i++)
             {
                 bool sel = i == idx;
-                var b = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], b)) idx = i;
+                if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], sel, PickStyle(sel)))
+                    idx = i;
             }
+            UITheme.Divider(lx, row + 53f, lw);
             row += 58f;
         }
 
+        // Keeper difficulty, as whole percents of SimConfig.KeeperAbility. Same five names and the
+        // same five levels the single-player pre-match screen offers (PrematchUI.KeeperNames), so
+        // "Hard" means one thing across the game instead of the old Low/Med/High meaning something
+        // else again. None builds no goalkeeper at all.
+        static readonly string[] KeeperNames = { "None", "Easy", "Normal", "Hard", "Insane" };
+        static readonly int[]    KeeperPcts  = { 0, 25, 50, 75, 100 };
+
         void PickerVals(float lx, ref float row, float lw, string label, string[] names, int[] vals, ref int val)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", st);
+            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
             float bw = (lw - 6f * (names.Length - 1)) / names.Length;
             for (int i = 0; i < names.Length; i++)
             {
                 bool sel = vals[i] == val;
-                var b = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) b.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], b)) val = vals[i];
+                if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], sel, PickStyle(sel)))
+                    val = vals[i];
             }
+            UITheme.Divider(lx, row + 53f, lw);
             row += 58f;
         }
 
         void Toggle(float lx, ref float row, float lw, string label, ref bool val)
         {
-            var st = new GUIStyle(GUI.skin.toggle) { fontSize = 15, normal = { textColor = Color.white }, onNormal = { textColor = Color.white } };
+            var st = new GUIStyle(GUI.skin.toggle) { fontSize = 15 };
+            st.normal.textColor = UITheme.Ink;
+            st.onNormal.textColor = st.onHover.textColor =
+                st.onActive.textColor = st.onFocused.textColor = UITheme.Gold;
             val = GUI.Toggle(new Rect(lx, row + 6f, lw, 26f), val, "  " + label, st);
             row += 40f;
         }
 
         static string[] StadiumNames()
         {
-            var all = StadiumStyle.All;
-            var names = new string[all.Length];
-            for (int i = 0; i < all.Length; i++) names[i] = all[i].Name;
+            var idx = StadiumStyle.PickableIndices();
+            var names = new string[idx.Length];
+            for (int i = 0; i < idx.Length; i++) names[i] = StadiumStyle.All[idx[i]].Name;
             return names;
-        }
-
-        static void DrawRectOutline(Rect r, float th)
-        {
-            var tex = Texture2D.whiteTexture;
-            GUI.DrawTexture(new Rect(r.x, r.y, r.width, th), tex);
-            GUI.DrawTexture(new Rect(r.x, r.yMax - th, r.width, th), tex);
-            GUI.DrawTexture(new Rect(r.x, r.y, th, r.height), tex);
-            GUI.DrawTexture(new Rect(r.xMax - th, r.y, th, r.height), tex);
         }
     }
 }

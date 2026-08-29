@@ -179,7 +179,7 @@ namespace Trickshot
             // Custom text-entry box (bottom-left, above the control legend).
             if (Typing)
             {
-                float bw = 520f, bh = 30f, by = Screen.height - 90f;
+                float bw = 520f, bh = 30f, by = MenuScale.Height - 90f;
                 var prev = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.7f);
                 GUI.DrawTexture(new Rect(x, by, bw, bh), Texture2D.whiteTexture);
                 GUI.color = prev;

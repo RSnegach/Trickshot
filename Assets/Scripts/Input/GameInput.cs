@@ -28,7 +28,8 @@ namespace Trickshot
         InputActionAsset _asset;
         InputActionMap _map;
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
-        InputAction _passGround, _passLofted, _switchPlayer, _emote, _tackle;   // scrimmage
+        InputAction _closeControl;   // dribble close-control modifier
+        InputAction _passGround, _passLofted, _passChip, _switchPlayer, _emote, _tackle;   // scrimmage
         InputAction _crossMap;   // striker mode: toggle the cross-targeting map (fixed M)
         InputAction _qcText;     // multiplayer: Tab opens the custom-quickchat text box (fixed)
         readonly InputAction[] _qcDigit = new InputAction[6];   // multiplayer: number keys 1-6 send a preset quickchat
@@ -64,8 +65,10 @@ namespace Trickshot
             _legR        = Btn("LegR");
             _ballCam     = Btn("BallCam");
             _sprint      = Btn("Sprint");
+            _closeControl = Btn("CloseControl");
             _passGround  = Btn("PassGround");
             _passLofted  = Btn("PassLofted");
+            _passChip    = Btn("PassChip");
             _switchPlayer = Btn("Switch");
             _emote       = Btn("Emote");
             _tackle      = Btn("Tackle");
@@ -224,13 +227,17 @@ namespace Trickshot
         public bool RightClickPressed => _legR != null && _legR.WasPressedThisFrame();
 
         // Shift held: sprint.
-        public bool SprintHeld => _sprint != null && _sprint.IsPressed();
+        // Sprint is IGNORED while close control is held: you cannot knock the ball ahead and
+        // keep it under your studs at the same time, and holding both should mean the tighter
+        // of the two rather than silently cancelling out in the speed maths.
+        public bool SprintHeld => _sprint != null && _sprint.IsPressed() && !CloseControlHeld;
+        public bool CloseControlHeld => _closeControl != null && _closeControl.IsPressed();
 
         // Mouse wheel Y this frame (raw; ~120 per notch on Windows). Used to pitch the
         // striker about his central axis while airborne.
         public float Scroll => _scroll != null ? _scroll.ReadValue<float>() : 0f;
 
-        // Scrimmage: Q ground pass, E lofted pass. Held + released so the pass can charge
+        // Scrimmage: E ground pass, Q lofted pass. Held + released so the pass can charge
         // (tap = soft, hold = hard). Pressed kept for the call-for-pass (no-ball) case.
         public bool PassGroundPressed => _passGround != null && _passGround.WasPressedThisFrame();
         public bool PassLoftedPressed => _passLofted != null && _passLofted.WasPressedThisFrame();
@@ -238,6 +245,11 @@ namespace Trickshot
         public bool PassLoftedHeld => _passLofted != null && _passLofted.IsPressed();
         public bool PassGroundReleased => _passGround != null && _passGround.WasReleasedThisFrame();
         public bool PassLoftedReleased => _passLofted != null && _passLofted.WasReleasedThisFrame();
+        public bool PassChipPressed  => _passChip != null && _passChip.WasPressedThisFrame();
+        public bool PassChipHeld     => _passChip != null && _passChip.IsPressed();
+        public bool PassChipReleased => _passChip != null && _passChip.WasReleasedThisFrame();
+        // A device poll is new every frame by construction (see IStrikerInput.Fresh).
+        public bool Fresh => true;
         public bool SwitchPressed => _switchPlayer != null && _switchPlayer.WasPressedThisFrame();
         // Emote wheel: held open while B is down.
         public bool EmoteHeld => _emote != null && _emote.IsPressed();
@@ -272,8 +284,9 @@ namespace Trickshot
             {
                 tick = tick, move = Move, lookYaw = lookYaw, lookPitch = lookPitch,
                 jump = JumpHeld, legL = LeftLegHeld, legR = RightLegHeld, sprint = SprintHeld,
-                passGround = PassGroundHeld, passLofted = PassLoftedHeld, tackle = TacklePressed,
-                reset = ResetPressed,
+                passGround = PassGroundHeld, passLofted = PassLoftedHeld, passChip = PassChipHeld,
+                tackle = TacklePressed,
+                reset = ResetPressed, closeControl = CloseControlHeld,
                 emoteId = _pendingEmote,
             };
             _pendingEmote = 255;   // one-shot: consumed once it is sampled into a frame

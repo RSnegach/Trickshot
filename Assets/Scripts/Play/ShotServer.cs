@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// Keeper-mode shot feeder: fires the ball ON TARGET at a random spot within the
-    /// goal mouth every few seconds, from a random-ish spot out on the pitch. No
+    /// goal mouth on a fixed cadence, from a random-ish spot out on the pitch. No
     /// crosser involved. GameManager-free; the KeeperGame driver pumps Tick().
     /// </summary>
     public class ShotServer : MonoBehaviour
@@ -41,7 +41,7 @@ namespace Trickshot
             if (_timer <= 0f)
             {
                 Fire();
-                _timer = SimConfig.KeeperServeInterval;   // constant 2s cadence
+                _timer = SimConfig.KeeperServeInterval;   // fixed cadence, outcome-independent
                 return true;
             }
             return false;

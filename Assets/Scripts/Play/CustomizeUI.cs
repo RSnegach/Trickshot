@@ -35,10 +35,18 @@ namespace Trickshot
         // Adult-mode-only extra skill tab. UI-only (NOT a real SkillTree.Category), so it doesn't
         // touch the stats heptagon or node lists; its graph body is intentionally blank for now.
         bool _thirdLegTab;
+        // Species-only extra skill tab, labelled SpeciesDef.InstinctTab ("Primate", "Ratite", ...).
+        // Same shape as _thirdLegTab, with one difference worth knowing: Instinct IS a real
+        // SkillTree.Category and its nodes use real football effect keys, so unlike Third Leg it DOES
+        // move the stat heptagon. That is deliberate - one shared tree means the stat card stays
+        // comparable across species, so a species perk that grants sprint has to read on the card.
+        bool _instinctTab;
 
-        // Body-stage appearance sub-menu (cycled by the arrows beside the BODY title).
-        enum BodySub { Traits, Skin, Hair, Facial, Accessories }
-        BodySub _bodySub = BodySub.Traits;
+        // Body-stage appearance sub-menu (cycled by the arrows beside the BODY title). Index 0 is
+        // always the BODY trait readout; 1..N are the SELECTED SPECIES' cosmetic slots, so a horse
+        // gets COAT / MANE / MARKINGS / TACK where a human gets SKIN / HAIR / FACIAL / EXTRAS. An
+        // index over Species.Current.Slots rather than a fixed enum, because the tab set is data.
+        int _bodySub;
         Vector2 _apprScroll;                 // scroll for the option grids
         PlayerAppearance _lastPreviewAppr;   // detect appearance change to rebuild the preview
         bool _apprInit;
@@ -58,6 +66,23 @@ namespace Trickshot
         // Confirmation modal shown when leaving the Skill stage with adult mode on AND points spent
         // in the Third Leg tab: "You have assigned XX% of your Skill Points to your penis. Continue?"
         bool _thirdLegPrompt;
+
+        /// <summary>
+        /// A popup owns the screen. EVERY hand-rolled Event.current handler on this screen has to
+        /// check this before touching the mouse.
+        ///
+        /// GUI.enabled = false is enough for real IMGUI controls - Unity reports a disabled control's
+        /// event type as Ignore, so it neither responds nor consumes - but it does nothing at all to
+        /// code that reads Event.current itself and calls e.Use(). IMGUI has no z-order and no
+        /// modality: whoever Uses the event first wins, and every raw handler here runs BEFORE the
+        /// popups are drawn. That is what broke the adult-mode answer buttons. The coat/skin colour
+        /// wheel (SlotSubMenu -> WheelPick) and the preview drag rect both sit under where the quiz
+        /// lays its answer rows, so the MouseDown was consumed on the way in and GUI.Button never
+        /// saw the press it needs to claim hot control. Which slot is open - and so whether a wheel
+        /// happens to be sitting over an answer - depends on the species' slot set, which is why it
+        /// showed up on quadrupeds and not on humans.
+        /// </summary>
+        bool ModalUp => _adultPrompt || _adultQuiz || _thirdLegPrompt;
         int _quizIdx = -1;   // current question index into AdultQuiz.Bank
         int _quizPick = -1;  // the option the user clicked this question (-1 = none yet)
         float _quizFeedbackUntil;   // unscaled time until the red/green feedback clears + next Q
@@ -122,7 +147,11 @@ namespace Trickshot
             _leftFooted = PlayerProfile.LeftFooted;
             _name = PlayerProfile.PlayerName;
             _number = PlayerProfile.Number;
-            _adultMode = PlayerProfile.Appearance.Adult;   // reflect the persisted adult state
+            // Reflect the persisted adult state, but never for a species that has no adult mode.
+            // Species.ApplySelection already clears it; this keeps the invariant local to the screen
+            // that draws the toggle.
+            _adultMode = PlayerProfile.Appearance.Adult && Species.Current.AllowsAdult;
+            _bodySub = 0;   // always open on the BODY trait readout, whatever the species' tab set is
 
             BuildCanvas();
             BuildWheel();
@@ -312,17 +341,24 @@ namespace Trickshot
 
         void DrawCustomize()
         {
-            // Preview column on the left + a control panel on the right.
-            const float previewW = 300f, gap = 16f;
-            float contentW = 560f;
+            // Preview column on the left + a control panel on the right. The column width comes from
+            // PlayerPreview because it varies with the display (a quadruped is long rather than tall
+            // and cannot fit a portrait column side-on) and because SpeciesSelectUI reads the same
+            // source, which is what keeps the model from jumping across the screen on Next.
+            float previewW = PlayerPreview.ColumnWidth;
+            const float gap = PlayerPreview.ColumnGap;
+            const float contentW = PlayerPreview.PanelW;
             float totalW = previewW + gap + contentW;
-            float panelH = 600f;
+            const float panelH = PlayerPreview.PanelH;
             float ox = MenuScale.Width * 0.5f - totalW * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
 
-            // Live 3D preview viewport (the camera renders into this rect).
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.38f, totalW + 460f);
+
+            // Live 3D preview viewport (the camera renders into this rect). FRAME, not Panel: IMGUI
+            // draws over every camera, so a filled plate here would hide the model.
             var previewRect = new Rect(ox, y, previewW, panelH);
-            GUI.Box(previewRect, GUIContent.none);
+            UITheme.Frame(previewRect, UITheme.Blue);
             if (_preview != null)
             {
                 // Rebuild the model when the body changed, but DEBOUNCED: mark dirty while
@@ -352,8 +388,16 @@ namespace Trickshot
                 _preview.AutoRotate = false;          // every stage: the player turns the model by dragging it
                 HandleModelDrag(previewRect);
             }
-            var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.LowerCenter, normal = { textColor = new Color(1f, 1f, 1f, 0.7f) } };
-            GUI.Label(new Rect(previewRect.x, previewRect.yMax - 26f, previewW, 20f), "Drag the model to spin it", hint);
+            UITheme.Hint(new Rect(previewRect.x, previewRect.yMax - 26f, previewW, 20f), "Drag the model to spin it");
+
+            // While an adult-mode popup (age confirm OR quiz) is up, disable + darken the whole
+            // menu so it reads as modal; the popup itself re-enables GUI below. Hoisted this high
+            // deliberately: IMGUI has no z-order, so the preset column and the Body sub-menu arrows
+            // below are drawn BEFORE the popup and would otherwise take its clicks (CLEAR ALL behind
+            // the Third Leg dialog was the worst of it). Everything newly covered is draw-only or a
+            // real control, so no control IDs shift between passes.
+            bool prevEnabled = GUI.enabled;
+            if (ModalUp) GUI.enabled = false;   // ...and every raw handler checks ModalUp itself
 
             // Skill stage: one-click build presets down the left column + a live attribute
             // radar over the lower preview, so the shape updates as nodes are bought.
@@ -362,40 +406,55 @@ namespace Trickshot
                 // Preset/RANDOMIZE column is hidden on the blank Third Leg tab; the radar heptagon
                 // stays as-is (left unchanged per the request).
                 if (!(_adultMode && _thirdLegTab)) SkillPresetButtons(previewRect);
-                var radarRect = new Rect(previewRect.x + 20f, previewRect.yMax - 210f, previewW - 40f, 190f);
-                var pc = GUI.color; GUI.color = new Color(0.05f, 0.06f, 0.09f, 0.72f);
-                GUI.DrawTexture(radarRect, Texture2D.whiteTexture); GUI.color = pc;
+                // CAP the radar's width and centre it. StatRadar sizes its heptagon off the SHORTER
+                // side, so a wider column would leave the radius pinned by the 190 px height while
+                // the dark backdrop kept stretching, giving a small chart on a wide slab. 260 is what
+                // previewW - 40 resolved to back when the column was a fixed 300, so a small display
+                // draws exactly what it drew before.
+                float radarW = Mathf.Min(previewW - 40f, 260f);
+                var radarRect = new Rect(previewRect.center.x - radarW * 0.5f, previewRect.yMax - 210f, radarW, 190f);
+                UITheme.Chip(radarRect, new Color(0.05f, 0.06f, 0.09f, 0.82f), UITheme.Gold);
                 StatRadar.Draw(radarRect);
             }
 
             // Control panel.
             float x = ox + previewW + gap;
             float panelW = contentW;
-            GUI.Box(new Rect(x, y, panelW, panelH), GUIContent.none);
+            UITheme.Panel(new Rect(x, y, panelW, panelH), UITheme.Gold);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink } };
             if (_stage == Stage.Body)
             {
                 // "CUSTOMIZE -" prefix, then ‹ SUBMENU › arrows that cycle the appearance sub-menus.
-                GUI.Label(new Rect(x + 28f, y + 14f, 220f, 36f), "CUSTOMIZE -", title);
+                UITheme.Shadowed(new Rect(x + 28f, y + 14f, 220f, 36f), "CUSTOMIZE -", title, UITheme.Ink, 0.75f, 2f);
                 float axl = x + 210f;
                 var arrow = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
                 var subName = new GUIStyle(title) { alignment = TextAnchor.MiddleCenter, fontSize = 22 };
-                int subCount = System.Enum.GetValues(typeof(BodySub)).Length;
+                // The tab set is per species, so clamp before cycling: a species with fewer slots
+                // must not leave the index pointing past the end of its list.
+                int subCount = SubCount;
+                if (_bodySub >= subCount) _bodySub = 0;
                 if (GUI.Button(new Rect(axl, y + 16f, 30f, 30f), "‹", arrow))
-                    { _bodySub = (BodySub)(((int)_bodySub - 1 + subCount) % subCount); _apprScroll = Vector2.zero; }
-                GUI.Label(new Rect(axl + 32f, y + 14f, 150f, 36f), SubName(_bodySub), subName);
+                    { _bodySub = (_bodySub - 1 + subCount) % subCount; _apprScroll = Vector2.zero; }
+                UITheme.Shadowed(new Rect(axl + 32f, y + 14f, 150f, 36f), SubName(_bodySub), subName, UITheme.Gold, 0.75f, 2f);
                 if (GUI.Button(new Rect(axl + 184f, y + 16f, 30f, 30f), "›", arrow))
-                    { _bodySub = (BodySub)(((int)_bodySub + 1) % subCount); _apprScroll = Vector2.zero; }
+                    { _bodySub = (_bodySub + 1) % subCount; _apprScroll = Vector2.zero; }
             }
             else
-                GUI.Label(new Rect(x + 28f, y + 14f, panelW - 56f, 36f), "CUSTOMIZE - " + _stage.ToString().ToUpper(), title);
+                UITheme.Shadowed(new Rect(x + 28f, y + 14f, panelW - 56f, 36f), "CUSTOMIZE - " + _stage.ToString().ToUpper(), title, UITheme.Ink, 0.75f, 2f);
 
-            // While an adult-mode popup (age confirm OR quiz) is up, disable + darken the whole
-            // menu so it reads as modal; the popup itself re-enables GUI below.
-            bool adultModal = _adultPrompt || _adultQuiz || _thirdLegPrompt;
-            bool prevEnabled = GUI.enabled;
-            if (adultModal) GUI.enabled = false;
+            // Which species is being customized, small and gold at the panel's top right. A separate
+            // label rather than part of the title, because the Body title already hosts the ‹ ›
+            // sub-menu arrows (which reach to x + 424, so this starts clear of them).
+            var spTag = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight,
+                normal = { textColor = UITheme.Gold }
+            };
+            GUI.Label(new Rect(x + panelW - 128f, y + 18f, 100f, 22f), Species.Current.Name.ToUpper(), spTag);
+            // Short gold rule under the title (same stub as the species screen). Clears every
+            // stage's first row: Body starts at y+56, Skill y+52, Jersey y+58, Name y+76.
+            UITheme.Fill(new Rect(x + 28f, y + 46f, 48f, 2.5f), UITheme.Gold);
 
             switch (_stage)
             {
@@ -413,35 +472,38 @@ namespace Trickshot
             else if (_thirdLegPrompt) DrawThirdLegPrompt();
         }
 
+        // Shared modal chrome for the three customize popups: a full-screen dim behind a themed
+        // panel with a gold top accent, so they match every other panel in the game.
+        static void ModalPanel(Rect r)
+        {
+            UITheme.Fill(new Rect(0, 0, MenuScale.Width, MenuScale.Height), new Color(0.02f, 0.03f, 0.05f, 0.72f));
+            UITheme.Panel(r, UITheme.Gold);
+        }
+
         // Modal age-confirmation popup for ADULT MODE. Darkens the whole screen and shows a
         // centered dialog: Continue confirms (adult mode ON), Back cancels (stays OFF). Drawn last
         // in OnGUI, on top of the disabled/dimmed menu.
         void DrawAdultPrompt()
         {
-            // Full-screen dim.
-            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
-            GUI.color = pc;
-
             float w = 460f, h = 200f;
             float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
-            // Panel + gold top accent (matches the options/menu look).
-            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
-            GUI.color = pc;
+            ModalPanel(new Rect(px, py, w, h));
 
-            var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
             GUI.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
-                "By continuing, you confirm that you are over 18 years old.", msg);
+                "You confirm you are over 18.", msg);
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
             float bw = 150f, bh = 42f, by = py + h - bh - 22f, gap = 24f;
-            if (GUI.Button(new Rect(px + w * 0.5f - bw - gap * 0.5f, by, bw, bh), "Back", btn))
+            if (UITheme.Button(new Rect(px + w * 0.5f - bw - gap * 0.5f, by, bw, bh), "Back", btn, true))
             {
                 _adultPrompt = false;   // cancel: popup away, background restored, stays OFF
                 _adultMode = false;
             }
-            if (GUI.Button(new Rect(px + w * 0.5f + gap * 0.5f, by, bw, bh), "Continue", btn))
+            var keepA = GUI.backgroundColor; GUI.backgroundColor = UITheme.GoodTint;
+            bool goA = UITheme.Button(new Rect(px + w * 0.5f + gap * 0.5f, by, bw, bh), "Continue", btn);
+            GUI.backgroundColor = keepA;
+            if (goA)
             {
                 // Confirmed 18+: keep the screen darkened and move to the knowledge quiz. Adult
                 // mode only turns on after a correct answer (in DrawAdultQuiz).
@@ -468,22 +530,17 @@ namespace Trickshot
         // modal with adult mode ON. Non-serious gate - you can always Back out.
         void DrawAdultQuiz()
         {
-            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
-            GUI.color = pc;
-
+            // Guard BEFORE any drawing, so a stale index can't flash a dim over the menu and return.
             if (_quizIdx < 0 || _quizIdx >= AdultQuiz.Bank.Length) { NextQuizQuestion(); return; }
             var q = AdultQuiz.Bank[_quizIdx];
 
             float w = 560f, h = 380f;
             float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
-            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
-            GUI.color = pc;
+            ModalPanel(new Rect(px, py, w, h));
 
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.86f, 0.32f) } };
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
             GUI.Label(new Rect(px + 20f, py + 12f, w - 40f, 20f), "ADULT KNOWLEDGE CHECK", hdr);
-            var msg = new GUIStyle(GUI.skin.label) { fontSize = 18, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 18, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
             GUI.Label(new Rect(px + 30f, py + 36f, w - 60f, 70f), q.Text, msg);
 
             bool feedback = _quizPick >= 0;   // a pick is being shown with red/green outlines
@@ -500,15 +557,20 @@ namespace Trickshot
                 // click can't re-pick mid-flash.
                 bool prev = GUI.enabled;
                 if (feedback) GUI.enabled = false;
-                bool clicked = GUI.Button(r, "   " + q.A[i], ansStyle);
+                bool clicked = UITheme.Button(r, "   " + q.A[i], ansStyle);
                 GUI.enabled = prev;
 
                 if (feedback)
                 {
                     // Outline the correct answer green; if the user picked a wrong one, outline it red.
                     var oc = GUI.color;
-                    if (i == q.Correct) { GUI.color = new Color(0.3f, 0.9f, 0.4f); DrawRectOutline(r, 3f); }
-                    else if (i == _quizPick) { GUI.color = new Color(0.95f, 0.3f, 0.3f); DrawRectOutline(r, 3f); }
+                    if (i == q.Correct)
+                    {
+                        UITheme.Glow(new Rect(r.x - 10f, r.y - 6f, r.width + 20f, r.height + 12f),
+                                     new Color(UITheme.Green.r, UITheme.Green.g, UITheme.Green.b, 0.18f));
+                        GUI.color = UITheme.Green; DrawRectOutline(r, 3f);
+                    }
+                    else if (i == _quizPick) { GUI.color = UITheme.Red; DrawRectOutline(r, 3f); }
                     GUI.color = oc;
                 }
                 else if (clicked)
@@ -525,10 +587,10 @@ namespace Trickshot
                 else NextQuizQuestion();
             }
 
-            var note = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.75f, 0.76f, 0.8f) } };
+            var note = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
             GUI.Label(new Rect(px + 20f, py + h - 44f, w - 40f, 18f), "Answer correctly to enable Adult Mode.", note);
             var backBtn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            if (GUI.Button(new Rect(px + w - 110f, py + h - 34f, 90f, 26f), "Cancel", backBtn))
+            if (UITheme.Button(new Rect(px + w - 110f, py + h - 34f, 90f, 26f), "Cancel", backBtn, true))
             {
                 _adultQuiz = false; _adultMode = false; _quizIdx = -1;
             }
@@ -539,27 +601,24 @@ namespace Trickshot
         // advances to Name. Drawn last in OnGUI on top of the dimmed menu (same look as the age gate).
         void DrawThirdLegPrompt()
         {
-            var pc = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(new Rect(0, 0, MenuScale.Width, MenuScale.Height), Texture2D.whiteTexture);
-            GUI.color = pc;
-
             int pct = Mathf.RoundToInt(SkillTree.ThirdLegSpent / (float)SkillTree.Budget * 100f);
 
             float w = 460f, h = 200f;
             float px = MenuScale.Width * 0.5f - w * 0.5f, py = MenuScale.Height * 0.5f - h * 0.5f;
-            GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f); GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 0.86f, 0.32f); GUI.DrawTexture(new Rect(px, py, w, 4f), Texture2D.whiteTexture);
-            GUI.color = pc;
+            ModalPanel(new Rect(px, py, w, h));
 
-            var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
             GUI.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
-                $"You have assigned {pct}% of your Skill Points to your penis. Continue?", msg);
+                $"{pct}% of your points went to your penis. Continue?", msg);
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
             float bw = 150f, bh = 42f, by = py + h - bh - 22f, gap = 24f;
-            if (GUI.Button(new Rect(px + w * 0.5f - bw - gap * 0.5f, by, bw, bh), "Back", btn))
+            if (UITheme.Button(new Rect(px + w * 0.5f - bw - gap * 0.5f, by, bw, bh), "Back", btn, true))
                 _thirdLegPrompt = false;   // stay on the Skill stage
-            if (GUI.Button(new Rect(px + w * 0.5f + gap * 0.5f, by, bw, bh), "Continue", btn))
+            var keepT = GUI.backgroundColor; GUI.backgroundColor = UITheme.GoodTint;
+            bool goT = UITheme.Button(new Rect(px + w * 0.5f + gap * 0.5f, by, bw, bh), "Continue", btn);
+            GUI.backgroundColor = keepT;
+            if (goT)
             {
                 _thirdLegPrompt = false;
                 _stage += 1;               // Skill -> Name (Skill is never the SkipSkill case here)
@@ -570,6 +629,7 @@ namespace Trickshot
         // the press lands inside the preview rect, so control widgets elsewhere are unaffected.
         void HandleModelDrag(Rect previewRect)
         {
+            if (ModalUp) { _draggingModel = false; return; }   // see ModalUp
             Event e = Event.current;
             if (e.type == EventType.MouseDown && e.button == 0 && previewRect.Contains(e.mousePosition))
             {
@@ -589,26 +649,41 @@ namespace Trickshot
         // ------------------------------------------------------------- Body stage
         void BodyStage(float x, float y, float pw, float ph)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = Color.white } };
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = UITheme.Ink } };
             float lx = x + 30f, lw = pw - 60f, row = y + 56f;
+
+            var sp = Species.Current;
 
             // ADULT MODE toggle, above every other body control. Flipping it ON opens a modal
             // age-confirmation popup (drawn in OnGUI); _adultMode only becomes true once confirmed.
             // Flipping OFF is immediate. GUI.Toggle returns the new checkbox state each frame.
-            var togStyle = new GUIStyle(GUI.skin.toggle) { fontSize = 15, fontStyle = FontStyle.Bold };
-            bool want = GUI.Toggle(new Rect(lx, row, lw, 24f), _adultMode, "  ADULT MODE", togStyle);
-            if (want && !_adultMode && !_adultPrompt) _adultPrompt = true;   // arm the confirm popup
-            else if (!want && _adultMode) _adultMode = false;                // turn off immediately
-            // Mirror the resolved state into the appearance so it drives the model build + commits +
-            // networks (covers quiz-success, toggle-off, and cancel uniformly). The OnGUI appearance
-            // diff (ApprEquals) then rebuilds the preview when it changes.
-            PlayerProfile.Appearance.Adult = _adultMode;
-            row += 34f;
+            // Only offered by species that have the anatomy for it (SpeciesDef.AllowsAdult); for the
+            // rest the row is not drawn at all and the following controls move up into its space.
+            if (sp.AllowsAdult)
+            {
+                // A compact chip rather than a full-width banner. The old rect was the whole 500px
+                // content width at 15pt, so the one novelty switch on the screen was the largest
+                // control on it. Width is hand-set instead of derived: it only has to fit the box
+                // plus the label, and it must NOT track lw, or it goes back to spanning the panel.
+                var togStyle = new GUIStyle(GUI.skin.toggle) { fontSize = 12, fontStyle = FontStyle.Bold };
+                bool want = GUI.Toggle(new Rect(lx, row, 148f, 20f), _adultMode, "  ADULT MODE", togStyle);
+                if (want && !_adultMode && !_adultPrompt) _adultPrompt = true;   // arm the confirm popup
+                else if (!want && _adultMode) _adultMode = false;                // turn off immediately
+                // Mirror the resolved state into the appearance so it drives the model build + commits +
+                // networks (covers quiz-success, toggle-off, and cancel uniformly). The OnGUI appearance
+                // diff (ApprEquals) then rebuilds the preview when it changes.
+                PlayerProfile.Appearance.Adult = _adultMode;
+                row += 28f;
+            }
+            else _adultMode = false;   // also keeps the Third Leg skill tab hidden for this species
 
-            GUI.Label(new Rect(lx, row, lw, 20f), $"Height:  {_height:0.00} m", st); row += 24f;
+            // Axis label, unit, numeric format and range all come from the species (SpeciesAxis.Read),
+            // because a horse is measured at the withers and an elephant's mass is nowhere near the
+            // human band. Human reads "Height:  1.80 m" / "Weight:  75 kg" exactly as before.
+            GUI.Label(new Rect(lx, row, lw, 20f), sp.Size.Read(_height), st); row += 24f;
             _height = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _height, PlayerProfile.MinHeight, PlayerProfile.MaxHeight); row += 40f;
 
-            GUI.Label(new Rect(lx, row, lw, 20f), $"Weight:  {_weight:0} kg", st); row += 24f;
+            GUI.Label(new Rect(lx, row, lw, 20f), sp.Mass.Read(_weight), st); row += 24f;
             _weight = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _weight, PlayerProfile.MinWeight, PlayerProfile.MaxWeight); row += 44f;
 
             // Strong foot: two toggle buttons. The selected one is tinted bright green with
@@ -625,37 +700,39 @@ namespace Trickshot
 
             // Lower region: the trait readout (default) OR the selected appearance sub-menu,
             // switched by the ‹ › arrows beside the title.
-            switch (_bodySub)
+            if (_bodySub == 0)
             {
-                case BodySub.Traits:
-                    var hdr = new GUIStyle(st) { fontStyle = FontStyle.Bold };
-                    GUI.Label(new Rect(lx, row, lw, 20f), "Resulting traits:", hdr); row += 26f;
-                    Trait(lx, ref row, lw, "Move speed",  PlayerProfile.MoveSpeedMul);
-                    Trait(lx, ref row, lw, "Sprint speed", PlayerProfile.SprintSpeedMul);
-                    Trait(lx, ref row, lw, "Jump height", PlayerProfile.JumpMul);
-                    Trait(lx, ref row, lw, "Shot power",  PlayerProfile.ShotPowerMul);
-                    Trait(lx, ref row, lw, "Push / strength", PlayerProfile.PushMul);
-                    Trait(lx, ref row, lw, "Reach",       PlayerProfile.ReachMul);
-                    break;
-                case BodySub.Skin:        SkinSubMenu(lx, row, lw, y + ph - 60f); break;
-                case BodySub.Hair:        HairSubMenu(lx, row, lw, y + ph - 60f); break;
-                case BodySub.Facial:      FacialSubMenu(lx, row, lw, y + ph - 60f); break;
-                case BodySub.Accessories: AccessorySubMenu(lx, row, lw, y + ph - 60f); break;
+                var hdr = new GUIStyle(st) { fontStyle = FontStyle.Bold };
+                GUI.Label(new Rect(lx, row, lw, 20f), "Resulting traits:", hdr); row += 26f;
+                Trait(lx, ref row, lw, "Move speed",  PlayerProfile.MoveSpeedMul);
+                Trait(lx, ref row, lw, "Sprint speed", PlayerProfile.SprintSpeedMul);
+                Trait(lx, ref row, lw, "Jump height", PlayerProfile.JumpMul);
+                Trait(lx, ref row, lw, "Shot power",  PlayerProfile.ShotPowerMul);
+                Trait(lx, ref row, lw, "Push / strength", PlayerProfile.PushMul);
+                Trait(lx, ref row, lw, "Reach",       PlayerProfile.ReachMul);
+            }
+            else
+            {
+                var slot = SlotAt(_bodySub);
+                if (slot != null) SlotSubMenu(slot, lx, row, lw, y + ph - 60f);
             }
         }
 
-        static string SubName(BodySub s) => s switch
+        // Sub-menu tab set: index 0 is the BODY trait readout, 1..N the current species' slots.
+        static int SubCount => 1 + (Species.Current.Slots?.Length ?? 0);
+
+        static SpeciesSlot SlotAt(int sub)
         {
-            BodySub.Traits => "BODY",
-            BodySub.Skin => "SKIN",
-            BodySub.Hair => "HAIR",
-            BodySub.Facial => "FACIAL",
-            BodySub.Accessories => "EXTRAS",
-            _ => "BODY",
-        };
+            var slots = Species.Current.Slots;
+            int i = sub - 1;
+            return slots != null && i >= 0 && i < slots.Length ? slots[i] : null;
+        }
+
+        static string SubName(int sub) => sub == 0 ? "BODY" : (SlotAt(sub)?.Tab ?? "BODY");
 
         static bool ApprEquals(PlayerAppearance a, PlayerAppearance b)
-            => a.HairStyle == b.HairStyle && a.FacialStyle == b.FacialStyle && a.Accessory == b.Accessory
+            => a.SpeciesId == b.SpeciesId
+               && a.HairStyle == b.HairStyle && a.FacialStyle == b.FacialStyle && a.Accessory == b.Accessory
                && a.Adult == b.Adult
                && Mathf.Approximately(a.MemberLen, b.MemberLen)
                && Mathf.Approximately(a.MemberGirth, b.MemberGirth)
@@ -669,6 +746,7 @@ namespace Trickshot
         Color WheelPick(Rect wheelRect, Color current)
         {
             GUI.DrawTexture(wheelRect, _wheel);
+            if (ModalUp) return current;   // see ModalUp - draw it, but never take the click
             Event e = Event.current;
             if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && wheelRect.Contains(e.mousePosition))
             {
@@ -727,6 +805,7 @@ namespace Trickshot
                 if (d < best) { best = d; tCur = tt; }
             }
 
+            if (ModalUp) return current;   // see ModalUp
             Event e = Event.current;
             Color result = current;
             if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && bar.Contains(e.mousePosition))
@@ -754,39 +833,24 @@ namespace Trickshot
                 float cx = x + (i % cols_n) * (sw + gap);
                 float cy = y + (i / cols_n) * (sw + gap);
                 var r = new Rect(cx, cy, sw, sw);
+                bool on = ApproxColor(current, cols[i]);
+                // Gold halo behind the pick, so the selection reads at a glance in a dense grid
+                // instead of resting on a 3px outline alone.
+                if (on) UITheme.Glow(new Rect(r.x - 6f, r.y - 6f, r.width + 12f, r.height + 12f),
+                                     new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, 0.35f));
                 var pc = GUI.color; GUI.color = cols[i];
                 GUI.DrawTexture(r, Texture2D.whiteTexture);
-                GUI.color = ApproxColor(current, cols[i]) ? new Color(1f, 0.9f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
-                DrawRectOutline(r, ApproxColor(current, cols[i]) ? 3f : 1f);
+                GUI.color = on ? UITheme.Gold : new Color(0f, 0f, 0f, 0.6f);
+                DrawRectOutline(r, on ? 3f : 1f);
                 GUI.color = pc;
                 if (GUI.Button(r, GUIContent.none, GUIStyle.none)) result = cols[i];
             }
             return result;
         }
 
-        // Human-looking skin tones for the "Human" group.
-        static readonly Color[] _humanSkins =
-        {
-            new Color(0.98f, 0.85f, 0.75f), new Color(0.94f, 0.78f, 0.66f), new Color(0.87f, 0.69f, 0.55f),
-            new Color(0.80f, 0.61f, 0.46f), new Color(0.68f, 0.49f, 0.35f), new Color(0.55f, 0.38f, 0.26f),
-            new Color(0.42f, 0.28f, 0.19f), new Color(0.30f, 0.20f, 0.14f),
-        };
-
-        void SkinSubMenu(float lx, float row, float lw, float bottom)
-        {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = Color.white } };
-            var grp = new GUIStyle(st) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.9f, 0.4f) } };
-            GUI.Label(new Rect(lx, row, lw, 20f), "Human", grp); row += 24f;
-            PlayerProfile.Appearance.Skin = SwatchRow(lx, row, lw, PlayerProfile.Appearance.Skin, _humanSkins, 34f, 8f);
-            row += 2 * (34f + 8f) + 12f;   // two rows of swatches
-            GUI.Label(new Rect(lx, row, lw, 20f), "Everyone Else", grp); row += 24f;
-            float wsz = Mathf.Min(lw, bottom - row, 150f);
-            PlayerProfile.Appearance.Skin = WheelPick(new Rect(lx, row, wsz, wsz), PlayerProfile.Appearance.Skin);
-        }
-
         // Draw an option grid over Cosmetics entries (0..count-1), grouped by an optional label
         // function. Returns the newly-selected index (or `current`). Headgear cells can be
-        // disabled. Used by Hair/Facial/Accessory sub-menus.
+        // disabled. Used by every style slot's sub-menu.
         int OptionGrid(float x, float y, float w, float h, int count, int current,
                        System.Func<int, string> label, System.Func<int, bool> enabled)
         {
@@ -797,121 +861,154 @@ namespace Trickshot
             var view = new Rect(0, 0, cols * (cw + gap), rows * (chh + gap));
             _apprScroll = GUI.BeginScrollView(new Rect(x, y, w, h), _apprScroll, view);
             var lbl = new GUIStyle(GUI.skin.button) { fontSize = 11, wordWrap = true };
+            var lblSel = new GUIStyle(lbl) { fontStyle = FontStyle.Bold };
+            lblSel.normal.textColor = UITheme.Gold;
             for (int i = 0; i < count; i++)
             {
                 float cx = (i % cols) * (cw + gap), cy = (i / cols) * (chh + gap);
                 var r = new Rect(cx, cy, cw, chh);
                 bool en = enabled == null || enabled(i);
                 bool sel = i == current;
-                var prevBg = GUI.backgroundColor; var prevEnabled = GUI.enabled;
+                var prevEnabled = GUI.enabled;
                 GUI.enabled = en;
-                if (sel) GUI.backgroundColor = new Color(0.25f, 0.6f, 0.9f);
-                if (GUI.Button(r, label(i), lbl) && en) result = i;
-                GUI.backgroundColor = prevBg; GUI.enabled = prevEnabled;
-                if (sel) { var pc = GUI.color; GUI.color = new Color(1f, 0.9f, 0.3f); DrawRectOutline(r, 2f); GUI.color = pc; }
+                // Themed toggle carries the lit plate + gold underline, so the hand-drawn tint and
+                // selection outline are gone.
+                if (UITheme.Toggle(r, label(i), sel, sel ? lblSel : lbl) && en) result = i;
+                GUI.enabled = prevEnabled;
             }
             GUI.EndScrollView();
             return result;
         }
 
-        void HairSubMenu(float lx, float row, float lw, float bottom)
+        /// <summary>
+        /// The ONE cosmetic sub-menu, for any species and any slot. Replaced the four hand-written
+        /// Skin/Hair/Facial/Accessory menus: they differed only in which appearance field they wrote,
+        /// which option list they counted, and their wheel heading, all of which are now data on
+        /// SpeciesSlot + SpeciesCosmetics. Layout and widgets are unchanged, so the human screens
+        /// look identical to before.
+        /// </summary>
+        void SlotSubMenu(SpeciesSlot slot, float lx, float row, float lw, float bottom)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            byte sp = Species.SelectedId;
+
+            // ---- Skin / coat / hide / fur / plumage: preset swatches over a free colour wheel ----
+            if (slot.Kind == SlotKind.Skin)
+            {
+                var grp = new GUIStyle(GUI.skin.label)
+                { fontSize = 14, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
+                GUI.Label(new Rect(lx, row, lw, 20f), SpeciesCosmetics.SkinGroupLabel(sp), grp); row += 24f;
+                PlayerProfile.Appearance.Skin = SwatchRow(lx, row, lw, PlayerProfile.Appearance.Skin,
+                                                         SpeciesCosmetics.SkinSwatches(sp), 34f, 8f);
+                row += 2 * (34f + 8f) + 12f;   // two rows of swatches
+                GUI.Label(new Rect(lx, row, lw, 20f), slot.ColorLabel, grp); row += 24f;
+                float skinWsz = Mathf.Min(lw, bottom - row, 150f);
+                PlayerProfile.Appearance.Skin = WheelPick(new Rect(lx, row, skinWsz, skinWsz), PlayerProfile.Appearance.Skin);
+                return;
+            }
+
+            // ---- Style slots: option grid on the left, colour wheel + value bar on the right ----
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = UITheme.Ink } };
+            bool headgearRule = slot.Kind == SlotKind.StyleC && SpeciesCosmetics.HasHeadgearRule(sp);
             float gridW = lw - 170f;
-            float gridH = bottom - row - 4f;
-            PlayerProfile.Appearance.HairStyle = OptionGrid(lx, row, gridW, gridH,
-                Cosmetics.Hair.Count, PlayerProfile.Appearance.HairStyle,
-                i => Cosmetics.Hair[i].Group.ToString()[0] + ": " + Cosmetics.Hair[i].Name, null);
-            // If hair becomes non-bald while a headgear accessory is on, clear the accessory.
-            if (!Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle)
+            float gridH = bottom - row - (headgearRule ? 24f : 4f);   // leave room for the hint line
+
+            SetSlotIndex(slot.Kind, OptionGrid(lx, row, gridW, gridH,
+                SpeciesCosmetics.Count(sp, slot.Kind), SlotIndex(slot.Kind),
+                i => SpeciesCosmetics.Label(sp, slot.Kind, i),
+                i => SpeciesCosmetics.Enabled(sp, slot.Kind, i)));
+
+            // Human head rule, both directions: putting hair back on drops a headgear accessory,
+            // and headgear cells stay disabled while there is hair (the Enabled callback above).
+            // Hair and headgear occupy the same head, see Cosmetics.AttachAppearance.
+            if (slot.Kind == SlotKind.StyleA && SpeciesCosmetics.HasHeadgearRule(sp)
+                && !Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle)
                 && Cosmetics.AccessoryIsHeadgear(PlayerProfile.Appearance.Accessory))
                 PlayerProfile.Appearance.Accessory = 0;
-            // Hair colour wheel on the right.
-            float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
-            GUI.Label(new Rect(wx, row, wsz, 18f), "Hair colour", st);
-            PlayerProfile.Appearance.HairColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.HairColor);
-            // The HSV wheel is fixed at full value so it can't reach dark shades; a value bar under
-            // it goes white -> the picked hue -> black.
-            PlayerProfile.Appearance.HairColor = ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), PlayerProfile.Appearance.HairColor);
-        }
 
-        void FacialSubMenu(float lx, float row, float lw, float bottom)
-        {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
-            float gridW = lw - 170f;
-            float gridH = bottom - row - 4f;
-            PlayerProfile.Appearance.FacialStyle = OptionGrid(lx, row, gridW, gridH,
-                Cosmetics.Facial.Count, PlayerProfile.Appearance.FacialStyle,
-                i => Cosmetics.Facial[i].Name, null);
-            float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
-            GUI.Label(new Rect(wx, row, wsz, 18f), "Facial colour", st);
-            PlayerProfile.Appearance.FacialColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.FacialColor);
-            PlayerProfile.Appearance.FacialColor = ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), PlayerProfile.Appearance.FacialColor);
-        }
-
-        void AccessorySubMenu(float lx, float row, float lw, float bottom)
-        {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
-            float gridW = lw - 170f;
-            float gridH = bottom - row - 24f;
-            bool bald = Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle);
-            PlayerProfile.Appearance.Accessory = OptionGrid(lx, row, gridW, gridH,
-                Cosmetics.Accessories.Count, PlayerProfile.Appearance.Accessory,
-                i => Cosmetics.Accessories[i].Name,
-                i => !Cosmetics.Accessories[i].Headgear || bald);   // headgear needs bald hair
-            if (!bald)
+            if (headgearRule && !Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle))
             {
-                var hint = new GUIStyle(st) { fontSize = 11, normal = { textColor = new Color(0.85f, 0.8f, 0.5f) } };
+                var hint = new GUIStyle(st) { fontSize = 11, normal = { textColor = UITheme.Gold } };
                 GUI.Label(new Rect(lx, row + gridH + 2f, gridW, 20f), "Headgear needs Bald hair.", hint);
             }
+
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
-            GUI.Label(new Rect(wx, row, wsz, 18f), "Accessory colour", st);
-            PlayerProfile.Appearance.AccessoryColor = WheelPick(new Rect(wx, row + 20f, wsz, wsz), PlayerProfile.Appearance.AccessoryColor);
-            PlayerProfile.Appearance.AccessoryColor = ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), PlayerProfile.Appearance.AccessoryColor);
+            GUI.Label(new Rect(wx, row, wsz, 18f), slot.ColorLabel, st);
+            Color tint = WheelPick(new Rect(wx, row + 20f, wsz, wsz), SlotColor(slot.Kind));
+            // The HSV wheel is fixed at full value so it can't reach dark shades; a value bar under
+            // it goes white -> the picked hue -> black.
+            SetSlotColor(slot.Kind, ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), tint));
+        }
+
+        // The only four places that know which PlayerAppearance field a SlotKind drives. Everything
+        // else works in terms of the slot, which is what lets one screen serve every species.
+        static int SlotIndex(SlotKind k) => k switch
+        {
+            SlotKind.StyleA => PlayerProfile.Appearance.HairStyle,
+            SlotKind.StyleB => PlayerProfile.Appearance.FacialStyle,
+            SlotKind.StyleC => PlayerProfile.Appearance.Accessory,
+            _ => 0,
+        };
+
+        static void SetSlotIndex(SlotKind k, int v)
+        {
+            switch (k)
+            {
+                case SlotKind.StyleA: PlayerProfile.Appearance.HairStyle = v; break;
+                case SlotKind.StyleB: PlayerProfile.Appearance.FacialStyle = v; break;
+                case SlotKind.StyleC: PlayerProfile.Appearance.Accessory = v; break;
+            }
+        }
+
+        static Color SlotColor(SlotKind k) => k switch
+        {
+            SlotKind.StyleA => PlayerProfile.Appearance.HairColor,
+            SlotKind.StyleB => PlayerProfile.Appearance.FacialColor,
+            SlotKind.StyleC => PlayerProfile.Appearance.AccessoryColor,
+            _ => PlayerProfile.Appearance.Skin,
+        };
+
+        static void SetSlotColor(SlotKind k, Color c)
+        {
+            switch (k)
+            {
+                case SlotKind.StyleA: PlayerProfile.Appearance.HairColor = c; break;
+                case SlotKind.StyleB: PlayerProfile.Appearance.FacialColor = c; break;
+                case SlotKind.StyleC: PlayerProfile.Appearance.AccessoryColor = c; break;
+                case SlotKind.Skin:   PlayerProfile.Appearance.Skin = c; break;
+            }
         }
 
         void Trait(float lx, ref float row, float lw, string label, float mul)
         {
-            // Bar centred on 1.0x: green above, red below.
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            // Bar centred on 1.0x: green above, amber below, with a tick at the neutral mark.
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = UITheme.Ink } };
             GUI.Label(new Rect(lx, row, 150f, 18f), label, st);
             float barX = lx + 160f, barW = lw - 200f, barH = 12f;
-            GUI.Box(new Rect(barX, row + 2f, barW, barH), GUIContent.none);
+            var bar = new Rect(barX, row + 2f, barW, barH);
             float t = Mathf.InverseLerp(0.6f, 1.5f, mul);
-            var prev = GUI.color;
-            GUI.color = mul >= 1f ? new Color(0.3f, 0.8f, 0.35f) : new Color(0.85f, 0.55f, 0.25f);
-            GUI.Box(new Rect(barX, row + 2f, barW * Mathf.Clamp01(t), barH), GUIContent.none);
-            GUI.color = prev;
-            GUI.Label(new Rect(barX + barW + 6f, row, 44f, 18f), $"{mul:0.00}x", st);
+            Color tc = mul >= 1f ? UITheme.Green : new Color(0.95f, 0.62f, 0.28f);
+            UITheme.Bar(bar, Mathf.Clamp01(t), new Color(tc.r * 0.5f, tc.g * 0.5f, tc.b * 0.5f, 1f), tc);
+            // Marker at 1.00x, so above/below reads without doing the arithmetic.
+            float nx = bar.x + bar.width * Mathf.InverseLerp(0.6f, 1.5f, 1f);
+            UITheme.Fill(new Rect(nx, bar.y - 1f, 1f, bar.height + 2f), new Color(1f, 1f, 1f, 0.35f));
+            var valSt = new GUIStyle(st) { fontStyle = FontStyle.Bold };
+            valSt.normal.textColor = tc;
+            GUI.Label(new Rect(barX + barW + 6f, row, 44f, 18f), $"{mul:0.00}x", valSt);
             row += 20f;
         }
 
-        // A foot-choice toggle. Selected = bright green fill, bold label + check, gold
-        // outline; unselected = dim grey. Returns true if clicked this frame.
+        // A foot-choice toggle. Selected = lit green plate, bold gold label, gold underline;
+        // unselected = the standard button plate in dim text. Returns true if clicked this frame.
         bool FootButton(Rect r, string label, bool selected)
         {
-            var prevBg = GUI.backgroundColor;
-            var prevCol = GUI.color;
-
-            // Filled background panel so the selected state is obvious regardless of skin.
-            GUI.color = selected ? new Color(0.20f, 0.65f, 0.28f) : new Color(0.20f, 0.21f, 0.25f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            if (selected) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
-            GUI.color = prevCol;
-
-            var style = new GUIStyle(GUI.skin.label)
+            var style = new GUIStyle(GUI.skin.button)
             {
                 fontSize = 15,
                 fontStyle = selected ? FontStyle.Bold : FontStyle.Normal,
                 alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = selected ? Color.white : new Color(0.7f, 0.7f, 0.74f) }
             };
-            GUI.Label(r, selected ? label + "  ✓" : label, style);
-
-            // Invisible hit area over the whole panel.
-            bool clicked = GUI.Button(r, GUIContent.none, GUIStyle.none);
-            GUI.backgroundColor = prevBg;
-            return clicked;
+            style.normal.textColor = selected ? UITheme.Gold : UITheme.Dim;
+            return UITheme.Toggle(r, label, selected, style, UITheme.GoodTint);
         }
 
         // ------------------------------------------------------------- Skill tree stage
@@ -919,6 +1016,15 @@ namespace Trickshot
         // prerequisites, clickable icon badges (left-click buys, right-click refunds), and
         // a detail strip for the selected node.
         string _selNode;   // currently selected node id (for the detail strip)
+
+        // One style for every tab strip on this screen (skill categories, jersey designs), so they
+        // all read as the same control.
+        static GUIStyle TabStyle(bool sel)
+        {
+            var s = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
+            s.normal.textColor = sel ? UITheme.Gold : UITheme.Dim;
+            return s;
+        }
 
         void SkillStage(float x, float y, float pw, float ph)
         {
@@ -928,39 +1034,55 @@ namespace Trickshot
             // live preview grows as Third Leg nodes are bought/refunded (via the ApprEquals diff).
             SyncAdultDims();
 
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
-            GUI.Label(new Rect(lx, y + 52f, lw, 24f), $"Skill points: {SkillTree.Remaining} / {SkillTree.Budget}", big);
+            var big = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
+            UITheme.Shadowed(new Rect(lx, y + 52f, lw, 24f), $"Skill points: {SkillTree.Remaining} / {SkillTree.Budget}", big, UITheme.Gold, 0.7f, 1.5f);
 
-            // Category tabs. The football categories are shown as usual; ThirdLeg is NOT one of
-            // them - it rides its own adult-only tab at the end (so it's hidden without adult mode).
+            // Category tabs. The seven football categories are SHARED by every species and shown as
+            // usual. Two categories are NOT among them and ride conditional tabs appended at the end:
+            // ThirdLeg (adult mode only) and Instinct (only for a species that has Instinct nodes).
+            // One shared tree keeps the stat card comparable across species.
+            var sp = Species.Current;
+            bool hasInstinct = sp.InstinctTab != null && SkillTree.HasInstinct(Species.SelectedId);
+
             var cats = (SkillTree.Category[])System.Enum.GetValues(typeof(SkillTree.Category));
             int realCount = 0;
-            foreach (var c in cats) if (c != SkillTree.Category.ThirdLeg) realCount++;
-            int tabCount = realCount + (_adultMode ? 1 : 0);
+            foreach (var c in cats)
+                if (c != SkillTree.Category.ThirdLeg && c != SkillTree.Category.Instinct) realCount++;
+            int tabCount = realCount + (_adultMode ? 1 : 0) + (hasInstinct ? 1 : 0);
             float tw = (lw - (tabCount - 1) * 4f) / tabCount;
             int ti = 0;
             foreach (var c in cats)
             {
-                if (c == SkillTree.Category.ThirdLeg) continue;   // shown separately below
-                bool sel = _skillCat == c && !_thirdLegTab;
-                var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + ti * (tw + 4f), y + 84f, tw, 26f), c.ToString(), tb))
-                    { _skillCat = c; _thirdLegTab = false; }
+                // Shown separately below, so they must not consume a slot in this loop either.
+                if (c == SkillTree.Category.ThirdLeg || c == SkillTree.Category.Instinct) continue;
+                bool sel = _skillCat == c && !_thirdLegTab && !_instinctTab;
+                if (UITheme.Toggle(new Rect(lx + ti * (tw + 4f), y + 84f, tw, 26f), c.ToString(), sel, TabStyle(sel)))
+                    { _skillCat = c; _thirdLegTab = false; _instinctTab = false; }
                 ti++;
             }
+            // The two conditional tabs share a running index so they pack tight whether one or both
+            // are present (`ti` continues from realCount).
             if (_adultMode)
             {
-                var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = _thirdLegTab ? FontStyle.Bold : FontStyle.Normal };
-                if (_thirdLegTab) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(lx + realCount * (tw + 4f), y + 84f, tw, 26f), "Third Leg", tb))
-                    _thirdLegTab = true;
+                if (UITheme.Toggle(new Rect(lx + ti * (tw + 4f), y + 84f, tw, 26f), "Third Leg", _thirdLegTab, TabStyle(_thirdLegTab)))
+                    { _thirdLegTab = true; _instinctTab = false; }
+                ti++;
             }
             else _thirdLegTab = false;   // adult mode off -> can't be on this tab
+            if (hasInstinct)
+            {
+                // Labelled per species ("Primate", "Ratite", ...), not "Instinct".
+                if (UITheme.Toggle(new Rect(lx + ti * (tw + 4f), y + 84f, tw, 26f), sp.InstinctTab, _instinctTab, TabStyle(_instinctTab)))
+                    { _instinctTab = true; _thirdLegTab = false; }
+                ti++;
+            }
+            else _instinctTab = false;   // this species has no Instinct nodes
 
-            // Which category's graph we're drawing: the adult tab shows the ThirdLeg tree, else the
+            // Which category's graph we're drawing: a conditional tab shows its own tree, else the
             // selected football category. Everything below reads `drawCat`.
-            var drawCat = _thirdLegTab ? SkillTree.Category.ThirdLeg : _skillCat;
+            var drawCat = _thirdLegTab ? SkillTree.Category.ThirdLeg
+                        : _instinctTab ? SkillTree.Category.Instinct
+                        : _skillCat;
 
             // Graph area for the selected category.
             var area = new Rect(lx, y + 120f, lw, ph - 120f - 130f);
@@ -982,11 +1104,11 @@ namespace Trickshot
                 var req = SkillTree.ById(n.Requires);
                 if (req == null) continue;
                 bool lit = SkillTree.Owned.Contains(n.Id);
-                DrawLine(Centre(req), Centre(n), lit ? new Color(0.4f, 0.85f, 0.5f) : new Color(0.4f, 0.4f, 0.45f), lit ? 3f : 2f);
+                DrawLine(Centre(req), Centre(n), lit ? UITheme.Green : new Color(0.30f, 0.33f, 0.40f), lit ? 3f : 2f);
             }
 
             // Pass 2: node badges.
-            var costSt = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.4f) } };
+            var costSt = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
             foreach (var n in SkillTree.InCategory(drawCat))
             {
                 Vector2 c = Centre(n);
@@ -995,13 +1117,18 @@ namespace Trickshot
                 bool capstone = n.Perk != null;
                 var r = new Rect(c.x - nodeSz * 0.5f, c.y - nodeSz * 0.5f, nodeSz, nodeSz);
 
+                // Blue halo on a buyable node, so the next legal purchase is obvious in the graph.
+                if (canBuy && !owned)
+                    UITheme.Glow(new Rect(r.x - 8f, r.y - 8f, r.width + 16f, r.height + 16f),
+                                 new Color(UITheme.Blue.r, UITheme.Blue.g, UITheme.Blue.b, 0.22f));
+                // Rounded plate instead of a hard square. No edge colour: Chip's edge is a LEFT
+                // spine, which reads wrong on a square badge.
+                UITheme.Chip(r, owned ? new Color(0.13f, 0.33f, 0.20f, 0.98f)
+                              : canBuy ? new Color(0.15f, 0.20f, 0.33f, 0.98f)
+                              : new Color(0.09f, 0.10f, 0.13f, 0.96f));
                 var prev = GUI.color;
-                GUI.color = owned ? new Color(0.25f, 0.6f, 0.32f)
-                          : canBuy ? new Color(0.28f, 0.34f, 0.5f)
-                          : new Color(0.18f, 0.18f, 0.22f);
-                GUI.DrawTexture(r, Texture2D.whiteTexture);
                 // Capstone gets a gold ring.
-                if (capstone) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
+                if (capstone) { GUI.color = UITheme.Gold; DrawRectOutline(r, 2f); }
                 if (_selNode == n.Id) { GUI.color = Color.white; DrawRectOutline(new Rect(r.x-2,r.y-2,r.width+4,r.height+4), 2f); }
 
                 // Procedural white line-art icon, tinted full for owned/buyable, dim for locked.
@@ -1021,7 +1148,7 @@ namespace Trickshot
                 // to every node built on top of it); clicking a buyable node buys it.
                 // Right-click also refunds, for muscle memory.
                 Event e = Event.current;
-                if (e.type == EventType.MouseDown && r.Contains(e.mousePosition))
+                if (!ModalUp && e.type == EventType.MouseDown && r.Contains(e.mousePosition))   // see ModalUp
                 {
                     _selNode = n.Id;
                     if (owned) SkillTree.Refund(n);        // left OR right click on owned = refund (cascades)
@@ -1037,9 +1164,9 @@ namespace Trickshot
             {
                 float dy = y + ph - 124f;
                 var box = new Rect(lx, dy, lw, 58f);
-                var prev = GUI.color; GUI.color = new Color(0.12f, 0.13f, 0.16f); GUI.DrawTexture(box, Texture2D.whiteTexture); GUI.color = prev;
-                var nameSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
-                var descSt = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = new Color(0.85f,0.85f,0.88f) } };
+                UITheme.Chip(box, new Color(0.10f, 0.12f, 0.17f, 0.97f), selNode.Perk != null ? UITheme.Gold : UITheme.Blue);
+                var nameSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Ink } };
+                var descSt = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } };
                 string tag = selNode.Perk != null ? "  [CAPSTONE PERK]" : "";
                 GUI.Label(new Rect(box.x + 10f, box.y + 5f, lw - 130f, 18f), selNode.Name + tag, nameSt);
                 GUI.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), selNode.Desc, descSt);
@@ -1051,7 +1178,7 @@ namespace Trickshot
                     // Any owned node refunds; if dependents are built on it the refund
                     // cascades, so say so on the button.
                     bool cascades = SkillTree.HasOwnedDependents(selNode);
-                    if (GUI.Button(actRect, cascades ? "Refund chain" : $"Refund {selNode.Cost}", actBtn))
+                    if (UITheme.Button(actRect, cascades ? "Refund chain" : $"Refund {selNode.Cost}", actBtn, true))
                         SkillTree.Refund(selNode);
                 }
                 else
@@ -1059,7 +1186,10 @@ namespace Trickshot
                     bool canBuy = SkillTree.CanBuy(selNode);
                     GUI.enabled = canBuy;
                     bool needReq = !string.IsNullOrEmpty(selNode.Requires) && !SkillTree.Owned.Contains(selNode.Requires);
-                    if (GUI.Button(actRect, needReq ? "Needs prereq" : $"Buy {selNode.Cost}", actBtn)) SkillTree.Buy(selNode);
+                    var keepBuy = GUI.backgroundColor;
+                    if (canBuy) GUI.backgroundColor = UITheme.GoodTint;
+                    if (UITheme.Button(actRect, needReq ? "Needs prereq" : $"Buy {selNode.Cost}", actBtn)) SkillTree.Buy(selNode);
+                    GUI.backgroundColor = keepBuy;
                     GUI.enabled = true;
                 }
             }
@@ -1084,15 +1214,13 @@ namespace Trickshot
             float colY = previewRect.y + Mathf.Max(0f, (previewRect.height - contentH) * 0.5f);
 
             // Backing panel.
-            var prevC = GUI.color; GUI.color = new Color(0f, 0f, 0f, 0.4f);
-            GUI.DrawTexture(new Rect(colX - pad, colY - pad, bw + pad * 2f, contentH + pad * 2f), Texture2D.whiteTexture);
-            GUI.color = prevC;
+            UITheme.Panel(new Rect(colX - pad, colY - pad, bw + pad * 2f, contentH + pad * 2f), UITheme.Gold);
 
             // RANDOMIZE: roll a fresh legal random build (random node count from random areas). The
             // radar + 3D preview read live from SkillTree, so no explicit apply is needed.
             var randRect = new Rect(colX, colY, bw, randBh);
-            var prevR = GUI.color; GUI.color = new Color(0.30f, 0.24f, 0.42f); GUI.DrawTexture(randRect, Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(randRect, 1.5f); GUI.color = prevR;
+            UITheme.Chip(randRect, new Color(0.20f, 0.15f, 0.32f, 0.98f));
+            var prevR = GUI.color; GUI.color = UITheme.Gold; DrawRectOutline(randRect, 1.5f); GUI.color = prevR;
             var shuf = SkillIcons.Get("_shuffle");
             if (shuf != null)
             {
@@ -1100,11 +1228,11 @@ namespace Trickshot
                 GUI.DrawTexture(new Rect(randRect.x + 8f, randRect.y + 5f, 20f, 20f), shuf, ScaleMode.ScaleToFit, true);
                 GUI.color = p2;
             }
-            var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+            var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
             GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), "RANDOMIZE", randSt);
             if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) { SkillTree.Randomize(); _selNode = null; }
 
-            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+            var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
             GUI.Label(new Rect(colX, colY + randBh + randGap, bw, 20f), "QUICK BUILDS", hdr);
 
             float row = colY + randBh + randGap + 26f;
@@ -1113,18 +1241,18 @@ namespace Trickshot
                 var p = presets[i];
                 bool active = PresetMatches(p);       // fully owned
                 bool canAdd = !active && PresetCanAdd(p);
-                var prev = GUI.color;
-                // Green = applied, normal = clickable, dark = nothing left it can afford.
-                GUI.color = active ? new Color(0.22f, 0.55f, 0.3f)
-                          : canAdd ? new Color(0.2f, 0.21f, 0.26f)
-                          : new Color(0.14f, 0.14f, 0.17f);
                 var r = new Rect(colX, row, bw, bh);
-                GUI.DrawTexture(r, Texture2D.whiteTexture);
-                if (active) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
+                // Green = applied, normal = clickable, dark = nothing left it can afford.
+                UITheme.Chip(r, active ? new Color(0.13f, 0.34f, 0.21f, 0.98f)
+                              : canAdd ? new Color(0.12f, 0.14f, 0.19f, 0.96f)
+                              : new Color(0.08f, 0.09f, 0.11f, 0.94f),
+                             active ? UITheme.Green : (Color?)null);
+                var prev = GUI.color;
+                if (active) { GUI.color = UITheme.Gold; DrawRectOutline(r, 2f); }
                 GUI.color = prev;
 
                 var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-                                                        normal = { textColor = (active || canAdd) ? Color.white : new Color(1f, 1f, 1f, 0.4f) } };
+                                                        normal = { textColor = active ? UITheme.Ink : canAdd ? UITheme.Dim : UITheme.Faint } };
                 GUI.Label(r, p.Name, lbl);
                 // Presets TOGGLE and STACK: clicking an unapplied build adds it on top of the current
                 // spend (skipping anything unaffordable), so several can be combined; clicking an
@@ -1141,15 +1269,15 @@ namespace Trickshot
 
             // CLEAR: presets no longer wipe the tree, so there has to be an explicit way to start over.
             var clearRect = new Rect(colX, row + 2f, bw, 26f);
-            var prevCl = GUI.color; GUI.color = new Color(0.34f, 0.18f, 0.18f); GUI.DrawTexture(clearRect, Texture2D.whiteTexture); GUI.color = prevCl;
-            var clearSt = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.85f, 0.85f) } };
+            UITheme.Chip(clearRect, new Color(0.24f, 0.09f, 0.09f, 0.96f), UITheme.Red);
+            var clearSt = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.84f, 0.82f) } };
             GUI.Label(clearRect, "CLEAR ALL", clearSt);
             if (GUI.Button(clearRect, GUIContent.none, GUIStyle.none)) { SkillTree.Clear(); _selNode = null; }
             row += 30f;
 
-            var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.8f, 0.8f, 0.83f) } };
+            var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = UITheme.Dim } };
             GUI.Label(new Rect(colX, row + 2f, bw, 34f),
-                      "Builds STACK - click several to combine. Click a green one to remove it.", note);
+                      "Builds stack. Click green to remove.", note);
         }
 
         // A preset counts as APPLIED when every one of its nodes is owned. Presets now stack
@@ -1204,12 +1332,12 @@ namespace Trickshot
         // ----------------------------------------------------------- Jersey stage
         void JerseyStage(float x, float y, float pw, float ph)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Color.white } };
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = UITheme.Ink } };
             float lx = x + 28f, top = y + 58f;
 
             // Eyedropper: while armed, the FIRST left-click anywhere grabs the exact screen
             // pixel under the cursor. Handled before any other control so it wins the click.
-            if (_eyedropper && !_picking)
+            if (_eyedropper && !_picking && !ModalUp)   // see ModalUp
             {
                 Event ee = Event.current;
                 if (ee.type == EventType.MouseDown && ee.button == 0)
@@ -1219,7 +1347,7 @@ namespace Trickshot
                 }
                 // Crosshair-ish cursor hint follows the mouse.
                 var hintR = new Rect(Event.current.mousePosition.x + 12f, Event.current.mousePosition.y + 12f, 120f, 18f);
-                var hs = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = new Color(1f, 0.9f, 0.3f) } };
+                var hs = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = UITheme.Gold } };
                 GUI.Label(hintR, "pick a colour", hs);
             }
 
@@ -1235,7 +1363,7 @@ namespace Trickshot
             float v0 = CurRegionY0 / (float)AtlasH;
             var texCoords = new Rect(0f, v0, 1f, RegH / (float)AtlasH);
             GUI.DrawTextureWithTexCoords(canvasRect, _canvas, texCoords);
-            GUI.Box(canvasRect, GUIContent.none);   // border
+            UITheme.Frame(canvasRect);   // border ONLY: the themed box plate would cover the canvas
 
             HandlePaint(canvasRect);
             HandleBrushResize(canvasRect);
@@ -1246,8 +1374,8 @@ namespace Trickshot
             float ubw = 56f, ubh = 22f, ugap = 4f;
             var clearR = new Rect(canvasRect.xMax - ubw - 4f, canvasRect.y + 4f, ubw, ubh);
             var undoR = new Rect(clearR.x - ubw - ugap, canvasRect.y + 4f, ubw, ubh);
-            if (GUI.Button(undoR, "Undo", miniBtn)) Undo();
-            if (GUI.Button(clearR, "Clear", miniBtn)) ClearPaint();
+            if (UITheme.Button(undoR, "Undo", miniBtn)) Undo();
+            if (UITheme.Button(clearR, "Clear", miniBtn, true)) ClearPaint();
 
             // --- Tools column (right of the canvas) ---
             float tx = lx + canvasSize + 16f, tw = (x + pw - 28f) - tx, tr = top;
@@ -1262,14 +1390,16 @@ namespace Trickshot
             var prev = GUI.color; GUI.color = _brushColor;
             GUI.DrawTexture(new Rect(tx, tr, 40f, 20f), Texture2D.whiteTexture);
             GUI.color = prev;
-            GUI.Box(new Rect(tx, tr, 40f, 20f), GUIContent.none);
+            // Hairline outline, not a box: the themed box plate is opaque and would hide the swatch.
+            var swc = GUI.color; GUI.color = new Color(1f, 1f, 1f, 0.30f);
+            DrawRectOutline(new Rect(tx, tr, 40f, 20f), 1f); GUI.color = swc;
             EnsureEyedropperIcon();
             var edRect = new Rect(tx + 48f, tr - 4f, 28f, 28f);   // square button sized to the icon
             if (GUI.Button(edRect, GUIContent.none)) _eyedropper = !_eyedropper;
             // Highlight ring when armed.
             if (_eyedropper)
             {
-                var hc = GUI.color; GUI.color = new Color(1f, 0.9f, 0.3f);
+                var hc = GUI.color; GUI.color = UITheme.Gold;
                 DrawRectOutline(edRect, 2f); GUI.color = hc;
             }
             // Draw the icon inset within the button.
@@ -1324,21 +1454,15 @@ namespace Trickshot
             _picking = false;
         }
 
-        // A FRONT/BACK tab button. Selected = bright fill + gold outline.
+        // A FRONT/BACK tab button. Selected = lit plate, bold gold label, gold underline.
         bool SideTab(Rect r, string label, bool selected)
         {
-            var prevCol = GUI.color;
-            GUI.color = selected ? new Color(0.20f, 0.55f, 0.75f) : new Color(0.20f, 0.21f, 0.25f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            if (selected) { GUI.color = new Color(1f, 0.85f, 0.3f); DrawRectOutline(r, 2f); }
-            GUI.color = prevCol;
-            var style = new GUIStyle(GUI.skin.label)
+            var style = new GUIStyle(GUI.skin.button)
             {
                 fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = selected ? Color.white : new Color(0.7f, 0.7f, 0.74f) }
             };
-            GUI.Label(r, label, style);
-            return GUI.Button(r, GUIContent.none, GUIStyle.none);
+            style.normal.textColor = selected ? UITheme.Gold : UITheme.Dim;
+            return UITheme.Toggle(r, label, selected, style);
         }
 
         // Switch the region being drawn + snap the 3D preview to that side.
@@ -1360,9 +1484,7 @@ namespace Trickshot
             for (int i = 0; i < tabs.Length; i++)
             {
                 bool sel = _designTab == tabs[i];
-                var tb = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
-                if (sel) tb.normal.textColor = new Color(1f, 0.9f, 0.3f);
-                if (GUI.Button(new Rect(px + i * (tw + 4f), py, tw, 24f), tabs[i].ToString(), tb))
+                if (UITheme.Toggle(new Rect(px + i * (tw + 4f), py, tw, 24f), tabs[i].ToString(), sel, TabStyle(sel)))
                 { _designTab = tabs[i]; _designScroll = Vector2.zero; }
             }
 
@@ -1377,7 +1499,7 @@ namespace Trickshot
             var viewRect = new Rect(0f, 0f, cols * (sw + sgap), rows * (sh + sgap));
 
             _designScroll = GUI.BeginScrollView(gridRect, _designScroll, viewRect);
-            var capSt = new GUIStyle(GUI.skin.label) { fontSize = 9, alignment = TextAnchor.UpperCenter, wordWrap = true, normal = { textColor = Color.white } };
+            var capSt = new GUIStyle(GUI.skin.label) { fontSize = 9, alignment = TextAnchor.UpperCenter, wordWrap = true, normal = { textColor = UITheme.Ink } };
             for (int i = 0; i < items; i++)
             {
                 int cell = i;
@@ -1391,7 +1513,7 @@ namespace Trickshot
                     bool selNone = _selectedDesign == null;
                     var pc = GUI.color; GUI.color = PlayerProfile.JerseyBase;
                     GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
-                    GUI.color = selNone ? new Color(1f, 0.85f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                    GUI.color = selNone ? UITheme.Gold : new Color(0f, 0f, 0f, 0.6f);
                     DrawRectOutline(cellRect, selNone ? 2f : 1f);
                     GUI.color = pc;
                     if (GUI.Button(cellRect, GUIContent.none, GUIStyle.none)) ApplyDesign(null);
@@ -1404,7 +1526,7 @@ namespace Trickshot
                 if (thumb != null) GUI.DrawTexture(cellRect, thumb);
                 bool sel = _selectedDesign == d;
                 var pc2 = GUI.color;
-                GUI.color = sel ? new Color(1f, 0.85f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                GUI.color = sel ? UITheme.Gold : new Color(0f, 0f, 0f, 0.6f);
                 DrawRectOutline(cellRect, sel ? 2f : 1f);
                 GUI.color = pc2;
                 if (GUI.Button(cellRect, GUIContent.none, GUIStyle.none)) ApplyDesign(d);
@@ -1428,6 +1550,7 @@ namespace Trickshot
         // Hold the middle (wheel) button and drag: left shrinks, right grows the brush.
         void HandleBrushResize(Rect canvasRect)
         {
+            if (ModalUp) { _resizingBrush = false; return; }   // see ModalUp
             Event e = Event.current;
             _lastMouse = e.mousePosition;
             if (e.type == EventType.MouseDown && e.button == 2)
@@ -1531,6 +1654,7 @@ namespace Trickshot
 
         void HandlePaint(Rect canvasRect)
         {
+            if (ModalUp) { _painting = false; return; }   // see ModalUp
             Event e = Event.current;
             bool inside = canvasRect.Contains(e.mousePosition);
 
@@ -1587,6 +1711,7 @@ namespace Trickshot
 
         void HandleWheel(Rect wheelRect)
         {
+            if (ModalUp) return;   // see ModalUp
             Event e = Event.current;
             if ((e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && wheelRect.Contains(e.mousePosition))
             {
@@ -1611,7 +1736,7 @@ namespace Trickshot
         // ------------------------------------------------------------- Name stage
         void NameStage(float x, float y, float pw, float ph)
         {
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 16, normal = { textColor = Color.white } };
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 16, normal = { textColor = UITheme.Ink } };
             float lx = x + 30f, lw = pw - 60f, row = y + 76f;
 
             GUI.Label(new Rect(lx, row, lw, 22f), "Name (shown on the back):", st); row += 26f;
@@ -1630,7 +1755,7 @@ namespace Trickshot
             var prev = GUI.color; GUI.color = PlayerProfile.JerseyBase;
             GUI.DrawTexture(preview, Texture2D.whiteTexture);
             GUI.color = prev;
-            GUI.Box(preview, GUIContent.none);
+            UITheme.Frame(preview);   // border ONLY: a filled plate would cover the jersey swatch
             var numStyle = new GUIStyle(GUI.skin.label) { fontSize = 90, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _identityColor } };
             GUI.Label(new Rect(preview.x, preview.y + 40f, preview.width, 120f), _number.ToString(), numStyle);
             var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _identityColor } };
@@ -1662,7 +1787,7 @@ namespace Trickshot
                     var pc = GUI.color; GUI.color = swatches[i].c;
                     GUI.DrawTexture(sr, Texture2D.whiteTexture);
                     bool sel = ApproxColor(_identityColor, swatches[i].c);
-                    GUI.color = sel ? new Color(1f, 0.9f, 0.3f) : new Color(0f, 0f, 0f, 0.6f);
+                    GUI.color = sel ? UITheme.Gold : new Color(0f, 0f, 0f, 0.6f);
                     DrawRectOutline(sr, sel ? 3f : 1f);
                     GUI.color = pc;
                     if (GUI.Button(sr, GUIContent.none, GUIStyle.none)) SetIdentityColor(swatches[i].c);
@@ -1682,9 +1807,12 @@ namespace Trickshot
             float by = MenuScale.Height - 72f;    // sit a little lower, closer to the screen bottom
             float bw = 150f, edge = 24f;
 
-            if (GUI.Button(new Rect(edge, by, bw, 44f), "Back", btn))
+            if (UITheme.Button(new Rect(edge, by, bw, 44f), "Back", btn))
             {
-                if (_stage == Stage.Body) { enabled = false; _onBack?.Invoke(); }
+                // Back off the first stage leaves the screen entirely, to the species picker, which
+                // builds its OWN preview in this same frame. Hide ours first or both render the tail
+                // of the frame. See PlayerPreview.Hide.
+                if (_stage == Stage.Body) { enabled = false; if (_preview != null) _preview.Hide(); _onBack?.Invoke(); }
                 else
                 {
                     _stage -= 1;
@@ -1694,9 +1822,14 @@ namespace Trickshot
 
             // Flow is Body -> Skill -> Name -> Jersey; Jersey is last so it carries Confirm.
             string nextLabel = _stage == Stage.Jersey ? "Confirm" : "Next";
-            if (GUI.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 44f), nextLabel, btn))
+            var keepNav = GUI.backgroundColor; GUI.backgroundColor = UITheme.GoodTint;
+            bool nextHit = UITheme.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 44f), nextLabel, btn);
+            GUI.backgroundColor = keepNav;
+            if (nextHit)
             {
-                if (_stage == Stage.Jersey) { Commit(); enabled = false; _onDone?.Invoke(); }
+                // Same on Confirm: the preview camera sits at depth 5, above the match camera, so
+                // leaving it live for the rest of the frame flashes a dark panel over the new match.
+                if (_stage == Stage.Jersey) { Commit(); enabled = false; if (_preview != null) _preview.Hide(); _onDone?.Invoke(); }
                 // Leaving Skill with adult mode on + points in Third Leg: gate on the funny
                 // confirmation modal (it advances to Name on Continue) instead of advancing now.
                 else if (_stage == Stage.Skill && _adultMode && SkillTree.ThirdLegSpent > 0)
@@ -1730,6 +1863,17 @@ namespace Trickshot
         // again at Commit so the committed + networked appearance carries the final sizes.
         static void SyncAdultDims()
         {
+            // A species with no adult mode holds the base dims regardless of the tree. Third Leg
+            // nodes are not species-gated, so a node bought as a human stays owned after switching
+            // to a horse; without this the horse would still commit and network non-base dims.
+            // Species.ApplySelection zeroes them on the switch, this stops them being written back.
+            if (!Species.Current.AllowsAdult)
+            {
+                PlayerProfile.Appearance.MemberLen   = 1f;
+                PlayerProfile.Appearance.MemberGirth = 1f;
+                PlayerProfile.Appearance.BallSize    = 1f;
+                return;
+            }
             PlayerProfile.Appearance.MemberLen   = SkillTree.Mul("length");
             PlayerProfile.Appearance.MemberGirth = SkillTree.Mul("girth");
             PlayerProfile.Appearance.BallSize    = SkillTree.Mul("ballsize");

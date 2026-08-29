@@ -20,14 +20,22 @@ namespace Trickshot
     public static class PlayerProfile
     {
         // ---- Raw attributes (the sliders) ----
-        // Height in metres (default 1.80). Range covers a short-and-nippy to a
-        // tall-target-man build.
-        public const float MinHeight = 1.60f, MaxHeight = 2.05f, DefaultHeight = 1.80f;
-        // Weight in kg (default 75). Light winger to heavy powerhouse.
-        public const float MinWeight = 55f, MaxWeight = 110f, DefaultWeight = 75f;
+        // The bands come from the SELECTED SPECIES (see Species.All), because a horse is measured
+        // at the withers in a different range than a human is at the crown, and 75 kg is a person
+        // but not an elephant. Human is 1.60 to 2.05 m and 55 to 110 kg, i.e. unchanged.
+        // Species.ApplySelection re-clamps Height/Weight whenever the band moves.
+        public static float MinHeight     => Species.Current.Size.Min;
+        public static float MaxHeight     => Species.Current.Size.Max;
+        public static float DefaultHeight => Species.Current.Size.Default;
+        public static float MinWeight     => Species.Current.Mass.Min;
+        public static float MaxWeight     => Species.Current.Mass.Max;
+        public static float DefaultWeight => Species.Current.Mass.Default;
 
-        public static float Height = DefaultHeight;
-        public static float Weight = DefaultWeight;
+        // Literal initializers on purpose: these run during static field init, and reading
+        // DefaultHeight here would pull in Species' static state mid-initialization for no gain.
+        // The real values are set by Species.ApplySelection / ResetToDefault.
+        public static float Height = 1.80f;
+        public static float Weight = 75f;
 
         // ---- Identity ----
         public static string PlayerName = "PLAYER";
@@ -53,33 +61,57 @@ namespace Trickshot
         public static float HeightT => Mathf.InverseLerp(MinHeight, MaxHeight, Height);
         public static float WeightT => Mathf.InverseLerp(MinWeight, MaxWeight, Weight);
 
-        // Physical scale factors for the ragdoll geometry.
-        public static float HeightScale => Height / DefaultHeight;                 // vertical
+        // Where this build sits inside its OWN species' band: 1.0 at that species' default.
+        // Species-relative, so a mid-range horse and a mid-range human both read 1.0 here.
+        // Used for the body-shape maths, which must not care how big the species is overall.
+        public static float BodyHeightScale => Height / DefaultHeight;
+
+        // Physical scale factors for the ragdoll geometry. VisualScale is the species' size
+        // relative to a person, so a horse renders bigger than a human of the same slider
+        // position. Human VisualScale/VisualGirth are 1f, so the human build is unchanged.
+        public static float HeightScale => BodyHeightScale * Species.Current.VisualScale;
         // Girth from weight, but partly discounted by height (a tall heavy player is
         // lean, a short heavy player is stocky). Kept in a sane visual band.
         public static float GirthScale
         {
             get
             {
-                float bmiIsh = Weight / (HeightScale * HeightScale); // weight adjusted for frame
+                // Deliberately BodyHeightScale, not HeightScale: dividing by the species' overall
+                // size would push every big species to the bottom of its own weight band.
+                float bmiIsh = Weight / (BodyHeightScale * BodyHeightScale); // weight adjusted for frame
                 float t = Mathf.InverseLerp(MinWeight, MaxWeight, bmiIsh);
-                return Mathf.Lerp(0.82f, 1.35f, t);
+                return Mathf.Lerp(0.82f, 1.35f, t) * Species.Current.VisualGirth;
             }
         }
 
-        // Mass multiplier vs the default build (drives push resistance + shot inertia).
+        // Mass multiplier vs the default build (drives push resistance + shot inertia). Both terms
+        // are species-relative, so a default elephant is 1.0 like a default human: cross-species
+        // mass advantage is a balancing decision (SpeciesBias.Push), not a side effect of the
+        // slider units.
         public static float MassMul => Weight / DefaultWeight;
 
         // ---- Body baselines (1.0 = default build), from height/weight only ----
         // Every base stat is scaled down 15% (BaseStatScale) EXCEPT jump height, which keeps its
         // full baseline. Applied OUTSIDE the clamp so the whole band shifts down uniformly.
+        //
+        // The species Bias multiplies OUTSIDE the clamp too, for the same reason: it shifts a
+        // species' whole band rather than squeezing builds against the human clamp. Every Bias is
+        // 1f today (see SpeciesBias.None), so no species plays differently yet. This is the hook
+        // the cross-species balancing pass edits.
         const float BaseStatScale = 0.85f;   // -15% to every base stat except jump height
-        static float BodyMove   => BaseStatScale * Mathf.Clamp(1f + (0.5f - WeightT) * 0.30f + (0.5f - HeightT) * 0.10f, 0.75f, 1.25f);
-        static float BodySprint => BaseStatScale * Mathf.Clamp(1f + (0.5f - WeightT) * 0.40f + (0.5f - HeightT) * 0.12f, 0.7f, 1.3f);
-        static float BodyJump   => Mathf.Clamp(1f + (0.5f - WeightT) * 0.45f + (0.5f - HeightT) * 0.18f, 0.65f, 1.35f);
-        static float BodyShot   => BaseStatScale * Mathf.Clamp(1f + (WeightT - 0.5f) * 0.45f + (HeightT - 0.5f) * 0.15f, 0.75f, 1.35f);
-        static float BodyPush   => BaseStatScale * Mathf.Clamp(1f + (WeightT - 0.5f) * 0.6f  + (HeightT - 0.5f) * 0.2f,  0.7f, 1.5f);
-        static float BodyReach  => BaseStatScale * Mathf.Clamp(1f + (HeightT - 0.5f) * 0.35f, 0.85f, 1.2f);
+        static SpeciesBias Bias => Species.Current.Bias;
+        static float BodyMove   => BaseStatScale * Bias.Move   * Mathf.Clamp(1f + (0.5f - WeightT) * 0.30f + (0.5f - HeightT) * 0.10f, 0.75f, 1.25f);
+        static float BodySprint => BaseStatScale * Bias.Sprint * Mathf.Clamp(1f + (0.5f - WeightT) * 0.40f + (0.5f - HeightT) * 0.12f, 0.7f, 1.3f);
+        static float BodyJump   =>                 Bias.Jump   * Mathf.Clamp(1f + (0.5f - WeightT) * 0.45f + (0.5f - HeightT) * 0.18f, 0.65f, 1.35f);
+        // Shot is the one baseline written as a FUNCTION of its inputs rather than a property, so the
+        // cross-species ceiling below can evaluate it at another species' bias and at the top of both
+        // sliders without a second copy of these coefficients. A second copy is exactly how a ceiling
+        // goes stale: retune the 0.45 here and a hard-coded ceiling silently stops matching it.
+        static float ShotAt(float weightT, float heightT, SpeciesBias bias)
+            => BaseStatScale * bias.Shot * Mathf.Clamp(1f + (weightT - 0.5f) * 0.45f + (heightT - 0.5f) * 0.15f, 0.75f, 1.35f);
+        static float BodyShot   => ShotAt(WeightT, HeightT, Bias);
+        static float BodyPush   => BaseStatScale * Bias.Push   * Mathf.Clamp(1f + (WeightT - 0.5f) * 0.6f  + (HeightT - 0.5f) * 0.2f,  0.7f, 1.5f);
+        static float BodyReach  => BaseStatScale * Bias.Reach  * Mathf.Clamp(1f + (HeightT - 0.5f) * 0.35f, 0.85f, 1.2f);
 
         // ---- Final TRAIT multipliers = body baseline * skill-tree bonus (STACKED). ----
         public static float MoveSpeedMul   => BodyMove   * SkillTree.Mul("move");
@@ -106,6 +138,27 @@ namespace Trickshot
         public static float PassPowerMul    => SkillTree.Mul("passpower");  // faster/harder passes
         public static float PassAccuracyMul => SkillTree.Mul("passacc");    // less scatter on passes (Maestro ~ perfect)
 
+        // ---- The cross-species POWER CEILING ----
+        // The most shot power and the most header power a HUMAN can ever reach. BallController clamps
+        // every species to these, so nothing hits the ball harder than the best human can, whatever
+        // its body plan. Both are DERIVED and neither may become a literal: ShotAt keeps the body
+        // coefficients in one place and SkillTree.MaxMul sums whatever shooting/heading nodes exist,
+        // so retuning the tree or the baseline moves the ceiling with it.
+        //
+        // Two things make this non-trivial rather than decorative:
+        //  - WeightT / HeightT are InverseLerps inside each species' OWN slider band, so a maxed
+        //    elephant and a maxed human both reach t = 1 and the body term is already species-neutral
+        //    at 1.105. The asymmetry lives entirely in the TREE, where the horse's species-gated Heavy
+        //    Hoof adds +12% shot power no human can buy. Evaluating MaxMul against HumanId is what
+        //    excludes it.
+        //  - Read at the top of BOTH sliders, not at the current build. This is a ceiling on what the
+        //    game allows, not a scaling of the current body, so a light horse is not held to a light
+        //    human's output. It only ever binds where a species exceeds the human's best case.
+        public static float HumanShotPowerMax
+            => ShotAt(1f, 1f, Species.ById(Species.HumanId).Bias)
+               * SkillTree.MaxMul("shotpower", Species.HumanId);
+        public static float HumanHeaderPowerMax => SkillTree.MaxMul("headpower", Species.HumanId);
+
         // Dribble close-control, 0 (no Control) .. 1 (fully invested trap nodes), derived
         // from the same trap stat as first touch. Drives a tighter carry, faster + sharper
         // turning, and higher move speed with the ball, plus a wider capture net - so a
@@ -114,6 +167,15 @@ namespace Trickshot
         // Cushion +0.25, Close Control +0.15, Dribbler +0.20) stack to 1.85, so map
         // [1.0 .. 1.85] onto [0 .. 1].
         public static float DribbleTightness => Mathf.InverseLerp(1f, 1.85f, TrapMul);
+
+        // Shooting + Control blend, 0..1, SKILL ONLY (no body coupling, so weight/height never
+        // gate it). Shooting side is the skill-tree power mul normalized to its 1.68 ceiling -
+        // the same normalization the set-piece accuracy stat uses - and Control is the trap
+        // ladder. Drives bicycle-kick trajectory: the more invested, the flatter and faster the
+        // bike leaves, which is what kills the un-saveable-looking high looper.
+        public static float BicycleSkill01 =>
+            Mathf.Clamp01(0.6f * Mathf.Clamp01((SkillTree.Mul("shotpower") - 1f) / 0.68f)
+                        + 0.4f * Mathf.Clamp01(DribbleTightness));
 
         // Ground-recovery time after a dive/flop. Agility "recovery" nodes store NEGATIVE
         // amounts, so Mul("recovery") < 1 shortens the prone time; the Acrobat capstone
@@ -155,6 +217,9 @@ namespace Trickshot
 
         public static void ResetToDefault()
         {
+            // Species first: it owns the height/weight bands, so resetting it before the sliders
+            // means DefaultHeight/DefaultWeight below already read the human values.
+            Species.Reset();
             Height = DefaultHeight;
             Weight = DefaultWeight;
             PlayerName = "PLAYER";
@@ -173,9 +238,25 @@ namespace Trickshot
     /// visual - nothing here ever gets a collider. Small + value-type so it packs onto the
     /// network roster row (see NetMessages.LobbySlot) for per-player MP appearance.
     /// Style index 0 means "none" for hair (bald), facial hair (clean-shaven), and accessory.
+    ///
+    /// SPECIES REINTERPRETATION - important. The three (style index, colour) pairs are NOT
+    /// human-specific. They are three generic cosmetic slots whose meaning depends on SpeciesId:
+    ///
+    ///     field pair        SlotKind   Human      Horse       Elephant
+    ///     HairStyle/Color   StyleA     hair       mane        ears
+    ///     FacialStyle/Color StyleB     facial     markings    tusks
+    ///     Accessory/Color   StyleC     accessory  tack        tack
+    ///
+    /// Per-species fields were rejected: the struct would grow by three ints and three colours per
+    /// species and stop fitting comfortably on the roster row. The cost of reinterpreting is that
+    /// an index only means anything alongside its SpeciesId, so ALWAYS resolve them together
+    /// (SpeciesCosmetics.Count / Label), and never carry an index across a species change without
+    /// going through Species.ApplySelection, which re-clamps them.
     /// </summary>
     public struct PlayerAppearance
     {
+        // Which species these cosmetics belong to (SpeciesDef.Id; 0 = Human). Wire-stable.
+        public byte  SpeciesId;
         public Color Skin;
         public int   HairStyle;
         public Color HairColor;
@@ -192,6 +273,7 @@ namespace Trickshot
 
         public static PlayerAppearance Default => new PlayerAppearance
         {
+            SpeciesId      = Species.HumanId,
             Skin           = new Color(0.85f, 0.65f, 0.52f),
             HairStyle      = 0,                                   // bald (no hair mesh)
             HairColor      = new Color(0.15f, 0.10f, 0.08f),

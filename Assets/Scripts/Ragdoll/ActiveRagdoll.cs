@@ -27,8 +27,32 @@ namespace Trickshot
         readonly Rigidbody[] _rb = new Rigidbody[(int)Bone.Count];
         readonly ConfigurableJoint[] _joint = new ConfigurableJoint[(int)Bone.Count];
         readonly Quaternion[] _jointStartLocal = new Quaternion[(int)Bone.Count];
+
+        // Per-bone drive multiplier, 1 unless the layout asks for inertia compensation. Resolved
+        // once at build from BoneSpec.DriveMul times the build scale, because it depends on
+        // _hScale / _massMul which are only known then. See BoneSpec.DriveMul.
+        readonly float[] _driveMul = new float[(int)Bone.Count];
         readonly Quaternion[] _targetRestLocal = new Quaternion[(int)Bone.Count];
         readonly List<Collider> _ownColliders = new List<Collider>();
+
+        /// <summary>
+        /// Which bone each SOLID DECOR collider belongs to (a horse's muzzle to the Head, a hoof to
+        /// its front leg). Decor hangs off a bone's Rigidbody as a child object, so the collider the
+        /// ball reports is NOT the bone's own transform and <see cref="BoneOf"/> would miss it.
+        ///
+        /// An explicit map, deliberately, instead of walking up the transform hierarchy to the
+        /// nearest Rigidbody. A parent walk would also catch the KEEPER GLOVE, which is the same
+        /// shape of object, and that would silently change what a save means: the glove currently
+        /// resolves to null and classifies as a body touch, but its owner is ForearmL/R, which on a
+        /// QUADRUPED keeper is a front leg and therefore in LegBones. Every glove save would become a
+        /// full kick. The glove stays out of this map and keeps its documented null.
+        /// </summary>
+        readonly Dictionary<Transform, Bone> _decorOwner = new Dictionary<Transform, Bone>();
+
+        // The frictionless ground-contact material, built in Build and reused by AddDecor. Shared
+        // rather than rebuilt per piece because Make.PhysMat allocates and the species preview
+        // rebuilds this whole body on every drag frame.
+        PhysicsMaterial _slickMat;
 
         // Cosmetic (hair/facial/accessory) tint materials created at build time. Tracked so
         // they can be freed on teardown - destroying a GameObject does NOT free its materials,
@@ -81,6 +105,24 @@ namespace Trickshot
         public Rigidbody Pelvis => _rb[(int)Bone.Pelvis];
         public Rigidbody Rb(Bone b) => _rb[(int)b];
         public Transform Phys(Bone b) => _rb[(int)b] != null ? _rb[(int)b].transform : null;
+
+        /// <summary>
+        /// Which bone a struck collider belongs to, or null if it is not one of this body's parts
+        /// (a keeper glove hitbox, say). The collider sits ON the P_&lt;Bone&gt; object, so this is a
+        /// straight transform match. Ask this rather than parsing the object's name: the quadruped
+        /// repose keeps the bone names and changes their roles, so a name prefix lies.
+        /// </summary>
+        public Bone? BoneOf(Transform part)
+        {
+            if (part == null) return null;
+            for (int i = 0; i < _rb.Length; i++)
+                if (_rb[i] != null && _rb[i].transform == part) return (Bone)i;
+            // Solid species decor: a child of the bone, so it needs the explicit map. This is what
+            // makes a muzzle count as a HEADER and a hoof count as a KICK. See _decorOwner.
+            Bone owner;
+            if (_decorOwner.TryGetValue(part, out owner)) return owner;
+            return null;
+        }
         public IReadOnlyList<Collider> OwnColliders => _ownColliders;
 
         // Swap the TORSO's jersey material at runtime (only the Torso part wears the jersey; the
@@ -90,7 +132,12 @@ namespace Trickshot
         {
             var t = Phys(Bone.Torso);
             if (t == null || m == null) return;
-            var r = t.GetComponentInChildren<Renderer>();
+            // The JERSEY mesh specifically, by name, NOT GetComponentInChildren<Renderer>().
+            // MakePart always names a bone's visible mesh "v", and decor adds sibling renderers under
+            // the torso (a horse's neck and mane hang off the barrel). A depth-first search would
+            // return whichever child happens to come first and could paint a mane with the away kit.
+            var v = t.Find("v");
+            var r = v != null ? v.GetComponent<Renderer>() : null;
             if (r != null) r.sharedMaterial = m;
         }
 
@@ -112,12 +159,89 @@ namespace Trickshot
         // out parts: heights (Y offsets) scale by _hScale, girth (part X/Z + capsule
         // length) by _gScale, and every bone mass by _massMul. Grounding uses _hScale.
         float _hScale = 1f, _gScale = 1f, _massMul = 1f;
+
+        // Carry servo state. _standPelvisY is where the hips BELONG above the turf for this build,
+        // read straight off the authored rig (layout positions are metres from the body's base with
+        // the feet at y 0), so it is correct per species and per height slider with nothing to tune.
+        float _standPelvisY = 1f;
+        float _groundY;
+        // True only when UpdateGrounded actually IDENTIFIED a floor this tick, as opposed to falling
+        // back to a fabricated height. The carry servo is gated on this: acting on the fallback is what
+        // drove bodies into the turf, because the fallback sits below the body by construction.
+        bool _floorValid;
         public float HeightScale => _hScale;
         public float GirthScale => _gScale;   // multiplier applied to the visible head radius (cosmetics scale by this)
 
         // Keeper-only extra hitbox thickness: the keeper (withGloves) gets fatter arm/leg/foot
         // colliders than the striker so saves connect off any limb. 1 = no boost (striker).
         float _keeperHb = 1f;
+
+        // The skeleton table this body was built from, chosen by the species' BodyPlan. Every
+        // layout consumer reads it (Build, ResetTo, DisplaySnap, the display FK, grounding, the
+        // kick detectors), so the bone numbers live in exactly one place. Defaults to the biped
+        // so anything that queries this body before Build cannot null-deref.
+        BodyLayoutDef _layout = BodyLayout.Biped;
+
+        // Per-axis gain correction for the free-root BALANCE torque, computed at build from the
+        // layout's welded inertia (see BodyLayout.RootDriveMul). One for a biped, so a human is
+        // unaffected. The joints get the same treatment via BoneSpec.DriveMul; the root has no joint
+        // and so had nothing, which is what made a quadruped sway at rest.
+        Vector3 _rootDriveMul = Vector3.one;
+
+        // Yaw-ring settle, the joint-level counterpart to _rootDriveMul above. Rate in 1/s, ZERO for a
+        // biped so the human path never touches it. See SettleYawRing.
+        float _yawSettleRate;
+        // Yaw rate (rad/s, about world up) ApplyUprightLock actually commanded this step. The pelvis's
+        // own angularVelocity cannot report it: the lock steers yaw with MoveRotation and then zeroes
+        // the spin, so the number exists nowhere else.
+        float _lockYawRate;
+
+        // Which species this body was built as, captured from the PASSED appearance in Build. Read
+        // it instead of PlayerProfile anywhere a behaviour differs per species: the same Striker
+        // class drives remote peers and AI bodies, so the local player's species is the wrong
+        // answer for any body but its own. Human until Build says otherwise.
+        byte _speciesId = Species.HumanId;
+
+        /// <summary>The species this body was built as. Prefer this over the global PlayerProfile.</summary>
+        public byte SpeciesId => _speciesId;
+
+        /// <summary>Body plan of the built skeleton. Quadruped means the 13 bones are reposed.</summary>
+        public BodyPlan Plan => Species.ById(_speciesId).Plan;
+
+        /// <summary>Bones the kick detectors attach to: the biped's feet/calves, a quadruped's front hooves.</summary>
+        public Bone[] StrikeBones => _layout.StrikeBones;
+
+        /// <summary>The limb the leg-raise lifts on the given side, as {upper, lower}.</summary>
+        public Bone[] RaiseChain(bool left) => left ? _layout.RaiseL : _layout.RaiseR;
+
+        /// <summary>
+        /// Is this bone a KICKING limb on this body? A biped's legs, a quadruped's FRONT legs.
+        /// The ball code needs it to tell a real strike from a scrappy body touch, and a name
+        /// prefix cannot: the repose keeps the bone NAMES and changes only what they ARE.
+        /// </summary>
+        public bool IsLegBone(Bone b) => _layout.IsLegBone(b);
+
+        /// <summary>
+        /// VISIBLE head radius in metres on THIS body, girth already applied.
+        ///
+        /// The cosmetics attach path needs it because hair has to be combed over the actual skull:
+        /// MakePart draws a Sphere bone at dims.x * 2 diameter (dims.y is only an optional collider
+        /// override), so the visible radius is the girth-scaled dims.x. For a human this evaluates to
+        /// 0.19 * girth, exactly what HairSim derives on its own, so passing it changes nothing there.
+        /// A horse skull is 0.15, which HairSim could not have guessed, and 0.04 m of error puts every
+        /// mane root visibly off the head.
+        /// </summary>
+        public float HeadVisualRadius
+        {
+            get
+            {
+                int i = _layout.IndexOf(Bone.Head);
+                // No head in the table (impossible in both shipped plans): human nominal 0.19.
+                if (i < 0) return 0.19f * _gScale;
+                var s = _layout.Bones[i];
+                return ScaleDims(s.Kind, s.Dims).x;
+            }
+        }
 
         // ---------------------------------------------------------------- build
         // Build the player with a custom height/girth/mass from a PlayerProfile-style set
@@ -155,110 +279,107 @@ namespace Trickshot
             _physRoot = Make.Empty("PhysicsSkeleton", basePos, transform).transform;
             _physRoot.rotation = facing;
 
-            // Bone dimensions (metres), authored upright along +Y, facing +Z.
-            // y is the centre height of each part above the feet base.
-            // Build the target skeleton (nested) and physics skeleton (nested) together.
+            // The skeleton comes from a per-BodyPlan table. A quadruped is not a new skeleton: it
+            // is the same 13 bones REPOSED (barrel for the torso, hind legs for the legs, front
+            // legs for the arms), so nothing downstream changes. See BodyLayout.
+            //
+            // Read the PASSED appearance, never the global PlayerProfile: this same builder makes
+            // AI keepers, crossers, menu-background actors and remote peers, and they must not
+            // inherit the local player's species. A null appearance is an AI body: Human.
+            _speciesId = appearance?.SpeciesId ?? Species.HumanId;
+            _layout = BodyLayout.ForSpecies(_speciesId);
+            // Free-root balance compensation, once per build. Vector3.one for every biped, so the
+            // human path is untouched. See BodyLayout.RootDriveMul for why it exists at all.
+            _rootDriveMul = BodyLayout.RootDriveMul(_layout, _hScale, _gScale);
+            _yawSettleRate = ReferenceEquals(_layout, BodyLayout.Biped) ? 0f : SimConfig.StandYawSettleRate;
+            var bones = _layout.Bones;
 
-            // --- target skeleton: nested empties at joint pivots ---
-            // We place target transforms at the same world positions as the physics
-            // parts' centres so their local rotations map 1:1 to the joints.
-            var tPelvis = MakeTarget(Bone.Pelvis, _targetRoot, basePos + Off(0f, 1.02f, 0f), facing);
-            var tTorso  = MakeTarget(Bone.Torso,  tPelvis,     basePos + Off(0f, 1.34f, 0f), facing);
-            var tHead   = MakeTarget(Bone.Head,   tTorso,      basePos + Off(0f, 1.72f, 0f), facing);
-            var tThighL = MakeTarget(Bone.ThighL, tPelvis,     basePos + Off(-0.11f, 0.73f, 0f), facing);
-            var tThighR = MakeTarget(Bone.ThighR, tPelvis,     basePos + Off( 0.11f, 0.73f, 0f), facing);
-            var tCalfL  = MakeTarget(Bone.CalfL,  tThighL,     basePos + Off(-0.11f, 0.33f, 0f), facing);
-            var tCalfR  = MakeTarget(Bone.CalfR,  tThighR,     basePos + Off( 0.11f, 0.33f, 0f), facing);
-            MakeTarget(Bone.FootL, tCalfL, basePos + Off(-0.11f, 0.09f, 0.06f), facing);
-            MakeTarget(Bone.FootR, tCalfR, basePos + Off( 0.11f, 0.09f, 0.06f), facing);
-            // Arms: shoulders on the torso, hanging down at rest.
-            var tUpArmL = MakeTarget(Bone.UpperArmL, tTorso, basePos + Off(-0.26f, 1.40f, 0f), facing);
-            var tUpArmR = MakeTarget(Bone.UpperArmR, tTorso, basePos + Off( 0.26f, 1.40f, 0f), facing);
-            MakeTarget(Bone.ForearmL, tUpArmL, basePos + Off(-0.26f, 1.08f, 0f), facing);
-            MakeTarget(Bone.ForearmR, tUpArmR, basePos + Off( 0.26f, 1.08f, 0f), facing);
+            // Standing pelvis height for the carry servo, from the table rather than measured: a
+            // measurement taken at spawn would capture whatever half-settled height the body
+            // happened to be at on its first frame.
+            int pelvisRow = _layout.IndexOf(Bone.Pelvis);
+            _standPelvisY = (pelvisRow >= 0 ? bones[pelvisRow].Pos.y : 1f) * _hScale;
 
-            // capture rest local rotations of target bones (identity by construction)
+            // --- target skeleton: nested empties at the physics parts' centres, so their local
+            // rotations map 1:1 to the joints. The table is in Bone enum order with every parent
+            // ahead of its child, so a single forward pass places the whole hierarchy.
+            //
+            // The offset is ROTATED by `facing`, exactly as SnapLayout does it and for exactly the
+            // reason documented there: a layout offset is in the BODY's frame, so it has to orbit
+            // with the body. Build used to skip the rotation while still applying `facing` to the
+            // rotations, which built a body whose bones were laid out for straight-ahead but turned
+            // to face somewhere else. On a biped that is nearly invisible (the arms and legs sit at
+            // +/-0.26 and +/-0.11 in x, so a 180 turn swaps left and right and little else). On a
+            // QUADRUPED it is not: its bones run down +/-Z, so a keeper built facing -Z got a barrel
+            // and a head hung off the BACK of the pelvis, and he read as standing backwards. Worse,
+            // it was permanent - AddJoint autoconfigures its connected anchors, so the wrong
+            // arrangement is baked into the joints and ResetTo's correct snap gets dragged back to
+            // it. Rotating here is the fix, and it also puts Build, SnapLayout, DisplaySnap and
+            // AddDecor (whose "facing cancels out" algebra assumes precisely this) on one
+            // convention.
+            for (int i = 0; i < bones.Length; i++)
+            {
+                var s = bones[i];
+                Vector3 p = s.TargetPos ?? s.Pos;
+                MakeTarget(s.Bone, s.IsRoot ? _targetRoot : _target[(int)s.Parent],
+                           basePos + facing * Off(p.x, p.y, p.z), facing * Quaternion.Euler(s.RestEuler));
+            }
+
+            // Capture the target bones' rest LOCAL rotations. Identity for every biped bone (they
+            // are all built aligned to 'facing'), non-identity wherever a layout pitches a bone.
             for (int i = 0; i < (int)Bone.Count; i++)
                 if (_target[i] != null) _targetRestLocal[i] = _target[i].localRotation;
 
             // --- physics skeleton ---
-            // Only the TORSO wears the jersey (torsoMat, which may carry the painted
-            // texture). The pelvis (shorts) and head use limbMat so the jersey art does
-            // NOT bleed onto the shorts or the head.
-            MakePart(Bone.Pelvis, _physRoot, basePos + Off(0f, 1.02f, 0f), facing,
-                     ColliderKind.Box, new Vector3(0.32f, 0.20f, 0.20f), 12f, limbMat);
+            // Only the bone the table marks WearsJersey (the torso) uses torsoMat, which may carry
+            // the painted texture. Everything else uses limbMat so the jersey art does NOT bleed
+            // onto the shorts or the head.
+            for (int i = 0; i < bones.Length; i++)
+            {
+                var s = bones[i];
+                MakePart(s, s.IsRoot ? _physRoot : Phys(s.Parent),
+                         basePos + facing * Off(s.Pos.x, s.Pos.y, s.Pos.z),   // see the target pass above
+                         facing * Quaternion.Euler(s.RestEuler),
+                         s.WearsJersey ? torsoMat : limbMat, HitboxScale(s.Hitbox));
+            }
 
-            MakePart(Bone.Torso, Phys(Bone.Pelvis), basePos + Off(0f, 1.34f, 0f), facing,
-                     ColliderKind.Box, new Vector3(0.36f, 0.46f, 0.22f), 16f, torsoMat);
-            // Head: 0.19 visible radius, 0.22 collider (dims.y override) - the header hitbox
-            // is only slightly bigger than the visible head and is CENTERED on it (no offset),
-            // so the hitbox lines up with the drawn head shape instead of reaching in front.
-            MakePart(Bone.Head, Phys(Bone.Torso), basePos + Off(0f, 1.72f, 0f), facing,
-                     ColliderKind.Sphere, new Vector3(0.19f, 0.22f, 0f), 4.5f, limbMat);
-
-            // Leg hitboxes are fattened (LegHitboxScale) beyond the visible leg so the ball
-            // connects off the legs reliably instead of clipping through. The keeper fattens
-            // them further still (_keeperHb) so a save connects off any part of the leg.
-            float legHb = SimConfig.LegHitboxScale * _keeperHb;
-            MakePart(Bone.ThighL, Phys(Bone.Pelvis), basePos + Off(-0.11f, 0.73f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat, legHb);
-            MakePart(Bone.ThighR, Phys(Bone.Pelvis), basePos + Off(0.11f, 0.73f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.09f, 0.44f, 0f), 7f, limbMat, legHb);
-
-            MakePart(Bone.CalfL, Phys(Bone.ThighL), basePos + Off(-0.11f, 0.33f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat, legHb);
-            MakePart(Bone.CalfR, Phys(Bone.ThighR), basePos + Off(0.11f, 0.33f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.075f, 0.42f, 0f), 4f, limbMat, legHb);
-
-            // Small, low-profile feet visually, but a ~1.6x larger collider (last arg)
-            // so the ball connects off the foot more easily.
-            // Foot rest offset (0.06, 0.06) matches ResetTo so a round reset doesn't pop.
-            float footHb = 1.6f * _keeperHb;   // keeper feet fatter still
-            MakePart(Bone.FootL, Phys(Bone.CalfL), basePos + Off(-0.11f, 0.06f, 0.06f), facing,
-                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, footHb);
-            MakePart(Bone.FootR, Phys(Bone.CalfR), basePos + Off(0.11f, 0.06f, 0.06f), facing,
-                     ColliderKind.Box, new Vector3(0.09f, 0.05f, 0.17f), 1.5f, limbMat, footHb);
-            // Frictionless feet: grounding is a pelvis SphereCast (not foot contact), so
-            // slick feet slide over the turf instead of catching and making the run janky.
-            // Minimum friction-combine forces the contact to ~0 regardless of turf value.
-            var slick = Make.PhysMat("Feet", 0f, 0f, 0f,
+            // Frictionless ground-contact bones (the feet, plus a quadruped's front hooves).
+            // Grounding is a pelvis SphereCast, not foot contact, so slick bones slide over the
+            // turf instead of catching and making the run janky. Minimum friction-combine forces
+            // the contact to ~0 regardless of the turf's own value.
+            //
+            // Held in a field, not a local, because AddDecor below needs it too. On a quadruped the
+            // BONE flag alone was never enough: a hoof or a pad box hangs lower than the leg capsule
+            // it is bolted to, so the decor is the surface in contact and the slick capsule above it
+            // never touches turf. That is what made the gait catch.
+            _slickMat = Make.PhysMat("Feet", 0f, 0f, 0f,
                                      PhysicsMaterialCombine.Minimum, PhysicsMaterialCombine.Minimum);
-            _rb[(int)Bone.FootL].GetComponent<Collider>().material = slick;
-            _rb[(int)Bone.FootR].GetComponent<Collider>().material = slick;
+            for (int i = 0; i < bones.Length; i++)
+            {
+                if (!bones[i].Slick) continue;
+                var srb = _rb[(int)bones[i].Bone];
+                if (srb != null) srb.GetComponent<Collider>().material = _slickMat;
+            }
 
-            // Arms (upper arm + forearm): thin, skinny capsules that weigh almost nothing
-            // so they barely affect the body's momentum / spin.
-            // X = 0.26 to match the target skeleton + ResetTo (so a round reset doesn't
-            // pre-stress the shoulder/elbow joints, which girth scaling would amplify).
-            // Arm HITBOXES are fattened (colliderScale ArmHitboxScale) beyond the thin
-            // visible arm so the ball stops phasing through the keeper's arms.
-            // Keeper uses the base ArmHitboxScale (then * _keeperHb boost); the outfield body
-            // uses the fatter StrikerArmHitboxScale so an arm/hand touch reliably TRAPS the ball
-            // instead of glancing off or phasing through. _keeperHb > 1 identifies the keeper.
-            float armBase = _keeperHb > 1f ? SimConfig.ArmHitboxScale : SimConfig.StrikerArmHitboxScale;
-            float armHb = armBase * _keeperHb;
-            MakePart(Bone.UpperArmL, Phys(Bone.Torso), basePos + Off(-0.26f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat, armHb);
-            MakePart(Bone.UpperArmR, Phys(Bone.Torso), basePos + Off(0.26f, 1.40f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.05f, 0.30f, 0f), 0.3f, limbMat, armHb);
-            MakePart(Bone.ForearmL, Phys(Bone.UpperArmL), basePos + Off(-0.26f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat, armHb);
-            MakePart(Bone.ForearmR, Phys(Bone.UpperArmR), basePos + Off(0.26f, 1.08f, 0f), facing,
-                     ColliderKind.CapsuleY, new Vector3(0.045f, 0.30f, 0f), 0.25f, limbMat, armHb);
+            // Joints: child -> parent (connectedBody). The root pelvis has no joint (free root).
+            for (int i = 0; i < (int)Bone.Count; i++) _driveMul[i] = 1f;
+            for (int i = 0; i < bones.Length; i++)
+            {
+                var s = bones[i];
+                if (s.IsRoot) continue;
+                // Rotational inertia goes as mass times lever squared, so a bone's drive
+                // compensation is its table base times _massMul times _hScale squared. Height, not
+                // girth: both quadruped levers that matter (the barrel's own half-length and the
+                // head's 1.03 offset) lie in the y-z plane, which LengthAlongHeight puts on
+                // _hScale. Zero in the table means no compensation, which is every biped bone.
+                if (s.DriveMul > 0f)
+                    _driveMul[(int)s.Bone] = s.DriveMul * _massMul * _hScale * _hScale;
+                AddJoint(s.Bone, s.Parent, Off(s.JointAnchor.x, s.JointAnchor.y, s.JointAnchor.z));
+            }
 
-            // Joints: child -> parent (connectedBody). Pelvis has no joint (free root).
-            AddJoint(Bone.Torso,  Bone.Pelvis, Off(0f, -0.23f, 0f));
-            AddJoint(Bone.Head,   Bone.Torso,  Off(0f, -0.14f, 0f));
-            AddJoint(Bone.ThighL, Bone.Pelvis, Off(0f, 0.22f, 0f));
-            AddJoint(Bone.ThighR, Bone.Pelvis, Off(0f, 0.22f, 0f));
-            AddJoint(Bone.CalfL,  Bone.ThighL, Off(0f, 0.21f, 0f));
-            AddJoint(Bone.CalfR,  Bone.ThighR, Off(0f, 0.21f, 0f));
-            AddJoint(Bone.FootL,  Bone.CalfL,  Off(0f, 0.16f, -0.06f));
-            AddJoint(Bone.FootR,  Bone.CalfR,  Off(0f, 0.16f, -0.06f));
-            AddJoint(Bone.UpperArmL, Bone.Torso,     Off(0f, 0.17f, 0f));
-            AddJoint(Bone.UpperArmR, Bone.Torso,     Off(0f, 0.17f, 0f));
-            AddJoint(Bone.ForearmL,  Bone.UpperArmL, Off(0f, 0.16f, 0f));
-            AddJoint(Bone.ForearmR,  Bone.UpperArmR, Off(0f, 0.16f, 0f));
+            // Species appendages. BEFORE the self-collision sweep, so the one pairwise pass below
+            // covers decor too and no appendage can ever jam the rig against its own body.
+            AddDecor(appearance, limbMat, facing);
 
             IgnoreSelfCollisions();
 
@@ -300,42 +421,240 @@ namespace Trickshot
             }
         }
 
-        // Layout offset. Heights (y) scale with the build height; lateral spacing (x/z)
-        // scales with girth so a wider body's limbs sit further out. Default build = 1.
-        Vector3 Off(float x, float y, float z) => new Vector3(x * _gScale, y * _hScale, z * _gScale);
-
-        Transform MakeTarget(Bone b, Transform parent, Vector3 worldPos, Quaternion facing)
+        /// <summary>
+        /// Build this species' appendages: a horse's neck, muzzle, ears, mane and hooves, an
+        /// elephant's trunk, ears and tusks. Each is a child object of an existing bone and shares
+        /// that bone's Rigidbody, which is how the body gains parts without a 14th Bone member.
+        /// Same recipe as AddGlove, generalised and driven from BodyLayoutDef.Decor.
+        ///
+        /// ONE Dims drives both the mesh and the collider and NOTHING here applies a colliderScale,
+        /// so a Solid piece is FLUSH with what you see by construction rather than by upkeep.
+        ///
+        /// A piece with a GateMask only draws when the appearance's pick for its slot matches, which
+        /// is what makes the animal EARS / MARKINGS / TUSKS / TACK pickers do anything at all. The
+        /// index comes from the PASSED appearance, never PlayerProfile: the same builder makes AI
+        /// keepers, crossers, menu actors and remote peers, so reading the global profile would dress
+        /// every body on the pitch in the local player's choices.
+        /// </summary>
+        void AddDecor(PlayerAppearance? appearance, Material limbMat, Quaternion facing)
         {
-            var go = Make.Empty("T_" + b, worldPos, parent);
-            go.transform.rotation = facing; // all bones aligned to facing at rest
-            _target[(int)b] = go.transform;
-            return go.transform;
+            var decor = _layout.Decor;
+            if (decor == null) return;
+
+            // One material per tint, not per piece: Make.Mat allocates, and the species preview
+            // rebuilds this body on every drag frame.
+            var tintMats = new Material[6];
+
+            for (int i = 0; i < decor.Length; i++)
+            {
+                var d = decor[i];
+                if (!DecorGatePasses(d, appearance)) continue;
+                int pi = _layout.IndexOf(d.Parent);
+                var rb = pi < 0 ? null : _rb[(int)d.Parent];
+                if (rb == null) continue;
+
+                // BODY frame -> the parent bone's LOCAL frame. The parent was built at
+                // facing * Euler(RestEuler) and the body frame IS facing, so peeling off the rest
+                // rotation is the entire conversion and facing cancels out. Exact rather than
+                // approximate, because every rest rotation in both tables is axis aligned and every
+                // bone root sits at unit scale.
+                var toLocal = Quaternion.Inverse(Quaternion.Euler(_layout.Bones[pi].RestEuler));
+
+                var dims = ScaleDims(d.Kind, d.Dims);
+                var mat  = DecorMaterial(d.Tint, appearance, limbMat, tintMats);
+
+                // GirthOffset pieces scale on girth alone, so they hold a fixed fraction of a
+                // girth-scaled radius instead of drifting against it. See DecorSpec.GirthOffset.
+                var raw = d.GirthOffset
+                        ? d.Offset * _gScale
+                        : Off(d.Offset.x, d.Offset.y, d.Offset.z);
+
+                var go = new GameObject(d.Name);
+                go.transform.SetParent(rb.transform, false);
+                go.transform.localPosition = toLocal * raw;
+                go.transform.localRotation = toLocal * Quaternion.Euler(d.Euler);
+                go.transform.localScale    = Vector3.one; // the collider must stay unscaled
+
+                Collider col = null;
+                GameObject visual;
+                switch (d.Kind)
+                {
+                    case ColliderKind.Sphere:
+                        if (d.Solid)
+                        {
+                            var sc = go.AddComponent<SphereCollider>();
+                            sc.radius = dims.y > 0f ? dims.y : dims.x;
+                            col = sc;
+                        }
+                        visual = Make.Sphere("v", dims.x * 2f, go.transform.position, mat, go.transform);
+                        break;
+                    case ColliderKind.CapsuleY:
+                        if (d.Solid)
+                        {
+                            var cc = go.AddComponent<CapsuleCollider>();
+                            cc.direction = 1; // Y
+                            cc.radius = dims.x;
+                            cc.height = dims.y;
+                            col = cc;
+                        }
+                        visual = Make.Capsule("v", dims.x, dims.y, go.transform.position, mat, go.transform);
+                        break;
+                    default: // Box
+                        if (d.Solid)
+                        {
+                            var bc = go.AddComponent<BoxCollider>();
+                            bc.size = dims;
+                            col = bc;
+                        }
+                        visual = Make.Box("v", dims, go.transform.position, mat, go.transform, collider: false);
+                        break;
+                }
+
+                visual.transform.localPosition = Vector3.zero;
+                visual.transform.localRotation = Quaternion.identity;
+                var vcol = visual.GetComponent<Collider>();
+                if (vcol != null) Destroy(vcol);
+
+                if (col != null)
+                {
+                    _ownColliders.Add(col);
+                    // The map BallController reads through BoneOf. Without this a muzzle strike is an
+                    // unrecognised collider and falls through to the scrappy-touch branch instead of
+                    // being the header it looks like.
+                    _decorOwner[go.transform] = d.Parent;
+
+                    // Ground-contact decor gets the same frictionless material the slick BONES get.
+                    // This is the piece that was missing: a hoof or a pad hangs below its leg's
+                    // capsule, so it, not the capsule, is what the turf touches. Without it the leg
+                    // flag was decorative and every stride bit into the ground.
+                    if (d.Slick && _slickMat != null) col.material = _slickMat;
+                }
+            }
         }
 
-        enum ColliderKind { Box, Sphere, CapsuleY }
-
-        void MakePart(Bone b, Transform parent, Vector3 worldPos, Quaternion facing,
-                      ColliderKind kind, Vector3 dims, float mass, Material mat,
-                      float colliderScale = 1f, Vector3 colliderOffset = default)
+        /// <summary>
+        /// Whether a decor piece is drawn for this appearance's style picks.
+        ///
+        /// GateMask 0 is ANATOMY and always passes: a neck, a trunk, a hoof. Anything else is an
+        /// option, and it draws only when the live index for its slot has the matching bit set. The
+        /// mask is a bitfield rather than an index so ONE spec can serve several options, which is how
+        /// a long tusk is shared by "Long" and "Banded" while a separate ring adds only the band.
+        ///
+        /// An out-of-range index simply matches nothing, so a saved profile from a longer list
+        /// degrades to bare anatomy instead of throwing. A body with no appearance at all is an AI
+        /// build (always Human, which has no decor), so gated pieces are skipped there.
+        /// </summary>
+        bool DecorGatePasses(in DecorSpec d, PlayerAppearance? a)
         {
+            if (d.GateMask == 0) return true;
+            if (!a.HasValue) return false;
+            int idx;
+            switch (d.Gate)
+            {
+                case SlotKind.StyleA: idx = a.Value.HairStyle;   break;
+                case SlotKind.StyleB: idx = a.Value.FacialStyle; break;
+                case SlotKind.StyleC: idx = a.Value.Accessory;   break;
+                default: return true;   // Skin is a colour, never an index. Treat as ungated.
+            }
+            if (idx < 0 || idx > 30) return false;
+            return (d.GateMask & (1 << idx)) != 0;
+        }
+
+        /// <summary>
+        /// The colour a decor piece is painted, resolved from the appearance slots the customize
+        /// screen already exposes (see the SPECIES REINTERPRETATION table on PlayerAppearance). Those
+        /// pickers existed and drew nothing until there was animal geometry to paint.
+        /// Cached per tint in <paramref name="cache"/>. Registered for teardown, since destroying a
+        /// GameObject does not free its materials and the preview rebuilds constantly.
+        /// </summary>
+        Material DecorMaterial(DecorTint tint, PlayerAppearance? a, Material limbMat, Material[] cache)
+        {
+            if (tint == DecorTint.Limb) return limbMat;
+            int k = (int)tint;
+            if (cache[k] != null) return cache[k];
+
+            // No appearance means an AI body, which is always Human and so has no decor at all. Fall
+            // back to the limb material rather than inventing a colour, defensively.
+            if (!a.HasValue && tint != DecorTint.Dark) return limbMat;
+
+            Color c;
+            switch (tint)
+            {
+                case DecorTint.Skin:   c = a.Value.Skin; break;
+                case DecorTint.StyleA: c = a.Value.HairColor; break;
+                case DecorTint.StyleB: c = a.Value.FacialColor; break;
+                case DecorTint.StyleC: c = a.Value.AccessoryColor; break;
+                default:               c = new Color(0.12f, 0.10f, 0.09f); break; // Dark: keratin
+            }
+            var m = Make.Mat(c, 0.15f);
+            RegisterCosmeticMaterial(m);
+            cache[k] = m;
+            return m;
+        }
+
+        /// <summary>
+        /// Build-scale a Dims triple, at this body's scale. Height on the length axis, girth on the
+        /// two cross axes, which is per collider kind. Used by MakePart and AddDecor so a bone and an
+        /// appendage hung off it cannot scale differently and slide apart on a tall or wide build.
+        ///
+        /// Forwards to BodyLayout, which also needs it while estimating a layout's inertia and so
+        /// cannot go through an instance. One implementation, two callers with different scales.
+        /// </summary>
+        Vector3 ScaleDims(ColliderKind kind, Vector3 dims)
+            => BodyLayout.ScaleDims(kind, dims, _hScale, _gScale);
+
+        // Layout offset, at this body's scale. Forwards to BodyLayoutDef.Off for the same reason
+        // ScaleDims does: heights (y) scale with the build height, and lateral spacing (x) with
+        // girth so a wider body's limbs sit further out. Z is girth for a biped, but HEIGHT for a
+        // quadruped, whose front-to-back span is length and has to track the barrel (see
+        // BodyLayoutDef.LengthAlongHeight). Default build = 1.
+        Vector3 Off(float x, float y, float z)
+            => _layout.Off(new Vector3(x, y, z), _hScale, _gScale);
+
+        // How far a bone's collider is fattened past its visible mesh. Leg and foot hitboxes are
+        // fattened so the ball connects reliably instead of clipping through, and the keeper
+        // (_keeperHb) fattens them further still so a save connects off any part of a limb. Arms
+        // invert that: they are razor thin, and the OUTFIELD body wants them FATTER than the
+        // keeper's so an arm touch reliably traps the ball instead of glancing off. _keeperHb > 1
+        // is what identifies the keeper.
+        float HitboxScale(HitboxClass k)
+        {
+            switch (k)
+            {
+                case HitboxClass.Leg:  return SimConfig.LegHitboxScale * _keeperHb;
+                case HitboxClass.Foot: return 1.6f * _keeperHb;
+                case HitboxClass.Arm:
+                    return (_keeperHb > 1f ? SimConfig.ArmHitboxScale : SimConfig.StrikerArmHitboxScale) * _keeperHb;
+                default: return 1f;
+            }
+        }
+
+        void MakeTarget(Bone b, Transform parent, Vector3 worldPos, Quaternion rot)
+        {
+            var go = Make.Empty("T_" + b, worldPos, parent);
+            go.transform.rotation = rot;   // facing * the bone's rest rotation from the layout
+            _target[(int)b] = go.transform;
+        }
+
+        void MakePart(in BoneSpec spec, Transform parent, Vector3 worldPos, Quaternion rot,
+                      Material mat, float colliderScale)
+        {
+            Bone b = spec.Bone;
+            ColliderKind kind = spec.Kind;
+            Vector3 dims = spec.Dims;
+            float mass = spec.Mass;
             // Apply the build scale to this part: girth widens X/Z (and capsule radius),
             // height lengthens the vertical extent, and mass scales with weight. For a
             // CapsuleY, dims.x is radius (girth) and dims.y is length (height). For a
             // Sphere, dims.x is visible radius and dims.y an optional collider-radius
             // override (both girth). For a Box, dims = full size (x/z girth, y height).
-            if (kind == ColliderKind.CapsuleY)
-                dims = new Vector3(dims.x * _gScale, dims.y * _hScale, dims.z);
-            else if (kind == ColliderKind.Sphere)
-                dims = new Vector3(dims.x * _gScale, dims.y * _gScale, dims.z);
-            else // Box
-                dims = new Vector3(dims.x * _gScale, dims.y * _hScale, dims.z * _gScale);
-            colliderOffset = new Vector3(colliderOffset.x * _gScale, colliderOffset.y * _hScale, colliderOffset.z * _gScale);
+            dims = ScaleDims(kind, dims);
             mass *= _massMul;
 
             var go = new GameObject("P_" + b);
             go.transform.SetParent(parent, true);
             go.transform.position = worldPos;
-            go.transform.rotation = facing;
+            go.transform.rotation = rot;
             go.transform.localScale = Vector3.one; // never scale a physics bone root
 
             Collider col;
@@ -346,9 +665,9 @@ namespace Trickshot
                 {
                     var sc = go.AddComponent<SphereCollider>();
                     // dims.y (if > 0) is a collider-radius override so the hitbox can be
-                    // bigger than the visible sphere (e.g. a generous header hitbox).
+                    // bigger than the visible sphere (a generous header hitbox). It stays
+                    // CENTRED on the visible head so it never reaches out in front.
                     sc.radius = dims.y > 0f ? dims.y : dims.x;
-                    sc.center = colliderOffset;   // shift the hitbox (e.g. forward + down)
                     col = sc;
                     visual = Make.Sphere("v", dims.x * 2f, worldPos, mat, go.transform);
                     break;
@@ -372,11 +691,13 @@ namespace Trickshot
                     // collider doesn't poke through the ground and cause jitter.
                     bc.size = new Vector3(dims.x * colliderScale, dims.y, dims.z * colliderScale);
                     col = bc;
-                    // The torso wears the jersey: give it a custom-UV box so the painted atlas
-                    // maps front->chest / back->back (upright, no duplication). Other boxes
-                    // (feet) use the plain primitive cube.
-                    visual = b == Bone.Torso
-                        ? Make.JerseyBox("v", dims, worldPos, mat, go.transform)
+                    // The torso wears the jersey: give it a custom-UV box so the painted atlas maps
+                    // onto the body upright and undoubled. WHICH faces get the art is per body plan
+                    // (spec.JerseyFaces): chest/back for an upright biped torso, flanks/spine for a
+                    // quadruped barrel, which rests pitched 90 deg. Other boxes (feet, a quadruped's
+                    // pelvis) use the plain primitive cube.
+                    visual = spec.WearsJersey
+                        ? Make.JerseyBox("v", dims, worldPos, mat, go.transform, spec.JerseyFaces)
                         : Make.Box("v", dims, worldPos, mat, go.transform, collider: false);
                     break;
                 }
@@ -425,21 +746,31 @@ namespace Trickshot
             j.axis = Vector3.right;          // local X
             j.secondaryAxis = Vector3.up;    // local Y
 
-            ApplyDrive(j, 1f);
+            ApplyDrive(j, 1f, _driveMul[(int)child]);
 
             _joint[(int)child] = j;
-            // All bones are built aligned to 'facing', so each child's rotation
-            // relative to its parent is identity at build time.
-            _jointStartLocal[(int)child] = Quaternion.identity;
+            // The child's rotation RELATIVE TO ITS PARENT at build time.
+            // JointMath.SetTargetRotationLocal computes Inverse(target) * start, so the drive
+            // relaxes to identity exactly when the requested local rotation equals this. Storing
+            // the real build-time value instead of assuming identity is what lets a layout pitch a
+            // bone (the quadruped barrel): the rest offset then cancels against _targetRestLocal at
+            // the zero pose, so the bone sits relaxed instead of fighting its own joint. Every
+            // biped bone is built aligned to 'facing', so this is still identity there.
+            _jointStartLocal[(int)child] = Quaternion.Inverse(_rb[(int)parent].rotation) * rb.rotation;
         }
 
-        void ApplyDrive(ConfigurableJoint j, float scale)
+        // scale is the global 0..1 limpness knob; boneMul is the layout's per-bone inertia
+        // compensation. All three drive terms take boneMul, so multiplying spring and damper by the
+        // same factor leaves the natural frequency and the damping ratio where the biped has them
+        // instead of producing a stiff, ringy bone. boneMul is 1 for every biped bone, and
+        // 6500*1, 150, 60000 is exactly what this used to write.
+        void ApplyDrive(ConfigurableJoint j, float scale, float boneMul)
         {
             var drive = new JointDrive
             {
-                positionSpring = SimConfig.JointSpring * scale,
-                positionDamper = SimConfig.JointDamper,
-                maximumForce = SimConfig.JointMaxForce
+                positionSpring = SimConfig.JointSpring * scale * boneMul,
+                positionDamper = SimConfig.JointDamper * boneMul,
+                maximumForce = SimConfig.JointMaxForce * boneMul
             };
             j.slerpDrive = drive;
         }
@@ -495,7 +826,7 @@ namespace Trickshot
             {
                 var j = _joint[i];
                 if (j == null) continue;
-                ApplyDrive(j, DriveScale);
+                ApplyDrive(j, DriveScale, _driveMul[i]);
                 Quaternion targetLocal = _target[i].localRotation; // relative to parent target
                 j.SetTargetRotationLocal(targetLocal, _jointStartLocal[i]);
             }
@@ -506,6 +837,10 @@ namespace Trickshot
             if (UprightLock)
             {
                 ApplyUprightLock();
+                // Standing still on a non-biped body: bleed off any yaw ring. Gated on rest because
+                // that is where it is visible and where it can cost nothing.
+                if (_yawSettleRate > 0f && IsGrounded && MoveInput.sqrMagnitude < 0.01f)
+                    SettleYawRing();
             }
             else if (DiveYawLock)
             {
@@ -515,13 +850,67 @@ namespace Trickshot
             {
                 ReleaseUprightLock();
                 if (BalanceEnabled)
+                    // _rootDriveMul is the whole fix for the quadruped standing sway: the torque here
+                    // is sized against the PELVIS tensor but has to turn the welded body, so a
+                    // barrel-and-four-legs assembly got a fraction of the commanded acceleration and
+                    // with it a fraction of the damping. One for a biped, so a human is unchanged.
                     JointMath.DriveTowardRotation(Pelvis, FacingRotation,
-                        SimConfig.BalanceFrequency, SimConfig.BalanceDamping);
+                        SimConfig.BalanceFrequency, SimConfig.BalanceDamping, _rootDriveMul);
                 else if (BodyOrientTarget.HasValue)
                     DrivePelvisOrientation(BodyOrientTarget.Value);
             }
 
             ApplyLocomotion();
+
+            // WHOLE-BODY CARRY. See SimConfig.CarryHeightGain for why this exists: the hips were
+            // never held at a height, so the body sagged and lurched once per stride. The gait's
+            // limbs are cosmetic pose overrides, but they are still real colliders on real joints, so
+            // a swung leg meeting the turf levers the whole assembly up and the next one drops it.
+            // No leg pose can fix that. Holding the hips at their authored standing height does.
+            //
+            // It is applied as a SHARED VERTICAL DELTA, not as one assigned velocity. Assigning the
+            // same v.y to every bone would freeze the limbs' vertical motion relative to the body and
+            // fight the joint drives that pick the feet up; adding the same delta to all of them
+            // translates the assembly while leaving every relative motion, including the stride,
+            // exactly as the drives made it. The hips land on the target velocity either way.
+            //
+            // The gates are the containment. UprightLock is cleared by every jump, dive, trick,
+            // keeper lay-out and knockdown, LocomotionEnabled by a committed launch, and an emote
+            // owns the height itself - so nothing but a grounded, upright, self-driven body is
+            // touched. The error clamp is the other half: a body further off its stand height than
+            // CarryErrUp/Down is mid-event, and gravity keeps it.
+            // _floorValid, NOT IsGrounded, is the gate that matters here. IsGrounded is set before the
+            // floor filters in UpdateGrounded and can never go false once any collider is under the
+            // probe, so gating on it let the servo run against the FABRICATED fallback _groundY - which
+            // is exactly how a body got driven into the turf. _floorValid is false whenever the probe
+            // did not actually identify a floor, and then the servo simply does not run and gravity has
+            // the body. IsGrounded is kept in the condition because its other meaning (are we airborne)
+            // is still required.
+            //
+            // Note this deliberately keeps the error clamp TWO-SIDED. A one-sided lift-only servo was
+            // considered and rejected: CarryErrDown exists because a swung leg meeting the turf levers
+            // the whole assembly up and the next stride drops it (see the SimConfig comment), so the
+            // downward half is real work, not a hazard. The hazard was never the direction, it was
+            // acting on a floor height that had been invented.
+            if (UprightLock && IsGrounded && _floorValid && LocomotionEnabled && EmoteHeightOffset == 0f)
+            {
+                float err = Mathf.Clamp((_groundY + _standPelvisY) - Pelvis.position.y,
+                                        -SimConfig.CarryErrDown, SimConfig.CarryErrUp);
+                float vy = Mathf.Clamp(err * SimConfig.CarryHeightGain,
+                                       -SimConfig.CarryHeightMaxSpeed, SimConfig.CarryHeightMaxSpeed);
+                // Bounded, so the most this can ever add to any single bone in one tick is
+                // CarryHeightMaxSpeed. A hard landing still needs a few ticks to be absorbed, and a
+                // kicking foot's velocity is never disturbed by more than that.
+                float dv = Mathf.Clamp(vy - Pelvis.linearVelocity.y,
+                                       -SimConfig.CarryHeightMaxSpeed, SimConfig.CarryHeightMaxSpeed);
+                for (int i = 0; i < (int)Bone.Count; i++)
+                {
+                    if (_rb[i] == null) continue;
+                    var cv = _rb[i].linearVelocity;
+                    cv.y += dv;
+                    _rb[i].linearVelocity = cv;
+                }
+            }
 
             // Emote vertical bob (e.g. push-ups): while set, drive the pelvis toward its rest
             // height plus this offset with a strong PD so the whole body visibly rises/lowers.
@@ -586,6 +975,69 @@ namespace Trickshot
             float yaw = Mathf.MoveTowardsAngle(curYaw, wantYaw, 900f * Time.fixedDeltaTime);
             Pelvis.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
             Pelvis.angularVelocity = Vector3.zero;
+            // Publish the yaw rate this step actually commanded, for SettleYawRing to measure against.
+            _lockYawRate = Mathf.DeltaAngle(curYaw, yaw) * Mathf.Deg2Rad / Time.fixedDeltaTime;
+        }
+
+        /// <summary>
+        /// Bleed off the residual YAW RING of the body hanging off an upright-locked pelvis: the
+        /// left-right pendulum a standing quadruped settled into. Non-biped only, and only at rest.
+        ///
+        /// This is the same inertia problem _rootDriveMul solves, one level down the hierarchy, and it
+        /// needed a different answer. UprightLock pins the PELVIS outright (MoveRotation plus zeroed
+        /// spin), so the balance PD - and with it _rootDriveMul - is not even running while a body
+        /// stands. What is left free is everything above the pelvis, ringing in yaw against the barrel's
+        /// slerp drive. BoneSpec.DriveMul compensates that drive for the barrel's OWN mass and size, not
+        /// for the head and four legs welded to it, so the yaw damping ratio there falls short exactly
+        /// as the root's did. Then the geometry finishes the job: the same small angular ring that is
+        /// invisible on a human's shoulders sweeps a 1.2 m muzzle far enough to read as a pendulum.
+        ///
+        /// Why not the obvious alternatives:
+        ///  - Raising SimConfig.BalanceDamping changes the human, and does not run under the lock anyway.
+        ///  - Raising the barrel's DriveMul scales spring and damper together, which holds the damping
+        ///    ratio fixed and so cannot damp anything; it only stiffens the pose.
+        ///  - Lifting BodyLayout.RootDriveMul's clamp of 24 (the horse's yaw axis asks up to 45.75)
+        ///    would help the free-root path, but the sway complained about is the LOCKED one.
+        ///
+        /// Measured against the pelvis's COMMANDED yaw rate rather than against zero, so this is a
+        /// damper on the DIFFERENTIAL only: a body following a turn is in rigid yaw with its pelvis,
+        /// reads zero excess, and pays nothing. It is symmetric, which is deliberate - a bone LAGGING
+        /// the commanded yaw gets pulled up toward it, never past it, so turning in place stops
+        /// winding the lag into the barrel's drive spring, which is where the ring came from. Nothing
+        /// else is touched: the vertical component of spin only, so a header nod (pitch), a lean
+        /// (roll), the gait and the whole airborne path all pass through untouched.
+        /// </summary>
+        void SettleYawRing()
+        {
+            // Fraction of the excess removed this step, framed as an exponential decay so the result
+            // does not depend on the physics rate.
+            float k = 1f - Mathf.Exp(-_yawSettleRate * Time.fixedDeltaTime);
+            Vector3 pivot = Pelvis.position;
+            Vector3 wRef = Vector3.up * _lockYawRate;
+
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                var rb = _rb[i];
+                if (rb == null || rb == Pelvis) continue;   // the pelvis is already pinned by the lock
+
+                // Spin: only the world-up component, and only its excess over the pelvis's own yaw.
+                Vector3 w = rb.angularVelocity;
+                float excess = Vector3.Dot(w, Vector3.up) - _lockYawRate;
+                rb.angularVelocity = w - Vector3.up * (excess * k);
+
+                // Momentum: a yaw ring also orbits each bone about the pelvis axis, and that linear
+                // part is what would otherwise re-wind the spin the next step. ApplyLocomotion cannot
+                // absorb it - it steers the body's AVERAGE horizontal velocity and pushes every bone
+                // equally, so a differential orbit sums to nothing there and passes straight through.
+                Vector3 r = rb.worldCenterOfMass - pivot; r.y = 0f;
+                if (r.sqrMagnitude < 1e-6f) continue;
+                Vector3 tHat = Vector3.Cross(Vector3.up, r).normalized;
+                Vector3 v = rb.linearVelocity;
+                // Excess over the velocity that rigid yaw with the pelvis would give this bone,
+                // again so that following a turn is free.
+                float vt = Vector3.Dot(v - Vector3.Cross(wRef, r), tHat);
+                rb.linearVelocity = v - tHat * (vt * k);
+            }
         }
 
         void ReleaseUprightLock()
@@ -651,21 +1103,81 @@ namespace Trickshot
         {
             IsGrounded = false;
             Vector3 origin = Pelvis.position;
+            // Fallback so _groundY is never stale garbage if the probe misses. It is a FABRICATION -
+            // a height below the body with no evidence behind it - so the servo must never act on it,
+            // which is what _floorValid enforces. This value exists only so readers that want a number
+            // get a plausible one rather than whatever was left from the last frame.
+            _groundY = origin.y - _layout.GroundProbeDist * _hScale;
             // Cast scales with the build: a taller player's pelvis sits higher, so the
             // ground is further below it; a wider player needs a slightly wider probe.
-            float radius = 0.18f * _gScale;
-            float maxDist = 1.05f * _hScale;
-            var hits = Physics.SphereCastAll(origin, radius, Vector3.down, maxDist,
-                                             ~0, QueryTriggerInteraction.Ignore);
-            foreach (var h in hits)
+            // The distance is the layout's pelvis rest height plus a margin, so a quadruped
+            // (whose hips sit lower than a person's) probes a shorter way down.
+            float radius = _layout.GroundProbeRadius * _gScale;
+            float maxDist = _layout.GroundProbeDist * _hScale;
+            // NonAlloc: this runs per body per physics tick, so SphereCastAll was allocating an array
+            // 22 times a tick at 11-a-side - roughly 1,100 arrays a second, for a query whose results
+            // are consumed and discarded immediately.
+            int n = Physics.SphereCastNonAlloc(origin, radius, Vector3.down, _probeHits, maxDist,
+                                               ~0, QueryTriggerInteraction.Ignore);
+            // Grounding is unchanged: any accepted collider under the probe means grounded.
+            // Alongside it, find the TURF HEIGHT for the carry servo, which needs more care than
+            // grounding does. SphereCast order is not defined, so the first accepted hit can be a goal
+            // post or the side of some static prop rather than the ground: take the HIGHEST hit point
+            // instead (the surface you would actually stand on) and reject anything that is not
+            // FACING UP.
+            //
+            // THIS TEST USED TO BE A HEIGHT CUT, AND THAT WAS THE BODIES-SINK BUG. It read
+            //     floorCut = origin.y - _standPelvisY * 0.5f;   ... if (h.point.y > floorCut) continue;
+            // i.e. it decided what counted as floor RELATIVE TO THE BODY'S OWN CURRENT HEIGHT. Drop the
+            // pelvis low enough - a slide, a dive, a knockdown, a keeper lay-out, or simply one bad
+            // frame - and floorCut falls BELOW the actual turf, so the real floor hit is rejected,
+            // floorFound stays false, and _groundY keeps the fabricated fallback set at the top of this
+            // method (origin.y - GroundProbeDist), which is metres BELOW the body. The carry servo then
+            // reads that as "you are too high" and drives the body DOWN, which lowers floorCut again.
+            // Positive feedback, and the body walks itself into the turf.
+            //
+            // A surface normal does not depend on where the body happens to be, so it cannot run away:
+            // turf faces up, a post or a wall faces sideways. 0.7 is about 45 degrees, which keeps a
+            // ramp or a stand step as standable and rejects anything vertical.
+            _floorValid = false;
+            for (int i = 0; i < n; i++)
             {
+                var h = _probeHits[i];
                 if (h.collider == null) continue;
                 if (IsOwn(h.collider)) continue;
                 if (h.rigidbody != null && !h.rigidbody.isKinematic) continue; // ignore other dynamic bodies (ball)
                 IsGrounded = true;
-                break;
+                // A zero distance means the cast started already overlapping and h.point/h.normal are
+                // undefined there, so such a hit tells us nothing about the floor height.
+                if (h.distance <= 1e-4f) continue;
+                if (Vector3.Dot(h.normal, Vector3.up) < 0.7f) continue;   // not a floor, a wall
+                if (!_floorValid || h.point.y > _groundY) { _groundY = h.point.y; _floorValid = true; }
+            }
+
+            // Recovery for the overlapped case above. If the sphere started inside something, every hit
+            // was skipped and the servo would have no floor to work from; a zero-radius ray from inside
+            // the pelvis still reports the surface below it. Cheap because it only runs when the sphere
+            // cast produced nothing usable, which is rare.
+            if (!_floorValid)
+            {
+                RaycastHit r;
+                if (Physics.Raycast(origin, Vector3.down, out r, maxDist * 1.5f, ~0,
+                                    QueryTriggerInteraction.Ignore)
+                    && !IsOwn(r.collider)
+                    && (r.rigidbody == null || r.rigidbody.isKinematic)
+                    && Vector3.Dot(r.normal, Vector3.up) >= 0.7f)
+                {
+                    _groundY = r.point.y;
+                    _floorValid = true;
+                    IsGrounded = true;
+                }
             }
         }
+
+        // Reused probe buffer. 8 is generous: the query is a short cast straight down from one pelvis,
+        // and the loop takes the HIGHEST valid hit rather than the first, so a truncated result set
+        // degrades to a slightly lower floor estimate rather than to a wrong one.
+        readonly RaycastHit[] _probeHits = new RaycastHit[8];
 
         bool IsOwn(Collider c)
         {
@@ -797,6 +1309,21 @@ namespace Trickshot
         /// <summary>Set an additive pose offset (Euler deg) for a bone, layered on the base pose.</summary>
         public void SetPoseOverride(Bone b, Vector3 euler) => _poseOverride[(int)b] = euler;
 
+        /// <summary>ADD to a bone's pose override instead of replacing it, so two systems can share
+        /// one bone. The run gait and a player leg-raise both drive the same limb: the gait writes
+        /// its (already raise-scaled) stride first, then the raise adds on top, and the limb crosses
+        /// between them without the pop that overwriting caused on release.</summary>
+        public void AddPoseOverride(Bone b, Vector3 euler) => _poseOverride[(int)b] += euler;
+
+        /// <summary>Measured horizontal speed of the whole body (m/s). The run cadence reads this
+        /// rather than input magnitude, so the legs cycle at the speed the body is actually
+        /// travelling instead of snapping to full rate the frame a key goes down.</summary>
+        public float GroundSpeed => AverageHorizontalVelocity().magnitude;
+
+        /// <summary>Turf height under the pelvis, from the last grounding probe. Only meaningful
+        /// while <see cref="IsGrounded"/>.</summary>
+        public float GroundY => _groundY;
+
         public void ClearPoseOverrides()
         {
             for (int i = 0; i < _poseOverride.Length; i++) _poseOverride[i] = Vector3.zero;
@@ -830,20 +1357,8 @@ namespace Trickshot
             _poseTo = RagdollPose.Stand;
             _poseT = 1f;
 
-            // Reposition each bone to its build offset and zero velocities.
-            SnapBone(Bone.Pelvis, basePos + Off(0f, 1.02f, 0f), facing);
-            SnapBone(Bone.Torso,  basePos + Off(0f, 1.34f, 0f), facing);
-            SnapBone(Bone.Head,   basePos + Off(0f, 1.72f, 0f), facing);
-            SnapBone(Bone.ThighL, basePos + Off(-0.11f, 0.73f, 0f), facing);
-            SnapBone(Bone.ThighR, basePos + Off(0.11f, 0.73f, 0f), facing);
-            SnapBone(Bone.CalfL,  basePos + Off(-0.11f, 0.33f, 0f), facing);
-            SnapBone(Bone.CalfR,  basePos + Off(0.11f, 0.33f, 0f), facing);
-            SnapBone(Bone.FootL,  basePos + Off(-0.11f, 0.06f, 0.06f), facing);
-            SnapBone(Bone.FootR,  basePos + Off(0.11f, 0.06f, 0.06f), facing);
-            SnapBone(Bone.UpperArmL, basePos + Off(-0.26f, 1.40f, 0f), facing);
-            SnapBone(Bone.UpperArmR, basePos + Off(0.26f, 1.40f, 0f), facing);
-            SnapBone(Bone.ForearmL,  basePos + Off(-0.26f, 1.08f, 0f), facing);
-            SnapBone(Bone.ForearmR,  basePos + Off(0.26f, 1.08f, 0f), facing);
+            // Reposition every bone to its layout rest offset and zero velocities.
+            SnapLayout(basePos, facing);
         }
 
         // Client-side display puppet: pose the whole body at basePos+facing WITHOUT touching
@@ -864,57 +1379,40 @@ namespace Trickshot
         public void DisplaySnap(Vector3 basePos, Quaternion facing)
         {
             FacingRotation = facing;
-            // Reuse the same bone offsets as ResetTo, but only move transforms (kinematic). The
-            // offset is ROTATED by `facing` so every bone ORBITS the vertical axis as the body
-            // turns - the whole thing rotates rigidly. Without the rotation, off-axis bones (arms
-            // x=+/-0.26, legs x=+/-0.11, feet z=0.06) stayed pinned at their forward-facing spot
-            // while only their rotation yawed, so on a drag-turn the spine/feet appeared to spin
-            // while the arms/legs stayed locked (the customize-preview tearing bug).
-            SnapBone(Bone.Pelvis, basePos + facing * Off(0f, 1.02f, 0f), facing);
-            SnapBone(Bone.Torso,  basePos + facing * Off(0f, 1.34f, 0f), facing);
-            SnapBone(Bone.Head,   basePos + facing * Off(0f, 1.72f, 0f), facing);
-            SnapBone(Bone.ThighL, basePos + facing * Off(-0.11f, 0.73f, 0f), facing);
-            SnapBone(Bone.ThighR, basePos + facing * Off(0.11f, 0.73f, 0f), facing);
-            SnapBone(Bone.CalfL,  basePos + facing * Off(-0.11f, 0.33f, 0f), facing);
-            SnapBone(Bone.CalfR,  basePos + facing * Off(0.11f, 0.33f, 0f), facing);
-            SnapBone(Bone.FootL,  basePos + facing * Off(-0.11f, 0.06f, 0.06f), facing);
-            SnapBone(Bone.FootR,  basePos + facing * Off(0.11f, 0.06f, 0.06f), facing);
-            SnapBone(Bone.UpperArmL, basePos + facing * Off(-0.26f, 1.40f, 0f), facing);
-            SnapBone(Bone.UpperArmR, basePos + facing * Off(0.26f, 1.40f, 0f), facing);
-            SnapBone(Bone.ForearmL,  basePos + facing * Off(-0.26f, 1.08f, 0f), facing);
-            SnapBone(Bone.ForearmR,  basePos + facing * Off(0.26f, 1.08f, 0f), facing);
+            SnapLayout(basePos, facing);
         }
 
-        void SnapBone(Bone b, Vector3 worldPos, Quaternion facing)
+        // Place every bone at its layout rest offset from basePos with its layout rest rotation,
+        // and zero its velocities. Shared by ResetTo (dynamic body, round reset) and DisplaySnap
+        // (kinematic display puppet, every frame), so the two can never drift apart.
+        //
+        // The offset is ROTATED by `facing` so every bone ORBITS the vertical axis as the body
+        // turns and the whole thing moves rigidly. Without the rotation, off-axis bones (a human's
+        // arms at x +/-0.26, legs at x +/-0.11, feet at z 0.06) stay pinned at their forward-facing
+        // spot while only their rotation yaws, so on a drag-turn the spine and feet appear to spin
+        // while the arms and legs stay locked (the customize-preview tearing bug).
+        void SnapLayout(Vector3 basePos, Quaternion facing)
+        {
+            var bones = _layout.Bones;
+            for (int i = 0; i < bones.Length; i++)
+            {
+                var s = bones[i];
+                SnapBone(s.Bone, basePos + facing * Off(s.Pos.x, s.Pos.y, s.Pos.z),
+                         facing * Quaternion.Euler(s.RestEuler));
+            }
+        }
+
+        void SnapBone(Bone b, Vector3 worldPos, Quaternion rot)
         {
             var rb = _rb[(int)b];
             if (rb == null) return;
             rb.position = worldPos;
-            rb.rotation = facing;
+            rb.rotation = rot;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             rb.transform.position = worldPos;
-            rb.transform.rotation = facing;
+            rb.transform.rotation = rot;
         }
-
-        // Reused bone rest offsets (feet-relative) so DisplayEmote places bones the same way
-        // DisplaySnap does. Kept in one place to stay in sync with the Build layout.
-        static readonly (Bone b, Vector3 off)[] _displayBones =
-        {
-            (Bone.Pelvis,    new Vector3(0f, 1.02f, 0f)),
-            (Bone.Torso,     new Vector3(0f, 1.34f, 0f)),
-            (Bone.Head,      new Vector3(0f, 1.72f, 0f)),
-            (Bone.ThighL,    new Vector3(-0.11f, 0.73f, 0f)),
-            (Bone.ThighR,    new Vector3(0.11f, 0.73f, 0f)),
-            (Bone.CalfL,     new Vector3(-0.11f, 0.33f, 0f)),
-            (Bone.CalfR,     new Vector3(0.11f, 0.33f, 0f)),
-            (Bone.FootL,     new Vector3(-0.11f, 0.06f, 0.06f)),
-            (Bone.FootR,     new Vector3(0.11f, 0.06f, 0.06f)),
-            (Bone.UpperArmL, new Vector3(-0.26f, 1.40f, 0f)),
-            (Bone.UpperArmR, new Vector3(0.26f, 1.40f, 0f)),
-            (Bone.ForearmL,  new Vector3(-0.26f, 1.08f, 0f)),
-            (Bone.ForearmR,  new Vector3(0.26f, 1.08f, 0f)),
-        };
 
         // Display a networked EMOTE on a kinematic puppet (client side). Poses bone TRANSFORMS
         // directly (a kinematic body ignores the joint-drive pose system), rotating each bone by
@@ -933,14 +1431,17 @@ namespace Trickshot
             EmotePose.Apply(e, pc, (bone, euler) => over[(int)bone] = euler);
             // Whole-body vertical bob (e.g. push-ups drop into a plank + pump up/down).
             basePos.y += EmotePose.RootLift(e, pc);
-            // Place each bone at its rest position, rotated by facing * poseEuler. The rest offset
-            // is rotated by `facing` too so off-axis bones orbit with the body turn (see DisplaySnap).
-            for (int k = 0; k < _displayBones.Length; k++)
+            // Place each bone at its rest position, rotated by facing * restEuler * poseEuler. The
+            // rest offset is rotated by `facing` too so off-axis bones orbit with the body turn (see
+            // SnapLayout). The layout's rest rotation has to sit BEFORE the pose euler, or a
+            // quadruped's barrel would stand upright the moment a remote peer emoted.
+            var bones = _layout.Bones;
+            for (int k = 0; k < bones.Length; k++)
             {
-                var (b, off) = _displayBones[k];
-                Vector3 worldPos = basePos + facing * Off(off.x, off.y, off.z);
-                Quaternion rot = facing * Quaternion.Euler(over[(int)b]);
-                var rb = _rb[(int)b];
+                var s = bones[k];
+                Vector3 worldPos = basePos + facing * Off(s.Pos.x, s.Pos.y, s.Pos.z);
+                Quaternion rot = facing * Quaternion.Euler(s.RestEuler) * Quaternion.Euler(over[(int)s.Bone]);
+                var rb = _rb[(int)s.Bone];
                 if (rb == null) continue;
                 rb.position = worldPos; rb.rotation = rot;
                 rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
@@ -960,23 +1461,20 @@ namespace Trickshot
             var over = _emoteScratch;
             for (int i = 0; i < over.Length; i++) over[i] = Vector3.zero;
             float rootPitch = 0f, rootRoll = 0f;   // whole-body lean for dive/prone
+            float rootLift = 0f;                   // whole-body vertical drop (sit); pos.y is not on the wire
 
             switch (state)
             {
                 case AnimState.Run:
                 {
-                    // Alternating-leg run + contralateral arm pump (same shape as Footballer.RunGait).
+                    // The SHARED gait, so a remote player's puppet runs exactly like the local body -
+                    // including the quadruped front knee, which folded forward here too. `phase`
+                    // arrives as a free-running 0..1 clock, so scale it into radians. moveAmount is
+                    // the only speed signal on the wire, so it doubles as the sprint blend once it
+                    // is near the top.
                     float amt = Mathf.Clamp01(moveAmount);
-                    float s = Mathf.Sin(phase * Mathf.PI * 2f) * amt;
-                    float liftL = Mathf.Max(0f, s), liftR = Mathf.Max(0f, -s);
-                    over[(int)Bone.ThighL] = new Vector3(-s * SimConfig.GaitThighSwing - liftL * SimConfig.GaitThighLift, 0f, 0f);
-                    over[(int)Bone.CalfL]  = new Vector3(liftL * SimConfig.GaitKneeBend, 0f, 0f);
-                    over[(int)Bone.ThighR] = new Vector3(s * SimConfig.GaitThighSwing - liftR * SimConfig.GaitThighLift, 0f, 0f);
-                    over[(int)Bone.CalfR]  = new Vector3(liftR * SimConfig.GaitKneeBend, 0f, 0f);
-                    over[(int)Bone.UpperArmR] = new Vector3(s * SimConfig.ArmPumpSwing, 0f, 0f);
-                    over[(int)Bone.ForearmR]  = new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f);
-                    over[(int)Bone.UpperArmL] = new Vector3(-s * SimConfig.ArmPumpSwing, 0f, 0f);
-                    over[(int)Bone.ForearmL]  = new Vector3(-SimConfig.ArmPumpElbow, 0f, 0f);
+                    Gait.Pose(over, Gait.For(Plan), phase * Mathf.PI * 2f, amt,
+                              Mathf.Clamp01((amt - 0.75f) * 4f), 0f, 0f);
                     break;
                 }
                 case AnimState.Jump:
@@ -985,37 +1483,51 @@ namespace Trickshot
                     over[(int)Bone.ThighR] = new Vector3(-30f, 0f, 0f);
                     over[(int)Bone.CalfL]  = new Vector3(40f, 0f, 0f);
                     over[(int)Bone.CalfR]  = new Vector3(40f, 0f, 0f);
-                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 40f);
-                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -40f);
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, -40f);   // -Z on a LEFT limb is OUT
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, 40f);
                     break;
                 case AnimState.Kick:
                     // Right-leg swing through + slight torso lean (a struck shot).
                     over[(int)Bone.ThighR] = new Vector3(-70f, 0f, 0f);
                     over[(int)Bone.CalfR]  = new Vector3(20f, 0f, 0f);
                     over[(int)Bone.Torso]  = new Vector3(12f, 0f, 0f);
-                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 45f);
-                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -25f);
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, -45f);    // left arm OUT to counter-balance
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, 25f);
                     break;
                 case AnimState.Dive:
                     // Laid-out flat (keeper dive): whole body rolled ~horizontal, arms reaching.
                     rootRoll = 80f;
-                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, 150f);
-                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, -150f);
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, -150f);   // matches KeeperPose.Dive
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, 150f);
                     break;
                 case AnimState.Down:
                     // Knocked over: face-down flat.
                     rootPitch = 85f;
                     break;
+                case AnimState.Sit:
+                    // Seated: the same shape as RagdollPose.Sit, plus a root drop, because the
+                    // snapshot carries no height (pos.y is zeroed on the host) so the puppet would
+                    // otherwise sit at standing hip height with its legs in mid-air.
+                    rootLift = -SimConfig.SitDrop * _hScale;
+                    over[(int)Bone.Torso]  = new Vector3(-12f, 0f, 0f);
+                    over[(int)Bone.ThighL] = new Vector3(-88f, 0f, -6f);      // -Z on a LEFT limb is OUT
+                    over[(int)Bone.ThighR] = new Vector3(-88f, 0f, 6f);
+                    over[(int)Bone.CalfL]  = new Vector3(12f, 0f, 0f);
+                    over[(int)Bone.CalfR]  = new Vector3(12f, 0f, 0f);
+                    over[(int)Bone.UpperArmL] = new Vector3(32f, 0f, -22f);   // -Z on a LEFT limb is OUT
+                    over[(int)Bone.UpperArmR] = new Vector3(32f, 0f, 22f);
+                    break;
                 // Idle: rest stance (all zero).
             }
 
             Quaternion root = facing * Quaternion.Euler(rootPitch, 0f, rootRoll);
-            for (int k = 0; k < _displayBones.Length; k++)
+            var bones = _layout.Bones;
+            for (int k = 0; k < bones.Length; k++)
             {
-                var (b, off) = _displayBones[k];
-                Vector3 worldPos = basePos + (root * Off(off.x, off.y, off.z));
-                Quaternion rot = root * Quaternion.Euler(over[(int)b]);
-                var rb = _rb[(int)b];
+                var s = bones[k];
+                Vector3 worldPos = basePos + Vector3.up * rootLift + (root * Off(s.Pos.x, s.Pos.y, s.Pos.z));
+                Quaternion rot = root * Quaternion.Euler(s.RestEuler) * Quaternion.Euler(over[(int)s.Bone]);
+                var rb = _rb[(int)s.Bone];
                 if (rb == null) continue;
                 rb.position = worldPos; rb.rotation = rot;
                 rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero;
@@ -1023,16 +1535,11 @@ namespace Trickshot
             }
         }
 
-        // Parent map for the display skeleton, indexed by Bone (value = parent Bone index, -1 = root).
-        // Mirrors the nested hierarchy built in Build(): Torso and both Thighs hang off the Pelvis,
-        // each Calf off its Thigh, each Foot off its Calf, both UpperArms off the Torso, each Forearm
-        // off its UpperArm. Index order below is already parent-before-child (every parent index is
-        // less than its children), so a single forward pass computes correct world transforms.
-        static readonly int[] _displayParent = { -1, 0, 1, 0, 0, 3, 4, 5, 6, 1, 1, 9, 10 };
-
         // FK scratch, reused each frame (DisplayPose runs every frame for the two menu puppets, so we
-        // avoid allocating three arrays per call).
+        // avoid allocating four arrays per call). _fkRest / _fkRestRot are the layout's rest offset
+        // and rest rotation per bone; the parent map comes from _layout.ParentByBone.
         readonly Vector3[] _fkRest = new Vector3[(int)Bone.Count];
+        readonly Quaternion[] _fkRestRot = new Quaternion[(int)Bone.Count];
         readonly Vector3[] _fkPos = new Vector3[(int)Bone.Count];
         readonly Quaternion[] _fkRot = new Quaternion[(int)Bone.Count];
 
@@ -1053,30 +1560,45 @@ namespace Trickshot
             FacingRotation = facing;
             Quaternion root = facing * Quaternion.Euler(rootPitch, 0f, rootRoll);
 
-            // Rest offsets (feet-relative, build-scaled) indexed by Bone.
-            for (int i = 0; i < _fkRest.Length; i++) _fkRest[i] = Vector3.zero;
-            for (int k = 0; k < _displayBones.Length; k++)
+            // Rest offsets and rest rotations (feet-relative, build-scaled) indexed by Bone.
+            for (int i = 0; i < _fkRest.Length; i++)
             {
-                var (b, off) = _displayBones[k];
-                _fkRest[(int)b] = Off(off.x, off.y, off.z);
+                _fkRest[i] = Vector3.zero;
+                _fkRestRot[i] = Quaternion.identity;
             }
+            var bones = _layout.Bones;
+            for (int k = 0; k < bones.Length; k++)
+            {
+                var s = bones[k];
+                _fkRest[(int)s.Bone] = Off(s.Pos.x, s.Pos.y, s.Pos.z);
+                _fkRestRot[(int)s.Bone] = Quaternion.Euler(s.RestEuler);
+            }
+            int[] parent = _layout.ParentByBone;
 
             // Forward pass. A child's pivot is its parent's pivot plus the bind offset (parent->child
             // rest vector) rotated into the parent's accumulated frame; the child's own euler only
             // spins it about that pivot, so it swings as a connected limb.
+            //
+            // The rest rotations make this mirror the PHYSICAL joint hierarchy exactly. A bone's
+            // build-time world rotation is root * restRot[b], so its rest rotation relative to its
+            // parent is Inverse(restRot[p]) * restRot[b], which is precisely what the joint drive
+            // relaxes to (see _targetRestLocal / _jointStartLocal in AddJoint). The bind offset is
+            // likewise carried in the parent's rest frame. Every biped rest rotation is identity, so
+            // this is algebraically the same code it replaced for a human.
             for (int b = 0; b < (int)Bone.Count; b++)
             {
                 Vector3 e = (boneEuler != null && b < boneEuler.Length) ? boneEuler[b] : Vector3.zero;
-                int p = _displayParent[b];
+                int p = parent[b];
                 if (p < 0)
                 {
-                    _fkRot[b] = root * Quaternion.Euler(e);
+                    _fkRot[b] = root * _fkRestRot[b] * Quaternion.Euler(e);
                     _fkPos[b] = basePos + root * _fkRest[b];
                 }
                 else
                 {
-                    _fkRot[b] = _fkRot[p] * Quaternion.Euler(e);
-                    _fkPos[b] = _fkPos[p] + _fkRot[p] * (_fkRest[b] - _fkRest[p]);
+                    Quaternion pInv = Quaternion.Inverse(_fkRestRot[p]);
+                    _fkRot[b] = _fkRot[p] * (pInv * _fkRestRot[b]) * Quaternion.Euler(e);
+                    _fkPos[b] = _fkPos[p] + _fkRot[p] * (pInv * (_fkRest[b] - _fkRest[p]));
                 }
 
                 var rb = _rb[b];
