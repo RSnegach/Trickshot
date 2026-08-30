@@ -462,6 +462,54 @@ namespace Trickshot
                 UITheme.Shadowed(new Rect(r.x, r.y - 20f, r.width, 18f), label, _meterLbl, Gold, 0.6f, 1f);
         }
 
+        // ================================================================ shot charge bar
+        // BAND WORDS. charge01 is the entire shot - BallController.LaunchChargedShot reads it and
+        // nothing else for elevation and pace - so the band a player sees IS the shot they get, not
+        // decoration. Boundaries are simple thirds; the elevation curve itself is a continuous lerp
+        // with a kink at 0.5 (LaunchChargedShot: light->mid over the first half, mid->full over the
+        // second), so any reasonable split works, and thirds is the easiest one to read at a glance.
+        public enum ShotBand { Chip, Placed, Drive }
+        const float ShotBandChipMax = 0.34f, ShotBandPlacedMax = 0.70f;
+
+        public static ShotBand BandOf(float t01)
+            => t01 < ShotBandChipMax ? ShotBand.Chip
+             : t01 < ShotBandPlacedMax ? ShotBand.Placed : ShotBand.Drive;
+
+        static string BandName(ShotBand b) => b == ShotBand.Chip ? "CHIP" : b == ShotBand.Placed ? "PLACED" : "DRIVE";
+
+        /// <summary>
+        /// The human shot charge bar. Sits ABOVE the pass bar at the same x and width - LMB/RMB and
+        /// Q/E can be held in the same frame, so the two bars stack rather than fight for one slot.
+        ///
+        /// Three things this says that the pass bar cannot, none of which a player could previously
+        /// see at all:
+        ///   - the BAND word, because charge01 IS the shot (see BandOf)
+        ///   - a FULL FIRES hint, because max charge auto-releases - the pass bar is cap-and-wait and
+        ///     this one is not, and nothing on screen used to admit the difference
+        ///   - a NO BALL state when held out of range, because Striker.ShotCharge01 reads 0 in both
+        ///     "not holding" and "holding, out of range" - a bar driven off charge alone could not
+        ///     tell them apart, which is exactly how "the mechanic ran, drew nothing" looked from
+        ///     outside. `inRange` is Striker.ShotInRange, sampled independently of the charge value.
+        /// </summary>
+        public static void ShotBar(float t01, bool holding, bool inRange)
+        {
+            if (!holding) return;   // not held at all: nothing to show, same rule PowerBar follows
+            const float w = 250f, h = 20f, pad = 22f;
+            float y = H - 108f - h - 26f;   // stacked above the pass bar with room for its own label
+
+            if (!inRange)
+            {
+                UITheme.Shadowed(new Rect(pad, y - 20f, w, 18f), "NO BALL", _meterLbl, Dim, 0.6f, 1f);
+                Meter(new Rect(pad, y, w, h), 0f);
+                return;
+            }
+
+            var band = BandOf(t01);
+            string top = BandName(band) + (t01 >= 0.999f ? "   FULL - FIRES!" : "");
+            UITheme.Shadowed(new Rect(pad, y - 20f, w, 18f), top, _meterLbl, Gold, 0.6f, 1f);
+            Meter(new Rect(pad, y, w, h), t01);
+        }
+
         /// <summary>
         /// Bottom-left pass power bar: the player's name and the pass type over a filling meter.
         ///

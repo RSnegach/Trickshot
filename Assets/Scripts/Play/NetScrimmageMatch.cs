@@ -781,6 +781,12 @@ namespace Trickshot
                 && meBody.bar.Showing(out Passing.PassKind bk, out float bt))
                 Hud.PowerBar(RosterName(_localSlot), bt, ScrimmageGame.PassKindName(bk));
 
+            // Shot charge bar, same slot as the local scrimmage HUD. striker.ShotCharge01/ShotInRange
+            // read the LOCAL peer's own input, same as the pass bar above does through `bar` - this is
+            // the predicted charge/range, not a value fed by the host.
+            if (!_localIsKeeper && meBody != null && meBody.striker != null && meBody.striker.WantsChargedShot)
+                Hud.ShotBar(meBody.striker.ShotCharge01, true, meBody.striker.ShotInRange);
+
             Hud.Legend(_localIsKeeper ? "WASD move   Mouse aim   LMB/RMB dive   Space jump   E/Q throw"
                                       : "WASD move   LMB/RMB legs   E pass   Q loft   X chip   C tackle   B emote   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);

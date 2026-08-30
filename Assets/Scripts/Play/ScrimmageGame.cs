@@ -1563,6 +1563,11 @@ namespace Trickshot
             if (_role != SimConfig.ScrimRole.Keeper && _bar.Showing(out Passing.PassKind bk, out float bt))
                 Hud.PowerBar(PlayerProfile.PlayerName, bt, PassKindName(bk));
 
+            // Shot charge bar, stacked above the pass bar. LMB/RMB (WantsChargedShot) can be held in
+            // the same frame as Q/E, so it needs its own slot rather than sharing the pass bar's.
+            if (_role != SimConfig.ScrimRole.Keeper && _humanStriker != null && _humanStriker.WantsChargedShot)
+                Hud.ShotBar(_humanStriker.ShotCharge01, true, _humanStriker.ShotInRange);
+
             // Shared styled callout (big, colour-coded, shadowed) - same look as every other mode.
             if (_flashTime > 0f) Hud.Flash(_flash, _flashTime / 1.6f);
 

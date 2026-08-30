@@ -486,6 +486,26 @@ namespace Trickshot
         public float ShotCharge01 => Passing.Charge01(Mathf.Max(_shotChargeL, _shotChargeR));
 
         /// <summary>
+        /// Whether a charge held RIGHT NOW would actually count. Passing.StepCharge zeroes charge on
+        /// every tick canPlay is false (out of range, or busy), so ShotCharge01 reads 0 in both "not
+        /// holding" and "holding, out of range" - a HUD reading only the charge cannot tell them
+        /// apart, which is exactly how "the mechanic ran, drew nothing" looked from outside. Mirrors
+        /// UpdateShotCharge's own gate so it cannot silently disagree with it.
+        /// </summary>
+        public bool ShotInRange
+        {
+            get
+            {
+                if (_ragdoll == null || _ragdoll.Pelvis == null) return false;
+                if (_ball == null) _ball = FindAnyObjectByType<BallController>();
+                if (_ball == null) return false;
+                bool busy = _sitting || _sliding || _mode != Trick.None;
+                return Passing.CanPlay(_ball, _ragdoll.Pelvis.position,
+                                       _dribble != null && _dribble.Carrying, busy, out _);
+            }
+        }
+
+        /// <summary>
         /// Live test: is this body holding exactly one leg button, grounded and free to strike?
         /// Read by BallController.ChargeOwnsShot to stop Dribble's press-edge flat release firing out
         /// from under a charge. Deliberately does NOT test ball range - the only caller already has
