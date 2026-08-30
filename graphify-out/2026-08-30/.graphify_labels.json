@@ -144,15 +144,5 @@
   "142": "Rect",
   "143": "Vector2",
   "144": "Material",
-  "145": ".Mul",
-  "146": "Dictionary",
-  "147": "float",
-  "148": "Func",
-  "149": "GUIStyle",
-  "150": "HashSet",
-  "151": "int",
-  "152": "List",
-  "153": "Refs",
-  "154": "string",
-  "155": "Vector3"
+  "145": ".Mul"
 }

@@ -883,10 +883,5 @@
     "mtime": 1788047802.1709926,
     "ast_hash": "e05405ae4e8e64c29f08f4a2c06e2eb9",
     "semantic_hash": ""
-  },
-  "Assets/Scripts/Play/ShotBarPreview.cs": {
-    "mtime": 1788049558.7774668,
-    "ast_hash": "63547c474ecc32515bbcd09f2967c490",
-    "semantic_hash": ""
   }
 }

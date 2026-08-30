@@ -562,9 +562,10 @@ namespace Trickshot
         public const float ScrimReticleMinHeight = 0.85f;  // m above resting height before it draws
         public const float ScrimReticleMinTime   = 0.22f;  // s of remaining flight
         public const float ScrimReticleMaxTime   = 2.6f;
-        // The disc geometry itself is AimReticle's (a 1.4-unit ring, i.e. this radius); recorded here
-        // so the two cannot silently disagree if either is retuned.
-        public const float ScrimReticleRadius    = 0.7f;   // disc radius on the turf, matches AimReticle
+        // The ring geometry itself is AimReticle's (RingRadius there); recorded here so the two
+        // cannot silently disagree if either is retuned. Shrunk from 0.7 to 0.35 when the reticle
+        // became a small circle + crosshair instead of a landing-zone disc.
+        public const float ScrimReticleRadius    = 0.35f;  // ring radius on the turf, matches AimReticle
         // Cyan, so it reads against turf and against both kit colours without being mistaken for a
         // marking or a team indicator.
         public static readonly Color ScrimReticleTint = new Color(0.35f, 0.85f, 1f, 1f);

@@ -119,7 +119,7 @@ namespace Trickshot
             var mc = WorldToMap(rect, target);
             float pulse = 0.5f + 0.5f * Mathf.Sin(t * 4f);
             bool targetActive = !showCrosser || editing == 0;
-            DrawReticle(mc, 9f + (targetActive ? pulse * 3f : 0f), Gold,
+            DrawReticle(mc, 7f + (targetActive ? pulse * 2.5f : 0f), Gold,
                         ringAlpha: targetActive ? 0.5f + 0.5f * pulse : 0.4f, filled: true);
 
             // --- Crosser marker: a small player icon (distinct blue), pulses when being edited ---
@@ -135,7 +135,7 @@ namespace Trickshot
             {
                 float hp = 0.5f + 0.5f * Mathf.Sin(t * 7f);
                 Color hc = (showCrosser && editing == 1) ? CrosserCol : HoverCol;
-                DrawReticle(e.mousePosition, 8f + hp * 3f, hc, ringAlpha: 0.35f + 0.4f * hp, filled: false);
+                DrawReticle(e.mousePosition, 6f + hp * 2.5f, hc, ringAlpha: 0.35f + 0.4f * hp, filled: false);
             }
 
             GUI.color = prev;
@@ -178,20 +178,19 @@ namespace Trickshot
             GUI.color = prev;
         }
 
-        // A crosshair reticle: an outer ring (drawn as short segments), a center dot, and cross ticks.
+        // A small circle with a crosshair straight THROUGH it - the same shape AimReticle uses on the
+        // turf everywhere else now. The old version left a gap around the centre and put two of its
+        // four ticks OUTSIDE the ring and two INSIDE it; this is one bar each axis, unbroken, so it
+        // reads as a single reticle rather than four disconnected tick marks.
         static void DrawReticle(Vector2 c, float r, Color col, float ringAlpha, bool filled)
         {
             var prev = GUI.color;
-            // Ring (segmented circle).
             GUI.color = new Color(col.r, col.g, col.b, ringAlpha);
             DrawCircle(c, r, 2f, 24);
-            // Crosshair ticks (leave a gap at the centre).
-            float gap = r * 0.45f, len = r * 0.55f;
             GUI.color = col;
-            GUI.DrawTexture(new Rect(c.x - 1f, c.y - r - 3f, 2f, len), Texture2D.whiteTexture);          // top
-            GUI.DrawTexture(new Rect(c.x - 1f, c.y + gap, 2f, len), Texture2D.whiteTexture);              // bottom
-            GUI.DrawTexture(new Rect(c.x - r - 3f, c.y - 1f, len, 2f), Texture2D.whiteTexture);           // left
-            GUI.DrawTexture(new Rect(c.x + gap, c.y - 1f, len, 2f), Texture2D.whiteTexture);              // right
+            float reach = r * 1.3f;   // overshoots the ring on both ends, same read as AimReticle's 3D one
+            GUI.DrawTexture(new Rect(c.x - 1f, c.y - reach, 2f, reach * 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(c.x - reach, c.y - 1f, reach * 2f, 2f), Texture2D.whiteTexture);
             // Centre dot.
             if (filled) { GUI.color = col; GUI.DrawTexture(new Rect(c.x - 2f, c.y - 2f, 4f, 4f), Texture2D.whiteTexture); }
             GUI.color = prev;
