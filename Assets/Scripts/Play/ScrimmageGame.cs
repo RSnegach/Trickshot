@@ -131,7 +131,6 @@ namespace Trickshot
             _ball.ResetTo(new Vector3(0f, SimConfig.ScrimKickoffBallHeight, 0f));
             _resolved = false;
             _kickoffTimer = SimConfig.ScrimKickoffFreeze;   // brief set-and-ready freeze
-            Flash("KICK OFF");
             // Whistle at match start AND every post-goal kickoff. Local for SP + host; the host also
             // broadcasts so clients (who don't run this sim) hear it too.
             AudioManager.Instance?.PlayWhistle();
@@ -337,7 +336,7 @@ namespace Trickshot
             var carrier = _ball != null ? _ball.DribbleCarrier : null;
             var res = Dribble.ContestTackle(_controlled.Ragdoll, carrier,
                                             _ball != null ? _ball.transform.position : Vector3.zero,
-                                            true, out string why);
+                                            true, out _);
             if (res == Dribble.TackleResult.Won)
             {
                 // Credit it properly. This path never called WinBall, so NoteTackle never saw a slide
@@ -347,9 +346,7 @@ namespace Trickshot
                 Vector3 fwd = new Vector3(0f, 0f, _controlled.AttackZ);
                 _ball.KickTo(fwd * SimConfig.TackleKnock + Vector3.up * 0.4f, _controlled.Ragdoll);
                 MatchProbe.SlideWin();
-                Flash("SLIDE TACKLE!");
             }
-            else Flash(why ?? "SLIDE");
         }
 
         // Diving header contact: a body in MID-FLIGHT of a diving header that reaches an opponent
@@ -391,7 +388,6 @@ namespace Trickshot
                 if (victim.Strk != null && victim.Strk.IsDiving) victim.Strk.ForceRecover();
                 Vector3 dir = victim.Pos - d.Pos; dir.y = 0f;
                 victim.Knock.Fell(dir);
-                if (d == _controlled) Flash("FLATTENED HIM!");
             }
         }
 
@@ -453,8 +449,8 @@ namespace Trickshot
             // certainty. It also rejects a LOOSE ball, which this path used to treat as a tackle.
             var res = Dribble.ContestTackle(tackler != null ? tackler.Ragdoll : null, carrier,
                                             _ball != null ? _ball.transform.position : Vector3.zero,
-                                            false, out string why);
-            if (res != Dribble.TackleResult.Won) { if (why != null) Flash(why); return; }
+                                            false, out _);
+            if (res != Dribble.TackleResult.Won) return;
 
             NoteTackle(tackler != null ? tackler.Ragdoll : null, carrier);
             // ContestTackle already released the human hold on its way to Won. This still has to run
@@ -477,7 +473,6 @@ namespace Trickshot
             if (victim == null) victim = NearestOpponentToBall(tackler != null ? tackler.Team : 0);
             if (victim != null && victim.Knock != null)
                 victim.Knock.Fell(victim.Pos - (tackler != null ? tackler.Pos : victim.Pos));
-            Flash("TACKLE!");
         }
 
         // Nearest player of the team OPPOSITE `team` to the ball (the likely carrier).
@@ -1279,13 +1274,12 @@ namespace Trickshot
             // not queued: a call released later would be aimed at a run that has already ended.
             if (!CallLimiter.Allow()) return;
             var carrier = TeammateOnBall();
-            if (carrier == null || carrier == _controlled) { Flash("CALLING"); return; }
+            if (carrier == null || carrier == _controlled) return;
             Vector3 from = _ball.transform.position;
             Vector3 aim = Passing.Lead(from, _controlled.Pos, _controlled.Vel, lofted, 0.6f, 1f, 1f);
             LaunchPass(aim, lofted ? Passing.PassKind.Air : Passing.PassKind.Ground, 0.6f,
                        carrier.GetComponent<Dribble>(), carrier.Ragdoll,
                        PlayerProfile.PassAccuracyMul, false);
-            Flash(lofted ? "CALL: LOFTED" : "CALL: PASS");
         }
 
         // The controlled player plays a pass STRAIGHT DOWN THE LOOK RAY, at the range the bar charged
@@ -1305,7 +1299,6 @@ namespace Trickshot
             Vector3 aim = ClampAim(Passing.LookAim(from, yaw, kind, charge01, PlayerProfile.PassPowerMul));
             LaunchPass(aim, kind, charge01, _humanDribble, _controlled.Ragdoll,
                        PlayerProfile.PassAccuracyMul, firstTime);
-            Flash(kind == Passing.PassKind.Chip ? "CHIP" : kind == Passing.PassKind.Air ? "LOFT" : "PASS");
         }
 
         // Common launch. Everything about the weight, arc, lead and error lives in Passing, so a
@@ -1416,7 +1409,6 @@ namespace Trickshot
                                        SimConfig.ScrimKickoffBallHeight,
                                        Mathf.Clamp(c.z, -HalfLength + 3f, HalfLength - 3f));
             _ball.ResetTo(spot);
-            Flash("BALL IN");
             return true;
         }
 
@@ -1439,7 +1431,6 @@ namespace Trickshot
                 Vector3 spot = new Vector3(Mathf.Clamp(c.x, -HalfWidth + 3f, HalfWidth - 3f), SimConfig.ScrimKickoffBallHeight,
                                            Mathf.Clamp(c.z, -HalfLength + 3f, HalfLength - 3f));
                 _ball.ResetTo(spot);
-                Flash("BALL IN");
             }
         }
 
