@@ -33,6 +33,14 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   (goals, save %, streak PBs, matches played) rather than only a single match's scoreboard.
   Implies some form of save-file or account-tied persistence that doesn't exist yet.
 
+- **"Zoo": custom-animal creation + social/multiplayer viewing.** A character-creation interface
+  where players build/customize their own animal (builds on the existing `Species`/`AnatomySim`
+  system — human, horse, elephant, etc. already have anatomy scaling). Play with your own
+  creation, play with other people's in multiplayer, browse/visit other players' zoos. Creation
+  should be LIMITED somehow (a cap on slots, a cooldown, a currency/unlock cost — not decided) so
+  making a character feels like a real choice, not something to spam-generate dozens of. Not
+  scoped beyond this — just an idea, not being built yet.
+
 ## Open questions (not answered yet)
 
 - Where does progression/stats persistence live — local save file, or does it need an account
