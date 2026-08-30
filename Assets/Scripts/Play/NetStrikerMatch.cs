@@ -66,8 +66,7 @@ namespace Trickshot
 
 
         // Cross-targeting map (crosser role only): where the human crosser's deliveries land.
-        bool _crossMapOpen;
-        Vector3 _crossTarget = SimConfig.ServeTarget;
+
         bool _localIsCrosser;
         bool _localIsKeeper;
 
@@ -124,6 +123,9 @@ namespace Trickshot
                 {
                     _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
                     if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
+                    // A local human crosser aims with the SAME camera yaw his Striker turns to, so
+                    // CrosserControl's solve never disagrees with which way his body is facing.
+                    if (me.crosserCtl != null) me.crosserCtl.SetCameraYaw(() => _cam.Yaw);
                 }
             }
 
@@ -303,8 +305,19 @@ namespace Trickshot
                 b.striker = striker;
                 IStrikerInput src = isLocal ? (IStrikerInput)_input : (b.netInput = new NetInputSource());
                 striker.Init(src, ragdoll);
+                // CrosserControl owns LMB/RMB for a delivery (aim + footedness charge); the crosser's
+                // own Striker must not ALSO read them as a shot attempt on the same body.
+                striker.ShootingEnabled = false;
+                if (!isLocal)
+                {
+                    // A remote human crosser AIMS with his own camera, off the wire - same source his
+                    // Striker's facing already uses (see SpawnBody's non-crosser twin of this).
+                    striker.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f,
+                                         () => b.netInput != null ? b.netInput.LookPitch : 0f);
+                }
                 var cc = _crosser.gameObject.AddComponent<CrosserControl>();
-                cc.Init(src, _crosser, () => _crossMapOpen, () => _crossTarget);
+                cc.Init(src, _crosser);
+                if (!isLocal) cc.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f);
                 b.crosserCtl = cc;
             }
             else
@@ -443,15 +456,6 @@ namespace Trickshot
             if (me != null && me.striker != null) me.striker.ForceRecover();
         }
 
-        // Crosser's cross-targeting map: free the cursor while open (to click the map), re-lock
-        // on close. The chosen _crossTarget feeds CrosserControl (via the closure in SpawnBody).
-        void SetCrossMapOpen(bool open)
-        {
-            _crossMapOpen = open;
-            GameInput.CaptureCursor(!open);
-            if (_cam != null) _cam.FreezeLook = open;   // hold the view still while placing on the map
-        }
-
         // Emote wheel open/close: free the cursor so the radial menu is clickable, re-lock on close.
         void SetWheelOpen(bool open)
         {
@@ -552,12 +556,9 @@ namespace Trickshot
             // remote crosser's R works too). (Single-player R still fully resets via GameManager.)
             if (_input.ResetPressed && _s.IsHost && _crosser.AutoServe) { _goalHold = 0f; _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
 
-            // Local crosser: M toggles the cross-targeting map (freeze aim, free the cursor).
-            if (_localIsCrosser && _input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
-
             // Emote wheel (B): any local body that can emote (has a Celebration). Toggling frees
-            // the cursor so the radial menu is clickable. Not while the cross map is up.
-            if (_input.EmotePressed && !_crossMapOpen && _bodies[_localSlot]?.celeb != null)
+            // the cursor so the radial menu is clickable.
+            if (_input.EmotePressed && _bodies[_localSlot]?.celeb != null)
                 SetWheelOpen(!_wheelOpen);
 
             // Local player: tick its own controller (host + client both predict the local body).
@@ -954,7 +955,7 @@ namespace Trickshot
             Hud.Stat(ref p, "Goals", _goals.ToString());
             Hud.Stat(ref p, "You are", youAre);
             Hud.Legend(_localIsCrosser
-                ? "WASD move   M aim map   Tap Q/E driven   Hold Q/E chip   R new ball   V ball cam"
+                ? "WASD move   Look to aim   Hold LMB/RMB to charge, release to cross   R new ball   V ball cam"
                 : (youAre == "Keeper"
                     ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   E/Q throw   V ball cam"
                     : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q/E call low/high   V ball cam   R reset"));
@@ -966,15 +967,13 @@ namespace Trickshot
             // Quickchat feed + custom-text box (multiplayer).
             if (_qcFeed != null) _qcFeed.Draw();
 
-            // Crosser's cross-targeting overlay (aim where deliveries land).
-            if (_localIsCrosser && _crossMapOpen)
+            // Human crosser's charge bar - same widget the shot mechanic uses, reused verbatim:
+            // CrosserControl.Charge01/Holding are the same shape as Striker.ShotCharge01/
+            // WantsChargedShot. No "in range" state for a cross - he can always attempt one.
+            if (_localIsCrosser)
             {
-                Hud.Scrim(0.45f);
-                float w = 380f, h = 300f;
-                var mapRect = new Rect(Hud.W * 0.5f - w * 0.5f, Hud.H * 0.5f - h * 0.5f, w, h);
-                CrossMap.Draw(mapRect, ref _crossTarget, interactive: true);
-                Hud.OverlayLabel(mapRect, "WHERE SHOULD YOUR CROSSES LAND?",
-                                 "Click to set target.  M to close.  Then tap Q/E = driven, hold = chip.");
+                var meCtl = _bodies[_localSlot]?.crosserCtl;
+                if (meCtl != null && meCtl.Holding) Hud.ShotBar(meCtl.Charge01, true, true);
             }
 
             Hud.End();

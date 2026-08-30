@@ -34,6 +34,11 @@ namespace Trickshot
         Dribble _dribble;   // optional; when carrying, movement slows + facing slews (Control claws both back)
 
         public bool ControlEnabled = true;
+        // A human CROSSER's body carries a real Striker for movement/pose (see NetStrikerMatch.
+        // SpawnCrosserBody), but LMB/RMB on that body are CrosserControl's - the crosser's own
+        // footedness+charge for a delivery, not a shot. Narrower than ControlEnabled on purpose:
+        // that gate gone would also kill his movement, which the crosser still needs.
+        public bool ShootingEnabled = true;
 
         public void SetDribble(Dribble d) => _dribble = d;
 
@@ -281,7 +286,7 @@ namespace Trickshot
             // --- charged shot (ONE leg button, grounded, ball in range) ---
             // AFTER UpdateSit deliberately: the sit/slide gesture claims the both-buttons case and
             // sets _sitting/_sliding on this same frame, and the charge gate reads both.
-            UpdateShotCharge(grounded);
+            if (ShootingEnabled) UpdateShotCharge(grounded);
 
             // --- trigger tricks / jump ---
             // Blocked while seated AND through the stand-up ramp: he gets to his feet first, so a
@@ -515,7 +520,7 @@ namespace Trickshot
         {
             get
             {
-                if (!ControlEnabled || _input == null || _ragdoll == null || _ragdoll.Pelvis == null) return false;
+                if (!ShootingEnabled || !ControlEnabled || _input == null || _ragdoll == null || _ragdoll.Pelvis == null) return false;
                 if (!_ragdoll.IsGrounded || _sitting || _sliding || _mode != Trick.None) return false;
                 return _input.LeftLegHeld != _input.RightLegHeld;   // exactly one: two is the gesture
             }

@@ -224,9 +224,13 @@ namespace Trickshot
 
         // Manual serve to a chosen target: a driven (low, flat) or chipped (high, floaty) ball,
         // its flight time scaled by powerMul (a hold-charge 0..1 floats it more), with optional
-        // aim scatter (deg) so low-passing/low-crossing players misplace it. Used by the human
-        // crosser and by the striker's call-for-pass. Plays the same windup swing.
-        public void ServeNow(Vector3 target, bool lofted, float powerMul, float scatterDeg = 0f)
+        // aim scatter (deg) so low-passing/low-crossing players misplace it, and optional curl
+        // (world-space horizontal accel, see BallController.LaunchTo) for a footedness-driven
+        // in/outswinger - defaults to none, so the three existing callers (AI serve, freeplay,
+        // the striker's called pass) are unaffected. Used by the human crosser and by the
+        // striker's call-for-pass. Plays the same windup swing.
+        public void ServeNow(Vector3 target, bool lofted, float powerMul, float scatterDeg = 0f,
+                             Vector3 curl = default)
         {
             float baseTime = lofted ? SimConfig.CrossTimeLoft : SimConfig.CrossTimeDrive;
             float floatMul = Mathf.Lerp(SimConfig.CrossChargeFlatMul, SimConfig.CrossChargeFloatMul,
@@ -242,7 +246,7 @@ namespace Trickshot
             }
             _pendingTarget = target;
             _pendingTime = Mathf.Max(0.2f, baseTime * floatMul);
-            _pendingCurl = Vector3.zero;
+            _pendingCurl = curl;
             _pendingSpin = 0f;
             _manualPending = true;
             _telegraphed = false;
@@ -337,8 +341,9 @@ namespace Trickshot
         }
 
         // A mobile human crosser (ServeFromFeet) launches from its own pelvis position; else the
-        // OriginOverride (placed AI spot) or the fixed wing launch point.
-        Vector3 Origin
+        // OriginOverride (placed AI spot) or the fixed wing launch point. Public so CrosserControl
+        // can solve an aim ray from the same point the ball will actually launch from.
+        public Vector3 Origin
         {
             get
             {

@@ -231,6 +231,32 @@ namespace Trickshot
         public const float CrossTapMaxHold = 0.18f; // held below this = a tap (driven); above = a chip
         public const float CrossChargeFlatMul = 0.8f;  // bare tap: 0.8x the type's flight time (flatter/faster)
         public const float CrossChargeFloatMul = 1.2f;  // full hold: 1.2x (a bit floatier, still a low arc)
+
+        // ---- Human crosser AIM (CrosserControl): look direction + charge, no map click ----
+        // Aim is RELATIVE to wherever the crosser is actually standing (ServeFromFeet: he walks
+        // freely), not an absolute Z-plane - a plane fixed to the goal line broke the moment his own
+        // position was already closer to goal than the "near" plane, which happens easily since
+        // CrosserStart is only 5.5 m back and the near plane was 6 m: solving for where a FORWARD ray
+        // crosses a plane BEHIND you returns a negative flight time. Verified with Temp/crossaim_check
+        // .py before and Temp/crossaim_check2.py after - the plane model produced 55 bad (negative-t)
+        // solves out of 120 sampled angles/charges; this one produces 0.
+        //
+        // Charge01 sets how far the look-ray reaches from his own feet; the result is then clamped
+        // into a legal delivery box (X around the goal, Z in front of the goal line) as a safety net,
+        // not as the primary solve - so ANY standing position and look angle still produces something
+        // sane rather than an edge case. Matches the shot mechanic's "aim = where you look, charge =
+        // power" so the two deliveries feel like the same game.
+        public const float CrossAimNearReach = 8f;    // metres the ray travels from his feet at a tap
+        public const float CrossAimFarReach  = 20f;   // ...and at a full hold
+        public const float CrossAimHalfWidth = 11f;   // X clamp, either side of goal centre
+        public const float CrossAimMinDepth  = 2f;    // Z clamp: never behind this close to the goal line
+        public const float CrossAimMaxDepth  = 18f;   // Z clamp: never farther out than this
+        // Curl magnitude at FULL charge (see BallController.LaunchTo's curlAccel). Which foot (LMB/RMB)
+        // sets the SIGN, not which wing the crosser is standing on - a deliberate simplification, not
+        // a claim about real in/outswinger technique. Shaped the same way the shot's curl is (peaks at
+        // mid-charge, tapers at both ends - Sin(charge*pi)), so a tap or a full hold curls least and a
+        // half-charge curls most.
+        public const float CrossCurlAccMax = 3.2f;
         // Human crosser: pressing R drops a fresh ball at their feet, but only if the current ball
         // has been served away (is at least this far from the feet). Avoids yanking a ready ball.
         public const float CrosserRefillDist = 1.5f;
