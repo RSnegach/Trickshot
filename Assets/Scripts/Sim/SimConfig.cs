@@ -384,7 +384,12 @@ namespace Trickshot
         public const float AiKeeperDiveThresh = 1.6f; // |x| offset beyond which he dives instead of shuffling
         public const float AiKeeperDiveLead = 0.9f;   // predicted ball-x lead time for the dive commit (s)
         public const float AiKeeperDiveCooldown = 1.1f; // min seconds between dives
-        public const float AiKeeperDiveHoriz = 6.5f;  // dive lunge speed (scaled by ability)
+        // Was its own 6.5 - noticeably farther/faster than a human keeper's own dive ever reaches
+        // (KeeperDiveHorizBase 3.58 at standstill, ~4.5 with a full run-up). Reusing the human's
+        // own number directly is the point: the AI should move like a human keeper, not a
+        // separately-tuned, longer-reaching one. horizMul/DiveAbil()/KeeperStrafeSpeed scaling
+        // in Goalkeeper.LaunchBandDive is unchanged; only the base speed this scales from moved.
+        public const float AiKeeperDiveHoriz = KeeperDiveHorizBase;  // dive lunge speed (scaled by ability)
         public const float AiKeeperDiveUp = 3.0f;     // dive upward pop (scaled by ability)
         // Low / grounded shots. By how far the ball is off the keeper (predicted x minus
         // his x):
@@ -393,7 +398,11 @@ namespace Trickshot
         //   beyond that                 -> shuffle a step or two toward it first, then dive.
         public const float AiKeeperLowBallHeight = 1.0f;  // predicted ball height below this = low save
         public const float AiKeeperSplitWidth = 1.2f;     // predicted crossing within this of the keeper = Split, else side splay
-        public const float AiKeeperLowSaveUp = 1.2f;      // small hop on a side splay (stays low)
+        // Was 1.2 - a small hop the LaunchSplay comment already promised he wouldn't take
+        // ("stays on the ground... not going airborne"). The human's own LMB/RMB reflex save
+        // (KeeperController.BeginSave, KeeperSaveLunge) has zero vertical - a pure sideways lunge
+        // on his feet - so the AI's splay matches that exactly now instead of quietly floating.
+        public const float AiKeeperLowSaveUp = 0f;        // side splay: grounded, same as the human's LMB/RMB save
         public const float AiKeeperSplayReach = 1.6f;     // low ball within this of the keeper = splay/split in place
         public const float AiKeeperLowDiveReach = 4.5f;   // low ball within this = commit a low dive; beyond = step closer first
         public const float AiKeeperLowDiveUp = 1.6f;      // small upward pop on a low dive (stays low)

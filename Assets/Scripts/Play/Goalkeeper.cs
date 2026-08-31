@@ -544,6 +544,11 @@ namespace Trickshot
         // SaveLeft / SaveRight, small hop, no layout roll. He is not going airborne for a ball he
         // can get a leg and an arm to from where he already stands. The central half of the old
         // LaunchLowSave has moved out of here entirely and is no longer a dive at all (X4).
+        //
+        // This is the AI's version of the human's LMB/RMB reflex save (KeeperController.BeginSave)
+        // - same move, same person doing it - so it now launches off that move's own constant
+        // (KeeperSaveLunge) instead of a separate, larger AI-only number, with AiKeeperLowSaveUp
+        // at 0 keeping it exactly as grounded as the human's version already is.
         void LaunchSplay(float dir, float ability)
         {
             BeginDive(Band.Low, dir, ability);
@@ -553,7 +558,7 @@ namespace Trickshot
             // the ball while the lunge carried him toward it.
             float side = dir * RightSign();      // +1 = crossing on his own right
             _lowPose = side < 0f ? KeeperPose.SaveLeft : KeeperPose.SaveRight;
-            float horiz = SimConfig.AiKeeperDiveHoriz * 0.75f * DiveAbil(ability)
+            float horiz = SimConfig.KeeperSaveLunge * DiveAbil(ability)
                           * (SimConfig.KeeperStrafeSpeed / 5.5f);
             _ragdoll.AddVelocityToAll(new Vector3(dir * horiz, SimConfig.AiKeeperLowSaveUp, 0f));
             _diveOrient = _facing;               // keep low, no full layout roll
