@@ -345,6 +345,7 @@ namespace Trickshot
         void OnMatchEvent(string tag)
         {
             if (tag == "WHISTLE") { AudioManager.Instance?.PlayWhistle(); return; }   // ref call, no HUD splash
+            if (tag == "MISS") { AudioManager.Instance?.PlayMissBoosMaybe(); return; }
             Flash(tag);
         }
         // Client: 3D kick thud at the host-reported contact point (10 m rolloff, per-player).
@@ -541,7 +542,6 @@ namespace Trickshot
             _activeShooter = 255; _over = true;
             _phase = Phase.Settle; _settle = float.PositiveInfinity;
             BroadcastShootout();
-            Flash(WinnerText());
         }
 
         // Has this shooter used up their turn? Set pieces: a fixed shot count. Accuracy: either a
@@ -856,7 +856,6 @@ namespace Trickshot
                         _save.Arm();
                         _hitThisKick = false;   // fresh attempt: re-arm the one-target-per-kick latch
                         if (_wall != null) _wall.TriggerJump();
-                        Flash("STRIKE!");
                     }
                     break;
 
@@ -893,7 +892,7 @@ namespace Trickshot
             if (AccuracyMode)
             {
                 if (goal) AudioManager.Instance?.OnSetPieceGoal(_activeShooter);
-                else { Announce(_save.Touched ? _save.Callout() : "MISS"); AudioManager.Instance?.OnSetPieceMiss(_activeShooter); }
+                else { if (_save.Touched) Announce(_save.Callout()); AudioManager.Instance?.OnSetPieceMiss(_activeShooter); }
                 BroadcastShootout();
                 bool kicksDone = !_accByTime && _taken[_activeShooter] >= _accKicks;
                 if (kicksDone) { EndActiveTurn(); return; }
@@ -905,7 +904,7 @@ namespace Trickshot
             }
 
             if (goal) { _scored[_activeShooter]++; Announce("GOAL!"); }
-            else Announce(_save.Touched ? _save.Callout() : "MISS");
+            else if (_save.Touched) Announce(_save.Callout());
             BroadcastShootout();
             _phase = Phase.Settle;
             _advanceAfterReplay = true;

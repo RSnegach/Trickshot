@@ -169,6 +169,7 @@ namespace Trickshot
             {
                 _phase = Phase.Live;
                 _attempts++;
+                CareerStats.RecordAccuracyKick();
                 _liveTime = 0f;
                 _restTimer = 0f;
                 _hitThisKick = false;
@@ -198,7 +199,7 @@ namespace Trickshot
                 if (_hitThisKick) AudioManager.Instance?.OnSetPieceGoal(0);
                 else
                 {
-                    Flash(_save.Touched ? _save.Callout() : "MISS");
+                    if (_save.Touched) Flash(_save.Callout());
                     AudioManager.Instance?.OnSetPieceMiss(0);
                 }
                 _phase = Phase.Cooldown;
@@ -245,6 +246,7 @@ namespace Trickshot
             if (_hitThisKick) return;   // already scored on this attempt
             _score += points;
             _hitThisKick = true;
+            CareerStats.RecordAccuracyTargetHit();
             Flash("+" + points);
         }
 
@@ -253,6 +255,7 @@ namespace Trickshot
             _timeLeft = 0f;
             _finished = true;
             if (_score > SessionBest) SessionBest = _score;
+            CareerStats.RecordAccuracyRoundEnd(_score);
             _board.HideAll();
             _taker.Reset();
         }

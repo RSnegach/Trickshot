@@ -112,8 +112,8 @@ namespace Trickshot
             if (_crosser.Tick())
             {
                 _crosses++;
+                CareerStats.RecordTimeTrialCross();
                 _resolved = false;
-                Flash("CROSS!");
             }
 
             TrackOutcome();
@@ -160,6 +160,7 @@ namespace Trickshot
         {
             _resolved = true;
             _goals++;
+            CareerStats.RecordTimeTrialGoal();
             Flash("GOAL!");
         }
 
@@ -169,7 +170,7 @@ namespace Trickshot
             _finished = true;
             _resolved = true;
             _reticle.Hide();
-            Flash("TIME!");
+            CareerStats.RecordTimeTrialRunEnd(_goals);
         }
 
         void Recenter()

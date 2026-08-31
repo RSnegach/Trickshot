@@ -139,8 +139,8 @@ namespace Trickshot
                 if (_crosser.Tick())
                 {
                     _crosses++;
+                    CareerStats.RecordFreeplayCross();
                     _resolved = false;
-                    Flash("CROSS!");
                 }
                 TrackOutcome();
             }
@@ -209,6 +209,7 @@ namespace Trickshot
         {
             _resolved = true;
             _goals++;
+            CareerStats.RecordFreeplayGoal();
             Flash("GOAL!");
         }
 

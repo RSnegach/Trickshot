@@ -14,11 +14,9 @@ namespace Trickshot
     /// what used to be the separate "Mode" submenu). Kept as IMGUI so it needs no Canvas/
     /// EventSystem wiring (consistent with the rest of the runtime build).
     ///
-    /// Career Stats and Zoo are "Coming Soon" placeholders on purpose: there is no persisted
-    /// player data anywhere in this project (PlayerProfile/SkillTree reset every launch; the only
-    /// real save surface is keybinds/audio/display/quickchat), so a real Career Stats screen would
-    /// mean building this project's first save system - out of scope for a menu redesign. Shipping
-    /// an honest placeholder beats fabricating lifetime numbers that don't exist.
+    /// Career Stats is now real (see CareerStats.cs, this project's first save file) and opens
+    /// CareerStatsUI. Zoo is still a "Coming Soon" placeholder - there is no character-creation
+    /// system to back it yet, and an honest placeholder beats fabricating one.
     /// </summary>
     public class MenuUI : MonoBehaviour
     {
@@ -34,6 +32,7 @@ namespace Trickshot
         // the passed GameInput; null if none was supplied (then no Options card is shown).
         OptionsMenu _options;
         bool _optionsOpen;
+        CareerStatsUI _careerStats;
 
         public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null,
                          GameInput input = null)
@@ -78,7 +77,10 @@ namespace Trickshot
                 case Phase.Splash: DrawSplash(); break;
                 case Phase.Hub: DrawHub(); break;
                 case Phase.SinglePlayer: DrawSinglePlayer(); break;
-                case Phase.CareerStats: DrawComingSoon("CAREER STATS"); break;
+                case Phase.CareerStats:
+                    _careerStats ??= new CareerStatsUI();
+                    _careerStats.Draw(() => _phase = Phase.Hub);
+                    break;
                 case Phase.Zoo: DrawComingSoon("ZOO"); break;
             }
 
@@ -91,7 +93,7 @@ namespace Trickshot
         void DrawSplash()
         {
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.18f, 900f, 0.20f, 0f);
-            UITheme.TitleWithKickK(new Rect(0, 210f, MenuScale.Width, 200f), 132);
+            UITheme.TitleWithKickK(new Rect(0, 130f, MenuScale.Width, 200f), 132);
             UITheme.PulseHint(new Rect(0, 446f, MenuScale.Width, 40f), "PRESS ANY KEY TO CONTINUE");
         }
 
@@ -130,7 +132,7 @@ namespace Trickshot
             }
 
             if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("career"),
-                "Career Stats", "Track your progress over time", comingSoon: true))
+                "Career Stats", "Track your progress over time"))
                 _phase = Phase.CareerStats;
 
             if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("zoo"),

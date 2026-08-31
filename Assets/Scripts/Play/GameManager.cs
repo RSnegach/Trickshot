@@ -130,7 +130,7 @@ namespace Trickshot
             float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
             _crosser.ServeNow(target, lofted, 0.5f, scatter);
             _attempts++; _resolved = false; _save.Arm();
-            Flash(lofted ? "CALL: HIGH" : "CALL: LOW");
+            CareerStats.RecordStrikerCross();
         }
 
         void Update()
@@ -168,7 +168,7 @@ namespace Trickshot
             if (_crossMapOpen)
             {
                 if (_keeper != null) _keeper.Tick();
-                if (_crosser.Tick()) { _attempts++; _resolved = false; _save.Arm(); Flash("CROSS!"); }
+                if (_crosser.Tick()) { _attempts++; _resolved = false; _save.Arm(); CareerStats.RecordStrikerCross(); }
                 TrackOutcome();
                 if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
                 return;   // skip striker control + ball-cam toggle while the map is up
@@ -196,7 +196,7 @@ namespace Trickshot
                 _attempts++;
                 _resolved = false;
                 _save.Arm();
-                Flash("CROSS!");
+                CareerStats.RecordStrikerCross();
             }
 
             // Watch the live ball for a goal / miss / save purely to flash a callout.
@@ -254,6 +254,7 @@ namespace Trickshot
             _resolved = true;
             _goals++;
             if (trick) _trickGoals++;
+            CareerStats.RecordStrikerGoal(trick);
             Flash("GOAL!");   // plain callout, no shot-type specification
             CrowdCheer.Celebrate();
             AudioManager.Instance?.PlayGoalCelebration();   // cheer + applause, cuts any lively swell
@@ -294,14 +295,14 @@ namespace Trickshot
         {
             _resolved = true;
             _saves++;
+            CareerStats.RecordStrikerShotDenied();
             Flash(_save.Callout());
         }
 
         void OnMiss()
         {
             _resolved = true;
-            if (_save.Touched) { _saves++; Flash(_save.Callout()); return; }
-            Flash("MISS");
+            if (_save.Touched) { _saves++; CareerStats.RecordStrikerShotDenied(); Flash(_save.Callout()); return; }
             AudioManager.Instance?.PlayMissBoosMaybe();   // occasional boos (~1 in 5-6)
         }
 

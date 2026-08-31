@@ -57,11 +57,11 @@ namespace Trickshot
             if (_server.Tick())
             {
                 _shots++;
+                CareerStats.RecordKeeperShotFaced();
                 _resolved = false;
                 _save.Arm();
                 _liveTime = 0f;
                 _restTimer = 0f;
-                Flash("SHOT!");
             }
 
             TrackOutcome();
@@ -103,11 +103,11 @@ namespace Trickshot
             }
         }
 
-        void OnGoal() { _resolved = true; _goals++; Flash("GOAL"); }
+        void OnGoal() { _resolved = true; _goals++; CareerStats.RecordKeeperGoalConceded(); Flash("GOAL"); }
         // EPIC SAVE when the shot was hit hard enough OR stopped in a high dive (latched at
         // contact); otherwise a plain SAVE.
-        void OnSave() { _resolved = true; _saves++; Flash(_save.Callout()); CrowdCheer.Celebrate(); }
-        void OnMiss() { _resolved = true; Flash("MISS"); }
+        void OnSave() { _resolved = true; _saves++; CareerStats.RecordKeeperSave(); Flash(_save.Callout()); CrowdCheer.Celebrate(); }
+        void OnMiss() { _resolved = true; }
 
         // R only: full reset of keeper + serve loop (not per-ball, which would yank the
         // player-controlled keeper around on every serve).

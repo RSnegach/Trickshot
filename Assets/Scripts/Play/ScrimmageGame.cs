@@ -1498,6 +1498,27 @@ namespace Trickshot
             // part of StatsFrozen. Update also returns on the clock check well above TrackTouches, so
             // this frame never got a proximity pass - one frame of touches is not worth a special case.
             FinalizeRatings();
+
+            // Single-player only: a networked HOST also drives this class (see ConfigureNetHost), and
+            // its own lifetime stats are out of scope for now (see CareerStats' own doc comment on why
+            // multiplayer attribution needs its own pass, not a bolt-on here). Same human-body
+            // resolution the HUD already uses for the player marker (Hud.PlayerMarker call below).
+            if (!_netHost)
+            {
+                var meRag = _role == SimConfig.ScrimRole.Keeper
+                            ? _humanKeeperRagdoll
+                            : (_controlled != null ? _controlled.Ragdoll : null);
+                var my = Row(meRag);
+                if (my != null)
+                {
+                    int myScore = my.team == 0 ? _homeScore : _awayScore;
+                    int theirScore = my.team == 0 ? _awayScore : _homeScore;
+                    int result = myScore > theirScore ? 1 : (myScore < theirScore ? -1 : 0);
+                    CareerStats.RecordScrimmageMatchEnd(result, my.goals, my.assists, my.shots,
+                        my.tackles, my.saves, my.conceded, my.passes, my.passesDone);
+                }
+            }
+
             _fullTime = true;
             CancelInvoke(nameof(Kickoff));
             _ball.Rb.linearVelocity = Vector3.zero;

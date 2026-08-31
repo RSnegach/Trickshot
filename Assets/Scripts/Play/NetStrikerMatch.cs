@@ -633,7 +633,6 @@ namespace Trickshot
                 if (PlayerProfile.PerkMaestro) acc = 1f;
                 float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
                 _crosser.ServeNow(target, high, 0.5f, scatter);
-                Flash(high ? "CALL: HIGH" : "CALL: LOW");
                 return;   // one serve per frame
             }
         }
@@ -649,7 +648,6 @@ namespace Trickshot
             Vector3 ballFlat = _ball.transform.position; ballFlat.y = feet.y;
             if (Vector3.Distance(ballFlat, feet) < SimConfig.CrosserRefillDist) return;   // one already there
             _ball.ResetTo(feet);
-            Flash("NEW BALL");
         }
 
         void HostUpdate()
@@ -712,7 +710,7 @@ namespace Trickshot
             if (_crosser.AutoServe && _crosser.ReadyToServe) HostCheckCallForPass();
 
             // Crosser + ball + goal detection (authoritative). A goal starts the LIVE hold above.
-            if (_crosser.Tick()) Flash("CROSS!");
+            _crosser.Tick();
             Vector3 c = _ball.transform.position;
             if (!_replaying && BallInGoal(c))
             {

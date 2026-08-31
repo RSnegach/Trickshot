@@ -171,12 +171,12 @@ namespace Trickshot
             {
                 _phase = Phase.Live;
                 _attempts++;
+                CareerStats.RecordFreeKickAttempt();
                 _liveTime = 0f;
                 _restTimer = 0f;
                 _save.Arm();
                 _wallTouched = false;
                 if (_wall != null) _wall.TriggerJump();
-                Flash("STRIKE!");
             }
         }
 
@@ -225,10 +225,10 @@ namespace Trickshot
         {
             switch (o)
             {
-                case Outcome.Goal:    _goals++; Flash("GOAL!"); AudioManager.Instance?.OnSetPieceGoal(0); break;
+                case Outcome.Goal:    _goals++; CareerStats.RecordFreeKickGoal(); Flash("GOAL!"); AudioManager.Instance?.OnSetPieceGoal(0); break;
                 case Outcome.Save:    Flash(_save.Callout()); AudioManager.Instance?.OnSetPieceMiss(0); break;
-                case Outcome.Blocked: Flash("BLOCKED!"); AudioManager.Instance?.OnSetPieceMiss(0); break;
-                default:              Flash("MISS");     AudioManager.Instance?.OnSetPieceMiss(0); break;
+                case Outcome.Blocked: AudioManager.Instance?.OnSetPieceMiss(0); break;
+                default:              AudioManager.Instance?.OnSetPieceMiss(0); break;
             }
             _phase = Phase.Cooldown;
             _cooldown = ResetDelay;
@@ -303,7 +303,6 @@ namespace Trickshot
             else if (_wall != null)
                 _wall.Clear();
             Arm();
-            Flash("RESET");
         }
 
         // A goal the instant the WHOLE ball is over the line and inside the frame - the
