@@ -1470,7 +1470,14 @@ namespace Trickshot
             for (int i = 0; i < bones.Length; i++)
             {
                 var s = bones[i];
-                SnapBone(s.Bone, basePos + facing * Off(s.Pos.x, s.Pos.y, s.Pos.z),
+                // TargetPos ?? Pos, same as MakeTarget's target-skeleton build above - only the feet
+                // differ (BodyLayout.TargetPos's own doc), and Pos is deliberately the LOOSE spawn
+                // position the ankle joint then pulls up to TargetPos within a physics step or two.
+                // A live ragdoll never shows the gap because that correction is near-instant; a
+                // KINEMATIC snap (DisplaySnap - the customize-screen preview, no physics ever runs)
+                // held it at the loose Pos forever, showing a visibly detached, floating foot.
+                Vector3 p = s.TargetPos ?? s.Pos;
+                SnapBone(s.Bone, basePos + facing * Off(p.x, p.y, p.z),
                          facing * Quaternion.Euler(s.RestEuler));
             }
         }

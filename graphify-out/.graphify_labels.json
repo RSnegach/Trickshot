@@ -98,6 +98,7 @@
   "96": ".StartRebind",
   "97": ".Begin",
   "98": "FreeplayGame",
+  "99": ".AttachKickDetectors",
   "100": "SessionBrowserUI",
   "101": ".StartRebind",
   "102": "SurroundBuilder",
@@ -131,7 +132,6 @@
   "130": "skyfetch.py",
   "131": ".Set",
   "132": ".OptionGrid",
-  "134": "JerseyDesigns.Nations6.cs",
   "135": "postprep.py",
   "136": "Transform",
   "140": "NetBackstop.cs"
