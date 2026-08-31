@@ -69,6 +69,7 @@ namespace Trickshot
         bool _diveIsJump;     // straight jump (stays upright) vs. lay-out dive
         bool _diveIsHigh;     // high (full lay-out) dive vs. low dash dive
         float _saveReleaseTimer;
+        float _saveSettle;    // seconds GroundSpeed has stayed below KeeperSaveSettleSpeed, continuously
 
         // Getting up off the turf (see ManageStumble).
         float _stumbleTimer;
@@ -235,6 +236,7 @@ namespace Trickshot
         {
             _state = State.Saving;
             _saveReleaseTimer = -1f;                 // -1 = still held
+            _saveSettle = 0f;
             _savePose = pose;
             _ragdoll.LocomotionEnabled = false;      // let the lunge carry
             _ragdoll.MoveInput = Vector3.zero;
@@ -261,12 +263,21 @@ namespace Trickshot
             }
             _ragdoll.SetPose(_savePose, 16f);        // hold the reach
 
-            // Released: brief settle, then stand.
+            // Released: brief settle, then stand - but ONLY once he has actually slowed down, not
+            // just after a flat timer. BeginSave's lunge (KeeperSaveLunge) is a real velocity
+            // impulse with LocomotionEnabled off, so it barely decays on its own; recovering on a
+            // timer alone let a spammed LMB/RMB re-trigger BeginSave - another full lunge, additive
+            // - before the previous one had bled off, compounding speed with every click.
             if (!lmb && !rmb)
             {
                 if (_saveReleaseTimer < 0f) _saveReleaseTimer = SimConfig.KeeperSaveReleaseTime;
                 _saveReleaseTimer -= Time.deltaTime;
-                if (_saveReleaseTimer <= 0f) RecoverToReady();
+                bool timerDone = _saveReleaseTimer <= 0f;
+                if (timerDone && _ragdoll.GroundSpeed < SimConfig.KeeperSaveSettleSpeed)
+                    _saveSettle += Time.deltaTime;
+                else
+                    _saveSettle = 0f;
+                if (timerDone && _saveSettle >= SimConfig.KeeperSaveSettleTime) RecoverToReady();
             }
         }
 

@@ -91,6 +91,13 @@ namespace Trickshot
         // other, and the reach was covering ground the dive is supposed to be for.
         public const float KeeperSaveLunge = 5.6f;
         public const float KeeperSaveReleaseTime = 0.12f; // brief settle after release before standing
+        // The release timer alone let a spammed LMB/RMB re-trigger BeginSave (another full
+        // KeeperSaveLunge impulse, additive) before the PREVIOUS lunge's velocity had bled off,
+        // compounding speed with every click. These gate recovery on the body actually having
+        // slowed down too - same idea as a dive's grounded-settle gate (KeeperDiveSettle), just
+        // keyed on speed instead of ground contact since a lunge never leaves the ground.
+        public const float KeeperSaveSettleSpeed = 2.2f;  // GroundSpeed must drop below this...
+        public const float KeeperSaveSettleTime  = 0.20f; // ...continuously, for this long, to stand
 
         // Upward dive (A/D + Space): reach/height scale with prior speed. More hang time
         // so there is a real apex where he is laid out flat.

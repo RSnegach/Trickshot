@@ -6472,8 +6472,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "accuracyboard.cs"
     },
     {
@@ -6489,8 +6489,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "accuracyboard"
     },
     {
@@ -6500,8 +6500,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_cs_transform",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "transform"
     },
     {
@@ -6511,8 +6511,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_cs_float",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "float"
     },
     {
@@ -6522,8 +6522,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_cs_int",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "int"
     },
     {
@@ -6533,8 +6533,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_cs_uint",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "uint"
     },
     {
@@ -6567,8 +6567,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_build",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".build()"
     },
     {
@@ -6584,8 +6584,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_spawnall",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".spawnall()"
     },
     {
@@ -6635,8 +6635,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_activecount",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".activecount()"
     },
     {
@@ -6652,8 +6652,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_teardown",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".teardown()"
     },
     {
@@ -6686,8 +6686,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_spawnat",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".spawnat()"
     },
     {
@@ -6703,8 +6703,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_randomspot",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".randomspot()"
     },
     {
@@ -6714,8 +6714,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_cs_vector3",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": "vector3"
     },
     {
@@ -6731,8 +6731,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_overlapsother",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".overlapsother()"
     },
     {
@@ -6748,8 +6748,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_rand",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".rand()"
     },
     {
@@ -6883,8 +6883,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracygame_trickshot_accuracygame_beginround",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".beginround()"
     },
     {
@@ -7731,8 +7731,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_bottom",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".bottom()"
     },
     {
@@ -7983,8 +7983,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_setcamera",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".setcamera()"
     },
     {
@@ -8068,8 +8068,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_tryclaimtrickbonus",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": ".tryclaimtrickbonus()"
     },
     {
@@ -9428,8 +9428,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_applykickpose",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".applykickpose()"
     },
     {
@@ -9814,8 +9814,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowd_trickshot_crowd_create",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".create()"
     },
     {
@@ -9910,8 +9910,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowd_trickshot_crowd_buildfan",
-      "community": 13,
-      "community_name": "SetPieceTaker",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".buildfan()"
     },
     {
@@ -9921,8 +9921,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "seat",
-      "community": 13,
-      "community_name": "SetPieceTaker",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": "seat"
     },
     {
@@ -9983,8 +9983,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowdcheer_trickshot_crowdcheer_register",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".register()"
     },
     {
@@ -10190,8 +10190,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_ondestroy",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".ondestroy()"
     },
     {
@@ -13671,8 +13671,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamecamera_trickshot_gamecamera_init",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".init()"
     },
     {
@@ -13773,8 +13773,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamecamera_trickshot_gamecamera_toggleballcam",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".toggleballcam()"
     },
     {
@@ -14534,8 +14534,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_goalkeeper_trickshot_goalkeeper_init",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".init()"
     },
     {
@@ -18021,7 +18021,7 @@
       "label": ".Init()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L86",
+      "source_location": "L87",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18038,7 +18038,7 @@
       "label": ".SetLookYawSource()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L111",
+      "source_location": "L112",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18055,7 +18055,7 @@
       "label": ".Tick()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L113",
+      "source_location": "L114",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18072,7 +18072,7 @@
       "label": ".ShuffleGait()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L189",
+      "source_location": "L190",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18089,7 +18089,7 @@
       "label": ".DetectDoubleTap()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L215",
+      "source_location": "L216",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18106,7 +18106,7 @@
       "label": ".BeginSave()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L234",
+      "source_location": "L235",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18123,7 +18123,7 @@
       "label": ".ManageSave()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L246",
+      "source_location": "L248",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18140,7 +18140,7 @@
       "label": ".RecoverToReady()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L275",
+      "source_location": "L277",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18157,7 +18157,7 @@
       "label": ".Move()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L297",
+      "source_location": "L299",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18174,7 +18174,7 @@
       "label": ".Jump()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L313",
+      "source_location": "L315",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18191,7 +18191,7 @@
       "label": ".LaunchDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L332",
+      "source_location": "L334",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18208,7 +18208,7 @@
       "label": ".LaunchDashDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L343",
+      "source_location": "L345",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18225,7 +18225,7 @@
       "label": ".DoDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L352",
+      "source_location": "L354",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18242,7 +18242,7 @@
       "label": ".ManageDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L383",
+      "source_location": "L385",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18259,7 +18259,7 @@
       "label": ".ManageStumble()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L447",
+      "source_location": "L449",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18276,7 +18276,7 @@
       "label": ".TryClaim()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L498",
+      "source_location": "L500",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18293,7 +18293,7 @@
       "label": ".RestoreAfterDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L517",
+      "source_location": "L519",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18310,7 +18310,7 @@
       "label": ".ManageHold()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L531",
+      "source_location": "L533",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18327,7 +18327,7 @@
       "label": ".DistributeAim()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L564",
+      "source_location": "L566",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18344,7 +18344,7 @@
       "label": ".ForceRecover()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L576",
+      "source_location": "L578",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -18837,8 +18837,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": "kickdetector.cs"
     },
     {
@@ -18854,8 +18854,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector_trickshot_kickdetector",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": "kickdetector"
     },
     {
@@ -18865,8 +18865,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector_cs_float",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": "float"
     },
     {
@@ -18882,8 +18882,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector_trickshot_kickdetector_init",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": ".init()"
     },
     {
@@ -18899,8 +18899,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector_trickshot_kickdetector_update",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": ".update()"
     },
     {
@@ -18916,8 +18916,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector_trickshot_kickdetector_oncollisionenter",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": ".oncollisionenter()"
     },
     {
@@ -18927,8 +18927,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_kickdetector_cs_collision",
-      "community": 99,
-      "community_name": ".AttachKickDetectors",
+      "community": 88,
+      "community_name": ".Set",
       "norm_label": "collision"
     },
     {
@@ -19865,8 +19865,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_rungait",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".rungait()"
     },
     {
@@ -22470,8 +22470,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_ondestroy",
-      "community": 46,
-      "community_name": ".Empty",
+      "community": 37,
+      "community_name": ".Configure",
       "norm_label": ".ondestroy()"
     },
     {
@@ -23531,8 +23531,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_drawquickchat",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": ".drawquickchat()"
     },
     {
@@ -24100,8 +24100,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_addyaw",
-      "community": 136,
-      "community_name": ".HandleModelDrag",
+      "community": 131,
+      "community_name": ".Set",
       "norm_label": ".addyaw()"
     },
     {
@@ -24241,8 +24241,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_teardown",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".teardown()"
     },
     {
@@ -24826,8 +24826,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": "quickchat.cs"
     },
     {
@@ -24843,8 +24843,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_trickshot_quickchat",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": "quickchat"
     },
     {
@@ -24854,8 +24854,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_cs_string",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": "string"
     },
     {
@@ -24865,8 +24865,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_cs_int",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": "int"
     },
     {
@@ -24882,8 +24882,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_trickshot_quickchat_load",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": ".load()"
     },
     {
@@ -24899,8 +24899,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_trickshot_quickchat_phraseindexforkey",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": ".phraseindexforkey()"
     },
     {
@@ -24916,8 +24916,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_trickshot_quickchat_phraseforkey",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": ".phraseforkey()"
     },
     {
@@ -24933,8 +24933,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_trickshot_quickchat_setslot",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": ".setslot()"
     },
     {
@@ -24950,8 +24950,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_quickchat_trickshot_quickchat_resetdefaults",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 83,
+      "community_name": "StadiumStyle",
       "norm_label": ".resetdefaults()"
     },
     {
@@ -27879,8 +27879,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickrunup",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".tickrunup()"
     },
     {
@@ -27907,8 +27907,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickstruck",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".tickstruck()"
     },
     {
@@ -27941,8 +27941,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_rungait",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".rungait()"
     },
     {
@@ -27958,8 +27958,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_applyswingpose",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".applyswingpose()"
     },
     {
@@ -28977,8 +28977,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "speciesselectui.cs"
     },
     {
@@ -28994,8 +28994,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "speciesselectui"
     },
     {
@@ -29005,8 +29005,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_action",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "action"
     },
     {
@@ -29016,8 +29016,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_bool",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "bool"
     },
     {
@@ -29027,8 +29027,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_float",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "float"
     },
     {
@@ -29038,8 +29038,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_byte",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "byte"
     },
     {
@@ -29055,8 +29055,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_init",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".init()"
     },
     {
@@ -29072,8 +29072,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_ondestroy",
-      "community": 83,
-      "community_name": "StadiumStyle",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".ondestroy()"
     },
     {
@@ -29123,8 +29123,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_handlemodeldrag",
-      "community": 136,
-      "community_name": ".HandleModelDrag",
+      "community": 131,
+      "community_name": ".Set",
       "norm_label": ".handlemodeldrag()"
     },
     {
@@ -29134,8 +29134,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_rect",
-      "community": 136,
-      "community_name": ".HandleModelDrag",
+      "community": 131,
+      "community_name": ".Set",
       "norm_label": "rect"
     },
     {
@@ -29751,7 +29751,7 @@
       "label": ".UpdateShotCharge()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L536",
+      "source_location": "L539",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29768,7 +29768,7 @@
       "label": ".FireChargedShot()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L587",
+      "source_location": "L590",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29785,7 +29785,7 @@
       "label": ".ShotPressure01()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L651",
+      "source_location": "L654",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29802,7 +29802,7 @@
       "label": ".ApplyLegRaises()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L671",
+      "source_location": "L674",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29819,7 +29819,7 @@
       "label": ".RaiseLeg()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L745",
+      "source_location": "L748",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29836,7 +29836,7 @@
       "label": ".RunCycle()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L767",
+      "source_location": "L770",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29853,7 +29853,7 @@
       "label": ".StartDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L792",
+      "source_location": "L795",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29870,7 +29870,7 @@
       "label": ".ManageDive()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L819",
+      "source_location": "L822",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29887,7 +29887,7 @@
       "label": ".EndTrick()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L837",
+      "source_location": "L840",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29904,7 +29904,7 @@
       "label": ".StartSlideLimp()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L870",
+      "source_location": "L873",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29921,7 +29921,7 @@
       "label": ".ManageSlideLimp()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L907",
+      "source_location": "L910",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29938,7 +29938,7 @@
       "label": ".UpdateSit()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L928",
+      "source_location": "L931",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29955,7 +29955,7 @@
       "label": ".StandUp()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1048",
+      "source_location": "L1051",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29972,7 +29972,7 @@
       "label": ".ForceRecover()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1055",
+      "source_location": "L1058",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -29992,8 +29992,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "timetrialgame.cs"
     },
     {
@@ -30009,8 +30009,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "timetrialgame"
     },
     {
@@ -30020,8 +30020,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_cs_transform",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "transform"
     },
     {
@@ -30031,8 +30031,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_cs_bool",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "bool"
     },
     {
@@ -30042,8 +30042,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_cs_int",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "int"
     },
     {
@@ -30053,8 +30053,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_cs_float",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "float"
     },
     {
@@ -30064,8 +30064,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_cs_string",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "string"
     },
     {
@@ -30081,8 +30081,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_configure",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".configure()"
     },
     {
@@ -30098,8 +30098,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_startrun",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".startrun()"
     },
     {
@@ -30115,8 +30115,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_update",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".update()"
     },
     {
@@ -30132,8 +30132,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_trackoutcome",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".trackoutcome()"
     },
     {
@@ -30149,8 +30149,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_ballfullyingoal",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".ballfullyingoal()"
     },
     {
@@ -30160,8 +30160,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_cs_vector3",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": "vector3"
     },
     {
@@ -30177,8 +30177,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_ongoal",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".ongoal()"
     },
     {
@@ -30194,8 +30194,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_endrun",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".endrun()"
     },
     {
@@ -30228,8 +30228,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_flash",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 46,
+      "community_name": ".Empty",
       "norm_label": ".flash()"
     },
     {
@@ -31228,8 +31228,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_registercosmeticmaterial",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".registercosmeticmaterial()"
     },
     {
@@ -31239,8 +31239,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_cs_material",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "material"
     },
     {
@@ -31312,8 +31312,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_phys",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".phys()"
     },
     {
@@ -31368,8 +31368,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_settorsomaterial",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".settorsomaterial()"
     },
     {
@@ -31481,8 +31481,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_adddecor",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".adddecor()"
     },
     {
@@ -31498,8 +31498,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_decorgatepasses",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".decorgatepasses()"
     },
     {
@@ -31515,8 +31515,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_decormaterial",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".decormaterial()"
     },
     {
@@ -32087,8 +32087,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_setposeoverride",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".setposeoverride()"
     },
     {
@@ -32121,8 +32121,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_clearposeoverrides",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".clearposeoverrides()"
     },
     {
@@ -33147,8 +33147,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_keeperpose",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": "keeperpose.cs"
     },
     {
@@ -33164,8 +33164,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_keeperpose_trickshot_keeperpose",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": "keeperpose"
     },
     {
@@ -33181,8 +33181,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_keeperpose_trickshot_keeperpose_new",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": ".new()"
     },
     {
@@ -33192,8 +33192,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_keeperpose_cs_vector3",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": "vector3"
     },
     {
@@ -33209,8 +33209,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_keeperpose_trickshot_keeperpose_set",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": ".set()"
     },
     {
@@ -33220,8 +33220,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "b",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": "b"
     },
     {
@@ -33231,8 +33231,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "e",
-      "community": 88,
-      "community_name": ".Set",
+      "community": 115,
+      "community_name": "ConfigurableJoint",
       "norm_label": "e"
     },
     {
@@ -33242,8 +33242,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "kickswing.cs"
     },
     {
@@ -33259,8 +33259,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "kickswing"
     },
     {
@@ -33276,8 +33276,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_yawoffset",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".yawoffset()"
     },
     {
@@ -33293,8 +33293,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_pose",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".pose()"
     },
     {
@@ -33310,8 +33310,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_hipclock",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".hipclock()"
     },
     {
@@ -33327,8 +33327,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_kneeclock",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".kneeclock()"
     },
     {
@@ -33344,8 +33344,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_span",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".span()"
     },
     {
@@ -33361,8 +33361,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_hop",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".hop()"
     },
     {
@@ -33372,8 +33372,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_cs_vector3",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": "vector3"
     },
     {
@@ -33389,8 +33389,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_finished",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".finished()"
     },
     {
@@ -33406,8 +33406,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_smooth",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 31,
+      "community_name": "Dribble",
       "norm_label": ".smooth()"
     },
     {
@@ -34598,8 +34598,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_cosmetics_trickshot_cosmetics_attachappearance",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".attachappearance()"
     },
     {
@@ -34615,8 +34615,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_cosmetics_trickshot_cosmetics_attachadult",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".attachadult()"
     },
     {
@@ -35069,8 +35069,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_transform",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": "transform"
     },
     {
@@ -35080,8 +35080,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_camera",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": "camera"
     },
     {
@@ -35612,8 +35612,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildmode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildmode()"
     },
     {
@@ -35629,8 +35629,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildnetstrikermode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildnetstrikermode()"
     },
     {
@@ -35640,8 +35640,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_refs",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": "refs"
     },
     {
@@ -35657,8 +35657,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildnetsetpieces",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildnetsetpieces()"
     },
     {
@@ -35674,8 +35674,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildnetaccuracy",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildnetaccuracy()"
     },
     {
@@ -35691,8 +35691,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildstrikermode()"
     },
     {
@@ -35708,8 +35708,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildstrikerplayer()"
     },
     {
@@ -35725,8 +35725,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_jerseymaterial",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".jerseymaterial()"
     },
     {
@@ -35753,8 +35753,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildcrosser()"
     },
     {
@@ -35770,8 +35770,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildaikeeper()"
     },
     {
@@ -35787,8 +35787,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildaccuracymode()"
     },
     {
@@ -35804,8 +35804,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildchallengemode()"
     },
     {
@@ -35821,8 +35821,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildfreekickmode()"
     },
     {
@@ -35838,8 +35838,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildscrimmagemode()"
     },
     {
@@ -35872,8 +35872,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".buildkeepermode()"
     },
     {
@@ -35889,8 +35889,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_lockcursor",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".lockcursor()"
     },
     {
@@ -35906,8 +35906,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_getinput",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".getinput()"
     },
     {
@@ -36169,8 +36169,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_make_trickshot_make_mat",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".mat()"
     },
     {
@@ -36468,8 +36468,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_make_trickshot_make_empty",
-      "community": 98,
-      "community_name": "FreeplayGame",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".empty()"
     },
     {
@@ -37560,8 +37560,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "playerprofile.cs"
     },
     {
@@ -37577,8 +37577,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_trickshot_playerprofile",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "playerprofile"
     },
     {
@@ -37588,8 +37588,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_float",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "float"
     },
     {
@@ -37599,8 +37599,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_string",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "string"
     },
     {
@@ -37610,8 +37610,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_int",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "int"
     },
     {
@@ -37621,8 +37621,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_bool",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "bool"
     },
     {
@@ -37632,8 +37632,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_texture2d",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "texture2d"
     },
     {
@@ -37643,8 +37643,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_byte",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "byte"
     },
     {
@@ -37654,8 +37654,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_cs_color",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "color"
     },
     {
@@ -37671,8 +37671,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_trickshot_playerprofile_shotat",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".shotat()"
     },
     {
@@ -37688,8 +37688,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_trickshot_playerprofile_rate",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": ".rate()"
     },
     {
@@ -37699,8 +37699,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "label",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "label"
     },
     {
@@ -37710,8 +37710,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "value",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "value"
     },
     {
@@ -37744,8 +37744,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_playerprofile_trickshot_playerappearance",
-      "community": 31,
-      "community_name": "Dribble",
+      "community": 55,
+      "community_name": "QuickChat",
       "norm_label": "playerappearance"
     },
     {
@@ -38274,7 +38274,7 @@
       "label": "Delivery",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L475",
+      "source_location": "L482",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -38303,7 +38303,7 @@
       "label": "ScrimRole",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1194",
+      "source_location": "L1201",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -38321,7 +38321,7 @@
       "label": "ScrimPos",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1209",
+      "source_location": "L1216",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -38339,7 +38339,7 @@
       "label": ".Formation()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1243",
+      "source_location": "L1250",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38356,7 +38356,7 @@
       "label": ".PositionOf()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1252",
+      "source_location": "L1259",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38373,7 +38373,7 @@
       "label": ".PositionName()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1258",
+      "source_location": "L1265",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38390,7 +38390,7 @@
       "label": ".ShirtForPosition()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1264",
+      "source_location": "L1271",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38407,7 +38407,7 @@
       "label": ".KeeperShirt()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1273",
+      "source_location": "L1280",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38424,7 +38424,7 @@
       "label": ".PositionAnchorBase()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1284",
+      "source_location": "L1291",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38452,7 +38452,7 @@
       "label": ".PositionAnchor()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1303",
+      "source_location": "L1310",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38469,7 +38469,7 @@
       "label": "AiDifficulty",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1338",
+      "source_location": "L1345",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -38487,7 +38487,7 @@
       "label": "AiTuning",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1350",
+      "source_location": "L1357",
       "metadata": {
         "is_nested_type": true,
         "namespace": "Trickshot",
@@ -38516,7 +38516,7 @@
       "label": ".NearestAiLevel()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1388",
+      "source_location": "L1395",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38533,7 +38533,7 @@
       "label": ".ApplyScrimmageStatics()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1434",
+      "source_location": "L1441",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38550,7 +38550,7 @@
       "label": ".ScrimHalfLength()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1479",
+      "source_location": "L1486",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38567,7 +38567,7 @@
       "label": ".ScrimHalfWidth()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1480",
+      "source_location": "L1487",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -38584,7 +38584,7 @@
       "label": ".AiPace()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1652",
+      "source_location": "L1659",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -39144,8 +39144,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_skilltree_trickshot_skilltree_dropforeignspecies",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": ".dropforeignspecies()"
     },
     {
@@ -39717,8 +39717,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_species_cs_byte",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": "byte"
     },
     {
@@ -39762,8 +39762,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_species_trickshot_species",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": "species"
     },
     {
@@ -39779,8 +39779,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_species_trickshot_species_byid",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": ".byid()"
     },
     {
@@ -39796,8 +39796,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_species_trickshot_species_indexof",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": ".indexof()"
     },
     {
@@ -39813,8 +39813,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_species_trickshot_species_selectable",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": ".selectable()"
     },
     {
@@ -39830,8 +39830,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_species_trickshot_species_applyselection",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": ".applyselection()"
     },
     {
@@ -39847,8 +39847,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_species_trickshot_species_inband",
-      "community": 131,
-      "community_name": ".Set",
+      "community": 99,
+      "community_name": ".AttachKickDetectors",
       "norm_label": ".inband()"
     },
     {
@@ -49043,7 +49043,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L86",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -64666,7 +64666,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L86",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -66246,7 +66246,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L632",
+      "source_location": "L635",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_firechargedshot",
@@ -66285,7 +66285,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L639",
+      "source_location": "L642",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_firechargedshot",
@@ -75893,7 +75893,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L593",
+      "source_location": "L596",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_firechargedshot",
@@ -77335,7 +77335,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1222",
+      "source_location": "L1229",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -77350,7 +77350,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1243",
+      "source_location": "L1250",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -77365,7 +77365,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1284",
+      "source_location": "L1291",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -77380,7 +77380,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1252",
+      "source_location": "L1259",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -77395,7 +77395,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1264",
+      "source_location": "L1271",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -77686,7 +77686,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1370",
+      "source_location": "L1377",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -79615,7 +79615,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L476",
+      "source_location": "L483",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -92676,7 +92676,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L80",
+      "source_location": "L81",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -92691,7 +92691,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L79",
+      "source_location": "L80",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -92753,7 +92753,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L233",
+      "source_location": "L234",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -92768,7 +92768,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L234",
+      "source_location": "L235",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92779,7 +92779,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L215",
+      "source_location": "L216",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92790,7 +92790,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L564",
+      "source_location": "L566",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92801,7 +92801,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L352",
+      "source_location": "L354",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92812,7 +92812,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L576",
+      "source_location": "L578",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92823,7 +92823,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L86",
+      "source_location": "L87",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92834,7 +92834,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L313",
+      "source_location": "L315",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92845,7 +92845,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L343",
+      "source_location": "L345",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92856,7 +92856,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L332",
+      "source_location": "L334",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92867,7 +92867,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L383",
+      "source_location": "L385",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92878,7 +92878,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L531",
+      "source_location": "L533",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92889,7 +92889,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L246",
+      "source_location": "L248",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92900,7 +92900,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L447",
+      "source_location": "L449",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92911,7 +92911,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L297",
+      "source_location": "L299",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92922,7 +92922,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L275",
+      "source_location": "L277",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92933,7 +92933,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L517",
+      "source_location": "L519",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92944,7 +92944,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L111",
+      "source_location": "L112",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92955,7 +92955,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L189",
+      "source_location": "L190",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92966,7 +92966,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L113",
+      "source_location": "L114",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -92977,7 +92977,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L498",
+      "source_location": "L500",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller",
@@ -93149,7 +93149,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L234",
+      "source_location": "L235",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -93164,7 +93164,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L564",
+      "source_location": "L566",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -93179,7 +93179,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L111",
+      "source_location": "L112",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -93198,7 +93198,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L91",
+      "source_location": "L92",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_init",
@@ -93208,7 +93208,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L86",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -93260,7 +93260,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L149",
+      "source_location": "L150",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93272,7 +93272,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L160",
+      "source_location": "L161",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93284,7 +93284,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L176",
+      "source_location": "L177",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93296,7 +93296,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L162",
+      "source_location": "L163",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93308,7 +93308,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L169",
+      "source_location": "L170",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93320,7 +93320,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L121",
+      "source_location": "L122",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93332,7 +93332,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L120",
+      "source_location": "L121",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93344,7 +93344,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L122",
+      "source_location": "L123",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93356,7 +93356,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L126",
+      "source_location": "L127",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93368,7 +93368,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L181",
+      "source_location": "L182",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93380,7 +93380,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L183",
+      "source_location": "L184",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93392,7 +93392,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L140",
+      "source_location": "L141",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93405,7 +93405,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93417,7 +93417,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L116",
+      "source_location": "L117",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93429,7 +93429,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L182",
+      "source_location": "L183",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tick",
@@ -93464,7 +93464,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L549",
+      "source_location": "L551",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managehold",
@@ -93476,7 +93476,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L462",
+      "source_location": "L464",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managestumble",
@@ -93489,7 +93489,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L197",
+      "source_location": "L198",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_shufflegait",
@@ -93501,7 +93501,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L242",
+      "source_location": "L244",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_beginsave",
@@ -93513,7 +93513,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L243",
+      "source_location": "L245",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_beginsave",
@@ -93524,7 +93524,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L269",
+      "source_location": "L271",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managesave",
@@ -93536,7 +93536,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L251",
+      "source_location": "L253",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managesave",
@@ -93549,7 +93549,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L262",
+      "source_location": "L264",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managesave",
@@ -93560,7 +93560,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L431",
+      "source_location": "L433",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managedive",
@@ -93573,7 +93573,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L292",
+      "source_location": "L294",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_recovertoready",
@@ -93585,7 +93585,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L281",
+      "source_location": "L283",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_recovertoready",
@@ -93596,7 +93596,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L547",
+      "source_location": "L549",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managehold",
@@ -93609,7 +93609,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L326",
+      "source_location": "L328",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_jump",
@@ -93621,7 +93621,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L327",
+      "source_location": "L329",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_jump",
@@ -93632,7 +93632,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L339",
+      "source_location": "L341",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_launchdive",
@@ -93644,7 +93644,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L345",
+      "source_location": "L347",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_launchdashdive",
@@ -93657,7 +93657,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L374",
+      "source_location": "L376",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_dodive",
@@ -93669,7 +93669,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L365",
+      "source_location": "L367",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_dodive",
@@ -93681,7 +93681,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L378",
+      "source_location": "L380",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_dodive",
@@ -93692,7 +93692,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L387",
+      "source_location": "L389",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managedive",
@@ -93705,7 +93705,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L389",
+      "source_location": "L391",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managedive",
@@ -93717,7 +93717,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L409",
+      "source_location": "L411",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managedive",
@@ -93728,7 +93728,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L465",
+      "source_location": "L467",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managestumble",
@@ -93741,7 +93741,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L472",
+      "source_location": "L474",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managestumble",
@@ -93753,7 +93753,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L458",
+      "source_location": "L460",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managestumble",
@@ -93764,7 +93764,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L508",
+      "source_location": "L510",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tryclaim",
@@ -93777,7 +93777,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L504",
+      "source_location": "L506",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tryclaim",
@@ -93789,7 +93789,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L506",
+      "source_location": "L508",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tryclaim",
@@ -93801,7 +93801,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L504",
+      "source_location": "L506",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tryclaim",
@@ -93813,7 +93813,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L511",
+      "source_location": "L513",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_tryclaim",
@@ -93825,7 +93825,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L521",
+      "source_location": "L523",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_restoreafterdive",
@@ -93836,7 +93836,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L555",
+      "source_location": "L557",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managehold",
@@ -93849,7 +93849,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L535",
+      "source_location": "L537",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managehold",
@@ -93861,7 +93861,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L555",
+      "source_location": "L557",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managehold",
@@ -93873,7 +93873,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L538",
+      "source_location": "L540",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_managehold",
@@ -93885,7 +93885,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L578",
+      "source_location": "L580",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_forcerecover",
@@ -93897,7 +93897,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L588",
+      "source_location": "L590",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_forcerecover",
@@ -93909,7 +93909,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/KeeperController.cs",
-      "source_location": "L589",
+      "source_location": "L591",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_keepercontroller_trickshot_keepercontroller_forcerecover",
@@ -105981,7 +105981,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1368",
+      "source_location": "L1375",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -108914,7 +108914,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1195",
+      "source_location": "L1202",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -115461,7 +115461,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L534",
+      "source_location": "L537",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -115476,7 +115476,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L531",
+      "source_location": "L534",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -115534,7 +115534,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L671",
+      "source_location": "L674",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115556,7 +115556,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L837",
+      "source_location": "L840",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115567,7 +115567,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L587",
+      "source_location": "L590",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115578,7 +115578,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1055",
+      "source_location": "L1058",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115622,7 +115622,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L819",
+      "source_location": "L822",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115633,7 +115633,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L907",
+      "source_location": "L910",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115655,7 +115655,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L745",
+      "source_location": "L748",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115688,7 +115688,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L767",
+      "source_location": "L770",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115743,7 +115743,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L651",
+      "source_location": "L654",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115754,7 +115754,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1048",
+      "source_location": "L1051",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115765,7 +115765,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L792",
+      "source_location": "L795",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115776,7 +115776,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L870",
+      "source_location": "L873",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115809,7 +115809,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L536",
+      "source_location": "L539",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -115820,7 +115820,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L928",
+      "source_location": "L931",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker",
@@ -116018,7 +116018,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L651",
+      "source_location": "L654",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -116289,7 +116289,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L841",
+      "source_location": "L844",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_endtrick",
@@ -116301,7 +116301,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1061",
+      "source_location": "L1064",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_forcerecover",
@@ -116361,7 +116361,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L583",
+      "source_location": "L586",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updateshotcharge",
@@ -116374,7 +116374,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L555",
+      "source_location": "L558",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updateshotcharge",
@@ -116386,7 +116386,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L564",
+      "source_location": "L567",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updateshotcharge",
@@ -116397,7 +116397,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L633",
+      "source_location": "L636",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_firechargedshot",
@@ -116410,7 +116410,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L634",
+      "source_location": "L637",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_firechargedshot",
@@ -116421,7 +116421,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L726",
+      "source_location": "L729",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_applylegraises",
@@ -116434,7 +116434,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L737",
+      "source_location": "L740",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_applylegraises",
@@ -116446,7 +116446,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L753",
+      "source_location": "L756",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_raiseleg",
@@ -116456,7 +116456,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L745",
+      "source_location": "L748",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -116473,7 +116473,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L782",
+      "source_location": "L785",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_runcycle",
@@ -116485,7 +116485,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L774",
+      "source_location": "L777",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_runcycle",
@@ -116497,7 +116497,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L769",
+      "source_location": "L772",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_runcycle",
@@ -116509,7 +116509,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L779",
+      "source_location": "L782",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_runcycle",
@@ -116521,7 +116521,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L771",
+      "source_location": "L774",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_runcycle",
@@ -116533,7 +116533,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L815",
+      "source_location": "L818",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_startdive",
@@ -116545,7 +116545,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L813",
+      "source_location": "L816",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_startdive",
@@ -116556,7 +116556,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L833",
+      "source_location": "L836",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_managedive",
@@ -116569,7 +116569,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L827",
+      "source_location": "L830",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_managedive",
@@ -116581,7 +116581,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L856",
+      "source_location": "L859",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_endtrick",
@@ -116592,7 +116592,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L909",
+      "source_location": "L912",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_manageslidelimp",
@@ -116605,7 +116605,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L892",
+      "source_location": "L895",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_startslidelimp",
@@ -116616,7 +116616,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L964",
+      "source_location": "L967",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updatesit",
@@ -116628,7 +116628,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1032",
+      "source_location": "L1035",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updatesit",
@@ -116641,7 +116641,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1015",
+      "source_location": "L1018",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updatesit",
@@ -116653,7 +116653,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L954",
+      "source_location": "L957",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updatesit",
@@ -116665,7 +116665,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1016",
+      "source_location": "L1019",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_updatesit",
@@ -116677,7 +116677,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1052",
+      "source_location": "L1055",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_standup",
@@ -116689,7 +116689,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1090",
+      "source_location": "L1093",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_forcerecover",
@@ -116701,7 +116701,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Play/Striker.cs",
-      "source_location": "L1091",
+      "source_location": "L1094",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_play_striker_trickshot_striker_forcerecover",
@@ -135064,7 +135064,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1523",
+      "source_location": "L1530",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135079,7 +135079,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L606",
+      "source_location": "L613",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135094,7 +135094,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1786",
+      "source_location": "L1793",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135109,7 +135109,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1215",
+      "source_location": "L1222",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135124,7 +135124,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1383",
+      "source_location": "L1390",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135139,7 +135139,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L802",
+      "source_location": "L809",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135154,7 +135154,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1338",
+      "source_location": "L1345",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135165,7 +135165,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1350",
+      "source_location": "L1357",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135176,7 +135176,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L475",
+      "source_location": "L482",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135187,7 +135187,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1209",
+      "source_location": "L1216",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135198,7 +135198,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1194",
+      "source_location": "L1201",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135209,7 +135209,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1652",
+      "source_location": "L1659",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135220,7 +135220,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1434",
+      "source_location": "L1441",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135231,7 +135231,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1243",
+      "source_location": "L1250",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135242,7 +135242,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1273",
+      "source_location": "L1280",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135253,7 +135253,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1388",
+      "source_location": "L1395",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135264,7 +135264,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1303",
+      "source_location": "L1310",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135275,7 +135275,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1284",
+      "source_location": "L1291",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135286,7 +135286,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1258",
+      "source_location": "L1265",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135297,7 +135297,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1252",
+      "source_location": "L1259",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135308,7 +135308,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1479",
+      "source_location": "L1486",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135319,7 +135319,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1480",
+      "source_location": "L1487",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135330,7 +135330,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1264",
+      "source_location": "L1271",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig",
@@ -135341,7 +135341,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1352",
+      "source_location": "L1359",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -135357,7 +135357,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1305",
+      "source_location": "L1312",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionanchor",
@@ -135369,7 +135369,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1254",
+      "source_location": "L1261",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionof",
@@ -135381,7 +135381,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1266",
+      "source_location": "L1273",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_shirtforposition",
@@ -135393,7 +135393,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1258",
+      "source_location": "L1265",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionname",
@@ -135405,7 +135405,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1451",
+      "source_location": "L1458",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_applyscrimmagestatics",
@@ -135417,7 +135417,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1308",
+      "source_location": "L1315",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_simconfig_trickshot_simconfig_positionanchor",
@@ -135428,7 +135428,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1284",
+      "source_location": "L1291",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -135443,7 +135443,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/SimConfig.cs",
-      "source_location": "L1303",
+      "source_location": "L1310",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -143964,5 +143964,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "d181e279dc56d0616d53d5814c7c785a1d620e32"
+  "built_at_commit": "b10af8611a45fcde6dabd88d19178fd2965b60e4"
 }
