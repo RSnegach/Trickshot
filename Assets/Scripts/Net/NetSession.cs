@@ -139,6 +139,13 @@ namespace Trickshot.Net
         // keeper (slot 0), so the lobby starts empty apart from an AI goalkeeper; the host
         // toggles individual slots on in the lobby. (Set in Host().)
         readonly bool[] _slotAi = new bool[MaxSlots];
+        // Jersey vote (Match only - see JerseyWinnerSlot). _nominated[slot]: that slot's own
+        // painted jersey is a candidate for its team. _voteOf[slot]: which candidate slot that
+        // slot voted for (255 = no vote). Host-authoritative; mirrored to every peer via the
+        // roster's LobbySlot.nominated/voteFor fields, so a client derives the same winner the
+        // host does with no separate broadcast needed.
+        readonly bool[] _nominated = new bool[MaxSlots];
+        readonly byte[] _voteOf = new byte[MaxSlots];
         public MatchConfig Config;                 // host authors it; clients receive it
         public LobbySlot[] Roster { get; private set; } = new LobbySlot[0];   // client mirror + host snapshot
         public bool MatchStarted { get; private set; }
@@ -186,7 +193,7 @@ namespace Trickshot.Net
             // starts empty (open) apart from an AI goalkeeper. The host toggles other slots' AI
             // on per-slot in the lobby. (The crosser still feeds balls on the host regardless of
             // its AI toggle - see NetStrikerMatch - so crosses come even with crosser AI off.)
-            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; }
+            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; _nominated[i] = false; _voteOf[i] = 255; }
             _maxPlayers = Mathf.Clamp(maxPlayers, 1, MaxSlots);   // enforced in GrantSlot
             Transport.StartHost(_maxPlayers);
             // Answer discovery probes with the LIVE lobby. A delegate rather than a snapshot, so the
@@ -223,6 +230,62 @@ namespace Trickshot.Net
         }
 
         public bool LocalReady => LocalSlot >= 0 && LocalSlot < MaxSlots && _slotReady[LocalSlot];
+
+        // Jersey vote (Match). Toggle MY slot's own jersey as a candidate for my team; only the
+        // occupant of a slot can nominate it - there's no "nominate someone else" path.
+        public void ToggleNominateJersey()
+        {
+            if (LocalSlot < 0 || LocalSlot >= MaxSlots) return;
+            if (IsHost) { _nominated[LocalSlot] = !_nominated[LocalSlot]; PushRoster(); }
+            else Transport.Send(Transport.HostPeer, NetCodec.NominateJersey(), NetChannel.Reliable);
+        }
+
+        // Vote for a nominated slot on MY OWN team (candidateSlot 255 clears my vote). Host
+        // validates same-team + actually-nominated before recording it - see ApplyJerseyVote.
+        public void CastJerseyVote(int candidateSlot)
+        {
+            if (LocalSlot < 0 || LocalSlot >= MaxSlots) return;
+            if (IsHost) ApplyJerseyVote(Transport.LocalPeer, (byte)candidateSlot);
+            else Transport.Send(Transport.HostPeer, NetCodec.CastJerseyVote((byte)candidateSlot), NetChannel.Reliable);
+        }
+
+        // Host: record `voter`'s vote for `candidate` (255 = clear). Refuses a vote for a slot
+        // that isn't nominated or is on the other team, so a stale/hostile client can't hand a
+        // vote to a candidate that could never legally win.
+        void ApplyJerseyVote(PeerId voter, byte candidate)
+        {
+            int vs = SlotOf(voter);
+            if (vs < 0) return;
+            if (candidate != 255)
+            {
+                if (candidate >= MaxSlots || !_nominated[candidate]) return;
+                if (ScrimTeamOfSlot(candidate) != ScrimTeamOfSlot(vs)) return;
+            }
+            _voteOf[vs] = candidate;
+            PushRoster();
+        }
+
+        /// <summary>
+        /// This team's jersey-vote winner: the nominated slot on `team` with the most votes (ties
+        /// go to the lowest slot index, i.e. whoever was seated - and so typically nominated -
+        /// first). -1 if nobody on that team nominated, in which case the caller keeps today's
+        /// default look (host's own kit for Home, plain colour for Away). Reads only the public
+        /// Roster, so a CLIENT derives the identical winner the host does - no separate
+        /// broadcast-the-winner message is needed on top of the roster sync that already carries
+        /// nominated/voteFor.
+        /// </summary>
+        public static int JerseyWinnerSlot(LobbySlot[] roster, int team)
+        {
+            int best = -1, bestVotes = -1;
+            foreach (var s in roster)
+            {
+                if (!s.nominated || ScrimTeamOfSlot(s.slot) != team) continue;
+                int votes = 0;
+                foreach (var v in roster) if (v.voteFor == s.slot) votes++;
+                if (votes > bestVotes) { bestVotes = votes; best = s.slot; }
+            }
+            return best;
+        }
 
         // Re-sync the local player's appearance after they re-customize in the lobby (the initial
         // Hello / host self-set captured it BEFORE customization). Host applies to its own slot +
@@ -750,6 +813,12 @@ namespace Trickshot.Net
                 case MsgType.RequestSlot: // host: a client wants to claim a slot (role pick)
                     if (IsHost) ApplySlotRequest(from, r.U8());
                     break;
+                case MsgType.NominateJersey: // host: a client toggled its own jersey candidacy
+                    if (IsHost) { int ns = SlotOf(from); if (ns >= 0) { _nominated[ns] = !_nominated[ns]; PushRoster(); } }
+                    break;
+                case MsgType.CastJerseyVote: // host: a client cast (or cleared) a jersey vote
+                    if (IsHost) ApplyJerseyVote(from, r.U8());
+                    break;
                 case MsgType.RosterSync:  // client: full roster + config from host
                     NetCodec.ReadRoster(r, out var cfg, out var slots);
                     Config = cfg; Roster = slots;
@@ -957,6 +1026,7 @@ namespace Trickshot.Net
                 // Slot becomes OPEN (or AI, if the host left AI on for it - see RebuildRoster).
                 _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false;
                 _slotJerseyPng[slot] = null; _slotJerseyTex[slot] = null; _jerseyRx.Remove(slot);   // drop their kit
+                _nominated[slot] = false; _voteOf[slot] = 255;   // a dropped peer's candidacy/vote dies with them
                 ResetSlotInput(slot);
             }
             _peerIdentity.Remove(p.Value);
@@ -1077,6 +1147,9 @@ namespace Trickshot.Net
             {
                 _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false;
                 _slotJerseyPng[cur] = null; _slotJerseyTex[cur] = null;
+                // A jersey nomination/vote is a per-TEAM candidacy, not a possession that follows
+                // the player - moving shirts (even within the same team) means re-submit/re-vote.
+                _nominated[cur] = false; _voteOf[cur] = 255;
                 ResetSlotInput(cur);          // the slot they left must not keep their tick history
             }
             _slotOwner[target] = peer;
@@ -1084,6 +1157,7 @@ namespace Trickshot.Net
             _slotAppearance[target] = appr;   // move the player's look with them
             _slotJerseyPng[target] = jersey; _slotJerseyTex[target] = null;
             _slotReady[target] = false;
+            _nominated[target] = false; _voteOf[target] = 255;   // defensive: clear any stale prior occupant's state
             // ...and the slot they moved INTO must not keep the previous occupant's tick, or the
             // host would drop every input this player sends (see ResetSlotInput).
             ResetSlotInput(target);
@@ -1185,7 +1259,8 @@ namespace Trickshot.Net
                 // Humans carry their synced look; AI/open slots get default appearance.
                 var appr = human ? _slotAppearance[i] : PlayerAppearance.Default;
                 list.Add(new LobbySlot { slot = (byte)i, human = human, ai = ai, ready = _slotReady[i],
-                                         role = (byte)RoleForSlot(i), name = name, appearance = appr });
+                                         role = (byte)RoleForSlot(i), name = name, appearance = appr,
+                                         nominated = _nominated[i], voteFor = _voteOf[i] });
             }
             Roster = list.ToArray();
         }

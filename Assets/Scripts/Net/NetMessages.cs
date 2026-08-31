@@ -36,6 +36,8 @@ namespace Trickshot.Net
         QuickChat = 17,     // client -> host request, then host -> clients relay: a quickchat message
         PostHit = 18,       // host -> clients: the ball hit the woodwork at a world position + speed
         MatchStats = 19,    // host -> clients, once at full time: the post-match per-player table
+        NominateJersey = 20, // client -> host: toggle MY slot's jersey as a candidate for my team
+        CastJerseyVote = 21, // client -> host: vote for a candidate slot (255 = clear my vote)
     }
 
     /// <summary>
@@ -124,6 +126,13 @@ namespace Trickshot.Net
         public byte role;        // NetRole for this slot (so clients label rows by role)
         public string name;
         public PlayerAppearance appearance;   // this player's look (skin + head cosmetics)
+        // Jersey vote (Match only, but carried for every slot so the wire format stays one shape).
+        // nominated: this slot's own painted jersey is a candidate for its team. voteFor: which
+        // candidate slot this slot voted for (255 = no vote). Every peer - host and clients alike -
+        // derives the same winner from these two fields off its own Roster; see
+        // NetSession.JerseyWinnerSlot. Appended last so the existing field order stays untouched.
+        public bool nominated;
+        public byte voteFor;
     }
 
     public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2, Crosser = 3 }
@@ -444,7 +453,7 @@ namespace Trickshot.Net
             w.B(cfg.onlineRanked);   // appended last for the same reason
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
-                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); }
+                foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); w.B(s.nominated); w.U8(s.voteFor); }
             return w.ToArray();
         }
 
@@ -464,7 +473,8 @@ namespace Trickshot.Net
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
-                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ai = r.B(), ready = r.B(), role = r.U8(), name = r.Str(), appearance = ReadAppearance(r) };
+                slots[i] = new LobbySlot { slot = r.U8(), human = r.B(), ai = r.B(), ready = r.B(), role = r.U8(), name = r.Str(), appearance = ReadAppearance(r),
+                                           nominated = r.B(), voteFor = r.U8() };
         }
 
         public static byte[] Ready(bool ready) { var w = new NetWriter(MsgType.ReadyToggle); w.B(ready); return w.ToArray(); }
@@ -489,6 +499,9 @@ namespace Trickshot.Net
         public static byte[] Start() => new NetWriter(MsgType.StartMatch).ToArray();
         public static byte[] ReplayStart() => new NetWriter(MsgType.ReplayStart).ToArray();
         public static byte[] SkipVote() => new NetWriter(MsgType.SkipVote).ToArray();
+
+        public static byte[] NominateJersey() => new NetWriter(MsgType.NominateJersey).ToArray();
+        public static byte[] CastJerseyVote(byte candidateSlot) { var w = new NetWriter(MsgType.CastJerseyVote); w.U8(candidateSlot); return w.ToArray(); }
         public static byte[] ReplayEnd() => new NetWriter(MsgType.ReplayEnd).ToArray();
 
         // Set-pieces shootout tally (host -> clients). Writes activeShooter + over flag + the

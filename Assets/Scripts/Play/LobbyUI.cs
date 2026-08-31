@@ -26,6 +26,9 @@ namespace Trickshot
         // Online lobby (Friendlies keeps its exact manual flow, untouched).
         float _onlineDeadline = -1f;
 
+        // Match only: which of the roster/jersey-vote tabs is showing (see DrawLobby).
+        bool _showJerseyTab;
+
         public void Init(System.Action onCustomize, System.Action onStart, System.Action onLeave)
         {
             _onCustomize = onCustomize; _onStart = onStart; _onLeave = onLeave;
@@ -153,9 +156,23 @@ namespace Trickshot
             }
 
             // Roster. Match gets Home/Away position columns (below) so friends can pick a team
-            // and a shirt; every other mode keeps the flat per-slot list unchanged.
+            // and a shirt, plus a Jerseys tab (submit/vote); every other mode keeps the flat
+            // per-slot list unchanged, with no jersey vote (there is only one team's worth of
+            // slots, so "vote which team's kit" doesn't apply).
             UITheme.Divider(x + 28f, rosterTop - 6f, w - 56f);
-            if ((GameMode)_s.Config.mode == GameMode.Match) DrawMatchTeams(x + 28f, rosterTop, w - 56f);
+            bool isMatch = (GameMode)_s.Config.mode == GameMode.Match;
+            if (isMatch)
+            {
+                var tabBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
+                float tw = 110f;
+                if (UITheme.Toggle(new Rect(x + 28f, rosterTop, tw, 22f), "Roster", !_showJerseyTab, tabBtn))
+                    _showJerseyTab = false;
+                if (UITheme.Toggle(new Rect(x + 28f + tw + 8f, rosterTop, tw, 22f), "Jerseys", _showJerseyTab, tabBtn))
+                    _showJerseyTab = true;
+                rosterTop += 28f;
+            }
+            if (isMatch && _showJerseyTab) DrawJerseyVote(x + 28f, rosterTop, w - 56f);
+            else if (isMatch) DrawMatchTeams(x + 28f, rosterTop, w - 56f);
             else DrawFlatRoster(x + 28f, rosterTop, w - 56f);
 
             // Footer buttons.
@@ -320,6 +337,71 @@ namespace Trickshot
                             _s.SetSlotAi(slot.slot, !slot.ai);
                     }
                 }
+            }
+        }
+
+        // Jersey vote (Match). "MY JERSEY": submit/withdraw my own painted kit as my team's
+        // candidate - only the occupant of a slot can nominate it. Below it, MY team's candidate
+        // list only (the other team runs an identical, independent vote for its own kit): a
+        // thumbnail of the actual painted jersey + a vote toggle per candidate. JerseyForSlot
+        // decodes lazily and returns null until the chunked transfer finishes - that null is
+        // already the "still loading" state, it just fills in on a later frame once the texture
+        // lands, since this whole panel redraws every OnGUI with no extra plumbing needed.
+        void DrawJerseyVote(float lx, float top, float lw)
+        {
+            var head = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } };
+            var rowName = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink } };
+            var subBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
+
+            float row = top;
+            var roster = _s.Roster;
+
+            LobbySlot mine = default; bool haveMine = false;
+            foreach (var s in roster) if (s.slot == _s.LocalSlot) { mine = s; haveMine = true; break; }
+            int myTeam = _s.LocalSlot >= 0 ? NetSession.ScrimTeamOfSlot(_s.LocalSlot) : -1;
+
+            GUI.Label(new Rect(lx, row, lw, 18f), "MY JERSEY", head);
+            row += 20f;
+            if (haveMine)
+            {
+                bool on = mine.nominated;
+                if (UITheme.Toggle(new Rect(lx, row, 240f, 26f), on ? "Submitted - withdraw" : "Submit as candidate", on, subBtn, UITheme.GoodTint))
+                    _s.ToggleNominateJersey();
+            }
+            else GUI.Label(new Rect(lx, row, lw, 20f), "Claim a slot first.", hint);
+            row += 34f;
+
+            UITheme.Divider(lx, row, lw); row += 10f;
+
+            GUI.Label(new Rect(lx, row, lw, 18f), myTeam == 1 ? "AWAY CANDIDATES" : "HOME CANDIDATES", head);
+            row += 24f;
+
+            bool any = false;
+            const float thumb = 40f, cellH = 48f;
+            foreach (var s in roster)
+            {
+                if (!s.nominated || myTeam < 0 || NetSession.ScrimTeamOfSlot(s.slot) != myTeam) continue;
+                any = true;
+                var tex = _s.JerseyForSlot(s.slot);
+                var trect = new Rect(lx, row + (cellH - thumb) * 0.5f, thumb, thumb);
+                if (tex != null) GUI.DrawTexture(trect, tex, ScaleMode.ScaleToFit);
+                else { UITheme.Fill(trect, new Color(1f, 1f, 1f, 0.06f)); GUI.Label(trect, "...", hint); }
+
+                GUI.Label(new Rect(lx + thumb + 10f, row, lw - thumb - 130f, cellH),
+                          s.name + (s.slot == _s.LocalSlot ? "  (you)" : ""), rowName);
+
+                bool votedFor = haveMine && mine.voteFor == s.slot;
+                if (UITheme.Toggle(new Rect(lx + lw - 100f, row + (cellH - 26f) * 0.5f, 100f, 26f),
+                                   votedFor ? "Voted" : "Vote", votedFor, subBtn, UITheme.GoodTint))
+                    _s.CastJerseyVote(votedFor ? 255 : s.slot);
+
+                row += cellH;
+            }
+            if (!any)
+            {
+                string msg = myTeam < 0 ? "Claim a slot to see your team's candidates." : "Nobody has submitted a jersey yet.";
+                GUI.Label(new Rect(lx, row, lw, 20f), msg, hint);
             }
         }
 

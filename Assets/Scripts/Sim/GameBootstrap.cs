@@ -753,6 +753,15 @@ namespace Trickshot
                 : Make.Mat(PlayerProfile.JerseyBase);
         }
 
+        // The jersey vote's winning texture for `team` (0 = Home, 1 = Away), or null if nobody
+        // nominated - or the winner's jersey simply hasn't finished its chunked transfer yet -
+        // either way the caller keeps its own default rather than a material with no texture.
+        static Texture2D JerseyVoteTex(Trickshot.Net.NetSession session, int team)
+        {
+            int winner = Trickshot.Net.NetSession.JerseyWinnerSlot(session.Roster, team);
+            return winner >= 0 ? session.JerseyForSlot(winner) : null;
+        }
+
         // Builds the ragdoll crosser + its launch point + the aim reticle.
         void BuildCrosser(Transform root, BallController ball,
                           out Crosser crosser, out ActiveRagdoll crosserRagdoll,
@@ -886,12 +895,23 @@ namespace Trickshot
 
             var gameCam = camGo.AddComponent<GameCamera>();
 
-            // Team colours.
+            // Team colours. Multiplayer's jersey vote (LobbyUI) can override either team's shared
+            // torso with a WINNING candidate's actual painted kit - see NetSession.JerseyWinnerSlot.
+            // Falls back to today's exact defaults (host's own kit for Home, plain red for Away)
+            // when nobody nominated, or in single-player, which has no vote at all.
             Material homeTorso = JerseyMaterial();                          // player's painted kit for Home
             Material homeLimb  = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
             Material awayTorso = Make.Mat(new Color(0.75f, 0.2f, 0.2f));
             Material awayLimb  = Make.Mat(new Color(0.5f, 0.13f, 0.13f));
             Material gloveMat  = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            if (net && Trickshot.Net.Multiplayer.Session != null)
+            {
+                var mpTex = JerseyVoteTex(Trickshot.Net.Multiplayer.Session, 0);
+                if (mpTex != null) homeTorso = Make.MatTex(mpTex);
+                mpTex = JerseyVoteTex(Trickshot.Net.Multiplayer.Session, 1);
+                if (mpTex != null) awayTorso = Make.MatTex(mpTex);
+            }
 
             // MULTIPLAYER: the host-authoritative NetMatch owns the sim + snapshots; it
             // builds the slot-mapped bodies (and, on the host, its own MatchGame). Single-player
