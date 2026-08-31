@@ -636,19 +636,11 @@ namespace Trickshot
             dribble.Enabled = false;
             ball.NoCarry = true;   // and a dead touch is pushed clear of his feet, never parked there
 
-            // AI keeper: an active-ragdoll goaltender (with gloves) that shuffles + dives.
-            Goalkeeper keeper = null;
-            if (SimConfig.KeeperAbility > 0.001f)
-            {
-                var keeperGo = new GameObject("Goalkeeper");
-                keeperGo.transform.SetParent(root, true);
-                var keeperRagdoll = keeperGo.AddComponent<ActiveRagdoll>();
-                var kFacing = Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
-                keeperRagdoll.Build(SimConfig.KeeperStart, kFacing,
-                                    Make.Mat(new Color(0.9f, 0.85f, 0.2f)), Make.Mat(new Color(0.7f, 0.62f, 0.15f)));
-                keeper = keeperGo.AddComponent<Goalkeeper>();
-                keeper.Init(keeperRagdoll, ball);
-            }
+            // AI keeper: an active-ragdoll goaltender (with gloves) that shuffles + dives. Shared
+            // with every challenge mode via BuildAiKeeper (below) rather than a hand-inlined copy -
+            // this used to duplicate that helper verbatim, which meant a future change made to one
+            // could silently fail to apply to the other.
+            Goalkeeper keeper = BuildAiKeeper(root, ball, out _);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
             ball.SetCamera(gameCam);   // auto ball-cam on a shot

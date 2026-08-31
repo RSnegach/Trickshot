@@ -831,8 +831,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_startrebind",
-      "community": 99,
-      "community_name": "AimReticle",
+      "community": 123,
+      "community_name": "Body",
       "norm_label": ".startrebind()"
     },
     {
@@ -842,8 +842,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_action",
-      "community": 99,
-      "community_name": "AimReticle",
+      "community": 123,
+      "community_name": "Body",
       "norm_label": "action"
     },
     {
@@ -853,8 +853,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_rebindingoperation",
-      "community": 99,
-      "community_name": "AimReticle",
+      "community": 123,
+      "community_name": "Body",
       "norm_label": "rebindingoperation"
     },
     {
@@ -870,8 +870,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_normalizepath",
-      "community": 99,
-      "community_name": "AimReticle",
+      "community": 123,
+      "community_name": "Body",
       "norm_label": ".normalizepath()"
     },
     {
@@ -966,8 +966,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_quickchatdigitpressed",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".quickchatdigitpressed()"
     },
     {
@@ -1011,8 +1011,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_trickshot_gameinput_sampleframe",
-      "community": 30,
-      "community_name": ".ClientUpdate",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".sampleframe()"
     },
     {
@@ -1022,8 +1022,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_gameinput_cs_inputframe",
-      "community": 30,
-      "community_name": ".ClientUpdate",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": "inputframe"
     },
     {
@@ -1033,8 +1033,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_input_istrikerinput",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "istrikerinput.cs"
     },
     {
@@ -1050,8 +1050,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_istrikerinput_trickshot_istrikerinput",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "istrikerinput"
     },
     {
@@ -1061,8 +1061,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_istrikerinput_cs_vector2",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "vector2"
     },
     {
@@ -1224,8 +1224,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_input_netinputsource",
-      "community": 8,
-      "community_name": "AccuracyGame",
+      "community": 127,
+      "community_name": "StadiumSelectUI",
       "norm_label": "netinputsource.cs"
     },
     {
@@ -1241,8 +1241,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_netinputsource_trickshot_netinputsource",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 127,
+      "community_name": "StadiumSelectUI",
       "norm_label": "netinputsource"
     },
     {
@@ -1252,8 +1252,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_netinputsource_cs_bool",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 127,
+      "community_name": "StadiumSelectUI",
       "norm_label": "bool"
     },
     {
@@ -1269,8 +1269,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_input_netinputsource_trickshot_netinputsource_feed",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 127,
+      "community_name": "StadiumSelectUI",
       "norm_label": ".feed()"
     },
     {
@@ -1280,8 +1280,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_input_netinputsource_cs_vector2",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 127,
+      "community_name": "StadiumSelectUI",
       "norm_label": "vector2"
     },
     {
@@ -1570,8 +1570,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_directiptransport_trickshot_net_directiptransport_sendtoall",
-      "community": 89,
-      "community_name": ".Set",
+      "community": 5,
+      "community_name": "SkillTree",
       "norm_label": ".sendtoall()"
     },
     {
@@ -1751,8 +1751,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_directiptransport_trickshot_net_directiptransport_listlobbies",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 89,
+      "community_name": ".Set",
       "norm_label": ".listlobbies()"
     },
     {
@@ -1762,8 +1762,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_directiptransport_cs_action",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 89,
+      "community_name": ".Set",
       "norm_label": "action"
     },
     {
@@ -1773,8 +1773,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_directiptransport_cs_list",
-      "community": 72,
-      "community_name": ".AdvanceTurn",
+      "community": 89,
+      "community_name": ".Set",
       "norm_label": "list"
     },
     {
@@ -2044,8 +2044,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": "inettransport"
     },
     {
@@ -2061,8 +2061,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_starthost",
-      "community": 113,
-      "community_name": ".Update",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".starthost()"
     },
     {
@@ -2078,8 +2078,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_join",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".join()"
     },
     {
@@ -2095,8 +2095,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_shutdown",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".shutdown()"
     },
     {
@@ -2129,8 +2129,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_sendtoall",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".sendtoall()"
     },
     {
@@ -2146,8 +2146,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_poll",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".poll()"
     },
     {
@@ -2163,8 +2163,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_listlobbies",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".listlobbies()"
     },
     {
@@ -2174,8 +2174,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_cs_action",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": "action"
     },
     {
@@ -2185,8 +2185,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_cs_list",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": "list"
     },
     {
@@ -2196,8 +2196,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_inettransport_cs_func",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": "func"
     },
     {
@@ -2848,8 +2848,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_netendpoint_cs_ipendpoint",
-      "community": 5,
-      "community_name": "SkillTree",
+      "community": 38,
+      "community_name": "PlayerPreview",
       "norm_label": "ipendpoint"
     },
     {
@@ -2865,8 +2865,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netendpoint_trickshot_net_netendpoint_decode",
-      "community": 5,
-      "community_name": "SkillTree",
+      "community": 38,
+      "community_name": "PlayerPreview",
       "norm_label": ".decode()"
     },
     {
@@ -3147,8 +3147,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_statrow",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": "statrow"
     },
     {
@@ -3354,8 +3354,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_cs_vector2",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 52,
+      "community_name": "com.unity.modules.imageconversion",
       "norm_label": "vector2"
     },
     {
@@ -3619,8 +3619,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_cs_color",
-      "community": 18,
-      "community_name": "CustomizeUI",
+      "community": 52,
+      "community_name": "com.unity.modules.imageconversion",
       "norm_label": "color"
     },
     {
@@ -3834,8 +3834,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 18,
+      "community_name": "CustomizeUI",
       "norm_label": "netcodec"
     },
     {
@@ -3902,8 +3902,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_assignslot",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 113,
+      "community_name": ".Update",
       "norm_label": ".assignslot()"
     },
     {
@@ -3987,8 +3987,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_matchstats",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": ".matchstats()"
     },
     {
@@ -4225,8 +4225,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_start",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".start()"
     },
     {
@@ -4242,8 +4242,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_replaystart",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".replaystart()"
     },
     {
@@ -4259,8 +4259,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_skipvote",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".skipvote()"
     },
     {
@@ -4276,8 +4276,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netmessages_trickshot_net_netcodec_replayend",
-      "community": 52,
-      "community_name": "com.unity.modules.imageconversion",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".replayend()"
     },
     {
@@ -4648,8 +4648,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_joinlobby",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".joinlobby()"
     },
     {
@@ -4665,8 +4665,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_leave",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".leave()"
     },
     {
@@ -4869,8 +4869,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_startmatch",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".startmatch()"
     },
     {
@@ -4886,8 +4886,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_beginreplay",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".beginreplay()"
     },
     {
@@ -4903,8 +4903,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_voteskip",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".voteskip()"
     },
     {
@@ -4920,8 +4920,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_endreplayhost",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".endreplayhost()"
     },
     {
@@ -4988,8 +4988,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_tryendreplay",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".tryendreplay()"
     },
     {
@@ -5073,8 +5073,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_setlocalinput",
-      "community": 30,
-      "community_name": ".ClientUpdate",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".setlocalinput()"
     },
     {
@@ -5107,8 +5107,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastballkick",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".broadcastballkick()"
     },
     {
@@ -5118,8 +5118,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_cs_vector3",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": "vector3"
     },
     {
@@ -5135,8 +5135,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastposthit",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 48,
+      "community_name": "Goalkeeper",
       "norm_label": ".broadcastposthit()"
     },
     {
@@ -5265,8 +5265,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastmatchstats",
-      "community": 76,
-      "community_name": "Snapshot",
+      "community": 92,
+      "community_name": "Goal",
       "norm_label": ".broadcastmatchstats()"
     },
     {
@@ -5282,8 +5282,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastshootout",
-      "community": 32,
-      "community_name": "Footballer",
+      "community": 52,
+      "community_name": "com.unity.modules.imageconversion",
       "norm_label": ".broadcastshootout()"
     },
     {
@@ -5333,8 +5333,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_sampleinterpolated",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".sampleinterpolated()"
     },
     {
@@ -5452,8 +5452,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_onconnectedtohost",
-      "community": 113,
-      "community_name": ".Update",
+      "community": 52,
+      "community_name": "com.unity.modules.imageconversion",
       "norm_label": ".onconnectedtohost()"
     },
     {
@@ -5554,8 +5554,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_passstatsforslot",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".passstatsforslot()"
     },
     {
@@ -6550,8 +6550,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_at",
-      "community": 47,
-      "community_name": ".Box",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".at()"
     },
     {
@@ -6584,8 +6584,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_spawnall",
-      "community": 16,
-      "community_name": "Bone",
+      "community": 47,
+      "community_name": ".Box",
       "norm_label": ".spawnall()"
     },
     {
@@ -6669,8 +6669,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracyboard_trickshot_accuracyboard_handlehit",
-      "community": 47,
-      "community_name": ".Box",
+      "community": 23,
+      "community_name": "SkillTree",
       "norm_label": ".handlehit()"
     },
     {
@@ -6883,8 +6883,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracygame_trickshot_accuracygame_beginround",
-      "community": 16,
-      "community_name": "Bone",
+      "community": 47,
+      "community_name": ".Box",
       "norm_label": ".beginround()"
     },
     {
@@ -6917,8 +6917,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracygame_trickshot_accuracygame_tickarmed",
-      "community": 59,
-      "community_name": "MenuUI",
+      "community": 16,
+      "community_name": "Bone",
       "norm_label": ".tickarmed()"
     },
     {
@@ -6968,8 +6968,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_accuracygame_trickshot_accuracygame_arm",
-      "community": 16,
-      "community_name": "Bone",
+      "community": 93,
+      "community_name": "CrosserControl",
       "norm_label": ".arm()"
     },
     {
@@ -7597,8 +7597,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "anatomysim.cs"
     },
     {
@@ -7614,8 +7614,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "anatomysim"
     },
     {
@@ -7625,8 +7625,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_transform",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "transform"
     },
     {
@@ -7636,8 +7636,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_float",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "float"
     },
     {
@@ -7647,8 +7647,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_int",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "int"
     },
     {
@@ -7658,8 +7658,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_vector3",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "vector3"
     },
     {
@@ -7669,8 +7669,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_collider",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "collider"
     },
     {
@@ -7680,8 +7680,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_color",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "color"
     },
     {
@@ -7697,8 +7697,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_derivecone",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".derivecone()"
     },
     {
@@ -7714,8 +7714,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_build",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".build()"
     },
     {
@@ -7748,8 +7748,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_localunder",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".localunder()"
     },
     {
@@ -7765,8 +7765,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_makepiece",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".makepiece()"
     },
     {
@@ -7776,8 +7776,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_material",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "material"
     },
     {
@@ -7787,8 +7787,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_cs_gameobject",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": "gameobject"
     },
     {
@@ -7804,8 +7804,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_fixedupdate",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".fixedupdate()"
     },
     {
@@ -7821,8 +7821,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_push",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".push()"
     },
     {
@@ -7838,8 +7838,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_clampcone",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".clampcone()"
     },
     {
@@ -7855,8 +7855,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_poseberries",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".poseberries()"
     },
     {
@@ -7872,8 +7872,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_anatomysim_trickshot_anatomysim_posemember",
-      "community": 12,
-      "community_name": "BodyLayoutDef",
+      "community": 22,
+      "community_name": "Celebration",
       "norm_label": ".posemember()"
     },
     {
@@ -8051,8 +8051,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_ballcontroller_trickshot_ballcontroller_ignorebody",
-      "community": 44,
-      "community_name": "Crowd",
+      "community": 27,
+      "community_name": "NetSetPieceMatch",
       "norm_label": ".ignorebody()"
     },
     {
@@ -9326,8 +9326,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_plantat",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 28,
+      "community_name": "com.unity.modules.jsonserialize",
       "norm_label": ".plantat()"
     },
     {
@@ -9360,8 +9360,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_arm",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".arm()"
     },
     {
@@ -9428,8 +9428,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crosser_trickshot_crosser_applykickpose",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".applykickpose()"
     },
     {
@@ -9585,8 +9585,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "crossercontrol.cs"
     },
     {
@@ -9602,8 +9602,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_trickshot_crossercontrol",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "crossercontrol"
     },
     {
@@ -9613,8 +9613,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_cs_func",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "func"
     },
     {
@@ -9624,8 +9624,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_cs_float",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "float"
     },
     {
@@ -9635,8 +9635,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_cs_bool",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": "bool"
     },
     {
@@ -9652,8 +9652,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_trickshot_crossercontrol_init",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": ".init()"
     },
     {
@@ -9669,8 +9669,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_trickshot_crossercontrol_setcamerayaw",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": ".setcamerayaw()"
     },
     {
@@ -9686,8 +9686,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_trickshot_crossercontrol_tick",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": ".tick()"
     },
     {
@@ -9703,8 +9703,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crossercontrol_trickshot_crossercontrol_serve",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": ".serve()"
     },
     {
@@ -9910,8 +9910,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_crowd_trickshot_crowd_buildfan",
-      "community": 13,
-      "community_name": "SetPieceTaker",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".buildfan()"
     },
     {
@@ -9921,8 +9921,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "seat",
-      "community": 13,
-      "community_name": "SetPieceTaker",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": "seat"
     },
     {
@@ -10812,8 +10812,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_skillstage",
-      "community": 42,
-      "community_name": "SessionBrowserUI",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".skillstage()"
     },
     {
@@ -11004,8 +11004,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_setdrawside",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".setdrawside()"
     },
     {
@@ -11225,8 +11225,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_navbuttons",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".navbuttons()"
     },
     {
@@ -11270,8 +11270,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "defensivewall.cs"
     },
     {
@@ -11287,8 +11287,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "defensivewall"
     },
     {
@@ -11298,8 +11298,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_list",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "list"
     },
     {
@@ -11309,8 +11309,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_physicsmaterial",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "physicsmaterial"
     },
     {
@@ -11320,8 +11320,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_float",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "float"
     },
     {
@@ -11331,8 +11331,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_ireadonlylist",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "ireadonlylist"
     },
     {
@@ -11342,8 +11342,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_gameobject",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "gameobject"
     },
     {
@@ -11359,8 +11359,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_build",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".build()"
     },
     {
@@ -11370,8 +11370,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_transform",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "transform"
     },
     {
@@ -11381,8 +11381,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_vector3",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "vector3"
     },
     {
@@ -11398,8 +11398,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_buildat",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".buildat()"
     },
     {
@@ -11415,8 +11415,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_buildmannequin",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".buildmannequin()"
     },
     {
@@ -11426,8 +11426,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_material",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "material"
     },
     {
@@ -11443,8 +11443,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_buildarm",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".buildarm()"
     },
     {
@@ -11460,8 +11460,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_nocollide",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".nocollide()"
     },
     {
@@ -11471,8 +11471,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_cs_quaternion",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": "quaternion"
     },
     {
@@ -11488,8 +11488,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_triggerjump",
-      "community": 59,
-      "community_name": "MenuUI",
+      "community": 16,
+      "community_name": "Bone",
       "norm_label": ".triggerjump()"
     },
     {
@@ -11505,8 +11505,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_tick",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".tick()"
     },
     {
@@ -11522,8 +11522,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_ground",
-      "community": 27,
-      "community_name": "NetSetPieceMatch",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".ground()"
     },
     {
@@ -11539,8 +11539,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_setlift",
-      "community": 81,
-      "community_name": ".PhysMat",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".setlift()"
     },
     {
@@ -11556,8 +11556,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_defensivewall_trickshot_defensivewall_clear",
-      "community": 59,
-      "community_name": "MenuUI",
+      "community": 32,
+      "community_name": "Footballer",
       "norm_label": ".clear()"
     },
     {
@@ -11697,8 +11697,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_dribble_trickshot_dribble_init",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".init()"
     },
     {
@@ -11714,8 +11714,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_dribble_trickshot_dribble_setinput",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": ".setinput()"
     },
     {
@@ -13361,8 +13361,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_freeplaygame_trickshot_freeplaygame_configuredelivery",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 60,
+      "community_name": "SimConfig",
       "norm_label": ".configuredelivery()"
     },
     {
@@ -13491,8 +13491,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_freeplaygame_trickshot_freeplaygame_recenter",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 60,
+      "community_name": "SimConfig",
       "norm_label": ".recenter()"
     },
     {
@@ -13722,8 +13722,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamecamera_trickshot_gamecamera_setmode",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".setmode()"
     },
     {
@@ -13773,8 +13773,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamecamera_trickshot_gamecamera_toggleballcam",
-      "community": 59,
-      "community_name": "MenuUI",
+      "community": 16,
+      "community_name": "Bone",
       "norm_label": ".toggleballcam()"
     },
     {
@@ -13965,8 +13965,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_cs_transform",
-      "community": 50,
-      "community_name": ".SetLocalInput",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "transform"
     },
     {
@@ -14037,8 +14037,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_configure",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".configure()"
     },
     {
@@ -14173,8 +14173,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_endreplay",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".endreplay()"
     },
     {
@@ -14224,8 +14224,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_gamemanager_trickshot_gamemanager_resetround",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".resetround()"
     },
     {
@@ -14534,8 +14534,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_goalkeeper_trickshot_goalkeeper_init",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".init()"
     },
     {
@@ -14857,8 +14857,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_goalkeeper_trickshot_goalkeeper_resetto",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".resetto()"
     },
     {
@@ -16087,8 +16087,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_hud_trickshot_hud_card",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 95,
+      "community_name": "Role.cs",
       "norm_label": ".card()"
     },
     {
@@ -19797,8 +19797,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_buildactors",
-      "community": 37,
-      "community_name": ".Configure",
+      "community": 43,
+      "community_name": "Footballer",
       "norm_label": ".buildactors()"
     },
     {
@@ -19831,8 +19831,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_runservecycle",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".runservecycle()"
     },
     {
@@ -19865,8 +19865,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_rungait",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".rungait()"
     },
     {
@@ -19955,8 +19955,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menubackground_trickshot_menubackground_teardown",
-      "community": 43,
-      "community_name": "Footballer",
+      "community": 87,
+      "community_name": "Bone",
       "norm_label": ".teardown()"
     },
     {
@@ -20619,8 +20619,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_menuui_trickshot_menuui_drawsplash",
-      "community": 42,
-      "community_name": "SessionBrowserUI",
+      "community": 20,
+      "community_name": ".OnGUI",
       "norm_label": ".drawsplash()"
     },
     {
@@ -21062,8 +21062,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_trickshot_netscrimmagematch_keeperslot",
-      "community": 113,
-      "community_name": ".Update",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".keeperslot()"
     },
     {
@@ -21101,8 +21101,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_netscrimmagematch_cs_material",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 68,
+      "community_name": "AccuracyGame",
       "norm_label": "material"
     },
     {
@@ -22079,8 +22079,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_onreplayended",
-      "community": 54,
-      "community_name": "GameInput",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".onreplayended()"
     },
     {
@@ -22096,8 +22096,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_update",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".update()"
     },
     {
@@ -22113,8 +22113,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_followactiveshooter",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".followactiveshooter()"
     },
     {
@@ -22130,8 +22130,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_localisactiveshooter",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 137,
+      "community_name": ".Update",
       "norm_label": ".localisactiveshooter()"
     },
     {
@@ -22181,8 +22181,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_autolaunch",
-      "community": 44,
-      "community_name": "Crowd",
+      "community": 27,
+      "community_name": "NetSetPieceMatch",
       "norm_label": ".autolaunch()"
     },
     {
@@ -22283,8 +22283,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_publishsnapshotifdue",
-      "community": 30,
-      "community_name": ".ClientUpdate",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".publishsnapshotifdue()"
     },
     {
@@ -22300,8 +22300,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_clientupdate",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".clientupdate()"
     },
     {
@@ -22317,8 +22317,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_reconcilelocalbody",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".reconcilelocalbody()"
     },
     {
@@ -22334,8 +22334,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_findbody",
-      "community": 92,
-      "community_name": "Goal",
+      "community": 76,
+      "community_name": "Snapshot",
       "norm_label": ".findbody()"
     },
     {
@@ -22453,8 +22453,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_lockcursor",
-      "community": 70,
-      "community_name": "QuickChat",
+      "community": 66,
+      "community_name": "com.unity.modules.ui",
       "norm_label": ".lockcursor()"
     },
     {
@@ -22555,8 +22555,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netsetpiecematch_trickshot_netsetpiecematch_drawscoreboard",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 95,
+      "community_name": "Role.cs",
       "norm_label": ".drawscoreboard()"
     },
     {
@@ -23017,8 +23017,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_onreplayended",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".onreplayended()"
     },
     {
@@ -23034,8 +23034,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_netstrikermatch_trickshot_netstrikermatch_update",
-      "community": 61,
-      "community_name": "SimConfig",
+      "community": 30,
+      "community_name": ".ClientUpdate",
       "norm_label": ".update()"
     },
     {
@@ -23430,8 +23430,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_draw",
-      "community": 20,
-      "community_name": ".OnGUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".draw()"
     },
     {
@@ -23441,8 +23441,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_cs_action",
-      "community": 20,
-      "community_name": ".OnGUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": "action"
     },
     {
@@ -23458,8 +23458,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_tabbtn",
-      "community": 20,
-      "community_name": ".OnGUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".tabbtn()"
     },
     {
@@ -23469,8 +23469,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_cs_rect",
-      "community": 20,
-      "community_name": ".OnGUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": "rect"
     },
     {
@@ -23480,8 +23480,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_cs_guistyle",
-      "community": 20,
-      "community_name": ".OnGUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": "guistyle"
     },
     {
@@ -23514,8 +23514,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_drawaudio",
-      "community": 20,
-      "community_name": ".OnGUI",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".drawaudio()"
     },
     {
@@ -23565,8 +23565,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_optionsmenu_trickshot_optionsmenu_beginlisten",
-      "community": 99,
-      "community_name": "AimReticle",
+      "community": 123,
+      "community_name": "Body",
       "norm_label": ".beginlisten()"
     },
     {
@@ -24100,8 +24100,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_addyaw",
-      "community": 0,
-      "community_name": "Ball Physics & Launch",
+      "community": 133,
+      "community_name": ".Box",
       "norm_label": ".addyaw()"
     },
     {
@@ -24117,8 +24117,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_faceside",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".faceside()"
     },
     {
@@ -24224,8 +24224,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_playerpreview_trickshot_playerpreview_hide",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 0,
+      "community_name": "Ball Physics & Launch",
       "norm_label": ".hide()"
     },
     {
@@ -24453,8 +24453,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_ongui",
-      "community": 34,
-      "community_name": "PitchBuilder",
+      "community": 20,
+      "community_name": ".OnGUI",
       "norm_label": ".ongui()"
     },
     {
@@ -25457,8 +25457,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_replaysystem_trickshot_replaysystem_update",
-      "community": 54,
-      "community_name": "GameInput",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".update()"
     },
     {
@@ -25474,8 +25474,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_replaysystem_trickshot_replaysystem_stop",
-      "community": 54,
-      "community_name": "GameInput",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".stop()"
     },
     {
@@ -25721,8 +25721,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_list",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": "list"
     },
     {
@@ -26311,8 +26311,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_fromwire",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": ".fromwire()"
     },
     {
@@ -26322,8 +26322,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_cs_func",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": "func"
     },
     {
@@ -26622,8 +26622,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_drawpostmatch",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": ".drawpostmatch()"
     },
     {
@@ -26639,8 +26639,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_drawstatsboard",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": ".drawstatsboard()"
     },
     {
@@ -26656,8 +26656,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_scrimmagegame_trickshot_scrimmagegame_drawteamcard",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": ".drawteamcard()"
     },
     {
@@ -27743,8 +27743,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "setpiecespin",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": "setpiecespin"
     },
     {
@@ -27879,8 +27879,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickrunup",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".tickrunup()"
     },
     {
@@ -27907,8 +27907,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_tickstruck",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".tickstruck()"
     },
     {
@@ -27941,8 +27941,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_rungait",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".rungait()"
     },
     {
@@ -27958,8 +27958,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_setpiecetaker_trickshot_setpiecetaker_applyswingpose",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".applyswingpose()"
     },
     {
@@ -27986,8 +27986,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": "shotserver.cs"
     },
     {
@@ -28003,8 +28003,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": "shotserver"
     },
     {
@@ -28014,8 +28014,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_cs_float",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": "float"
     },
     {
@@ -28025,8 +28025,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_cs_int",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": "int"
     },
     {
@@ -28036,8 +28036,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_cs_vector3",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": "vector3"
     },
     {
@@ -28053,8 +28053,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_init",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": ".init()"
     },
     {
@@ -28070,8 +28070,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_arm",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": ".arm()"
     },
     {
@@ -28087,8 +28087,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_tick",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": ".tick()"
     },
     {
@@ -28104,8 +28104,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_randomtakepoint",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": ".randomtakepoint()"
     },
     {
@@ -28121,8 +28121,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_fire",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": ".fire()"
     },
     {
@@ -28138,8 +28138,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_shotserver_trickshot_shotserver_rand",
-      "community": 127,
-      "community_name": "StadiumSelectUI",
+      "community": 119,
+      "community_name": "Species",
       "norm_label": ".rand()"
     },
     {
@@ -29089,8 +29089,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_ongui",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 20,
+      "community_name": ".OnGUI",
       "norm_label": ".ongui()"
     },
     {
@@ -29123,8 +29123,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_trickshot_speciesselectui_handlemodeldrag",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 133,
+      "community_name": ".Box",
       "norm_label": ".handlemodeldrag()"
     },
     {
@@ -29134,8 +29134,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_play_speciesselectui_cs_rect",
-      "community": 36,
-      "community_name": "NetCodec",
+      "community": 133,
+      "community_name": ".Box",
       "norm_label": "rect"
     },
     {
@@ -29613,8 +29613,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_striker_trickshot_striker_setinput",
-      "community": 28,
-      "community_name": "com.unity.modules.jsonserialize",
+      "community": 99,
+      "community_name": "AimReticle",
       "norm_label": ".setinput()"
     },
     {
@@ -29981,8 +29981,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_striker_trickshot_striker_forcerecover",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".forcerecover()"
     },
     {
@@ -30098,8 +30098,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_startrun",
-      "community": 55,
-      "community_name": "QuickChat",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".startrun()"
     },
     {
@@ -30211,8 +30211,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_timetrialgame_trickshot_timetrialgame_recenter",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": ".recenter()"
     },
     {
@@ -30897,8 +30897,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_play_uitheme_trickshot_uitheme_divider",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 42,
+      "community_name": "SessionBrowserUI",
       "norm_label": ".divider()"
     },
     {
@@ -32121,8 +32121,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_clearposeoverrides",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".clearposeoverrides()"
     },
     {
@@ -32166,8 +32166,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_resetto",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".resetto()"
     },
     {
@@ -32268,8 +32268,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_activeragdoll_trickshot_activeragdoll_displayanim",
-      "community": 82,
-      "community_name": "JerseyDesigns.Nations10.cs",
+      "community": 94,
+      "community_name": "NetPump",
       "norm_label": ".displayanim()"
     },
     {
@@ -33242,8 +33242,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": "kickswing.cs"
     },
     {
@@ -33259,8 +33259,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": "kickswing"
     },
     {
@@ -33276,8 +33276,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_yawoffset",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".yawoffset()"
     },
     {
@@ -33293,8 +33293,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_pose",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".pose()"
     },
     {
@@ -33310,8 +33310,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_hipclock",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".hipclock()"
     },
     {
@@ -33327,8 +33327,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_kneeclock",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".kneeclock()"
     },
     {
@@ -33344,8 +33344,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_span",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".span()"
     },
     {
@@ -33361,8 +33361,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_hop",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".hop()"
     },
     {
@@ -33372,8 +33372,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_cs_vector3",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": "vector3"
     },
     {
@@ -33389,8 +33389,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_finished",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".finished()"
     },
     {
@@ -33406,8 +33406,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_ragdoll_kickswing_trickshot_kickswing_smooth",
-      "community": 136,
-      "community_name": "JerseyDesigns.Nations1.cs",
+      "community": 12,
+      "community_name": "BodyLayoutDef",
       "norm_label": ".smooth()"
     },
     {
@@ -35204,8 +35204,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_showmenubackground",
-      "community": 87,
-      "community_name": "Bone",
+      "community": 43,
+      "community_name": "Footballer",
       "norm_label": ".showmenubackground()"
     },
     {
@@ -35699,7 +35699,7 @@
       "label": ".BuildStrikerPlayer()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35716,7 +35716,7 @@
       "label": ".JerseyMaterial()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L711",
+      "source_location": "L703",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35736,15 +35736,15 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_material",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": "material"
     },
     {
       "label": ".BuildCrosser()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35761,7 +35761,7 @@
       "label": ".BuildAiKeeper()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L740",
+      "source_location": "L732",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35778,7 +35778,7 @@
       "label": ".BuildAccuracyMode()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35795,7 +35795,7 @@
       "label": ".BuildChallengeMode()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35812,7 +35812,7 @@
       "label": ".BuildFreeKickMode()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35829,7 +35829,7 @@
       "label": ".BuildScrimmageMode()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L845",
+      "source_location": "L837",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35846,7 +35846,7 @@
       "label": ".BuildFootballer()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35855,15 +35855,15 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".buildfootballer()"
     },
     {
       "label": ".BuildKeeperMode()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35880,7 +35880,7 @@
       "label": ".LockCursor()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1057",
+      "source_location": "L1049",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35897,7 +35897,7 @@
       "label": ".GetInput()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1060",
+      "source_location": "L1052",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35914,7 +35914,7 @@
       "label": ".AttachKickDetectors()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1071",
+      "source_location": "L1063",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35923,15 +35923,15 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_attachkickdetectors",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".attachkickdetectors()"
     },
     {
       "label": ".AddDetector()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1082",
+      "source_location": "L1074",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35940,8 +35940,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_adddetector",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": ".adddetector()"
     },
     {
@@ -35951,15 +35951,15 @@
       "source_location": "",
       "_origin": "ast",
       "id": "assets_scripts_sim_gamebootstrap_cs_rigidbody",
-      "community": 66,
-      "community_name": "com.unity.modules.ui",
+      "community": 44,
+      "community_name": "Crowd",
       "norm_label": "rigidbody"
     },
     {
       "label": ".ConfigurePhysics()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1089",
+      "source_location": "L1081",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -35976,7 +35976,7 @@
       "label": ".MakeSun()",
       "file_type": "code",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1098",
+      "source_location": "L1090",
       "metadata": {
         "namespace": "Trickshot",
         "scope_chain": [
@@ -36468,8 +36468,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_make_trickshot_make_empty",
-      "community": 98,
-      "community_name": "FreeplayGame",
+      "community": 101,
+      "community_name": ".StartRebind",
       "norm_label": ".empty()"
     },
     {
@@ -38719,8 +38719,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_skilltree_trickshot_skilltree_mul",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".mul()"
     },
     {
@@ -38753,8 +38753,8 @@
       },
       "_origin": "ast",
       "id": "assets_scripts_sim_skilltree_trickshot_skilltree_hasperk",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": ".hasperk()"
     },
     {
@@ -38798,8 +38798,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "icollection",
-      "community": 93,
-      "community_name": "CrosserControl",
+      "community": 6,
+      "community_name": "Goalkeeper AI & Control",
       "norm_label": "icollection"
     },
     {
@@ -43548,8 +43548,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "mode",
-      "community": 48,
-      "community_name": "Goalkeeper",
+      "community": 81,
+      "community_name": ".PhysMat",
       "norm_label": "mode"
     },
     {
@@ -43658,8 +43658,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "playerstat",
-      "community": 103,
-      "community_name": "IPlayerController",
+      "community": 121,
+      "community_name": ".LaunchBandDive",
       "norm_label": "playerstat"
     },
     {
@@ -47496,7 +47496,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1059",
+      "source_location": "L1051",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -47511,7 +47511,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1060",
+      "source_location": "L1052",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -48367,7 +48367,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1066",
+      "source_location": "L1058",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_getinput",
@@ -48737,7 +48737,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1057",
+      "source_location": "L1049",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_lockcursor",
@@ -63034,7 +63034,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -63144,7 +63144,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L735",
+      "source_location": "L727",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
@@ -65069,7 +65069,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1082",
+      "source_location": "L1074",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65084,7 +65084,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1071",
+      "source_location": "L1063",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65099,7 +65099,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65114,7 +65114,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L740",
+      "source_location": "L732",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65129,7 +65129,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65144,7 +65144,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65159,7 +65159,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65174,7 +65174,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65189,7 +65189,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65264,7 +65264,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -65461,7 +65461,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L773",
+      "source_location": "L765",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
@@ -65473,7 +65473,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L806",
+      "source_location": "L798",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
@@ -65485,7 +65485,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L832",
+      "source_location": "L824",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -65533,7 +65533,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L894",
+      "source_location": "L886",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -65545,7 +65545,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L654",
+      "source_location": "L646",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -65878,7 +65878,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L660",
+      "source_location": "L652",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -66721,7 +66721,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L816",
+      "source_location": "L808",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
@@ -66745,7 +66745,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L677",
+      "source_location": "L669",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -68831,7 +68831,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -68962,7 +68962,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L736",
+      "source_location": "L728",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
@@ -68974,7 +68974,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L655",
+      "source_location": "L647",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -70067,7 +70067,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L868",
+      "source_location": "L860",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -70330,7 +70330,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L869",
+      "source_location": "L861",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -75109,7 +75109,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -75363,7 +75363,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1008",
+      "source_location": "L1000",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
@@ -75375,7 +75375,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L705",
+      "source_location": "L697",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -76973,7 +76973,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -80566,7 +80566,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -80581,7 +80581,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -80596,7 +80596,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -80611,7 +80611,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -80848,7 +80848,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L771",
+      "source_location": "L763",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
@@ -80860,7 +80860,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L805",
+      "source_location": "L797",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
@@ -80872,7 +80872,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L830",
+      "source_location": "L822",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -80884,7 +80884,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1043",
+      "source_location": "L1035",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -80896,7 +80896,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L961",
+      "source_location": "L953",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -80908,7 +80908,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L653",
+      "source_location": "L645",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -81004,7 +81004,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L772",
+      "source_location": "L764",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
@@ -81016,7 +81016,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L831",
+      "source_location": "L823",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -81076,7 +81076,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L962",
+      "source_location": "L954",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -82937,7 +82937,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L740",
+      "source_location": "L732",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -83098,7 +83098,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L751",
+      "source_location": "L743",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
@@ -83110,22 +83110,10 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1041",
+      "source_location": "L1033",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
-      "target": "assets_scripts_play_goalkeeper_trickshot_goalkeeper_init"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L650",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
       "target": "assets_scripts_play_goalkeeper_trickshot_goalkeeper_init"
     },
     {
@@ -93205,7 +93193,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L956",
+      "source_location": "L948",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -93229,7 +93217,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L964",
+      "source_location": "L956",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -97666,7 +97654,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -108652,7 +108640,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -109066,7 +109054,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L981",
+      "source_location": "L973",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -115912,7 +115900,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1082",
+      "source_location": "L1074",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -115927,7 +115915,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1071",
+      "source_location": "L1063",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -115942,7 +115930,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -115976,7 +115964,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1009",
+      "source_location": "L1001",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
@@ -115988,7 +115976,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L706",
+      "source_location": "L698",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -116066,7 +116054,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1003",
+      "source_location": "L995",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
@@ -116078,7 +116066,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L697",
+      "source_location": "L689",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -116102,7 +116090,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L774",
+      "source_location": "L766",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
@@ -116114,7 +116102,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L833",
+      "source_location": "L825",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -119981,7 +119969,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1082",
+      "source_location": "L1074",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -119996,7 +119984,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1071",
+      "source_location": "L1063",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -120011,7 +119999,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L740",
+      "source_location": "L732",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -120026,7 +120014,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -120041,7 +120029,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -120907,7 +120895,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1079",
+      "source_location": "L1071",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_attachkickdetectors",
@@ -121081,7 +121069,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1036",
+      "source_location": "L1028",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -121093,7 +121081,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L951",
+      "source_location": "L943",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -121105,7 +121093,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L693",
+      "source_location": "L685",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -121300,7 +121288,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L748",
+      "source_location": "L740",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
@@ -121312,7 +121300,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L728",
+      "source_location": "L720",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
@@ -121324,7 +121312,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1000",
+      "source_location": "L992",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
@@ -127286,7 +127274,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1082",
+      "source_location": "L1074",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127308,7 +127296,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1071",
+      "source_location": "L1063",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127341,7 +127329,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127352,7 +127340,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L740",
+      "source_location": "L732",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127363,7 +127351,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127374,7 +127362,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127385,7 +127373,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127396,7 +127384,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127407,7 +127395,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127462,7 +127450,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L845",
+      "source_location": "L837",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127484,7 +127472,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127495,7 +127483,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1089",
+      "source_location": "L1081",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127528,7 +127516,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1060",
+      "source_location": "L1052",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127550,7 +127538,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L711",
+      "source_location": "L703",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127594,7 +127582,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1057",
+      "source_location": "L1049",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127605,7 +127593,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1098",
+      "source_location": "L1090",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap",
@@ -127862,7 +127850,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -127877,7 +127865,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L740",
+      "source_location": "L732",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -127892,7 +127880,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -127907,7 +127895,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L719",
+      "source_location": "L711",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -127922,7 +127910,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -127937,7 +127925,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -127952,7 +127940,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128012,7 +128000,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L845",
+      "source_location": "L837",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128042,7 +128030,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L685",
+      "source_location": "L677",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128057,7 +128045,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1098",
+      "source_location": "L1090",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128072,7 +128060,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128087,7 +128075,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128102,7 +128090,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128117,7 +128105,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128192,7 +128180,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L845",
+      "source_location": "L837",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -128207,7 +128195,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1098",
+      "source_location": "L1090",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -129103,7 +129091,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L759",
+      "source_location": "L751",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -129120,7 +129108,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L787",
+      "source_location": "L779",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -129137,7 +129125,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L820",
+      "source_location": "L812",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -129154,7 +129142,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1025",
+      "source_location": "L1017",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -129319,6 +129307,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
+      "source_location": "L643",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
+      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
       "source_location": "L635",
       "weight": 1.0,
       "_origin": "ast",
@@ -129331,7 +129331,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L666",
+      "source_location": "L658",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -129343,7 +129343,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L667",
+      "source_location": "L659",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -129356,7 +129356,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L671",
+      "source_location": "L663",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikermode",
@@ -129403,7 +129403,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L762",
+      "source_location": "L754",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
@@ -129415,7 +129415,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L791",
+      "source_location": "L783",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
@@ -129427,7 +129427,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L823",
+      "source_location": "L815",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -129439,7 +129439,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L698",
+      "source_location": "L690",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -129451,7 +129451,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L697",
+      "source_location": "L689",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -129463,7 +129463,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L691",
+      "source_location": "L683",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -129476,7 +129476,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L692",
+      "source_location": "L684",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildstrikerplayer",
@@ -129487,7 +129487,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1037",
+      "source_location": "L1029",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -129499,7 +129499,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L883",
+      "source_location": "L875",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129510,7 +129510,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L711",
+      "source_location": "L703",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -129527,7 +129527,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L715",
+      "source_location": "L707",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_jerseymaterial",
@@ -129539,7 +129539,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L714",
+      "source_location": "L706",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_jerseymaterial",
@@ -129549,7 +129549,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L992",
+      "source_location": "L984",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -129565,7 +129565,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L790",
+      "source_location": "L782",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
@@ -129578,7 +129578,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L732",
+      "source_location": "L724",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
@@ -129590,7 +129590,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L735",
+      "source_location": "L727",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
@@ -129602,7 +129602,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L729",
+      "source_location": "L721",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildcrosser",
@@ -129613,7 +129613,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L769",
+      "source_location": "L761",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
@@ -129626,7 +129626,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L749",
+      "source_location": "L741",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
@@ -129637,34 +129637,58 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
+      "source_location": "L795",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
+      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
+      "source_location": "L820",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
+      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
+      "source_location": "L764",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
+      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_getinput",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
+      "source_location": "L775",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
+      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_lockcursor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
       "source_location": "L803",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
-      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L828",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
-      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaikeeper",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L772",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
       "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_getinput",
       "confidence_score": 1.0
     },
@@ -129673,31 +129697,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L783",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildaccuracymode",
-      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_lockcursor",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L811",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
-      "target": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_getinput",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L815",
+      "source_location": "L807",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildchallengemode",
@@ -129709,7 +129709,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L831",
+      "source_location": "L823",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -129721,7 +129721,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L841",
+      "source_location": "L833",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfreekickmode",
@@ -129733,7 +129733,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L928",
+      "source_location": "L920",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129745,7 +129745,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L898",
+      "source_location": "L890",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129757,7 +129757,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L984",
+      "source_location": "L976",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129770,7 +129770,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L876",
+      "source_location": "L868",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129782,7 +129782,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L865",
+      "source_location": "L857",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129794,7 +129794,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L858",
+      "source_location": "L850",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129806,7 +129806,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L866",
+      "source_location": "L858",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129818,7 +129818,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L867",
+      "source_location": "L859",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildscrimmagemode",
@@ -129829,7 +129829,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1005",
+      "source_location": "L997",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
@@ -129841,7 +129841,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1003",
+      "source_location": "L995",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildfootballer",
@@ -129853,7 +129853,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1041",
+      "source_location": "L1033",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -129865,7 +129865,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1054",
+      "source_location": "L1046",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -129878,7 +129878,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1046",
+      "source_location": "L1038",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -129890,7 +129890,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1037",
+      "source_location": "L1029",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_buildkeepermode",
@@ -129901,7 +129901,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1079",
+      "source_location": "L1071",
       "weight": 1.0,
       "_origin": "ast",
       "source": "assets_scripts_sim_gamebootstrap_trickshot_gamebootstrap_attachkickdetectors",
@@ -129912,7 +129912,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "Assets/Scripts/Sim/GameBootstrap.cs",
-      "source_location": "L1082",
+      "source_location": "L1074",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -143918,5 +143918,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "9a903f289fd437659256e28321cc5fb2ecadce0a"
+  "built_at_commit": "74b8b5f5d70ab21b6a1ebb6500e413b7fb254fee"
 }
