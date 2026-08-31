@@ -229,6 +229,36 @@ namespace Trickshot
             _ragdoll.DisplaySnap(Stage, facing);
         }
 
+        /// <summary>
+        /// Rebuild the model as someone OTHER than the local player: a real networked human's own
+        /// replicated cosmetics (skin/hair/facial/accessory/species) when <paramref name="appearance"/>
+        /// is supplied, or a generic default-proportioned body in <paramref name="kitTint"/> when it
+        /// is null - matching exactly what the live match already builds for that body (see
+        /// GameBootstrap.BuildFootballer / NetMatch.SpawnBody, neither of which passes height/girth/
+        /// mass scale either). Unlike Rebuild(), this never reads PlayerProfile - every visual comes
+        /// from the arguments - and it does not touch the live jersey-canvas hookup, which only makes
+        /// sense for the local player's own profile.
+        /// </summary>
+        public void RebuildOther(PlayerAppearance? appearance, Texture2D jerseyTex, Color kitTint)
+        {
+            if (_modelRoot != null) Destroy(_modelRoot);
+            if (_torsoMat != null) Destroy(_torsoMat);
+            if (_limbMat != null) Destroy(_limbMat);
+
+            _modelRoot = new GameObject("PreviewModel");
+            _modelRoot.transform.SetParent(transform, false);
+            _ragdoll = _modelRoot.AddComponent<ActiveRagdoll>();
+
+            Material torso = jerseyTex != null ? Make.MatTex(jerseyTex) : Make.Mat(kitTint);
+            Material limbs = Make.Mat(kitTint);
+            _torsoMat = torso; _limbMat = limbs;
+
+            var facing = ModelFacing();
+            _ragdoll.Build(Stage, facing, torso, limbs, withGloves: false, appearance: appearance);
+            _ragdoll.BecomeDisplayBody();
+            _ragdoll.DisplaySnap(Stage, facing);
+        }
+
         void LateUpdate()
         {
             if (_cam == null) return;

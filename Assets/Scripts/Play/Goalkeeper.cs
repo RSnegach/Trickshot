@@ -5,7 +5,7 @@ namespace Trickshot
     /// <summary>
     /// The AI goalkeeper. An active-ragdoll keeper that actually keeps goal, used by every mode
     /// with a keeper in it (striker practice, free kicks, accuracy, time trial, and both ends of a
-    /// scrimmage via Footballer).
+    /// match via Footballer).
     ///
     /// What a keeper does, and what this now does:
     ///   - POSITIONS ON THE ANGLE. He stands on the line from the ball to the middle of his goal,
@@ -37,7 +37,7 @@ namespace Trickshot
     ///
     /// GEOMETRY. The keeper is told which goal he defends and which way the pitch is (`outSign`,
     /// the world-Z direction from his goal toward play), so the same brain works at the +Z goal in
-    /// striker mode and at BOTH ends of a scrimmage. The old class hard-coded SimConfig.KeeperFaceDir.
+    /// striker mode and at BOTH ends of a match. The old class hard-coded SimConfig.KeeperFaceDir.
     /// </summary>
     public class Goalkeeper : MonoBehaviour
     {
@@ -190,7 +190,7 @@ namespace Trickshot
 
             // X6. Ability 0 is "None" on the picker and has to mean NO KEEPER. The BODY is built by
             // the mode - GameBootstrap.BuildAiKeeper already skips it at <= 0.001 for the drills,
-            // GameBootstrap's scrimmage keepers are built unconditionally - so only the mode can
+            // GameBootstrap's match keepers are built unconditionally - so only the mode can
             // genuinely remove him (see the contract notes at the bottom of this file). What CAN be
             // done here is stop him being a free extra defender: no tracking, no commit, no claim.
             // A statue on the line is still wrong, which is exactly why the request exists.
@@ -554,7 +554,7 @@ namespace Trickshot
             BeginDive(Band.Low, dir, ability);
             // dir is WORLD X, but the splay poses are BODY-LOCAL shapes, so it has to be turned
             // into his own left/right first - the same RightSign() conversion the dives do for
-            // their roll. Without it a keeper facing +Z (one end of a scrimmage) splayed away from
+            // their roll. Without it a keeper facing +Z (one end of a match) splayed away from
             // the ball while the lunge carried him toward it.
             float side = dir * RightSign();      // +1 = crossing on his own right
             _lowPose = side < 0f ? KeeperPose.SaveLeft : KeeperPose.SaveRight;
@@ -716,7 +716,7 @@ namespace Trickshot
         // ------------------------------------------------------------- per-passage reset (X5)
         /// <summary>
         /// A reset per PASSAGE OF PLAY, not per round. The drill modes get this free from ResetTo
-        /// between attempts; a scrimmage calls ResetTo only at a kickoff, so a keeper who dived in
+        /// between attempts; a match calls ResetTo only at a kickoff, so a keeper who dived in
         /// the 8th minute was still inside AiKeeperDiveCooldown when play came back at him, and a
         /// keeper left in a dive state while the ball was at the other end stayed in it.
         ///
@@ -787,7 +787,7 @@ namespace Trickshot
         // body (so a leg block, a fingertip parry and a clean catch all count, which is what a save
         // is), or as CONCEDED when it crosses his goal line inside the posts and under the bar. The
         // in-goal test is derived from _goal and _out, so it works at BOTH ends - unlike the
-        // hardcoded +Z single-goal assist in ScrimmageGame (X7).
+        // hardcoded +Z single-goal assist in MatchGame (X7).
         //
         // LIMITATION, stated because it changes how the number reads: it cannot tell a DEFLECTED
         // shot from a clean one. A shot armed on target and then bent off a defender still counts,
@@ -832,10 +832,10 @@ namespace Trickshot
 
         // ------------------------------------------------------------- what this file needs from
         // ------------------------------------------------------------- files it does not own
-        // 1. GameBootstrap: the SCRIMMAGE keepers (BuildFootballer(keeper: true), both teams) are
+        // 1. GameBootstrap: the MATCH keepers (BuildFootballer(keeper: true), both teams) are
         //    built unconditionally, so "None" on the keeper picker leaves a keeper in the goal. The
         //    drill path already guards it - BuildAiKeeper returns null at KeeperAbility <= 0.001 -
-        //    and ScrimmageGame already tolerates null keepers (Configure null-checks both before
+        //    and MatchGame already tolerates null keepers (Configure null-checks both before
         //    adding them to _all). Same guard, same place. Until then, ability 0 gets the inert
         //    branch at the top of Tick, which is closer to the intent but is still a statue.
         // 2. KeeperHands: no way to clear its private _cooldown, so the per-passage reset above

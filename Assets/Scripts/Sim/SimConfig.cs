@@ -56,7 +56,7 @@ namespace Trickshot
         // Goal sits at +Z end. Crosser starts near a wing at -Z / +X corner.
         public static readonly Vector3 GoalCenter    = new Vector3(0f, 0f, FieldLength * 0.5f);
         // The goal the human striker is AIMING AT. Aim assist, dribble shots, and the auto
-        // ball-cam steer toward this. Defaults to the training goal; scrimmage repoints it
+        // ball-cam steer toward this. Defaults to the training goal; match repoints it
         // to the actual attacked goal (at the pitch half-length) so shots aren't aimed short.
         public static Vector3 AttackGoalCenter = new Vector3(0f, 0f, FieldLength * 0.5f);
         public static readonly Vector3 CrosserStart   = new Vector3(9.5f, 0f, FieldLength * 0.5f - 5.5f);
@@ -548,7 +548,7 @@ namespace Trickshot
         // the body stops having any form.
         public const float PreviewAmbient = 1.95f;
 
-        // ---- Scrimmage per-player match stats + ratings ----
+        // ---- Match per-player match stats + ratings ----
         // Attribution windows. A "touch" is proximity-based: the sim has no ball-contact callback, and
         // the intent-bearing sites (a pass, a shot, a tackle, a keeper claim) note themselves
         // explicitly, so proximity only has to catch deflections and headers.
@@ -596,8 +596,8 @@ namespace Trickshot
         public const float RatingTackle   = 0.05f;
         public const float RatingSave     = 0.30f;
 
-        // ---- Scrimmage landing reticle ----
-        // A disc on the turf under where an airborne ball will come down. Scrimmage only.
+        // ---- Match landing reticle ----
+        // A disc on the turf under where an airborne ball will come down. Match only.
         // The ball must be genuinely airborne and the flight long enough to be worth telegraphing:
         // below MinHeight it is a roll, and outside the time window the disc is either a flicker or a
         // prediction nobody can use.
@@ -685,7 +685,7 @@ namespace Trickshot
         public const float SitDropEase  = 2.2f;   // m/s the hips sink into, and rise out of, the sit
         public const float SitPoseSpeed = 4f;     // pose blend rate into Sit and back to Stand
         // Arbitration with the SLIDE TACKLE, which reads the identical both-buttons combo in
-        // scrimmage (ScrimmageGame: `if (_input.LeftLegHeld && _input.RightLegHeld) TrySlideTackle();`).
+        // match (MatchGame: `if (_input.LeftLegHeld && _input.RightLegHeld) TrySlideTackle();`).
         // Speed is the discriminator, measured on FLAT PELVIS VELOCITY because that is what
         // TrySlideTackle measures - the two gates have to be in the same units to be mutually
         // exclusive. Sitting needs him near-stationary; sliding needs SlideTackleMinSpeed (3.5).
@@ -763,7 +763,7 @@ namespace Trickshot
         // Gated on grounded + upright, so a jump, dive, trick, keeper lay-out or tumble never sees it.
         // ---- absolute floor guard ----
         // Every play surface in the game is a slab whose TOP face is y = 0 (PitchBuilder's "Ground"
-        // and ScrimmageArena's "ScrimGround" both centre themselves so the top lands there), so a
+        // and MatchArena's "ScrimGround" both centre themselves so the top lands there), so a
         // single world constant is a valid floor for every mode.
         //
         // This is a LAST-RESORT invariant, not a positioning system. It exists because bodies were
@@ -1196,12 +1196,12 @@ namespace Trickshot
         public const float DribbleTurnRateLow  = 260f;  // deg/sec facing slew while dribbling, no Control
         public const float DribbleTurnRateHigh = 680f;  // deg/sec facing slew while dribbling, full Control
 
-        // ---- Scrimmage (full match: two goals, teams, AI, passing) ----
+        // ---- Match (full match: two goals, teams, AI, passing) ----
         // Chosen role + team size come from the pre-match screen.
-        public enum ScrimRole { Outfield, Keeper }
-        public static ScrimRole ScrimmageRole = ScrimRole.Outfield;
-        public static int ScrimmagePerSide = 3;   // TOTAL players per side incl. keeper (3/5/11 => outfield = this-1)
-        public static float ScrimmageMatchSeconds = 180f;   // match length (pre-match option); counts down to full time
+        public enum MatchRole { Outfield, Keeper }
+        public static MatchRole PlayerRole = MatchRole.Outfield;
+        public static int MatchPerSide = 3;   // TOTAL players per side incl. keeper (3/5/11 => outfield = this-1)
+        public static float MatchSeconds = 180f;   // match length (pre-match option); counts down to full time
 
         // ==================== SCRIMMAGE POSITIONS ====================
         // OWNER: menus/config. Read by PrematchUI's position picker and available to the multiplayer
@@ -1216,10 +1216,10 @@ namespace Trickshot
         public enum ScrimPos { GK, LB, CB, RB, CM, CAM, LM, RM, LW, RW, ST }
 
         // The human's own shirt. Written by the pre-match position picker in single player, and from
-        // the host-assigned slot in multiplayer. ScrimmageRole is DERIVED from it (see
-        // ApplyScrimmageStatics) rather than being a second, independently-picked source of truth for
+        // the host-assigned slot in multiplayer. PlayerRole is DERIVED from it (see
+        // ApplyMatchStatics) rather than being a second, independently-picked source of truth for
         // "am I the keeper" - which is what let a position and a role disagree.
-        public static int ScrimmageShirt = 2;
+        public static int MatchShirt = 2;
 
         // One authored formation per roster size, indexed by shirt. Authored rather than generated
         // from a fill order, because a fill order puts the odd sizes somewhere silly: single player
@@ -1283,7 +1283,7 @@ namespace Trickshot
         // half-length measured from the halfway line INTO OWN HALF (1 = own goal line). Team sign and
         // which end is "own" stay the caller's business.
         //
-        // NOTHING READS THIS YET, stated plainly: the scrimmage spawn code lays players out by list
+        // NOTHING READS THIS YET, stated plainly: the match spawn code lays players out by list
         // index and by parity into a back line and a forward line, which is why an 11-a-side kickoff
         // has depth but no shape. This is offered so the AI area adopts one table instead of
         // authoring a second one. Every z is strictly inside own half, so the whole table is legal at
@@ -1321,7 +1321,7 @@ namespace Trickshot
 
         // ==================== AI DIFFICULTY ====================
         // OWNER: menus/config. Single player picks a tier on the pre-match screen; MULTIPLAYER IS
-        // FIXED AT NORMAL and is written on every peer by ApplyScrimmageStatics, so it cannot desync.
+        // FIXED AT NORMAL and is written on every peer by ApplyMatchStatics, so it cannot desync.
         // Difficulty is not on the wire and nothing about it can be - a client that disagreed would
         // be running a different sim behind the same snapshots.
         //
@@ -1330,12 +1330,12 @@ namespace Trickshot
         // owns (see AiPace, 0.80x - 1.24x), never a multiplier above it, which is that rule written
         // into the units rather than left as an intention.
         //
-        // NORMAL IS THE BALANCE ANCHOR: the scrimmage keeper is tuned to save 60-70% of shots that are
+        // NORMAL IS THE BALANCE ANCHOR: the match keeper is tuned to save 60-70% of shots that are
         // on target and not deflected AT THIS TIER, and the shooting work is tuned to the same number,
         // so a later change to one cannot silently undo the other.
         //
         // HOW TO MEASURE IT IN-ENGINE, with no new instrumentation: set the match clock to 10 min,
-        // play out a scrimmage, and read the per-player stat table the match-rating code already
+        // play out a match, and read the per-player stat table the match-rating code already
         // keeps. StatSaveShotWindow (2.5 s) plus StatSaveMinBallSpeed (6 m/s) already gate a keeper
         // touch into a SAVE, and a shot is banked whether it is saved or not. Take
         // saves / (saves + goals conceded) for BOTH keepers. Off-target shots never reach either
@@ -1410,35 +1410,35 @@ namespace Trickshot
         public const float StrikerMoveSpeedBase = 3.8f, KeeperStrafeSpeedBase = 5.5f;
 
         /// <summary>
-        /// Writes EVERY mutable static a scrimmage reads, so nothing is inherited from the mode played
-        /// before it. Called from PrematchUI.Apply (single player) and from the networked scrimmage
+        /// Writes EVERY mutable static a match reads, so nothing is inherited from the mode played
+        /// before it. Called from PrematchUI.Apply (single player) and from the networked match
         /// branch in GameBootstrap. It lives HERE, and not inlined at both sites, because the
         /// goal-size leak was caused by exactly that duplication - fixing it by adding four more lines
         /// to each of two copies reproduces the cause.
         ///
         /// The leaks this closes, measured against the sliders that write them:
         ///   GoalWidth/GoalHeight  set-piece + accuracy prematch write up to 1.5x, i.e. a 10.98 m goal
-        ///                         in a scrimmage - read by goal detection, keeper positioning and AI aim.
+        ///                         in a match - read by goal detection, keeper positioning and AI aim.
         ///   BallSpeedMul          0.5x - 2x, read by every ballistic launch.
-        ///   KeeperAbility         0 - 1 from four other modes' keeper ladder. Scrimmage has no picker
-        ///                         of its own, so a "None" free kick left BOTH scrimmage keepers as
+        ///   KeeperAbility         0 - 1 from four other modes' keeper ladder. Match has no picker
+        ///                         of its own, so a "None" free kick left BOTH match keepers as
         ///                         statues, and the net branch never wrote it at all.
         ///   StrikerMoveSpeed      0.5x - 1.8x, i.e. 1.9 - 6.84 m/s: locomotion, gait and dribble.
         ///   KeeperStrafeSpeed     0.5x - 1.8x, and KeeperJumpVel 0.6x - 1.6x. Keeper-mode-only
-        ///                         sliders that the scrimmage AI keeper's track speed, dive speed and
+        ///                         sliders that the match AI keeper's track speed, dive speed and
         ///                         dive height all read.
         ///
-        /// NOT written, because no scrimmage code path reads them: ShotDifficulty, ServeInterval, the
+        /// NOT written, because no match code path reads them: ShotDifficulty, ServeInterval, the
         /// wall / set-piece placement statics, the challenge-mode timers, FreeplayDelivery. GoalDepth
         /// is left alone too - it is mutable but nothing anywhere assigns it, and resetting statics
         /// nobody mutates is noise that hides the ones that matter.
         ///
         /// localShirt: pass the host-assigned shirt in multiplayer (slot % 4 on the capped two-team
         /// board), or leave it at -1 in single player, where the position picker has already written
-        /// ScrimmageShirt. At -1 in a networked match the role is left exactly as the caller set it,
+        /// MatchShirt. At -1 in a networked match the role is left exactly as the caller set it,
         /// which is the spectator case.
         /// </summary>
-        public static void ApplyScrimmageStatics(bool networked, int localShirt = -1)
+        public static void ApplyMatchStatics(bool networked, int localShirt = -1)
         {
             GoalWidth  = GoalWidthBase;
             GoalHeight = GoalHeightBase;
@@ -1452,13 +1452,13 @@ namespace Trickshot
             KeeperAbility = AiLevelAbility[Mathf.Clamp((int)AiLevel, 0, AiLevelAbility.Length - 1)];
 
             // Role is DERIVED from the shirt, so a position and a role can never disagree.
-            if (localShirt >= 0) ScrimmageShirt = localShirt;
-            ScrimmageShirt = Mathf.Clamp(ScrimmageShirt, 0, Mathf.Max(0, ScrimmagePerSide - 1));
+            if (localShirt >= 0) MatchShirt = localShirt;
+            MatchShirt = Mathf.Clamp(MatchShirt, 0, Mathf.Max(0, MatchPerSide - 1));
             if (localShirt >= 0 || !networked)
-                ScrimmageRole = KeeperShirt(ScrimmageShirt) ? ScrimRole.Keeper : ScrimRole.Outfield;
+                PlayerRole = KeeperShirt(MatchShirt) ? MatchRole.Keeper : MatchRole.Outfield;
         }
 
-        // The scrimmage pitch is its OWN square-ish field centred on origin, sized to the
+        // The match pitch is its OWN square-ish field centred on origin, sized to the
         // team count, with a goal at each end (+Z and -Z) and walls all round. Independent
         // of the single-goal training arena so nothing else has to change.
         //
@@ -1480,7 +1480,7 @@ namespace Trickshot
         // scoring - but 20% is a goal a keeper can work, where 29% was not.
         //
         // If scoring is STILL too easy, the more direct lever is the goal itself: GoalWidth is a mutable
-        // static that PrematchUI already writes, so scrimmage could scale it per format instead of
+        // static that PrematchUI already writes, so match could scale it per format instead of
         // growing the pitch further. That is a bigger change (it moves keeper dive tuning and aim assist
         // with it) and is deliberately not done here.
         public static float ScrimHalfLength(int perSide) => perSide >= 11 ? 52.5f : perSide >= 5 ? 38f : 27f;
@@ -1532,9 +1532,9 @@ namespace Trickshot
         // ---- Look-ray pass ranges (metres) ----
         // The bar's charge picks the pass DISTANCE along the look ray: a tap is a short one, a full bar
         // is the longest that type plays. Bands are deliberately inside the pitch - the smallest
-        // scrimmage field is 36 x 25 m (SimConfig.ScrimHalfLength/Width at perSide < 5, and networked
-        // scrimmage is capped to 2..4 a side) - because the box is SEALED and an aim point past the
-        // wall is a pass into a wall. ScrimmageGame clamps the final aim into the arena as well.
+        // match field is 36 x 25 m (SimConfig.ScrimHalfLength/Width at perSide < 5, and networked
+        // match is capped to 2..4 a side) - because the box is SEALED and an aim point past the
+        // wall is a pass into a wall. MatchGame clamps the final aim into the arena as well.
         public const float PassRangeGroundMin = 4f;
         public const float PassRangeGroundMax = 22f;
         public const float PassRangeAirMin    = 6f;
@@ -1635,8 +1635,8 @@ namespace Trickshot
         // read it, so the "brief lockout stops rapid flip-flopping" it documented never existed. If
         // flip-flopping shows up, it needs writing, not restoring.
 
-        // Scrimmage LMB/RMB airborne shot (set-piece-style arc, no controllable spin).
-        public const float ScrimLoftAngleDeg = 26f;    // launch elevation of a scrimmage deliberate shot
+        // Match LMB/RMB airborne shot (set-piece-style arc, no controllable spin).
+        public const float ScrimLoftAngleDeg = 26f;    // launch elevation of a match deliberate shot
         public const float ScrimLoftMaxVy    = 7.5f;   // cap on the upward component so it can't balloon straight up
 
         // Outfield AI.

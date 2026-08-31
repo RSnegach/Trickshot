@@ -112,11 +112,11 @@ namespace Trickshot
         // striker can bend one in. Set by FreeKickGame for the whole session.
         public bool SetPieceShot { get; set; }
 
-        // Scrimmage: while true, a DELIBERATE LMB/RMB shot (dribble release + AI shot) launches
+        // Match: while true, a DELIBERATE LMB/RMB shot (dribble release + AI shot) launches
         // AIRBORNE like a set piece - an arced ballistic shot instead of a flat drive - but with
-        // NO controllable spin (WASD is movement in scrimmage). Set by ScrimmageGame for the
+        // NO controllable spin (WASD is movement in match). Set by MatchGame for the
         // session; loose-ball trapping / open-play contacts are unaffected (they stay grounded).
-        public bool ScrimmageLoftKicks { get; set; }
+        public bool MatchLoftKicks { get; set; }
 
         // NO-CARRY modes (Striker, Freeplay, Time Trial): no Dribble is enabled anywhere, so a
         // dead touch has nothing to hand the ball to and used to leave it resting between the
@@ -166,8 +166,8 @@ namespace Trickshot
         //
         // GoalHeight and AttackGoalCenter are the live statics match setup writes, so a rescaled or
         // relocated goal is handled with no extra work, and Sign(v.z) means it serves either end of a
-        // scrimmage pitch. NOT SimConfig.GoalCenter: that one is readonly at FieldLength*0.5 = 17 m,
-        // which is nowhere near a scrimmage goal line (24, 34 or 52 m out).
+        // match pitch. NOT SimConfig.GoalCenter: that one is readonly at FieldLength*0.5 = 17 m,
+        // which is nowhere near a match goal line (24, 34 or 52 m out).
         void CapUnderCrossbar()
         {
             Vector3 v = Rb.linearVelocity;
@@ -587,7 +587,7 @@ namespace Trickshot
         //
         // Coulomb friction cannot slow a rolling sphere: once it rolls without slipping the contact
         // patch has zero relative velocity, so the ball/turf averaged friction (0.225 on the training
-        // pitch, 0.4 in scrimmage) produces no decelerating force, and PhysX has no rolling-friction
+        // pitch, 0.4 in match) produces no decelerating force, and PhysX has no rolling-friction
         // coefficient for a sphere. That left Rigidbody damping as the only damper, and both terms are
         // 0.02 - about 2% per second - so a loose ball rolled the length of the pitch at very nearly the
         // speed it was struck and a keeper closing at StrikerMoveSpeed could never catch it.
@@ -1463,7 +1463,7 @@ namespace Trickshot
         //
         // ELEVATION IS NOT CAMERA PITCH, deliberately. SimConfig.CamPitchMin is -6 deg, so look
         // pitch can only ever point tan(6) = 0.105 * distance above the ball: 20.8 m of range to
-        // aim at a 2.19 m crossbar, while every scrimmage shot is taken inside 20 m. Look supplies
+        // aim at a 2.19 m crossbar, while every match shot is taken inside 20 m. Look supplies
         // yaw. Height supplies itself.
         //
         // Numbers, solved in the project's 2x gravity (SimConfig.Gravity -19.6), ball starting at
@@ -1725,8 +1725,8 @@ namespace Trickshot
             SuppressStrikeFor(shooter, SimConfig.DribbleRecaptureCooldown);
         }
 
-        // Scrimmage deliberate LMB/RMB shot: launch AIRBORNE like a set piece (arced, no controllable
-        // spin - WASD is movement in scrimmage) instead of DribbleShot's flat drive. `dir` is the flat
+        // Match deliberate LMB/RMB shot: launch AIRBORNE like a set piece (arced, no controllable
+        // spin - WASD is movement in match) instead of DribbleShot's flat drive. `dir` is the flat
         // aim direction (the striker's facing); the ball is lofted along it at a fixed launch angle,
         // scaled by shot power. Same facing-gated goal assist as DribbleShot (horizontal steer only
         // when facing goal; vertical steer stays off so the loft survives). No curl/wiggle ever.
@@ -1829,7 +1829,7 @@ namespace Trickshot
 
         /// <summary>
         /// A shot's goal-assist window is live, so the ball is being STEERED and no ballistic solve
-        /// predicts where it lands. Read by the scrimmage landing reticle, which hides while it is true.
+        /// predicts where it lands. Read by the match landing reticle, which hides while it is true.
         /// </summary>
         public bool Guided => _assistRemaining > 0f;
 

@@ -63,8 +63,8 @@ namespace Trickshot
         // PitchLayout.StandFront on each call, so it always matches whatever pitch is currently
         // configured. Corner towers and pylons didn't - CornerBaseFoot/PylonHeight above were
         // tuned once, at the regulation 68m-wide pitch, and stayed that size at every OTHER pitch
-        // too. That's invisible at the 11-a-side scrimmage (which IS the regulation width), but at
-        // the smallest scrimmage (18m half-width) it put a 20m-footprint corner ziggurat and a
+        // too. That's invisible at the 11-a-side match (which IS the regulation width), but at
+        // the smallest match (18m half-width) it put a 20m-footprint corner ziggurat and a
         // 32m floodlight mast - both sized for a bowl nearly twice as wide - around a tiny pitch,
         // dwarfing it. Scale footprint/height down with the pitch instead; floored so a hypothetical
         // even-smaller pitch can't shrink them to nothing.

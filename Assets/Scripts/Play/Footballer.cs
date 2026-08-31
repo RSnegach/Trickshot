@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// One outfield player in a scrimmage: team + shirt identity, and - when no human is driving
+    /// One outfield player in a match: team + shirt identity, and - when no human is driving
     /// this body - a POSITIONAL brain that runs the ActiveRagdoll.
     ///
     /// WHAT WAS WRONG, plainly, because the fix only reads against it. There was no role model here
@@ -39,8 +39,8 @@ namespace Trickshot
     /// returns, preallocated _gaitScratch) and there is not one raycast in the brain.
     ///
     /// HOST ONLY, guaranteed three ways: AiTick/AiKeeperTick have exactly one caller
-    /// (ScrimmageGame.Update); a client's Footballer is deliberately built with a null game
-    /// (NetScrimmageMatch.SpawnBody) and appears in no list a ScrimmageGame ticks; and AiTick returns
+    /// (MatchGame.Update); a client's Footballer is deliberately built with a null game
+    /// (NetMatch.SpawnBody) and appears in no list a MatchGame ticks; and AiTick returns
     /// immediately on a null game so a mis-wire cannot start a second sim behind the snapshots. Every
     /// output is ragdoll drive plus ball impulses, which the host already streams. The brain's
     /// Random draws are host-local and nothing a client recomputes depends on them, so there is no
@@ -52,7 +52,7 @@ namespace Trickshot
         public bool IsKeeper;
         public ActiveRagdoll Ragdoll;
         BallController _ball;
-        ScrimmageGame _game;
+        MatchGame _game;
 
         // Attack direction (world Z sign), assigned at Init. The goal this player attacks is the one
         // at that Z end; own goal is the other.
@@ -60,7 +60,7 @@ namespace Trickshot
         // This used to claim it was NOT derived from team, "because in keeper role Home defends the +Z
         // goal, the opposite of outfield role". That is false and was actively misleading:
         // GameBootstrap sets `attackZ = team == 0 ? 1f : -1f` with no role branch at all, the human
-        // keeper is built at the -Z (Away) goal, and ScrimmageGame's own kickoff comment says so in as
+        // keeper is built at the -Z (Away) goal, and MatchGame's own kickoff comment says so in as
         // many words. Home attacks +Z in every role.
         public float AttackZ = 1f;
         public Vector3 TargetGoal => AttackZ > 0f ? _game.HomeGoal : _game.AwayGoal;   // HomeGoal is +Z
@@ -77,7 +77,7 @@ namespace Trickshot
 
         /// <summary>Squad number. 0 is ALWAYS the keeper; 1..PerSide-1 are outfield, on both teams.</summary>
         public int Shirt { get; private set; }
-        /// <summary>Roster size INCLUDING the keeper, resolved from SimConfig.ScrimmagePerSide.</summary>
+        /// <summary>Roster size INCLUDING the keeper, resolved from SimConfig.MatchPerSide.</summary>
         public int PerSide { get; private set; } = 3;
         /// <summary>What this shirt plays in this shape. Pure function of (PerSide, Shirt).</summary>
         public SimConfig.ScrimPos Slot { get; private set; }
@@ -124,8 +124,8 @@ namespace Trickshot
         public bool IsDown => Knock != null && Knock.Down;
 
         Striker _strk;
-        // The Striker on this body. Every scrimmage footballer has one (GameBootstrap
-        // BuildFootballer and NetScrimmageMatch SpawnBody both add it), but it is only ticked
+        // The Striker on this body. Every match footballer has one (GameBootstrap
+        // BuildFootballer and NetMatch SpawnBody both add it), but it is only ticked
         // while a human drives the body, so an AI body's trick state stays inert.
         public Striker Strk => _strk != null ? _strk : (_strk = GetComponent<Striker>());
 
@@ -140,14 +140,14 @@ namespace Trickshot
         /// team + shirt so every peer agrees without syncing it (see SimConfig.AiPace).</summary>
         public float PaceMul { get; private set; } = 1f;
 
-        public void Init(ScrimmageGame game, BallController ball, ActiveRagdoll ragdoll, int team, bool keeper, float attackZ, Vector3 homeSpot,
+        public void Init(MatchGame game, BallController ball, ActiveRagdoll ragdoll, int team, bool keeper, float attackZ, Vector3 homeSpot,
                          int shirt = 0)
         {
             _game = game; _ball = ball; Ragdoll = ragdoll; Team = team; IsKeeper = keeper; AttackZ = attackZ; _homeSpot = homeSpot;
             PaceMul = SimConfig.AiPace(team, shirt, keeper);
 
             // ROLE. perSide is not a new parameter because no caller has one to hand over: it is the
-            // same static (SimConfig.ScrimmagePerSide) that GameBootstrap and NetScrimmageMatch each
+            // same static (SimConfig.MatchPerSide) that GameBootstrap and NetMatch each
             // clamp before they spawn anybody, and StartNetworkedMatch writes it on EVERY peer from
             // the host's config byte. Host and client therefore resolve the identical role from the
             // identical two numbers with NOTHING extra on the wire.
@@ -159,7 +159,7 @@ namespace Trickshot
             // degrades to the LAST authored row (the striker) - wrong-but-legal, not an exception in
             // the middle of a match. NetSession.SlotAllowed already refuses to SEAT a human past the
             // per-side cap, so this is the belt under those braces rather than the only guard.
-            PerSide = Mathf.Clamp(SimConfig.ScrimmagePerSide, 2, 11);
+            PerSide = Mathf.Clamp(SimConfig.MatchPerSide, 2, 11);
             Shirt   = Mathf.Clamp(shirt, 0, PerSide - 1);
             Slot    = SimConfig.PositionOf(PerSide, Shirt);
             _anchor = SimConfig.PositionAnchor(PerSide, Shirt);
@@ -172,14 +172,14 @@ namespace Trickshot
             Ragdoll.FacingRotation = Quaternion.LookRotation(new Vector3(0f, 0f, AttackZ), Vector3.up);
         }
 
-        // Called by ScrimmageGame each frame for every AI (non-controlled) outfielder. THE ONLY
+        // Called by MatchGame each frame for every AI (non-controlled) outfielder. THE ONLY
         // CALLER. Two rates live here: this method (timers, steering, gait - every frame) and Think
         // (phase, slot, press rank, marking, on-ball choice - at ThinkHz).
         public void AiTick(bool isClosest)
         {
             if (Ragdoll == null || Ragdoll.Pelvis == null || _ball == null) return;
             // HOST-ONLY GUARD, not a null-safety habit. A client's Footballer is built with a null
-            // game on purpose (NetScrimmageMatch.SpawnBody) precisely so it has no brain; if one is
+            // game on purpose (NetMatch.SpawnBody) precisely so it has no brain; if one is
             // ever ticked there anyway it must do NOTHING rather than fight the snapshot puppet and
             // diverge. This is the third of the three guarantees named in the class comment.
             if (_game == null) return;
@@ -279,7 +279,7 @@ namespace Trickshot
             _mark = markD <= hw * 0.55f ? mark : null;
 
             // ---- PHASE ----
-            // Restart is INFERRED (ball parked on the centre spot) because ScrimmageGame keeps its
+            // Restart is INFERRED (ball parked on the centre spot) because MatchGame keeps its
             // kickoff freeze private; a PlayLive flag is a contract request. The inference misfires
             // only if a live ball comes to rest within 1.6 m of the exact centre, which costs one
             // 125 ms slice of shape-holding and nothing else. Loose means genuinely nobody's: no
@@ -318,7 +318,7 @@ namespace Trickshot
             // But the Restart TEST is only a guess - a ball at rest within RestartRadius of the centre
             // spot - and it is equally true of any live ball that simply stops there. Left un-timed that
             // is a permanent deadlock: press is false for every bot, OnBallAct is gated off, and
-            // ScrimmageGame's StuckBallWatchdog cannot rescue it because that only fires near a WALL.
+            // MatchGame's StuckBallWatchdog cannot rescue it because that only fires near a WALL.
             // The ball would sit on the centre spot for the rest of the clock with only a human able to
             // touch it. So hold Restart for the length of a real kickoff freeze and then fall through to
             // Loose, which sends the nearest bots at it.
@@ -464,7 +464,7 @@ namespace Trickshot
         }
 
         // AI keeper. This is the SAME brain as the striker-mode Goalkeeper, pointed at this end of
-        // the pitch, so a scrimmage keeper positions on the angle, comes off his line, sweeps up
+        // the pitch, so a match keeper positions on the angle, comes off his line, sweeps up
         // loose balls, catches what he can hold, dives at what he cannot, and plays it out.
         //
         // What used to be here shadowed the ball's x on a fixed line 1 m off his goal and hoofed
@@ -563,7 +563,7 @@ namespace Trickshot
         }
 
         // Resolve an armed lunge once it has had a moment to close the distance. Same shape as
-        // ScrimmageGame.ResolveTackleWindow: spend the window's ONE contest on arrival, win or lose,
+        // MatchGame.ResolveTackleWindow: spend the window's ONE contest on arrival, win or lose,
         // so a miss cannot be re-rolled every remaining frame of the window.
         void ResolveTackleWindow(Vector3 me, Vector3 ball)
         {
@@ -725,7 +725,7 @@ namespace Trickshot
             return new Vector3(aimX, aimY, TargetGoal.z);
         }
 
-        // Arced shot on goal through the scrimmage lofted launch (airborne, no controllable spin),
+        // Arced shot on goal through the match lofted launch (airborne, no controllable spin),
         // using LaunchTo's ballistic solve so it dips under the bar rather than sailing over it.
         //
         // CONTRACT: this is the ONE place an AI strikes at goal, and the LaunchTo call is the only

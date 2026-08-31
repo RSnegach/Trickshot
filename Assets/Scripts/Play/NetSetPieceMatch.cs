@@ -1063,7 +1063,7 @@ namespace Trickshot
             _s.BroadcastSnapshot(new Snapshot
             {
                 tick = _tick, ballPos = _ball.transform.position, ballVel = _ball.Rb.linearVelocity,
-                // Populated here too even though only the scrimmage driver draws a landing telegraph
+                // Populated here too even though only the match driver draws a landing telegraph
                 // today. It is a field on the shared Snapshot, and a wire field whose meaning depends on
                 // which driver sent it is a trap: these are the SHOT modes, so leaving it false would
                 // have made "not guided" mean "no assist" in one driver and "nobody filled this in" in

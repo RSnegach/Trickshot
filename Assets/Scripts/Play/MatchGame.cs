@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Full scrimmage match driver: two teams of outfielders + a keeper each, on a
+    /// Full match driver: two teams of outfielders + a keeper each, on a
     /// two-goal pitch walled all round. The human controls one player; the rest are AI.
     ///
     ///  - Outfield role: the human controls the Home teammate NEAREST the ball (FIFA-style
@@ -17,7 +17,7 @@ namespace Trickshot
     /// Scoring: geometric per-frame test at each goal (like FreeplayGame). Ball into the
     /// +Z goal = Away scores; into the -Z goal = Home scores. Reset to kickoff after a goal.
     /// </summary>
-    public class ScrimmageGame : MonoBehaviour
+    public class MatchGame : MonoBehaviour
     {
         GameInput _input;
         BallController _ball;
@@ -34,7 +34,7 @@ namespace Trickshot
         Footballer _homeKeeper, _awayKeeper;
 
         // Human control.
-        SimConfig.ScrimRole _role;
+        SimConfig.MatchRole _role;
         Striker _humanStriker;            // outfield role: the striker component on the controlled body
         Dribble _humanDribble;
         Celebration _controlledCeleb;     // emote component on the controlled body
@@ -50,7 +50,7 @@ namespace Trickshot
         public int PossessionTeam { get; private set; } = 0;
 
         // ---- Networked host mode ----
-        // When set, this ScrimmageGame is the HOST sim behind a NetScrimmageMatch driver: it still
+        // When set, this MatchGame is the HOST sim behind a NetMatch driver: it still
         // runs the ball/possession/AI/goals/clock/kickoff, but it does NOT own local human control,
         // the camera, or the HUD (the net driver does), and it leaves every body in
         // _netControlled to be driven by networked input (their Striker/KeeperController is fed by
@@ -72,18 +72,19 @@ namespace Trickshot
         float _kickoffTimer;              // brief freeze after kickoff/goal before play + scoring
         float _clock;                     // counts DOWN, seconds remaining
         bool _fullTime;                   // match over: play frozen, banner shown
+        readonly MatchStatsUI _statsUI = new MatchStatsUI();
 
         public void Configure(GameInput input, BallController ball, GameCamera cam,
-                              ScrimmageArena.Refs arena, SimConfig.ScrimRole role,
+                              MatchArena.Refs arena, SimConfig.MatchRole role,
                               List<Footballer> home, List<Footballer> away,
                               Footballer homeKeeper, Footballer awayKeeper,
                               Striker humanStriker, Dribble humanDribble,
                               KeeperController humanKeeper, ActiveRagdoll humanKeeperRagdoll)
         {
             _input = input; _ball = ball; _cam = cam;
-            // Scrimmage: deliberate LMB/RMB shots (human dribble release + AI shots) fly airborne
+            // Match: deliberate LMB/RMB shots (human dribble release + AI shots) fly airborne
             // like a set piece, no controllable spin. Loose-ball trapping stays grounded.
-            if (_ball != null) _ball.ScrimmageLoftKicks = true;
+            if (_ball != null) _ball.MatchLoftKicks = true;
             HalfLength = arena.halfLength; HalfWidth = arena.halfWidth;
             HomeGoal = arena.homeGoalCenter; AwayGoal = arena.awayGoalCenter;
             _role = role;
@@ -102,12 +103,12 @@ namespace Trickshot
             // in OnDestroy or a finished match keeps counting into a dead table.
             Dribble.ShotFired += OnDribbleShot;
 
-            _clock = SimConfig.ScrimmageMatchSeconds;
+            _clock = SimConfig.MatchSeconds;
 
             // Outfield role: the human controls ONE fixed Home player for the whole match
             // (no switching). Pick the first Home outfielder and give it control once.
-            // Skipped in net-host mode: the NetScrimmageMatch driver owns human control per slot.
-            if (!_netHost && _role == SimConfig.ScrimRole.Outfield && _home.Count > 0)
+            // Skipped in net-host mode: the NetMatch driver owns human control per slot.
+            if (!_netHost && _role == SimConfig.MatchRole.Outfield && _home.Count > 0)
                 AssignControl(_home[0]);
 
             Kickoff();
@@ -189,6 +190,7 @@ namespace Trickshot
             // Full time: play is frozen. R starts a fresh match (rematch).
             if (_fullTime)
             {
+                _statsUI.TickInput();
                 if (_input.ResetPressed) Rematch();
                 return;
             }
@@ -218,7 +220,7 @@ namespace Trickshot
             {
                 // no local human control here
             }
-            else if (_role == SimConfig.ScrimRole.Keeper)
+            else if (_role == SimConfig.MatchRole.Keeper)
             {
                 if (_humanKeeper != null) _humanKeeper.Tick();
             }
@@ -262,13 +264,13 @@ namespace Trickshot
             // --- AI: every footballer that isn't the human-controlled one ---
             // In keeper role the human drives a separate KeeperController ragdoll (not a
             // Footballer), so the Home keeper Footballer is suppressed to avoid two keepers.
-            Footballer humanBody = _role == SimConfig.ScrimRole.Outfield ? _controlled : null;
+            Footballer humanBody = _role == SimConfig.MatchRole.Outfield ? _controlled : null;
             var homeClosest = ClosestToBall(_home);
             var awayClosest = ClosestToBall(_away);
             foreach (var f in _all)
             {
                 if (f == null || f == humanBody) continue;
-                if (_role == SimConfig.ScrimRole.Keeper && f == _homeKeeper) continue;
+                if (_role == SimConfig.MatchRole.Keeper && f == _homeKeeper) continue;
                 if (_netHost && _netControlled.Contains(f)) continue;   // networked human drives this body
                 if (f.IsKeeper) { f.AiKeeperTick(); continue; }
                 bool isClosest = f == (f.Team == 0 ? homeClosest : awayClosest);
@@ -357,7 +359,7 @@ namespace Trickshot
         // the single-player human, the host's own slot and every remote human slot - the host
         // ticks all of their Strikers, so IsDiving is live for all of them on the host. AI bodies
         // never dive (their Striker is not ticked) so they drop out on the IsDiving test. And
-        // because ScrimmageGame only exists on the host in net play, this is host-authoritative
+        // because MatchGame only exists on the host in net play, this is host-authoritative
         // without a wire message: the victim's down state already streams via BodyState.down.
         void ResolveDiveHits()
         {
@@ -661,7 +663,7 @@ namespace Trickshot
                 var keeper = t == 0 ? _homeKeeper : _awayKeeper;
                 if (keeper != null) AddRow(keeper.Ragdoll, (t == 0 ? "H" : "A") + " GK", t, true, false, 0);
                 // The SP human keeper has no Footballer, so his row is added against his own ragdoll.
-                if (t == 0 && _role == SimConfig.ScrimRole.Keeper && _humanKeeperRagdoll != null)
+                if (t == 0 && _role == SimConfig.MatchRole.Keeper && _humanKeeperRagdoll != null)
                     AddRow(_humanKeeperRagdoll, PlayerProfile.PlayerName ?? "YOU", 0, true, false, 0);
                 var list = t == 0 ? _home : _away;
                 for (int i = 0; i < list.Count; i++)
@@ -738,14 +740,14 @@ namespace Trickshot
             return list;
         }
 
-        void OnDestroy() { Dribble.ShotFired -= OnDribbleShot; }
+        void OnDestroy() { Dribble.ShotFired -= OnDribbleShot; _statsUI.Teardown(); }
         void OnDribbleShot(ActiveRagdoll rag) => NoteShot(rag);
 
         // Terse: the board is a table of numbers, so a name is a shirt, not a sentence. The controlled
         // outfielder takes the player's own name; everyone else is their kit letter and number.
         string StatName(Footballer f, int team, int shirt, bool keeper)
         {
-            if (f == _controlled && _role == SimConfig.ScrimRole.Outfield)
+            if (f == _controlled && _role == SimConfig.MatchRole.Outfield)
                 return PlayerProfile.PlayerName ?? "YOU";
             return (team == 0 ? "H" : "A") + shirt + (keeper ? " GK" : "");
         }
@@ -769,6 +771,17 @@ namespace Trickshot
             if (rag == null) return null;
             if (!_statOf.TryGetValue(rag, out var s)) return null;
             return s.frozen ? null : s;
+        }
+
+        /// <summary>The local human's own stat row in single-player - null in net-host mode (see
+        /// EndMatch's own comment on why _controlled/_humanKeeperRagdoll are never assigned there).
+        /// Public so the post-match stats window can find "me" without duplicating this resolution.</summary>
+        public PlayerStat MyRow()
+        {
+            var meRag = _role == SimConfig.MatchRole.Keeper
+                        ? _humanKeeperRagdoll
+                        : (_controlled != null ? _controlled.Ragdoll : null);
+            return Row(meRag);
         }
 
         // Dead-ball frames must not feed the stats. The post-goal freeze is 3 s and the kickoff freeze
@@ -983,7 +996,7 @@ namespace Trickshot
         void FinalizeRatings()
         {
             float lenMul = SimConfig.RatingRefSeconds
-                         / Mathf.Max(30f, SimConfig.ScrimmageMatchSeconds);
+                         / Mathf.Max(30f, SimConfig.MatchSeconds);
 
             for (int i = 0; i < _stats.Count; i++)
             {
@@ -1057,122 +1070,8 @@ namespace Trickshot
                                + $"scoreboard {_homeScore}-{_awayScore}. A goal was not attributed.");
         }
 
-        // ============================================================= post-match board
-        // Two team cards side by side, up to 11 rows each, no scroll and no pagination: 34 header + 17
-        // column row + 11 x 22 rows + 24 pad = 317 tall against the 542 the smallest supported canvas
-        // gives, and 2 x 400 + 16 = 816 wide against 914. An 11-a-side match is the worst case and it
-        // fits with room.
-        //
-        // Numbers only. No legend, no explanation of what a column means, no prose.
-        static GUIStyle _colSt, _motmSt;
-
-        /// <summary>Full-time per-player stats and ratings. Call inside Hud.Begin/End.</summary>
-        public void DrawPostMatch() => DrawStatsBoard(_stats, _homeScore, _awayScore);
-
-        /// <summary>
-        /// The post-match board. STATIC and row-driven, so the host draws it from its live stats and a
-        /// client draws it from the table it received through one implementation - two renderers would
-        /// drift the moment either was touched.
-        /// </summary>
-        public static void DrawStatsBoard(List<PlayerStat> stats, int homeScore, int awayScore)
-        {
-            if (_colSt == null)
-                _colSt = new GUIStyle(GUI.skin.label)
-                { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Faint } };
-            if (_motmSt == null)
-                _motmSt = new GUIStyle(GUI.skin.label)
-                { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-                  normal = { textColor = UITheme.Gold } };
-
-            if (stats == null) return;
-            const float cw = 400f, gap = 16f, rowH = 22f, headH = 34f, colH = 17f, pad = 12f;
-            int rows = 0;
-            for (int t = 0; t < 2; t++)
-            {
-                int n = 0;
-                for (int i = 0; i < stats.Count; i++) if (stats[i].team == t) n++;
-                rows = Mathf.Max(rows, n);
-            }
-            float cardH = headH + colH + rows * rowH + pad;
-            float x0 = Hud.W * 0.5f - (cw * 2f + gap) * 0.5f;
-            float y0 = Mathf.Max(52f, Hud.H * 0.5f - cardH * 0.5f - 18f);
-
-            // Score in the card titles, so the header carries the result without a sentence.
-            DrawTeamCard(stats, x0, y0, cw, cardH, 0, "HOME  " + homeScore, rowH, headH, colH);
-            DrawTeamCard(stats, x0 + cw + gap, y0, cw, cardH, 1, "AWAY  " + awayScore, rowH, headH, colH);
-
-            // Man of the match, only if somebody actually beat a neutral performance. Nobody clears it
-            // in a nothing-happened match, and then the line is simply absent rather than a placeholder.
-            for (int i = 0; i < stats.Count; i++)
-                if (stats[i].motm)
-                {
-                    GUI.Label(new Rect(x0, y0 + cardH + 8f, cw * 2f + gap, 22f),
-                              "MOTM   " + stats[i].name + "   " + stats[i].rating.ToString("0.0"), _motmSt);
-                    break;
-                }
-        }
-
-        static void DrawTeamCard(List<PlayerStat> stats, float x, float y, float w, float h, int team,
-                                 string title, float rowH, float headH, float colH)
-        {
-            Hud.Card(new Rect(x, y, w, h), title);
-
-            // Column x offsets inside the card. PLAYER is left-aligned, every number centred.
-            float lx = x + 12f;
-            float wName = 130f, wRat = 46f, wNum = 32f, wPas = 56f;
-            float xRat = lx + wName, xG = xRat + wRat, xA = xG + wNum, xSht = xA + wNum;
-            float xPas = xSht + wNum, xTkl = xPas + wPas, xSav = xTkl + wNum;
-
-            float cy = y + headH;
-            GUI.Label(new Rect(xRat, cy, wRat, colH), "RAT", _colSt);
-            GUI.Label(new Rect(xG,   cy, wNum, colH), "G",   _colSt);
-            GUI.Label(new Rect(xA,   cy, wNum, colH), "A",   _colSt);
-            GUI.Label(new Rect(xSht, cy, wNum, colH), "SHT", _colSt);
-            GUI.Label(new Rect(xPas, cy, wPas, colH), "PAS", _colSt);
-            GUI.Label(new Rect(xTkl, cy, wNum, colH), "TKL", _colSt);
-            GUI.Label(new Rect(xSav, cy, wNum, colH), "SAV", _colSt);
-
-            var nameSt = Hud.RowName;
-            var valSt  = new GUIStyle(_colSt) { fontSize = 13, normal = { textColor = UITheme.Ink } };
-
-            float ry = cy + colH;
-            for (int i = 0; i < stats.Count; i++)
-            {
-                var s = stats[i];
-                if (s.team != team) continue;
-
-                if (s.motm)
-                {
-                    UITheme.Fill(new Rect(x, ry, w, rowH), new Color(0.20f, 0.17f, 0.05f, 0.55f));
-                    UITheme.Fill(new Rect(x, ry, 2.5f, rowH), UITheme.Gold);
-                }
-                else UITheme.Divider(lx, ry + rowH - 1f, w - 24f);
-
-                GUI.Label(new Rect(lx + 6f, ry, wName, rowH), s.name, nameSt);
-
-                // Rating carries the only colour: green for a strong game, red for a poor one, so the
-                // column reads at a glance without a key.
-                var rs = new GUIStyle(valSt) { fontStyle = FontStyle.Bold };
-                rs.normal.textColor = s.rating >= 7.5f ? UITheme.Green
-                                    : s.rating <= 6.2f ? UITheme.Red : UITheme.Ink;
-                GUI.Label(new Rect(xRat, ry, wRat, rowH), s.rating.ToString("0.0"), rs);
-
-                GUI.Label(new Rect(xG,   ry, wNum, rowH), s.goals.ToString(), valSt);
-                GUI.Label(new Rect(xA,   ry, wNum, rowH), s.assists.ToString(), valSt);
-                // A keeper's shots and tackles are not a keeper statistic; a dash beats a zero that
-                // looks like a failure to do something he was never doing.
-                GUI.Label(new Rect(xSht, ry, wNum, rowH), s.keeper ? "-" : s.shots.ToString(), valSt);
-                GUI.Label(new Rect(xPas, ry, wPas, rowH), s.passesDone + "/" + s.passes, valSt);
-                // TKL is unreachable for a networked human: net-host mode skips the local tackle block
-                // entirely, so a number here would only ever be an AI's and the column would read as
-                // though the humans never tackled.
-                GUI.Label(new Rect(xTkl, ry, wNum, rowH),
-                          s.keeper || s.netControlled ? "-" : s.tackles.ToString(), valSt);
-                GUI.Label(new Rect(xSav, ry, wNum, rowH), s.keeper ? s.saves.ToString() : "-", valSt);
-
-                ry += rowH;
-            }
-        }
+        // Post-match rendering lives in MatchStatsUI now (see _statsUI above) - WireStats/FromWire
+        // just below stay here, since they're the wire serialization, not the renderer.
 
         // ------------------------------------------------------------- passing
         // The pass power bar: one charge per pass button. Replaces the old pair of bare float timers,
@@ -1183,7 +1082,7 @@ namespace Trickshot
         /// <summary>The local player's pass bar, for the HUD to draw.</summary>
         public Passing.Bar PassBar => _bar;
 
-        // Scrimmage-only landing telegraph: a disc on the turf under where an airborne ball will come
+        // Match-only landing telegraph: a disc on the turf under where an airborne ball will come
         // down. Built here rather than passed in, so the networked host gets one too without a second
         // wiring site that could be forgotten.
         AimReticle _landing;
@@ -1256,7 +1155,7 @@ namespace Trickshot
         public static string PassKindName(Passing.PassKind k)
             => k == Passing.PassKind.Chip ? "CHIP" : k == Passing.PassKind.Air ? "LOFT" : "PASS";
 
-        // Keep an aim point on the playing surface. The scrimmage box is SEALED (ScrimmageArena builds
+        // Keep an aim point on the playing surface. The match box is SEALED (MatchArena builds
         // walls, lintels and a lid), so an aim past a wall is a pass into a wall: the charge bands are
         // already sized to the smallest pitch, and this catches the rest.
         Vector3 ClampAim(Vector3 aim)
@@ -1481,8 +1380,8 @@ namespace Trickshot
             }
             CrowdCheer.Celebrate();
             // Crowd audio: cheer + applause on every goal; boos if a team is now 2+ down. Host + SP
-            // run here; net clients fire the same off replicated score deltas (NetScrimmageMatch).
-            AudioManager.Instance?.OnScrimmageGoal(_homeScore, _awayScore);
+            // run here; net clients fire the same off replicated score deltas (NetMatch).
+            AudioManager.Instance?.OnMatchGoal(_homeScore, _awayScore);
             // Freeze scoring, celebrate, then re-kickoff.
             _kickoffTimer = 3f;
             CancelInvoke(nameof(Kickoff));
@@ -1499,13 +1398,16 @@ namespace Trickshot
             // this frame never got a proximity pass - one frame of touches is not worth a special case.
             FinalizeRatings();
 
-            // Single-player only: a networked HOST also drives this class (see ConfigureNetHost), and
-            // its own lifetime stats are out of scope for now (see CareerStats' own doc comment on why
-            // multiplayer attribution needs its own pass, not a bolt-on here). Same human-body
-            // resolution the HUD already uses for the player marker (Hud.PlayerMarker call below).
+            // Single-player only here: a networked HOST also drives this class (see
+            // ConfigureNetHost), but in that mode neither _controlled nor _humanKeeperRagdoll is
+            // ever assigned (AssignControl is skipped below), so this exact resolution can't find
+            // "me" for a net-host - NetMatch records its own MP hook separately, from _game.Stats
+            // at its own full-time edge, where _localSlot resolves the right row instead. Same
+            // human-body resolution the HUD already uses for the player marker (Hud.PlayerMarker
+            // call below).
             if (!_netHost)
             {
-                var meRag = _role == SimConfig.ScrimRole.Keeper
+                var meRag = _role == SimConfig.MatchRole.Keeper
                             ? _humanKeeperRagdoll
                             : (_controlled != null ? _controlled.Ragdoll : null);
                 var my = Row(meRag);
@@ -1514,8 +1416,8 @@ namespace Trickshot
                     int myScore = my.team == 0 ? _homeScore : _awayScore;
                     int theirScore = my.team == 0 ? _awayScore : _homeScore;
                     int result = myScore > theirScore ? 1 : (myScore < theirScore ? -1 : 0);
-                    CareerStats.RecordScrimmageMatchEnd(result, my.goals, my.assists, my.shots,
-                        my.tackles, my.saves, my.conceded, my.passes, my.passesDone);
+                    CareerStats.RecordMatchEnd(false, result, my.goals, my.assists, my.shots,
+                        my.tackles, my.saves, my.conceded, my.passes, my.passesDone, my.motm);
                 }
             }
 
@@ -1535,7 +1437,7 @@ namespace Trickshot
         {
             _fullTime = false;
             _homeScore = 0; _awayScore = 0;
-            _clock = SimConfig.ScrimmageMatchSeconds;
+            _clock = SimConfig.MatchSeconds;
             Kickoff();
         }
 
@@ -1543,7 +1445,7 @@ namespace Trickshot
         void OnGUI()
         {
             if (_input == null) return;
-            if (_netHost) return;   // the NetScrimmageMatch driver draws the networked HUD
+            if (_netHost) return;   // the NetMatch driver draws the networked HUD
 
             // Scale + fit to the window (see MenuScale). Virtual coordinates from here on: use
             // Hud.W / Hud.H, and pair EVERY exit path with Hud.End().
@@ -1554,8 +1456,7 @@ namespace Trickshot
             // board already carries both scores in its card titles.
             if (_fullTime)
             {
-                DrawPostMatch();
-                Hud.Legend("R rematch   Esc menu");
+                _statsUI.Draw(_stats, _homeScore, _awayScore, MyRow());
                 Hud.End();
                 return;
             }
@@ -1563,7 +1464,7 @@ namespace Trickshot
             // Broadcast score bug: team blocks either side of the score, clock underneath.
             Hud.Scoreboard("HOME", UITheme.Blue, _homeScore, _awayScore, "AWAY", UITheme.Red, _clock);
 
-            string help = _role == SimConfig.ScrimRole.Keeper
+            string help = _role == SimConfig.MatchRole.Keeper
                 ? "Keeper:  A/D move   Space/LMB/RMB dive   E/Q throw   Reset: R"
                 : "WASD move   LMB/RMB shoot   E pass   Q loft   X chip   C tackle   B emote   V ball cam   R reset";
             // Shared banner renderer: it shrinks the font and wraps if the line would run off
@@ -1572,12 +1473,12 @@ namespace Trickshot
 
             // Pass power bar, bottom left. Only while a charge is actually armed, so it is not a
             // permanent fixture: an empty bar on screen at all times reads as a broken one.
-            if (_role != SimConfig.ScrimRole.Keeper && _bar.Showing(out Passing.PassKind bk, out float bt))
+            if (_role != SimConfig.MatchRole.Keeper && _bar.Showing(out Passing.PassKind bk, out float bt))
                 Hud.PowerBar(PlayerProfile.PlayerName, bt, PassKindName(bk));
 
             // Shot charge bar, stacked above the pass bar. LMB/RMB (WantsChargedShot) can be held in
             // the same frame as Q/E, so it needs its own slot rather than sharing the pass bar's.
-            if (_role != SimConfig.ScrimRole.Keeper && _humanStriker != null && _humanStriker.WantsChargedShot)
+            if (_role != SimConfig.MatchRole.Keeper && _humanStriker != null && _humanStriker.WantsChargedShot)
                 Hud.ShotBar(_humanStriker.ShotCharge01, true, _humanStriker.ShotInRange);
 
             // Shared styled callout (big, colour-coded, shadowed) - same look as every other mode.
@@ -1586,7 +1487,7 @@ namespace Trickshot
             // Player indicator: one coloured chevron over the human's head. Single player, so there is
             // exactly one human and it takes slot 0's colour. In Keeper role the human is a bare
             // ActiveRagdoll, not a Footballer (see the AI loop above), so pick the body per role.
-            var meRag = _role == SimConfig.ScrimRole.Keeper
+            var meRag = _role == SimConfig.MatchRole.Keeper
                         ? _humanKeeperRagdoll
                         : (_controlled != null ? _controlled.Ragdoll : null);
             Hud.PlayerMarker(meRag, Hud.SlotColor(0));

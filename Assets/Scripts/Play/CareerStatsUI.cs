@@ -8,13 +8,17 @@ namespace Trickshot
     ///
     /// Categories cycle with a compact ‹ › arrow (CustomizeUI's pattern) rather than a row of tab
     /// buttons (OptionsMenu's pattern) - nine categories as button chips would be cramped. Every
-    /// number comes straight from CareerStats.Data; there is no formatting beyond plain label/value
-    /// rows, per instruction. Friends is an honest placeholder - there is no player-account/friend
-    /// system yet, so it names that plainly rather than showing fabricated names or numbers.
+    /// category is a 3-column row list (label / SP / MP) rather than a stacked SP block then an
+    /// MP block - Match's tab is already the tallest at 13 rows, and doubling every tab's row
+    /// count would blow the panel's height budget. Numbers come straight from CareerStats.Data;
+    /// there is no formatting beyond plain label/value rows, per instruction. An MP column reads
+    /// all-zero for every mode except Match until a future pass wires MP recording into the
+    /// others - expected, not a bug. Friends is an honest placeholder - there is no player-account/
+    /// friend system yet, so it names that plainly rather than showing fabricated names or numbers.
     /// </summary>
     public class CareerStatsUI
     {
-        enum Cat { Overall, Striker, Goalkeeper, Accuracy, TimeTrial, FreeKick, Freeplay, Scrimmage, Friends }
+        enum Cat { Overall, Striker, Goalkeeper, Accuracy, TimeTrial, FreeKick, Freeplay, Match, Friends }
         int _cat;
 
         // Reset-all confirm. Same shape as PauseMenu's _confirmAct/_confirmTitle/_confirmBody/
@@ -35,16 +39,17 @@ namespace Trickshot
                 case Cat.TimeTrial:  return "TIME TRIAL";
                 case Cat.FreeKick:   return "FREE KICK";
                 case Cat.Freeplay:   return "FREEPLAY";
-                case Cat.Scrimmage:  return "SCRIMMAGE";
+                case Cat.Match:      return "MATCH";
                 default:             return "FRIENDS";
             }
         }
 
         public void Draw(System.Action onBack)
         {
-            // 600 tall: Scrimmage's 12 rows (28px + 6px gap each) need the extra room over the
-            // other categories' handful, or the last row and its divider bleed under the buttons.
-            float w = 700f, h = 600f;
+            // 650 tall: Match's 13 rows (28px + 6px gap each), plus the SP/MP column header above
+            // them, need the extra room over the other categories' handful, or the last row and
+            // its divider bleed under the buttons.
+            float w = 700f, h = 650f;
             float x = MenuScale.Width * 0.5f - w * 0.5f, y = MenuScale.Height * 0.5f - h * 0.5f;
 
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 260f);
@@ -68,19 +73,9 @@ namespace Trickshot
 
             UITheme.Divider(x + 24f, y + 96f, w - 48f);
 
-            float cy = y + 104f, cw = w;
-            switch ((Cat)_cat)
-            {
-                case Cat.Overall:    DrawRows(x, cy, cw, OverallRows()); break;
-                case Cat.Striker:    DrawRows(x, cy, cw, StrikerRows()); break;
-                case Cat.Goalkeeper: DrawRows(x, cy, cw, GoalkeeperRows()); break;
-                case Cat.Accuracy:   DrawRows(x, cy, cw, AccuracyRows()); break;
-                case Cat.TimeTrial:  DrawRows(x, cy, cw, TimeTrialRows()); break;
-                case Cat.FreeKick:   DrawRows(x, cy, cw, FreeKickRows()); break;
-                case Cat.Freeplay:   DrawRows(x, cy, cw, FreeplayRows()); break;
-                case Cat.Scrimmage:  DrawRows(x, cy, cw, ScrimmageRows()); break;
-                case Cat.Friends:    DrawFriends(x, cy, cw); break;
-            }
+            float cy = y + 128f, cw = w;   // 104 + 24 to leave room for DrawRows' own SP/MP header
+            if ((Cat)_cat == Cat.Friends) DrawFriends(x, cy, cw);
+            else DrawRows(x, cy, cw, RowsFor((Cat)_cat));
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
             if (UITheme.Button(new Rect(x + 24f, y + h - 58f, 140f, 42f), "Back", btn))
@@ -94,126 +89,152 @@ namespace Trickshot
             }
         }
 
-        // ---- per-category rows ----
+        // ---- per-category rows: (label, SP value, MP value) ----
 
-        static (string, string)[] OverallRows()
+        static (string label, string sp, string mp)[] RowsFor(Cat cat)
         {
-            var d = CareerStats.Data;
-            int goals = d.StrikerGoals + d.TimeTrialGoals + d.FreeKickGoals + d.FreeplayGoals + d.ScrimmageGoals;
-            int saves = d.KeeperSaves + d.ScrimmageSaves;
-            int crosses = d.StrikerCrosses + d.TimeTrialCrosses + d.FreeplayCrosses;
+            switch (cat)
+            {
+                case Cat.Overall:    return OverallRows();
+                case Cat.Striker:    return StrikerRows();
+                case Cat.Goalkeeper: return GoalkeeperRows();
+                case Cat.Accuracy:   return AccuracyRows();
+                case Cat.TimeTrial:  return TimeTrialRows();
+                case Cat.FreeKick:   return FreeKickRows();
+                case Cat.Freeplay:   return FreeplayRows();
+                default:             return MatchRows();
+            }
+        }
+
+        static (string, string, string)[] OverallRows()
+        {
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Matches played", d.ScrimmageMatchesPlayed.ToString()),
-                ("Goals scored (all modes)", goals.ToString()),
-                ("Saves (all modes)", saves.ToString()),
-                ("Crosses (all modes)", crosses.ToString()),
+                ("Matches played", sp.MatchesPlayed.ToString(), mp.MatchesPlayed.ToString()),
+                ("Goals scored (all modes)", OverallGoals(sp).ToString(), OverallGoals(mp).ToString()),
+                ("Saves (all modes)", OverallSaves(sp).ToString(), OverallSaves(mp).ToString()),
+                ("Crosses (all modes)", OverallCrosses(sp).ToString(), OverallCrosses(mp).ToString()),
+            };
+        }
+        static int OverallGoals(ModeStats d) => d.StrikerGoals + d.TimeTrialGoals + d.FreeKickGoals + d.FreeplayGoals + d.MatchGoals;
+        static int OverallSaves(ModeStats d) => d.KeeperSaves + d.MatchSaves;
+        static int OverallCrosses(ModeStats d) => d.StrikerCrosses + d.TimeTrialCrosses + d.FreeplayCrosses;
+
+        static (string, string, string)[] StrikerRows()
+        {
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
+            return new[]
+            {
+                ("Goals scored", sp.StrikerGoals.ToString(), mp.StrikerGoals.ToString()),
+                ("Trick goals", sp.StrikerTrickGoals.ToString(), mp.StrikerTrickGoals.ToString()),
+                ("Crosses", sp.StrikerCrosses.ToString(), mp.StrikerCrosses.ToString()),
+                ("Shots denied", sp.StrikerShotsDenied.ToString(), mp.StrikerShotsDenied.ToString()),
             };
         }
 
-        static (string, string)[] StrikerRows()
+        static (string, string, string)[] GoalkeeperRows()
         {
-            var d = CareerStats.Data;
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Goals scored", d.StrikerGoals.ToString()),
-                ("Trick goals", d.StrikerTrickGoals.ToString()),
-                ("Crosses", d.StrikerCrosses.ToString()),
-                ("Shots denied", d.StrikerShotsDenied.ToString()),
+                ("Saves", sp.KeeperSaves.ToString(), mp.KeeperSaves.ToString()),
+                ("Shots faced", sp.KeeperShotsFaced.ToString(), mp.KeeperShotsFaced.ToString()),
+                ("Goals conceded", sp.KeeperGoalsConceded.ToString(), mp.KeeperGoalsConceded.ToString()),
+                ("Save percentage", Pct(sp.KeeperSaves, sp.KeeperShotsFaced), Pct(mp.KeeperSaves, mp.KeeperShotsFaced)),
             };
         }
 
-        static (string, string)[] GoalkeeperRows()
+        static (string, string, string)[] AccuracyRows()
         {
-            var d = CareerStats.Data;
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Saves", d.KeeperSaves.ToString()),
-                ("Shots faced", d.KeeperShotsFaced.ToString()),
-                ("Goals conceded", d.KeeperGoalsConceded.ToString()),
-                ("Save percentage", Pct(d.KeeperSaves, d.KeeperShotsFaced)),
+                ("Rounds played", sp.AccuracyRoundsPlayed.ToString(), mp.AccuracyRoundsPlayed.ToString()),
+                ("Kicks taken", sp.AccuracyKicks.ToString(), mp.AccuracyKicks.ToString()),
+                ("Targets hit", sp.AccuracyTargetsHit.ToString(), mp.AccuracyTargetsHit.ToString()),
+                ("Best score", sp.AccuracyBestScore.ToString(), mp.AccuracyBestScore.ToString()),
+                ("Average score", Avg(sp.AccuracyTotalScore, sp.AccuracyRoundsPlayed), Avg(mp.AccuracyTotalScore, mp.AccuracyRoundsPlayed)),
             };
         }
 
-        static (string, string)[] AccuracyRows()
+        static (string, string, string)[] TimeTrialRows()
         {
-            var d = CareerStats.Data;
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Rounds played", d.AccuracyRoundsPlayed.ToString()),
-                ("Kicks taken", d.AccuracyKicks.ToString()),
-                ("Targets hit", d.AccuracyTargetsHit.ToString()),
-                ("Best score", d.AccuracyBestScore.ToString()),
-                ("Average score", Avg(d.AccuracyTotalScore, d.AccuracyRoundsPlayed)),
+                ("Runs played", sp.TimeTrialRunsPlayed.ToString(), mp.TimeTrialRunsPlayed.ToString()),
+                ("Crosses", sp.TimeTrialCrosses.ToString(), mp.TimeTrialCrosses.ToString()),
+                ("Goals scored", sp.TimeTrialGoals.ToString(), mp.TimeTrialGoals.ToString()),
+                ("Best run (goals)", sp.TimeTrialBestRunGoals.ToString(), mp.TimeTrialBestRunGoals.ToString()),
             };
         }
 
-        static (string, string)[] TimeTrialRows()
+        static (string, string, string)[] FreeKickRows()
         {
-            var d = CareerStats.Data;
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Runs played", d.TimeTrialRunsPlayed.ToString()),
-                ("Crosses", d.TimeTrialCrosses.ToString()),
-                ("Goals scored", d.TimeTrialGoals.ToString()),
-                ("Best run (goals)", d.TimeTrialBestRunGoals.ToString()),
+                ("Attempts", sp.FreeKickAttempts.ToString(), mp.FreeKickAttempts.ToString()),
+                ("Goals scored", sp.FreeKickGoals.ToString(), mp.FreeKickGoals.ToString()),
+                ("Conversion", Pct(sp.FreeKickGoals, sp.FreeKickAttempts), Pct(mp.FreeKickGoals, mp.FreeKickAttempts)),
             };
         }
 
-        static (string, string)[] FreeKickRows()
+        static (string, string, string)[] FreeplayRows()
         {
-            var d = CareerStats.Data;
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Attempts", d.FreeKickAttempts.ToString()),
-                ("Goals scored", d.FreeKickGoals.ToString()),
-                ("Conversion", Pct(d.FreeKickGoals, d.FreeKickAttempts)),
+                ("Crosses", sp.FreeplayCrosses.ToString(), mp.FreeplayCrosses.ToString()),
+                ("Goals scored", sp.FreeplayGoals.ToString(), mp.FreeplayGoals.ToString()),
             };
         }
 
-        static (string, string)[] FreeplayRows()
+        static (string, string, string)[] MatchRows()
         {
-            var d = CareerStats.Data;
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
             return new[]
             {
-                ("Crosses", d.FreeplayCrosses.ToString()),
-                ("Goals scored", d.FreeplayGoals.ToString()),
-            };
-        }
-
-        static (string, string)[] ScrimmageRows()
-        {
-            var d = CareerStats.Data;
-            return new[]
-            {
-                ("Matches played", d.ScrimmageMatchesPlayed.ToString()),
-                ("Wins", d.ScrimmageWins.ToString()),
-                ("Losses", d.ScrimmageLosses.ToString()),
-                ("Draws", d.ScrimmageDraws.ToString()),
-                ("Goals", d.ScrimmageGoals.ToString()),
-                ("Assists", d.ScrimmageAssists.ToString()),
-                ("Shots", d.ScrimmageShots.ToString()),
-                ("Tackles", d.ScrimmageTackles.ToString()),
-                ("Saves", d.ScrimmageSaves.ToString()),
-                ("Conceded", d.ScrimmageConceded.ToString()),
-                ("Passes", d.ScrimmagePasses.ToString()),
-                ("Passes completed", d.ScrimmagePassesCompleted.ToString()),
+                ("Matches played", sp.MatchesPlayed.ToString(), mp.MatchesPlayed.ToString()),
+                ("Wins", sp.MatchWins.ToString(), mp.MatchWins.ToString()),
+                ("Losses", sp.MatchLosses.ToString(), mp.MatchLosses.ToString()),
+                ("Draws", sp.MatchDraws.ToString(), mp.MatchDraws.ToString()),
+                ("Goals", sp.MatchGoals.ToString(), mp.MatchGoals.ToString()),
+                ("Assists", sp.MatchAssists.ToString(), mp.MatchAssists.ToString()),
+                ("Shots", sp.MatchShots.ToString(), mp.MatchShots.ToString()),
+                ("Tackles", sp.MatchTackles.ToString(), mp.MatchTackles.ToString()),
+                ("Saves", sp.MatchSaves.ToString(), mp.MatchSaves.ToString()),
+                ("Conceded", sp.MatchConceded.ToString(), mp.MatchConceded.ToString()),
+                ("Passes", sp.MatchPasses.ToString(), mp.MatchPasses.ToString()),
+                ("Passes completed", sp.MatchPassesCompleted.ToString(), mp.MatchPassesCompleted.ToString()),
+                ("Man of the Match", sp.MatchMOTM.ToString(), mp.MatchMOTM.ToString()),
             };
         }
 
         static string Pct(int made, int total) => total <= 0 ? "-" : Mathf.RoundToInt(100f * made / total) + "%";
         static string Avg(long total, int count) => count <= 0 ? "-" : (total / (float)count).ToString("0.0");
 
-        void DrawRows(float x, float y, float w, (string label, string value)[] rows)
+        void DrawRows(float x, float y, float w, (string label, string sp, string mp)[] rows)
         {
             var lbl = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Dim } };
             var val = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Gold } };
+            var head = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Faint } };
+
             float lx = x + 24f, rowH = 28f, gap = 6f, rw = w - 48f;
+            float colLabel = rw * 0.5f, colVal = rw * 0.25f;
+            float xSp = lx + colLabel, xMp = xSp + colVal;
+
+            // One SP/MP mini-header above the list, not per row.
+            GUI.Label(new Rect(xSp, y - 24f, colVal, 16f), "SP", head);
+            GUI.Label(new Rect(xMp, y - 24f, colVal, 16f), "MP", head);
+
             for (int i = 0; i < rows.Length; i++)
             {
                 float ry = y + i * (rowH + gap);
-                GUI.Label(new Rect(lx, ry, rw * 0.6f, rowH), rows[i].label, lbl);
-                GUI.Label(new Rect(lx + rw * 0.6f, ry, rw * 0.4f, rowH), rows[i].value, val);
+                GUI.Label(new Rect(lx, ry, colLabel, rowH), rows[i].label, lbl);
+                GUI.Label(new Rect(xSp, ry, colVal, rowH), rows[i].sp, val);
+                GUI.Label(new Rect(xMp, ry, colVal, rowH), rows[i].mp, val);
                 UITheme.Divider(lx, ry + rowH + gap * 0.5f, rw);
             }
         }

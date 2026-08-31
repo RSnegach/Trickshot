@@ -8,7 +8,7 @@ namespace Trickshot
     ///
     /// A marker rather than a name match or a material check, same reasoning as NetBackstop:
     /// the frame is built in three separate places (Arena, PitchBuilder.BuildFarGoal,
-    /// ScrimmageArena.BuildGoal), the net strings hanging off the same goalRoot must NOT
+    /// MatchArena.BuildGoal), the net strings hanging off the same goalRoot must NOT
     /// count, and matching on "Post"/"Bar" would break the first time a part is renamed.
     /// Nothing here changes the bounce - the frame's own bouncy physics material still does
     /// the deflection.

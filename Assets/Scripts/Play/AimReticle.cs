@@ -5,7 +5,7 @@ namespace Trickshot
     /// <summary>
     /// Landing telegraph for an airborne ball. The serve/flight-prediction system calls Show() with
     /// the predicted landing point so the player can read where to be; it is a purely visual pulsing
-    /// marker on the ground (no mouse aiming any more). Used in every ball mode - scrimmage (both SP
+    /// marker on the ground (no mouse aiming any more). Used in every ball mode - match (both SP
     /// and MP), striker, freeplay, time trial - so one shape change here is every mode's reticle.
     ///
     /// SMALL CIRCLE + CROSSHAIR THROUGH IT. The previous shape was a flat 1.4 m ring with a separate

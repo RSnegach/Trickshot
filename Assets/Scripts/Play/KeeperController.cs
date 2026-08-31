@@ -34,7 +34,7 @@ namespace Trickshot
         Quaternion _facing;
         // Out toward the pitch. Resolved at Init from where the mode BUILT him rather than taken
         // from SimConfig.KeeperFaceDir, because that constant only describes the +Z goal that the
-        // practice and set-piece modes use. Scrimmage defends the -Z goal, where it is exactly
+        // practice and set-piece modes use. Match defends the -Z goal, where it is exactly
         // backwards, and the keeper stood looking into his own net.
         Vector3 _faceDir = SimConfig.KeeperFaceDir;
         // Sign of "upfield" for him, latched at Init the same way _faceDir is. Must NOT be re-read
@@ -42,7 +42,7 @@ namespace Trickshot
         // point his distribution at his own net. Default matches the default _faceDir (+Z goal).
         float _outZ = -1f;
         // Half-extents of the area he distributes into. Defaults to the single-goal training arena;
-        // scrimmage is up to 68 x 104, so those modes overwrite it or every punt clamps short.
+        // match is up to 68 x 104, so those modes overwrite it or every punt clamps short.
         public Vector2 AimBounds = new Vector2(SimConfig.FieldWidth * 0.45f, SimConfig.FieldLength * 0.45f);
         System.Func<float> _lookYaw;   // camera cone yaw (deg); the body turns to match
         float _shufflePhase;           // procedural shuffle-step cadence while moving
@@ -92,7 +92,7 @@ namespace Trickshot
             if (ball != null) _hands.Init(ball, ragdoll);
             // Which way is out? Away from the goal he is standing in. Works for every mode without
             // any of them having to tell us: the practice/set-piece keeper is built at +Z and looks
-            // down -Z, the scrimmage keeper is built at -Z and looks up +Z.
+            // down -Z, the match keeper is built at -Z and looks up +Z.
             if (_ragdoll.Pelvis != null && _ragdoll.Pelvis.position.z < 0f)
             {
                 _faceDir = -SimConfig.KeeperFaceDir;
@@ -505,7 +505,7 @@ namespace Trickshot
         // The only zone rule is his own half. The AI needs a radius around its goal because it roams;
         // a human is pinned to his line by his legs and KeeperStrafeXLimit, and KeeperHands.CanClaim
         // already demands the ball be within arm's reach of his chest, so a radius here would add
-        // nothing except a dependence on GoalCenter that a resized scrimmage pitch would break.
+        // nothing except a dependence on GoalCenter that a resized match pitch would break.
         bool TryClaim()
         {
             if (_ball == null || _ragdoll.Pelvis == null) return false;

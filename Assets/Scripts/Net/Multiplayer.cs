@@ -5,9 +5,9 @@ namespace Trickshot.Net
     /// <summary>
     /// Global access point for the current network session. Single-player leaves Session
     /// null and everything runs locally as today; a networked match sets it up via Host()
-    /// or Join(). The mode drivers (ScrimmageGame / striker GameManager) check
+    /// or Join(). The mode drivers (MatchGame / striker GameManager) check
     /// Multiplayer.Session: if null or host they run the authoritative sim; if a client they
-    /// send input + apply snapshots. Both scrimmage and striker are networkable this way.
+    /// send input + apply snapshots. Both match and striker are networkable this way.
     /// </summary>
     public static class Multiplayer
     {

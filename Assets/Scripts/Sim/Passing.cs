@@ -140,7 +140,7 @@ namespace Trickshot
         /// `canPlay` is the possession gate: false disarms and zeroes, so a bar can never fill while the
         /// player has no ball, is down, or is mid-emote. `fresh` is the anti-stale-input gate and is the
         /// reason fire-at-full is safe over a network: the host re-feeds the LAST received InputFrame
-        /// every tick whether or not a new one arrived (NetScrimmageMatch feeds NetSession.InputForSlot
+        /// every tick whether or not a new one arrived (NetMatch feeds NetSession.InputForSlot
         /// unconditionally), and a client stops sending entirely while paused or typing in quickchat. A
         /// held bit therefore stays pinned true indefinitely. Under the old fire-on-release rule that was
         /// harmless, because Released never became true; with fire-at-full it would charge to full and

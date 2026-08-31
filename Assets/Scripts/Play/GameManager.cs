@@ -119,7 +119,7 @@ namespace Trickshot
         }
 
         // Striker calls the AI crosser for a pass to his feet: low (driven) or high (chipped).
-        // Scatter scales inversely with the player's passing accuracy (like a scrimmage pass),
+        // Scatter scales inversely with the player's passing accuracy (like a match pass),
         // so a low-passing striker gets a looser ball. A full hold isn't needed here (a call is
         // a single press), so power is nominal.
         void CallForCross(bool lofted)

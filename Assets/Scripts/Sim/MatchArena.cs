@@ -3,15 +3,15 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// A self-contained scrimmage pitch: a rectangular field centred on the origin with a
+    /// A self-contained match pitch: a rectangular field centred on the origin with a
     /// goal at EACH end (+Z and -Z), a see-through net in each, and an invisible SEALED box
     /// around it - walls on all four sides, lintels above both crossbars, and a lid - so the
     /// ball genuinely cannot leave play. Sized to the team count.
     ///
     /// Independent of the single-goal training Arena so none of the existing modes change.
-    /// Scoring is done geometrically by ScrimmageGame (GoalAt), not by trigger callbacks.
+    /// Scoring is done geometrically by MatchGame (GoalAt), not by trigger callbacks.
     /// </summary>
-    public static class ScrimmageArena
+    public static class MatchArena
     {
         public struct Refs
         {

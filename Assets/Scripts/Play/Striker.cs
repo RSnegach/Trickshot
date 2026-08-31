@@ -46,7 +46,7 @@ namespace Trickshot
         // True while a diving header is in progress (for the DIVING HEADER goal callout).
         public bool IsDiving => _mode == Trick.Dive;
 
-        // One-shot, armed at dive launch and consumed by the scrimmage sim the first time this
+        // One-shot, armed at dive launch and consumed by the match sim the first time this
         // dive fells an opponent, so a single dive cannot mow down a line of players. Never needs
         // clearing: it is only ever read while IsDiving, and the next StartDive re-arms it.
         public bool DiveHitPending;
@@ -158,7 +158,7 @@ namespace Trickshot
         public void ReleaseRun() => _runLocked = false;
 
         public bool RunLocked => _runLocked;
-        /// <summary>Down in a sliding challenge. ScrimmageGame reads this to resolve the contact, so
+        /// <summary>Down in a sliding challenge. MatchGame reads this to resolve the contact, so
         /// the tackle and the animation can never disagree about whether he is actually sliding.</summary>
         public bool IsSliding => _sliding;
 
@@ -1086,7 +1086,7 @@ namespace Trickshot
             // UprightLock too. It was missing, and normally that is invisible because Tick re-locks on
             // the next grounded frame - but ForceRecover exists precisely for the cases where Tick
             // never runs again (control handed to the AI, roster change, match end), and then nothing
-            // restores it: neither Footballer nor ScrimmageGame ever writes UprightLock. Knockdown
+            // restores it: neither Footballer nor MatchGame ever writes UprightLock. Knockdown
             // .Recover sets it explicitly, which is why that path never showed the hole.
             _ragdoll.UprightLock = true;
             _ragdoll.LocomotionEnabled = true;

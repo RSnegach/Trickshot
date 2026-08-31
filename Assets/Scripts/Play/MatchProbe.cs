@@ -8,14 +8,14 @@ namespace Trickshot
     public enum ProbeTackle { Ai, Human, Slide }
 
     /// <summary>
-    /// DEV-ONLY scrimmage measurement harness. Changes no gameplay.
+    /// DEV-ONLY match measurement harness. Changes no gameplay.
     ///
     /// WHY IT EXISTS: five gameplay complaints survived three rounds of fixes that were verified by
     /// COMPILING instead of by playing. Nobody had a number for how often a shot scores, how often the
     /// keeper saves, or how often a tackle steals - so every "fixed" claim was unfalsifiable. This
     /// produces those numbers, and that is all it does.
     ///
-    /// SWITCHING IT ON: F9 in a running scrimmage, or MatchProbe.On = true from anywhere (that is how an
+    /// SWITCHING IT ON: F9 in a running match, or MatchProbe.On = true from anywhere (that is how an
     /// automated run over the editor bridge arms it). Off by default, every time.
     ///
     /// COST WHEN OFF: in a shipped player, zero - every body below is inside
@@ -25,7 +25,7 @@ namespace Trickshot
     /// never be switched on, so editor-off is negligible rather than free.
     ///
     /// DERIVED WHERE POSSIBLE, so the harness cannot contradict the post-match board: shots, goals,
-    /// saves and standing-tackle wins are per-frame DELTAS off ScrimmageGame's existing PlayerStat table
+    /// saves and standing-tackle wins are per-frame DELTAS off MatchGame's existing PlayerStat table
     /// and live score. Three things need their own call site because the game counts them nowhere:
     ///   - tackle ATTEMPTS. The game counts only WINS. That single gap is why the steal rate the user
     ///     complains about had never been measured by anybody.
@@ -106,11 +106,11 @@ namespace Trickshot
 #endif
 
         /// <summary>
-        /// Once per frame from the END of ScrimmageGame.Update, which is on purpose: the AI brains have
+        /// Once per frame from the END of MatchGame.Update, which is on purpose: the AI brains have
         /// already run by then, so a shot struck this frame still carries its launch velocity on the
         /// rigidbody and the on-target verdict is read off the real strike rather than a frame later.
         /// </summary>
-        public static void Tick(ScrimmageGame g, BallController ball, List<Footballer> bodies)
+        public static void Tick(MatchGame g, BallController ball, List<Footballer> bodies)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (Input.GetKeyDown(KeyCode.F9)) { On = !On; if (On) { Reset(); Overlay.Ensure(); } }
@@ -208,7 +208,7 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// The readout hosts itself. Deliberate: ScrimmageGame then needs exactly ONE new line (the Tick
+        /// The readout hosts itself. Deliberate: MatchGame then needs exactly ONE new line (the Tick
         /// call) and no OnGUI patch, so the harness can be pulled back out in one edit.
         /// </summary>
         class Overlay : MonoBehaviour

@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// Makes a player ragdoll fall over when tackled or hit by a slide tackle, go limp for
-    /// a moment, then get back up. Sits on every scrimmage footballer (and the human's
+    /// a moment, then get back up. Sits on every match footballer (and the human's
     /// controlled body). While Down, the owning controller (Striker AI/human, or Footballer
     /// AI) suspends its own steering so it doesn't fight the fall.
     /// </summary>
@@ -25,7 +25,7 @@ namespace Trickshot
         // so spamming the button no longer converts a 34% roll into a certainty, and he still
         // recovers inside a second. A committed slide that misses costs double - and note the man he
         // fouled is down for KnockdownTime 1.4 s, so the fouler is up FIRST. That is deliberately
-        // lenient: scrimmage has no free kick to award, so the punishment cannot be the whole cost.
+        // lenient: match has no free kick to award, so the punishment cannot be the whole cost.
         public const float BeatenTime       = 0.55f;
         public const float BeatenSlideTime  = 1.10f;
         // Partial limp, not a collapse. Enough that the lunge carries him past the man.
@@ -44,7 +44,7 @@ namespace Trickshot
             if (_ragdoll == null || _ragdoll.Pelvis == null) return;
 
             // RE-ENTRY GUARD. There was none, and several paths fell the same body in quick
-            // succession: ScrimmageGame.WinBall fells NearestOpponentToBall on every ball-win, and
+            // succession: MatchGame.WinBall fells NearestOpponentToBall on every ball-win, and
             // ResolveDiveHits can land on someone already going down. Each re-entry restacked
             // KnockdownImpulse 5.5 m/s onto a body already limp at DriveScale 0.1 - 11 m/s on a rag,
             // which at fdt 0.0200 is 0.22 m of travel per step and enough to push bones through thin

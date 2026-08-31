@@ -208,7 +208,7 @@ namespace Trickshot
 
         void ShowLobbyCustomize()
         {
-            // Humans only in scrimmage, exactly as in single player: skip to the body screen and pin
+            // Humans only in Match mode, exactly as in single player: skip to the body screen and pin
             // the species, then resync so the roster shows Human rather than whatever the player was
             // last set to in another mode.
             if (!LobbyPicksSpecies())
@@ -250,23 +250,23 @@ namespace Trickshot
             var cfg = s.Config;
             StadiumStyle.SelectedIndex = cfg.stadium;
             var mode = (GameMode)cfg.mode;
-            if (mode == GameMode.Scrimmage)
+            if (mode == GameMode.Match)
             {
                 // cfg.perSide is an untrusted wire byte and this is a mutable static every later
                 // consumer reads, so clamp at the boundary. The floor of 2 is the shirt invariant:
                 // shirts are 0 = keeper and 1..perSide-1 = outfield, so a side of 1 has no legal
                 // outfield shirt at all.
-                SimConfig.ScrimmagePerSide = Mathf.Clamp(cfg.perSide, 2, Trickshot.Net.NetSession.ScrimSlotsPerTeam);
-                SimConfig.ScrimmageMatchSeconds = cfg.matchSec;
-                // Keeper-ness comes from the SHIRT, not from NetRole. Scrimmage puts two teams on
+                SimConfig.MatchPerSide = Mathf.Clamp(cfg.perSide, 2, Trickshot.Net.NetSession.ScrimSlotsPerTeam);
+                SimConfig.MatchSeconds = cfg.matchSec;
+                // Keeper-ness comes from the SHIRT, not from NetRole. Match puts two teams on
                 // the eight slots, so the away keeper is slot 4, and RoleOfSlot - which describes
                 // the single-goal layout - calls slot 4 a shooter. Reading LocalRole therefore
                 // brought an away keeper into the match flagged as an outfielder. Harmless today
-                // (the net path returns before ScrimmageRole is used for anything but a nominal
+                // (the net path returns before PlayerRole is used for anything but a nominal
                 // argument) and a trap the moment it is not.
-                SimConfig.ScrimmageRole =
+                SimConfig.PlayerRole =
                     Trickshot.Net.NetSession.ScrimShirtOfSlot(s.LocalSlot) == 0
-                    ? SimConfig.ScrimRole.Keeper : SimConfig.ScrimRole.Outfield;
+                    ? SimConfig.MatchRole.Keeper : SimConfig.MatchRole.Outfield;
                 // Canonical goal size, written on EVERY peer. This branch used to leave GoalWidth and
                 // GoalHeight alone while the set-piece and accuracy branches below assign them, and
                 // they are mutable statics - so a host who last played a 1.5x set piece and a client
@@ -316,12 +316,12 @@ namespace Trickshot
         // a KeeperController never reads); every other mode walks the full flow.
         static bool CustomizeSkipsSkill(GameMode mode) => mode == GameMode.Goalkeeper;
 
-        // Scrimmage is HUMANS ONLY for now, so it skips the species screen and pins the selection
+        // Match mode is HUMANS ONLY for now, so it skips the species screen and pins the selection
         // back to Human on the way past. A quadruped in a team match leans on team AI, keeper poses
         // and a ball-strike model that all assume a biped, and none of that has been done for one;
         // offering the pick and then playing a horse badly is worse than not offering it. Everything
         // else about the species is untouched, so restoring the pick is this one predicate.
-        static bool PicksSpecies(GameMode mode) => mode != GameMode.Scrimmage;
+        static bool PicksSpecies(GameMode mode) => mode != GameMode.Match;
 
         void AfterStadium(GameMode mode)
         {
@@ -330,7 +330,7 @@ namespace Trickshot
             {
                 // Pin it here rather than trusting whatever the last mode left selected: the species
                 // byte persists in the profile, so picking a horse in Striker and then starting a
-                // scrimmage would otherwise carry the horse in with no screen to change it back.
+                // Match mode would otherwise carry the horse in with no screen to change it back.
                 Species.ApplySelection(Species.HumanId);
                 ShowCustomize(mode);
                 return;
@@ -356,7 +356,7 @@ namespace Trickshot
             cu.SkipSkill = CustomizeSkipsSkill(mode);
             cu.Init(
                 onDone: () => { Destroy(go); ShowPrematch(mode); },
-                // Back goes to whichever screen actually preceded this one. Sending scrimmage to the
+                // Back goes to whichever screen actually preceded this one. Sending Match mode to the
                 // species screen it never saw would both show a screen that is meant to be gone and
                 // strand Back in a loop between the two.
                 onBack: () => { Destroy(go);
@@ -450,7 +450,7 @@ namespace Trickshot
         {
             // Audio hand-off at the menu -> match boundary: stop menu music and start the crowd
             // bed for this mode (also arms the lively swell timer / streak system). Done first so
-            // it covers every mode, including the early-return scrimmage branch below.
+            // it covers every mode, including the early-return Match-mode branch below.
             AudioManager.Instance?.BeginMatch(mode);
 
             // Everything for this match lives under _matchRoot so it can be torn down.
@@ -478,15 +478,15 @@ namespace Trickshot
 
             SkyDome.Apply(_cam, _sun);
 
-            // Default the aim-target to the training goal; scrimmage repoints it.
+            // Default the aim-target to the training goal; Match mode repoints it.
             SimConfig.AttackGoalCenter = SimConfig.GoalCenter;
 
-            // Scrimmage builds its OWN two-goal, fully-walled pitch (centred at origin) then
+            // Match mode builds its OWN two-goal, fully-walled pitch (centred at origin) then
             // wraps it with the shared stadium + crowd, sized to that pitch.
-            if (mode == GameMode.Scrimmage) { BuildScrimmageMode(root, camGo); return; }
+            if (mode == GameMode.Match) { BuildMatchMode(root, camGo); return; }
 
             // Single-goal venues use the regulation training pitch footprint. Reset in case a
-            // prior scrimmage repointed PitchLayout at its own field.
+            // prior Match-mode run repointed PitchLayout at its own field.
             PitchLayout.ResetToTraining();
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
@@ -494,7 +494,7 @@ namespace Trickshot
             // training-field walls sat at x=+/-12 / z=-17 - mid-pitch on the regulation field,
             // between the 6- and 18-yard box edges - and bounced set-piece shots at all heights.
             // Every mode resolves a dead/out-of-play ball in code (rest timer or FieldWidth/Length
-            // bounds), so no physical boundary is needed. Scrimmage builds its own walled arena.
+            // bounds), so no physical boundary is needed. Match mode builds its own walled arena.
             var arena = Arena.Build(root, boundaryWalls: false);
             // Full pitch markings + far goal, the stadium bowl, and the animated crowd.
             // All read the shared PitchLayout contract so they line up. Crowd is stored so
@@ -516,7 +516,7 @@ namespace Trickshot
             var gameCam = camGo.AddComponent<GameCamera>();
 
             // Networked striker: host-authoritative multi-player striker driver instead of
-            // the single-player GameManager. (Scrimmage networking is a later pass.)
+            // the single-player GameManager. (Match-mode networking is a later pass.)
             if (Trickshot.Net.Multiplayer.IsActive && mode == GameMode.Striker)
             {
                 BuildNetStrikerMode(root, cam, gameCam, ball, arena);
@@ -833,10 +833,10 @@ namespace Trickshot
             LockCursor();
         }
 
-        // -------------------------------------------------------- Scrimmage mode
-        void BuildScrimmageMode(Transform root, GameObject camGo)
+        // -------------------------------------------------------- Match mode
+        void BuildMatchMode(Transform root, GameObject camGo)
         {
-            // Networked scrimmage is capped to fit the 8-slot model: 4-a-side incl keepers max
+            // Networked Match mode is capped to fit the 8-slot model: 4-a-side incl keepers max
             // (slots 0-3 Home, 4-7 Away). Single-player keeps the full 3/5/11 options.
             bool net = Trickshot.Net.Multiplayer.IsActive;
             // The floor of 2 is the D6 shirt invariant, not defensive habit: shirt 0 is the keeper
@@ -845,19 +845,19 @@ namespace Trickshot
             // in a squad of size 1, which is exactly the out-of-range a formation table indexed by
             // shirt would take. Net also clamps to the eight-slot board; NetSession.ScrimPerSide
             // clamps identically so the seating and the bodies cannot disagree.
-            int perSide = net ? Mathf.Clamp(SimConfig.ScrimmagePerSide, 2, Trickshot.Net.NetSession.ScrimSlotsPerTeam)
-                              : Mathf.Max(2, SimConfig.ScrimmagePerSide);
-            var arena = ScrimmageArena.Build(root, perSide);
+            int perSide = net ? Mathf.Clamp(SimConfig.MatchPerSide, 2, Trickshot.Net.NetSession.ScrimSlotsPerTeam)
+                              : Mathf.Max(2, SimConfig.MatchPerSide);
+            var arena = MatchArena.Build(root, perSide);
             // The human (Home) attacks the +Z goal; aim assist / dribble / ball-cam target it.
             SimConfig.AttackGoalCenter = arena.homeGoalCenter;
 
-            // Wrap the scrimmage pitch with the SAME stadium bowl + crowd the other venues use,
+            // Wrap the Match-mode pitch with the SAME stadium bowl + crowd the other venues use,
             // sized to this (centred) field. Point the shared PitchLayout contract at it first,
-            // then build the shell + crowd (skip PitchBuilder - scrimmage lays its own ground).
+            // then build the shell + crowd (skip PitchBuilder - Match mode lays its own ground).
             // No SkyDome.Apply here: BuildMode's shared preamble already applied it once for
             // whichever style is active, moments before dispatching into this function - a second
             // call rebuilt the same sky material and re-ran DynamicGI.UpdateEnvironment for nothing.
-            PitchLayout.ConfigureScrimmage(arena.halfLength * 2f, arena.halfWidth * 2f, 0f);
+            PitchLayout.ConfigureMatch(arena.halfLength * 2f, arena.halfWidth * 2f, 0f);
             StadiumBuilder.Build(root);
             _crowd = Crowd.Create(root);
             CrowdCheer.Register(_crowd);
@@ -880,22 +880,22 @@ namespace Trickshot
             Material awayLimb  = Make.Mat(new Color(0.5f, 0.13f, 0.13f));
             Material gloveMat  = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
 
-            // MULTIPLAYER: the host-authoritative NetScrimmageMatch owns the sim + snapshots; it
-            // builds the slot-mapped bodies (and, on the host, its own ScrimmageGame). Single-player
-            // falls through to the local ScrimmageGame below.
+            // MULTIPLAYER: the host-authoritative NetMatch owns the sim + snapshots; it
+            // builds the slot-mapped bodies (and, on the host, its own MatchGame). Single-player
+            // falls through to the local MatchGame below.
             if (net)
             {
                 ball.SetCamera(gameCam);
-                var nsGo = new GameObject("NetScrimmageMatch");
+                var nsGo = new GameObject("NetMatch");
                 nsGo.transform.SetParent(root, true);
-                nsGo.AddComponent<NetScrimmageMatch>()
+                nsGo.AddComponent<NetMatch>()
                     .Configure(GetInput(), _cam, gameCam, ball, homeTorso, homeLimb, awayTorso, awayLimb, gloveMat, root, arena, perSide);
                 return;
             }
 
-            var gmGo = new GameObject("ScrimmageGame");
+            var gmGo = new GameObject("MatchGame");
             gmGo.transform.SetParent(root, true);
-            var game = gmGo.AddComponent<ScrimmageGame>();
+            var game = gmGo.AddComponent<MatchGame>();
 
             var home = new System.Collections.Generic.List<Footballer>();
             var away = new System.Collections.Generic.List<Footballer>();
@@ -911,7 +911,7 @@ namespace Trickshot
             // (NetSession.ScrimShirtOfSlot). This used to pass i, so shirt 0 named two different
             // bodies on the same team - the keeper AND the first outfielder - and the two ends of
             // that already disagreed: SimConfig.AiPace(team, 0, false) gave the first outfielder
-            // the keeper's hash bucket while ScrimmageGame.BuildStatRows had already called him
+            // the keeper's hash bucket while MatchGame.BuildStatRows had already called him
             // shirt 1, so his pace and his row on the post-match board came from different numbers.
             for (int t = 0; t < 2; t++)
             {
@@ -923,7 +923,7 @@ namespace Trickshot
             }
 
             // Keepers (both AI unless the player picks the keeper role for Home).
-            bool humanKeeper = SimConfig.ScrimmageRole == SimConfig.ScrimRole.Keeper;
+            bool humanKeeper = SimConfig.PlayerRole == SimConfig.MatchRole.Keeper;
             Footballer homeKeeper = null, awayKeeper = null;
             KeeperController humanKeeperCtrl = null; ActiveRagdoll humanKeeperRag = null;
 
@@ -936,7 +936,7 @@ namespace Trickshot
                 kGo.transform.SetParent(root, true);
                 humanKeeperRag = kGo.AddComponent<ActiveRagdoll>();
                 // +Z, i.e. OUT toward the pitch. The away goal is at -Z and its mouth opens toward
-                // +Z (ScrimmageArena), so the -1 this used to pass pointed him at the back of his own
+                // +Z (MatchArena), so the -1 this used to pass pointed him at the back of his own
                 // net - and the follow camera below matched it, so the player looked at netting.
                 var facing = Quaternion.LookRotation(new Vector3(0f, 0f, 1f), Vector3.up);
                 // Human keeper wears the player's customized kit (homeTorso == the painted jersey)
@@ -949,7 +949,7 @@ namespace Trickshot
                 humanKeeperCtrl = kGo.AddComponent<KeeperController>();
                 humanKeeperCtrl.Init(GetInput(), humanKeeperRag, ball);
                 // Distribute into THIS pitch. The default is the 24 x 34 training arena, which on an
-                // 11-a-side scrimmage (68 x 104) would clamp every play-out to the same short punt.
+                // 11-a-side Match mode (68 x 104) would clamp every play-out to the same short punt.
                 humanKeeperCtrl.AimBounds = new Vector2(arena.halfWidth - 1f, arena.halfLength - 1f);
                 // 5th arg (goal Transform) is only used by the unused Broadcast cam; pass null.
                 gameCam.Init(_cam, ball.transform, humanKeeperRag.Pelvis.transform, null, null);
@@ -972,18 +972,18 @@ namespace Trickshot
             Dribble humanDribble = home.Count > 0 ? home[0].GetComponent<Dribble>() : null;
 
             ball.SetCamera(gameCam);
-            game.Configure(GetInput(), ball, gameCam, arena, SimConfig.ScrimmageRole,
+            game.Configure(GetInput(), ball, gameCam, arena, SimConfig.PlayerRole,
                            home, away, homeKeeper, awayKeeper,
                            humanStriker, humanDribble, humanKeeperCtrl, humanKeeperRag);
             LockCursor();
         }
 
-        // Builds one scrimmage footballer: an active ragdoll + Striker + Dribble + kick
+        // Builds one Match-mode footballer: an active ragdoll + Striker + Dribble + kick
         // detectors + a Footballer AI component. Striker/Dribble are DISABLED (AI/idle)
         // until the driver hands this body control.
         // `shirt` is the D6 identity: 0 = keeper, 1..perSide-1 = outfield, per team. It was named
         // `index` and every caller passed a list position, which is what made shirt 0 ambiguous.
-        Footballer BuildFootballer(Transform root, BallController ball, ScrimmageGame game,
+        Footballer BuildFootballer(Transform root, BallController ball, MatchGame game,
                                    int team, bool keeper, Material torso, Material limb,
                                    Material gloveMat, int shirt)
         {

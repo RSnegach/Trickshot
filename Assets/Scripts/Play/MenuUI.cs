@@ -2,10 +2,12 @@ using UnityEngine;
 
 namespace Trickshot
 {
-    // Core roles plus the single-player modes and the full scrimmage match.
+    // Core roles plus the single-player modes and the full match.
     // SetPieces = networked free-kick shootout (also playable solo via the FreeKick build).
     // NOTE: append new values at the END - MatchConfig sends GameMode as a byte over the wire.
-    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Scrimmage, SetPieces }
+    // Match is at the same position (byte value 6) it always was as Scrimmage - only the
+    // token was renamed, never reordered.
+    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Match, SetPieces }
 
     /// <summary>
     /// IMGUI start menu, two screens: a title SPLASH (the wordmark + "press any key"), then a
@@ -167,7 +169,7 @@ namespace Trickshot
 
             if (UITheme.Button(new Rect(cxL, cy, w, h), "Striker", btn, markerBar: false)) Choose(GameMode.Striker);
             if (UITheme.Button(new Rect(cxL, cy + (h + gap), w, h), "Goalkeeper", btn, markerBar: false)) Choose(GameMode.Goalkeeper);
-            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Scrimmage", btn, markerBar: false)) Choose(GameMode.Scrimmage);
+            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Match", btn, markerBar: false)) Choose(GameMode.Match);
             if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 3f, w, h), "Freeplay", btn, markerBar: false)) Choose(GameMode.Freeplay);
 
             if (UITheme.Button(new Rect(cxR, cy, w, h), "Time Trial", btn, markerBar: false)) Choose(GameMode.TimeTrial);

@@ -274,8 +274,8 @@ namespace Trickshot
             var c = _s.Config;
             var mode = (GameMode)c.mode;
             string stadium = c.stadium < StadiumStyle.All.Length ? StadiumStyle.All[c.stadium].Name : "?";
-            if (mode == GameMode.Scrimmage)
-                return $"Scrimmage  {c.perSide}v{c.perSide}   {stadium}   {c.matchSec / 60} min";
+            if (mode == GameMode.Match)
+                return $"Match  {c.perSide}v{c.perSide}   {stadium}   {c.matchSec / 60} min";
             return $"{mode}   {stadium}";
         }
     }

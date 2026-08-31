@@ -333,7 +333,7 @@ namespace Trickshot
         // never draw the same chevron. Nothing a player picks is usable for this - skin comes off one
         // shared 8-swatch palette (SpeciesCosmetics.SkinSwatches), hair/facial/accessory colours are a
         // free-for-all, and the jersey base (PlayerProfile.JerseyBase) is local-only and never on the
-        // wire. Slots 0-3 are Home and 4-7 Away (NetScrimmageMatch.TeamOfSlot), so the first four lean
+        // wire. Slots 0-3 are Home and 4-7 Away (NetMatch.TeamOfSlot), so the first four lean
         // warm and the last four cool: team still reads off the kit, the chevron only says WHO.
         static readonly Color[] _slotCols =
         {

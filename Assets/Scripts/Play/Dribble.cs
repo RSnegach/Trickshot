@@ -57,7 +57,7 @@ namespace Trickshot
     {
         /// <summary>
         /// Raised when a carried ball is STRUCK at goal, with the striker's body. Exists so match-stat
-        /// tracking can count a human's shots without Dribble having to know what a ScrimmageGame is.
+        /// tracking can count a human's shots without Dribble having to know what a MatchGame is.
         /// Subscribers must unsubscribe: it is static, so a driver that forgets keeps a dead match alive.
         /// </summary>
         public static System.Action<ActiveRagdoll> ShotFired;
@@ -93,7 +93,7 @@ namespace Trickshot
         //
         // MEASURED BEFORE THIS EXISTED, in a live 5-a-side (Normal, keeper 0.5, gravity -19.60,
         // fdt 0.0200), by invoking Footballer.TryTackle at a swept distance over 10 approach angles,
-        // 20 trials each, and reading ScrimmageGame._flash for the win:
+        // 20 trials each, and reading MatchGame._flash for the win:
         //
         //     0.20 m 20/20   1.00 m 20/20   1.55 m 20/20   1.65 m 0/20   2.20 m 0/20
         //     0.60 m 20/20   1.40 m 20/20   1.60 m 19/20   1.80 m 0/20   3.00 m 0/20
@@ -131,7 +131,7 @@ namespace Trickshot
         // Footballer, not through this component - so those two terms drop out of a bot-vs-bot
         // challenge. Everything else, including the whole vulnerability window, is geometry and
         // applies to both. (3) "Foul" here only means the carrier goes down and the tackler is
-        // punished for longer; scrimmage has no free kick to award yet.
+        // punished for longer; match has no free kick to award yet.
         // ---------------------------------------------------------------------------------------
 
         public enum TackleResult
@@ -622,7 +622,7 @@ namespace Trickshot
             //     The overwhelmingly likely outcome was a full uncharged punt a frame or two after the
             //     press, which killed the charged shot in its main use case.
             //  2. ReleaseShot fires Dribble.ShotFired before it launches, so bailing later still banked
-            //     the stat. ScrimmageGame counts that into shots-on-goal, and the keeper save-rate
+            //     the stat. MatchGame counts that into shots-on-goal, and the keeper save-rate
             //     target is measured as saves / (saves + conceded) over exactly that counter - so the
             //     denominator doubled for every human shot.
             //
@@ -655,9 +655,9 @@ namespace Trickshot
             // human body has its own Dribble, so this covers the single-player striker and every
             // networked slot alike.
             if (facingGoal) ShotFired?.Invoke(_ragdoll);
-            // Scrimmage: a deliberate shot leaves the ground and follows set-piece flight (arced, no
+            // Match: a deliberate shot leaves the ground and follows set-piece flight (arced, no
             // controllable spin). Elsewhere it's the usual flat dribble drive.
-            if (_ball.ScrimmageLoftKicks)
+            if (_ball.MatchLoftKicks)
                 _ball.LaunchLofted(_striker.FacingForward, speed, facingGoal, camShouldCut, _ragdoll);
             else
                 _ball.DribbleShot((_striker.FacingForward + Vector3.up * SimConfig.DribbleShotLift).normalized,

@@ -18,8 +18,8 @@ namespace Trickshot
     {
         // ---- Pitch footprint (metres) ----
         // Defaults are the full regulation-ish training pitch, with the attacking goal at the
-        // existing goal's z and the pitch running back from there. Scrimmage overrides these
-        // via ConfigureScrimmage() so the SAME stadium/crowd builders wrap its centred field.
+        // existing goal's z and the pitch running back from there. Match overrides these
+        // via ConfigureMatch() so the SAME stadium/crowd builders wrap its centred field.
         public static float PitchLength = 105f;   // along Z
         public static float PitchWidth  = 68f;    // along X
         // Centre of the pitch along Z. Training: offset so the attacking goal is at GoalCenter.z.
@@ -33,14 +33,14 @@ namespace Trickshot
         public static float HalfWidth => PitchWidth * 0.5f;
 
         // Point the shared stadium/crowd builders at a differently-sized, differently-centred
-        // pitch (scrimmage). Call BEFORE StadiumBuilder.Build / Crowd. length/width are the
-        // full playing rectangle; centerZ is its centre along Z (scrimmage is centred at 0).
-        public static void ConfigureScrimmage(float length, float width, float centerZ)
+        // pitch (match). Call BEFORE StadiumBuilder.Build / Crowd. length/width are the
+        // full playing rectangle; centerZ is its centre along Z (match is centred at 0).
+        public static void ConfigureMatch(float length, float width, float centerZ)
         {
             PitchLength = length; PitchWidth = width; _pitchCenterZ = centerZ; _customCenter = true;
         }
 
-        // Restore the training-pitch defaults (call when leaving scrimmage / building a
+        // Restore the training-pitch defaults (call when leaving match / building a
         // single-goal venue) so nothing leaks between matches.
         public static void ResetToTraining()
         {

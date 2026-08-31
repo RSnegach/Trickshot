@@ -163,7 +163,7 @@ namespace Trickshot
         bool  _livelyToggle;      // periodic-swell alternation (lively_1 <-> lively_2)
         readonly System.Collections.Generic.Dictionary<int, int> _streak = new();      // per-shooter GOAL streak
         readonly System.Collections.Generic.Dictionary<int, int> _missStreak = new();  // per-shooter MISS streak
-        int _scrimHome, _scrimAway;   // last-seen scrimmage score, to detect a new goal + the trailing margin
+        int _scrimHome, _scrimAway;   // last-seen match score, to detect a new goal + the trailing margin
 
         // Called from GameBootstrap.BuildMode / StartNetworkedMatch once the mode is known.
         public void BeginMatch(GameMode mode)
@@ -229,9 +229,9 @@ namespace Trickshot
             if (_ambient[1] != null) _ambient[1].volume = crowd * (1f - t);
         }
 
-        // Scrimmage 15-20s; every other action mode (Striker/GK/Accuracy/TimeTrial/Freeplay) 60-90s.
+        // Match 15-20s; every other action mode (Striker/GK/Accuracy/TimeTrial/Freeplay) 60-90s.
         float NextSwellInterval() =>
-            _mode == GameMode.Scrimmage ? Random.Range(15f, 20f) : Random.Range(60f, 90f);
+            _mode == GameMode.Match ? Random.Range(15f, 20f) : Random.Range(60f, 90f);
 
         void Update()
         {
@@ -314,9 +314,9 @@ namespace Trickshot
             if (m >= 2) PlayBoos();
         }
 
-        // Scrimmage goal: cheer + applause on every goal; if a team is now 2+ behind (and the
+        // Match goal: cheer + applause on every goal; if a team is now 2+ behind (and the
         // margin just changed), overlay boos for the trailing crowd. home/away are the new totals.
-        public void OnScrimmageGoal(int home, int away)
+        public void OnMatchGoal(int home, int away)
         {
             if (home == _scrimHome && away == _scrimAway) return;   // no actual change
             _scrimHome = home; _scrimAway = away;
@@ -406,7 +406,7 @@ namespace Trickshot
             if (clip != null) _event.PlayOneShot(clip, Chan(Channel.Sfx) * SimConfig.WhistleVolume);
         }
 
-        // Three whistles in quick succession (end of a scrimmage).
+        // Three whistles in quick succession (end of a match).
         public void PlayWhistleTriple() => StartCoroutine(WhistleTriple());
         System.Collections.IEnumerator WhistleTriple()
         {

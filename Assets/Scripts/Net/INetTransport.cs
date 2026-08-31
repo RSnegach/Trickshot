@@ -90,7 +90,7 @@ namespace Trickshot.Net
     {
         public bool visible;      // false = do not advertise at all (private lobby / not ready)
         public string name;       // host player name
-        public string mode;       // short mode line, e.g. "Scrimmage 3v3"
+        public string mode;       // short mode line, e.g. "Match 3v3"
         public int players;
         public int maxPlayers;
         // The build this host is running, so an incompatible one can be filtered out BEFORE a connect.
@@ -104,7 +104,7 @@ namespace Trickshot.Net
     {
         public ulong handle;    // pass to Join()
         public string name;     // host player name / lobby title
-        public string mode;     // e.g. "Scrimmage 5v5"
+        public string mode;     // e.g. "Match 5v5"
         public int players;     // current members
         public int maxPlayers;
     }

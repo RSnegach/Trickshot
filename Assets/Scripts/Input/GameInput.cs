@@ -29,7 +29,7 @@ namespace Trickshot
         InputActionMap _map;
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
         InputAction _closeControl;   // dribble close-control modifier
-        InputAction _passGround, _passLofted, _passChip, _switchPlayer, _emote, _tackle;   // scrimmage
+        InputAction _passGround, _passLofted, _passChip, _switchPlayer, _emote, _tackle;   // match
         InputAction _crossMap;   // striker mode: toggle the cross-targeting map (fixed M)
         InputAction _qcText;     // multiplayer: Tab opens the custom-quickchat text box (fixed)
         readonly InputAction[] _qcDigit = new InputAction[6];   // multiplayer: number keys 1-6 send a preset quickchat
@@ -237,7 +237,7 @@ namespace Trickshot
         // striker about his central axis while airborne.
         public float Scroll => _scroll != null ? _scroll.ReadValue<float>() : 0f;
 
-        // Scrimmage: E ground pass, Q lofted pass. Held + released so the pass can charge
+        // Match: E ground pass, Q lofted pass. Held + released so the pass can charge
         // (tap = soft, hold = hard). Pressed kept for the call-for-pass (no-ball) case.
         public bool PassGroundPressed => _passGround != null && _passGround.WasPressedThisFrame();
         public bool PassLoftedPressed => _passLofted != null && _passLofted.WasPressedThisFrame();

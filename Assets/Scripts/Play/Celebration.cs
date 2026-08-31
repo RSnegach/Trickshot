@@ -75,7 +75,7 @@ namespace Trickshot
             },
         };
 
-        // Back-compat: the first wheel (single-player scrimmage uses this directly).
+        // Back-compat: the first wheel (single-player match uses this directly).
         public static readonly (Emote e, string name)[] Menu = Pages[0];
 
         ActiveRagdoll _ragdoll;

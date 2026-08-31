@@ -14,12 +14,12 @@ namespace Trickshot
         System.Action _onCreated, _onBack;
 
         // Networkable modes.
-        static readonly GameMode[] Modes = { GameMode.Scrimmage, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
-        static readonly string[] ModeNames = { "Scrimmage", "Striker", "Set Pieces", "Accuracy" };
+        static readonly GameMode[] Modes = { GameMode.Match, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
+        static readonly string[] ModeNames = { "Match", "Striker", "Set Pieces", "Accuracy" };
         int _mode;                 // index into Modes
         int _stadium;
-        int _perSide = 3;          // scrimmage team size (3/5/11)
-        int _matchMin = 3;         // scrimmage length (min)
+        int _perSide = 3;          // match team size (3/5/11)
+        int _matchMin = 3;         // match length (min)
         bool _publicLobby = true;
         // Set-pieces host settings (goal size %, keeper ability). Ball/player speed intentionally
         // NOT exposed - kept fixed so multiplayer stays balanced.
@@ -74,7 +74,7 @@ namespace Trickshot
             // PickerVals, not Picker: the names are filtered to the OFFERED venues, so the button
             // position is no longer the All index, and Create() sends _stadium as the wire byte.
             PickerVals(lx, ref row, lw, "Stadium", StadiumNames(), StadiumStyle.PickableIndices(), ref _stadium);
-            if (Modes[_mode] == GameMode.Scrimmage)
+            if (Modes[_mode] == GameMode.Match)
             {
                 PickerVals(lx, ref row, lw, "Team size", new[] { "3 v 3", "5 v 5", "11 v 11" }, new[] { 3, 5, 11 }, ref _perSide);
                 PickerVals(lx, ref row, lw, "Match length", new[] { "2 min", "3 min", "5 min", "10 min" }, new[] { 2, 3, 5, 10 }, ref _matchMin);
@@ -158,9 +158,9 @@ namespace Trickshot
             // Both dead-ball modes (set pieces + accuracy) use the goal/keeper/placement knobs.
             bool deadBall = mode == GameMode.SetPieces || mode == GameMode.Accuracy;
 
-            // Scrimmage is two teams mapped onto the 8 slots (capped 4-a-side incl keepers), so
+            // Match is two teams mapped onto the 8 slots (capped 4-a-side incl keepers), so
             // both sides can be human: allow up to 2*perSide (bounded to the 8-slot board).
-            int maxPlayers = mode == GameMode.Scrimmage ? Mathf.Clamp(_perSide * 2, 2, 8) : 8;
+            int maxPlayers = mode == GameMode.Match ? Mathf.Clamp(_perSide * 2, 2, 8) : 8;
             Multiplayer.Host(maxPlayers);
             // Hosting can FAIL to bind UDP 7777 (another copy of the game still holding it, or an
             // orphaned session from earlier in this run). The transport logs and carries on with

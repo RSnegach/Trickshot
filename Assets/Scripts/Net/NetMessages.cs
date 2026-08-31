@@ -76,7 +76,7 @@ namespace Trickshot.Net
     {
         public byte mode;        // GameMode as byte
         public byte stadium;     // StadiumStyle index
-        public byte perSide;     // scrimmage team size
+        public byte perSide;     // match team size
         public ushort matchSec;  // match length (seconds)
         public bool publicLobby; // visibility (host-only meaning; carried for display)
         public float goalScale;    // set pieces: goal size multiplier (1 = regulation)
@@ -175,11 +175,11 @@ namespace Trickshot.Net
         public Vector3 ballVel;
         // Is the ball inside a shot's goal-assist window? Replicated because no ballistic solve can
         // predict a steered ball (ApplyGoalAssist runs up to AssistMaxAccel for AssistDuration), so the
-        // scrimmage landing telegraph has to HIDE for it rather than point somewhere wrong. Written
+        // match landing telegraph has to HIDE for it rather than point somewhere wrong. Written
         // LAST on the wire, not here - see Snap.
         public bool guided;
         public byte homeScore, awayScore;
-        public ushort clockSec;   // match seconds remaining (scrimmage); 0 in modes with no clock
+        public ushort clockSec;   // match seconds remaining (match mode); 0 in modes with no clock
         public BodyState[] bodies;
     }
 

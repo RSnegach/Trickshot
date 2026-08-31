@@ -242,9 +242,9 @@ namespace Trickshot
         // Half of the 68m regulation width every current Broadcast caller (GameManager,
         // NetSetPieceMatch, NetStrikerMatch) always builds at - the dist/height clamps below were
         // tuned against that. Not reachable at any other width today: Broadcast is never wired into
-        // Scrimmage, the one mode with a different pitch size. Scaling the clamps with the pitch
+        // Match, the one mode with a different pitch size. Scaling the clamps with the pitch
         // anyway costs nothing (this is 1.0 for every caller that exists right now) and means a
-        // future Scrimmage broadcast camera doesn't inherit numbers tuned for a wider pitch.
+        // future Match broadcast camera doesn't inherit numbers tuned for a wider pitch.
         const float BroadcastRegulationHalfWidth = 34f;
 
         void BroadcastUpdate()

@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// A goalkeeper's hands: gathering a ball, holding it, and distributing it. Shared by the
-    /// striker-mode Goalkeeper and the scrimmage AI keeper so both handle the ball the same way.
+    /// striker-mode Goalkeeper and the match AI keeper so both handle the ball the same way.
     ///
     /// Holding reuses the DRIBBLE carry primitive rather than inventing a second one: ball/keeper
     /// collision is suspended (Dribble.SetCarryCollision), the ball is registered as that body's

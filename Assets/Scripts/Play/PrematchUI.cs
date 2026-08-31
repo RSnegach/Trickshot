@@ -18,7 +18,7 @@ namespace Trickshot
         System.Action _onBack;
 
         // Base values the 1.00 multipliers map to. Sourced from SimConfig rather than retyped: these
-        // are the same numbers SimConfig.ApplyScrimmageStatics resets to, and two hand-copied lists of
+        // are the same numbers SimConfig.ApplyMatchStatics resets to, and two hand-copied lists of
         // one set of defaults is how the goal-size leak survived as long as it did.
         const float BaseGoalWidth = SimConfig.GoalWidthBase, BaseGoalHeight = SimConfig.GoalHeightBase;
         const float BaseServeInterval = 3.5f;
@@ -56,7 +56,7 @@ namespace Trickshot
         static SimConfig.Delivery _delivery = SimConfig.Delivery.AutoCross;
         static Vector3 _aimTarget = SimConfig.ServeTarget;   // where an aimed cross lands
 
-        // Scrimmage
+        // Match
         static int _scrimPerSide = 3;                                  // 3 / 5 / 11
         // POSITION, not role. Shirt 0 is the keeper, so "GK" is one button on the position picker
         // rather than a separate two-button role row that could disagree with it. Both are kept
@@ -85,10 +85,10 @@ namespace Trickshot
         // How many slider/toggle rows this mode shows, so the panel is sized to fit.
         int RowCount()
         {
-            // Scrimmage: team size + position + difficulty + match length picker rows, no goal/ball
+            // Match: team size + position + difficulty + match length picker rows, no goal/ball
             // sliders. The position grid wraps at PosPerRow shirts and every extra button row costs
             // exactly one RowH, so this stays an exact count rather than an estimate.
-            if (_mode == GameMode.Scrimmage)
+            if (_mode == GameMode.Match)
                 return 3 + GridRows(Mathf.Max(1, _scrimPerSide), PosPerRow);
 
             int n = 3; // goal width, goal height, ball velocity (all modes)
@@ -153,10 +153,10 @@ namespace Trickshot
             float row = y + HeadH;
             float lx = x + 30f, lw = PanelW - 60f;
 
-            // Scrimmage: pickers only (no goal/ball sliders), then Back/Start.
-            if (_mode == GameMode.Scrimmage)
+            // Match: pickers only (no goal/ball sliders), then Back/Start.
+            if (_mode == GameMode.Match)
             {
-                ScrimmagePickers(lx, ref row, lw);
+                MatchPickers(lx, ref row, lw);
                 DrawNav(x, y, panelH);
                 return;
             }
@@ -269,8 +269,8 @@ namespace Trickshot
             if (start) { Apply(); enabled = false; _onStart?.Invoke(_mode); }
         }
 
-        // Scrimmage pickers: team size (per side) and the human's role.
-        // Scrimmage pickers: team size, the POSITION the human plays, AI difficulty, match length.
+        // Match pickers: team size (per side) and the human's role.
+        // Match pickers: team size, the POSITION the human plays, AI difficulty, match length.
         // All four are the one LadderPicker the keeper ladder uses. They were four hand-rolled copies
         // of the same button loop, which is also how they came to disagree about button gaps (8 px
         // here, 6 px on the keeper row).
@@ -279,7 +279,7 @@ namespace Trickshot
         static readonly float[]  ScrimMins      = { 2f, 3f, 5f, 10f };
         static readonly string[] ScrimMinNames  = { "2 min", "3 min", "5 min", "10 min" };
 
-        void ScrimmagePickers(float lx, ref float row, float lw)
+        void MatchPickers(float lx, ref float row, float lw)
         {
             int before = _scrimPerSide;
             _scrimPerSide = ScrimSizes[LadderPicker(lx, ref row, lw, "Team size:", ScrimSizeNames,
@@ -299,7 +299,7 @@ namespace Trickshot
             _scrimPos   = SimConfig.PositionOf(_scrimPerSide, _scrimShirt);
 
             // Single player picks the tier. Multiplayer never reaches this screen and is forced to
-            // Normal inside SimConfig.ApplyScrimmageStatics, on every peer.
+            // Normal inside SimConfig.ApplyMatchStatics, on every peer.
             _scrimAi = (SimConfig.AiDifficulty)LadderPicker(lx, ref row, lw, "Difficulty:",
                                                            SimConfig.AiLevelNames, (int)_scrimAi);
 
@@ -377,31 +377,31 @@ namespace Trickshot
         // Map the sliders onto SimConfig values.
         void Apply()
         {
-            // Scrimmage only uses its own pickers - but it must still WRITE the shared dead-ball
+            // Match only uses its own pickers - but it must still WRITE the shared dead-ball
             // statics, not skip them. GoalWidth/GoalHeight/BallSpeedMul are mutable statics that only
             // the set-piece and accuracy paths ever assign, so returning here left whatever the last
-            // mode set: play a 1.5x-goal set piece, back out, start a scrimmage, and the scrimmage runs
+            // mode set: play a 1.5x-goal set piece, back out, start a match, and the match runs
             // with a 10.98 m goal. That is not cosmetic - SimConfig.GoalWidth is read by the goal
             // detection in BallController, by the keeper's own positioning (Goalkeeper.cs:158 and :243)
             // and by the AI's aim (Footballer.cs:309), so a stale value mis-sizes all three at once and
             // is a plausible contributor to "most shots go in".
             //
-            // Scrimmage has no goal-size picker and is not getting one, so these are canonical
+            // Match has no goal-size picker and is not getting one, so these are canonical
             // regulation values written to close a leak rather than new settings.
-            if (_mode == GameMode.Scrimmage)
+            if (_mode == GameMode.Match)
             {
-                SimConfig.ScrimmagePerSide = _scrimPerSide;
-                SimConfig.ScrimmageMatchSeconds = _scrimMatchMin * 60f;
-                // Shirt, not role: ScrimmageRole is derived from it inside the reset below, so a
+                SimConfig.MatchPerSide = _scrimPerSide;
+                SimConfig.MatchSeconds = _scrimMatchMin * 60f;
+                // Shirt, not role: PlayerRole is derived from it inside the reset below, so a
                 // position and a role cannot disagree about whether you are the keeper.
-                SimConfig.ScrimmageShirt = _scrimShirt;
+                SimConfig.MatchShirt = _scrimShirt;
                 SimConfig.AiLevel = _scrimAi;
                 // The three goal/ball lines that used to sit here were only three of the SEVEN statics
                 // that leak in from a previously played mode - keeper ability, striker speed, keeper
                 // strafe speed and keeper jump leak the same way and were not being written. They are
                 // now reset in one place shared with the networked branch, because a second copy of
                 // the list is what let the goal size drift in the first place.
-                SimConfig.ApplyScrimmageStatics(networked: false);
+                SimConfig.ApplyMatchStatics(networked: false);
                 return;
             }
 
@@ -617,7 +617,7 @@ namespace Trickshot
             _wallCount = 4f; _wallDistance = 9.15f; _wallOffset = 0f;
             _fkInit = false; _fkEdit = 0; _fkRandom = false;
             _delivery = SimConfig.Delivery.AutoCross; _aimTarget = SimConfig.ServeTarget;
-            // These are static and survived Reset All, so a scrimmage kept whatever was last dialled
+            // These are static and survived Reset All, so a match kept whatever was last dialled
             // in even after the button said everything was back to default.
             _scrimPerSide = 3; _scrimShirt = 2; _scrimPos = SimConfig.ScrimPos.ST;
             _scrimAi = SimConfig.AiDifficulty.Normal; _scrimMatchMin = 3f;

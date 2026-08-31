@@ -5,10 +5,10 @@ using Trickshot.Net;
 namespace Trickshot
 {
     /// <summary>
-    /// Networked SCRIMMAGE (host-authoritative), capped to fit the 8-slot model:
+    /// Networked MATCH (host-authoritative), capped to fit the 8-slot model:
     ///   slots 0-3 = HOME (0 = keeper, 1-3 = outfield), slots 4-7 = AWAY (4 = keeper, 5-7 = outfield).
     /// Team is a pure function of slot (slot &lt; 4 = Home), so nothing on the wire carries a team bit.
-    /// That is up to 4-a-side incl. keepers (3v3 + keepers); larger scrimmages stay single-player.
+    /// That is up to 4-a-side incl. keepers (3v3 + keepers); larger matches stay single-player.
     ///
     /// SHIRT is the per-team identity: shirt 0 is the keeper and 1..perSide-1 are outfield on BOTH
     /// sides, so the Away keeper wears shirt 0 exactly as the Home keeper does. Every peer derives
@@ -16,15 +16,15 @@ namespace Trickshot
     /// which is what makes SimConfig.AiPace(team, shirt, keeper) agree host-side and client-side,
     /// and it is the same convention single player now uses (GameBootstrap.BuildFootballer).
     ///
-    /// The HOST reuses a real ScrimmageGame to run the whole sim (ball, AI, possession, passing,
-    /// tackles, goals, clock, kickoff) - it just marks the networked human slots so ScrimmageGame
+    /// The HOST reuses a real MatchGame to run the whole sim (ball, AI, possession, passing,
+    /// tackles, goals, clock, kickoff) - it just marks the networked human slots so MatchGame
     /// leaves them to net-driven control instead of AI, and it does not own the camera/HUD/local
     /// input (this driver does). The host then streams a snapshot per body + ball + score + clock.
     /// Clients build the same slot bodies as kinematic puppets and render them from the snapshot
     /// interpolation buffer; the local player's own body is client-predicted + reconciled. Mirrors
     /// NetStrikerMatch's structure and reuses its interpolation / anim-state / reconciliation.
     /// </summary>
-    public class NetScrimmageMatch : MonoBehaviour
+    public class NetMatch : MonoBehaviour
     {
         class Body
         {
@@ -55,17 +55,18 @@ namespace Trickshot
         BallController _ball;
         Transform _root;
         NetSession _s;
-        ScrimmageGame _game;   // host only: the real sim
-        // CLIENT ONLY. The host drives its landing telegraph through ScrimmageGame, which does not exist
+        MatchGame _game;   // host only: the real sim
+        // CLIENT ONLY. The host drives its landing telegraph through MatchGame, which does not exist
         // on a client, so a client owns one directly. Same predictor, same gates, same clamp.
         // Full time, latched on BOTH edges. Rising publishes the table; FALLING clears it, and the
         // falling edge is not optional: ClientUpdate is the only other place a clear could live and it
         // never runs on a host, so a host that rematched would have kept drawing the old board.
         bool _hostFullTime;
+        readonly MatchStatsUI _statsUI = new MatchStatsUI();
         AimReticle _clientLanding;
         Vector3 _clientBallPrev;
         bool _clientBallHas;
-        ScrimmageArena.Refs _arena;
+        MatchArena.Refs _arena;
 
         readonly Body[] _bodies = new Body[NetSession.MaxSlots];
         int _localSlot;
@@ -85,7 +86,7 @@ namespace Trickshot
 
         public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball,
                               Material homeTorso, Material homeLimb, Material awayTorso, Material awayLimb,
-                              Material glove, Transform root, ScrimmageArena.Refs arena, int perSide)
+                              Material glove, Transform root, MatchArena.Refs arena, int perSide)
         {
             _input = input; _cam = gameCam; _ball = ball; _root = root; _arena = arena;
             // Same clamp NetSession.ScrimPerSide applies to the seating. Keep them identical.
@@ -103,14 +104,14 @@ namespace Trickshot
             _qcFeed = gameObject.AddComponent<QuickChatFeed>();
             _qcFeed.Bind(_s);
 
-            // HOST: create the ScrimmageGame component FIRST so the Footballers built in SpawnBody
+            // HOST: create the MatchGame component FIRST so the Footballers built in SpawnBody
             // can take a valid game ref (Footballer reads _game.HomeGoal/PossessionTeam in AiTick).
             // It is Configured below, after all bodies exist.
             if (_s.IsHost)
             {
-                var gmGo = new GameObject("NetScrimmageSim");
+                var gmGo = new GameObject("NetMatchSim");
                 gmGo.transform.SetParent(_root, true);
-                _game = gmGo.AddComponent<ScrimmageGame>();
+                _game = gmGo.AddComponent<MatchGame>();
                 _game.ConfigureNetHost();
             }
 
@@ -135,7 +136,7 @@ namespace Trickshot
                 }
             }
 
-            // HOST: Configure the (already-created) ScrimmageGame over the spawned bodies to run
+            // HOST: Configure the (already-created) MatchGame over the spawned bodies to run
             // the full sim, marking the networked human slots so it leaves them to net control.
             if (_s.IsHost)
             {
@@ -151,7 +152,7 @@ namespace Trickshot
                     if (b.striker != null || b.keeper != null) _game.MarkNetControlled(b.footballer);   // net-driven, not AI
                 }
                 // Outfield role is nominal (the net host owns control per slot).
-                _game.Configure(_input, _ball, _cam, _arena, SimConfig.ScrimRole.Outfield,
+                _game.Configure(_input, _ball, _cam, _arena, SimConfig.MatchRole.Outfield,
                                 home, away, homeKeeper, awayKeeper, null, null, null, null);
 
                 // Attach each human's SLOT to its stat row, AFTER Configure has built them. The row
@@ -170,7 +171,7 @@ namespace Trickshot
         }
 
         // Facing a keeper slot defends: Home keeper (slot 0) defends the -Z (away) goal, Away keeper
-        // the +Z. This matches ScrimmageGame.KeeperSpot orientation.
+        // the +Z. This matches MatchGame.KeeperSpot orientation.
         // Out toward the pitch for a keeper in `slot`. Team 0 attacks +Z, so it DEFENDS the -Z
         // goal and its keeper looks up +Z. This used to be the other way round, which pointed the
         // team 0 keeper camera into its own netting (SpawnBody builds the body facing attackZ, which
@@ -219,7 +220,7 @@ namespace Trickshot
 
             var b = new Body { ragdoll = ragdoll, isKeeper = keeper, team = team, wasHuman = human };
 
-            // Every body gets a Footballer (the host ScrimmageGame drives AI ones; a Footballer is
+            // Every body gets a Footballer (the host MatchGame drives AI ones; a Footballer is
             // harmless on a client puppet - it is never ticked there). Attach a Striker/Dribble too
             // so a human slot can be controlled, exactly like BuildFootballer does.
             var striker = go.AddComponent<Striker>();
@@ -365,7 +366,7 @@ namespace Trickshot
                 }
                 bool emoting = me.celeb != null && me.celeb.Playing;
                 // Knocked over: Knockdown owns the body, so the controller must not steer against it
-                // (the same suspension ScrimmageGame applies to the single-player human).
+                // (the same suspension MatchGame applies to the single-player human).
                 bool meBlocked = emoting || (me.footballer != null && me.footballer.IsDown);
                 if (!meBlocked)
                 {
@@ -394,9 +395,32 @@ namespace Trickshot
             if (_s.IsHost && _game != null)
             {
                 bool ft = _game.FullTime;
-                if (ft && !_hostFullTime) { _hostFullTime = true; _s.BroadcastMatchStats(_game.WireStats()); }
+                if (ft && !_hostFullTime)
+                {
+                    _hostFullTime = true;
+                    _s.BroadcastMatchStats(_game.WireStats());
+                    // The host's own MP lifetime stats, from the same live row the broadcast just
+                    // used. MatchGame.EndMatch's own SP hook can't find "me" here - AssignControl is
+                    // skipped in net-host mode, so _controlled/_humanKeeperRagdoll are never set -
+                    // this is the symmetric hook for that case, keyed on slot instead. Host only: a
+                    // client has no scoring authority of its own to derive a result from, so MP
+                    // recording for a client is a separate pass, same as the existing SP scope note.
+                    MatchGame.PlayerStat mine = null;
+                    foreach (var row in _game.Stats) if (row.slot == _localSlot) { mine = row; break; }
+                    if (mine != null)
+                    {
+                        int myScore = mine.team == 0 ? _game.HomeScore : _game.AwayScore;
+                        int theirScore = mine.team == 0 ? _game.AwayScore : _game.HomeScore;
+                        int result = myScore > theirScore ? 1 : (myScore < theirScore ? -1 : 0);
+                        CareerStats.RecordMatchEnd(true, result, mine.goals, mine.assists, mine.shots,
+                            mine.tackles, mine.saves, mine.conceded, mine.passes, mine.passesDone, mine.motm);
+                    }
+                }
                 else if (!ft && _hostFullTime) { _hostFullTime = false; _s.ClearMatchStats(); }
             }
+
+            bool showingBoard = _s.IsHost ? _hostFullTime : (_clientFullTime && _s.HasMatchStats);
+            if (showingBoard) _statsUI.TickInput();
 
             if (_s.IsHost) HostUpdate();
             else ClientUpdate();
@@ -439,7 +463,7 @@ namespace Trickshot
                                       b.netInput.LookYaw, remoteBlocked, pw, ac, mo);
                 }
             }
-            // ScrimmageGame (its own Update) runs the ball/AI/possession/goals/clock this frame.
+            // MatchGame (its own Update) runs the ball/AI/possession/goals/clock this frame.
 
             PublishSnapshotIfDue();
         }
@@ -594,14 +618,14 @@ namespace Trickshot
             _homeScore = bSnap.homeScore; _awayScore = bSnap.awayScore; _clockSec = bSnap.clockSec;
 
             // Per-goal crowd audio on CLIENTS, edge-triggered off the replicated score. The host
-            // runs ScrimmageGame.OnGoal; clients don't run that sim, so mirror it off score deltas.
-            // Scores only ever rise by one (no join-in-progress in scrimmage), so a plain delta is
-            // safe; OnScrimmageGoal ignores a no-op and handles the trailing-margin boos itself.
+            // runs MatchGame.OnGoal; clients don't run that sim, so mirror it off score deltas.
+            // Scores only ever rise by one (no join-in-progress in a match), so a plain delta is
+            // safe; OnMatchGoal ignores a no-op and handles the trailing-margin boos itself.
             if (_homeScore > prevHome || _awayScore > prevAway)
-                AudioManager.Instance?.OnScrimmageGoal(_homeScore, _awayScore);
+                AudioManager.Instance?.OnMatchGoal(_homeScore, _awayScore);
 
             // Full-time applause on CLIENTS, edge-triggered off the replicated clock reaching 0.
-            // The host plays it in ScrimmageGame.EndMatch; clients don't run that sim, so mirror it
+            // The host plays it in MatchGame.EndMatch; clients don't run that sim, so mirror it
             // off the synced clock (once, on the transition to zero).
             // Clock RISING again means a fresh match: drop the board and the received table with it.
             if (_clientFullTime && _clockSec > prevClock)
@@ -716,7 +740,7 @@ namespace Trickshot
                 if (b == null || !b.wasHuman) continue;
                 if (_s.RosterSlot(i).human) continue;   // still human
                 // Human left: hand the body back to AI (host) / keep puppeting (client). Removing
-                // it from the ScrimmageGame's net-controlled set lets the AI loop resume driving it.
+                // it from the MatchGame's net-controlled set lets the AI loop resume driving it.
                 b.wasHuman = false; b.netInput = null;
                 // Recover BEFORE dropping the reference. Clearing ControlEnabled makes Tick
                 // early-return forever, so a human who quits mid-trick left the ragdoll at the
@@ -741,6 +765,7 @@ namespace Trickshot
         {
             if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.PostHit -= OnPostHit; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
+            _statsUI.Teardown();
         }
 
         static void LockCursor() => GameInput.CaptureCursor(true);
@@ -753,8 +778,8 @@ namespace Trickshot
             int away = _s.IsHost && _game != null ? _game.AwayScore : _awayScore;
             float clock = _s.IsHost && _game != null ? _game.ClockRemaining : _clockSec;
             // FULL TIME: the board owns the screen on both peers. The live furniture is suppressed
-            // rather than drawn under it - and this HAS to be gated here as well as in ScrimmageGame,
-            // because ScrimmageGame.OnGUI returns immediately in net-host mode and never draws any of
+            // rather than drawn under it - and this HAS to be gated here as well as in MatchGame,
+            // because MatchGame.OnGUI returns immediately in net-host mode and never draws any of
             // the networked HUD. The host gates on its own latch; a client gates on the table arriving,
             // which is the only full-time signal it can act on without inventing one.
             bool showBoard = _s.IsHost ? _hostFullTime : (_clientFullTime && _s.HasMatchStats);
@@ -762,16 +787,20 @@ namespace Trickshot
             {
                 var rows = _s.IsHost && _game != null
                          ? _game.Stats
-                         : ScrimmageGame.FromWire(_s.LatestMatchStats, RosterName);
+                         : MatchGame.FromWire(_s.LatestMatchStats, RosterName);
                 int hs = _s.IsHost && _game != null ? _game.HomeScore : _homeScore;
                 int as_ = _s.IsHost && _game != null ? _game.AwayScore : _awayScore;
-                ScrimmageGame.DrawStatsBoard(rows, hs, as_);
-                Hud.Legend("Esc menu");
+                // "Mine" resolved from THIS SAME rows list, this frame - a client's rows are rebuilt
+                // fresh from the wire every call (FromWire allocates new PlayerStat instances), so a
+                // reference held across frames would compare wrong; slot survives the wire intact.
+                MatchGame.PlayerStat myRow = null;
+                foreach (var row in rows) if (row.slot == _localSlot) { myRow = row; break; }
+                _statsUI.Draw(rows, hs, as_, myRow);
                 Hud.End();
                 return;
             }
 
-            // Same broadcast bug the local scrimmage draws, off the replicated score/clock.
+            // Same broadcast bug the local match draws, off the replicated score/clock.
             Hud.Scoreboard("HOME", UITheme.Blue, home, away, "AWAY", UITheme.Red, Mathf.Max(0f, clock),
                            sub: _localIsKeeper ? "IN GOAL" : null);
             // Pass power bar, bottom left, for whichever slot this peer is driving. On the host this is
@@ -779,9 +808,9 @@ namespace Trickshot
             var meBody = (_localSlot >= 0 && _localSlot < _bodies.Length) ? _bodies[_localSlot] : null;
             if (!_localIsKeeper && meBody != null
                 && meBody.bar.Showing(out Passing.PassKind bk, out float bt))
-                Hud.PowerBar(RosterName(_localSlot), bt, ScrimmageGame.PassKindName(bk));
+                Hud.PowerBar(RosterName(_localSlot), bt, MatchGame.PassKindName(bk));
 
-            // Shot charge bar, same slot as the local scrimmage HUD. striker.ShotCharge01/ShotInRange
+            // Shot charge bar, same slot as the local match HUD. striker.ShotCharge01/ShotInRange
             // read the LOCAL peer's own input, same as the pass bar above does through `bar` - this is
             // the predicted charge/range, not a value fed by the host.
             if (!_localIsKeeper && meBody != null && meBody.striker != null && meBody.striker.WantsChargedShot)
