@@ -21,6 +21,11 @@ namespace Trickshot
         string _inviteCode;     // host + direct-IP only: the short code friends paste to join
         float _copiedUntil;     // brief "Copied!" confirmation after the Copy button
 
+        // Online (ranked drop-in) only: the host auto-starts once this fires, rather than
+        // waiting on a manual Ready/Start - a drop-in queue is meant to just go. -1 = not an
+        // Online lobby (Friendlies keeps its exact manual flow, untouched).
+        float _onlineDeadline = -1f;
+
         public void Init(System.Action onCustomize, System.Action onStart, System.Action onLeave)
         {
             _onCustomize = onCustomize; _onStart = onStart; _onLeave = onLeave;
@@ -40,6 +45,9 @@ namespace Trickshot
                     ? string.Join("   /   ", ips) + "   (port " + NetEndpoint.DefaultPort + ")"
                     : "No network address. Check Tailscale is up.";
             }
+
+            if (_s != null && _s.IsHost && _s.Config.onlineRanked)
+                _onlineDeadline = Time.unscaledTime + 20f;   // short window for strangers to trickle in
         }
 
         void OnDestroy()
@@ -63,6 +71,14 @@ namespace Trickshot
             // mid-match, which nothing used to cover) and GameBootstrap unwinds to the main menu, so
             // handling it locally too would tear down twice.
             Multiplayer.Poll();
+
+            if (_s == null || _started || !_s.Config.onlineRanked) return;
+            // Online drop-in: no manual ready-up - the moment you have a seat, you're in. Kept
+            // sticky (re-applied every frame) rather than a one-shot, so a stray un-ready click
+            // can't stall the host's countdown below.
+            if (_s.LocalSlot >= 0 && !_s.LocalReady) _s.SetReady(true);
+            if (_s.IsHost && _onlineDeadline >= 0f && Time.unscaledTime >= _onlineDeadline && _s.AllReady())
+                _s.StartMatch();
         }
 
         // Scale the lobby up on big displays (see MenuScale). Wrapped so the early return can't
@@ -136,13 +152,54 @@ namespace Trickshot
                 rosterTop = iy + ih + 10f;
             }
 
-            // Roster.
+            // Roster. Match gets Home/Away position columns (below) so friends can pick a team
+            // and a shirt; every other mode keeps the flat per-slot list unchanged.
             UITheme.Divider(x + 28f, rosterTop - 6f, w - 56f);
+            if ((GameMode)_s.Config.mode == GameMode.Match) DrawMatchTeams(x + 28f, rosterTop, w - 56f);
+            else DrawFlatRoster(x + 28f, rosterTop, w - 56f);
+
+            // Footer buttons.
+            var btn = new GUIStyle(GUI.skin.button) { fontSize = 17, fontStyle = FontStyle.Bold };
+            float by = y + panelH - 54f;
+            UITheme.Divider(x + 24f, by - 10f, w - 48f);
+            if (UITheme.Button(new Rect(x + 24f, by, 130f, 42f), "Leave", btn, true)) { Multiplayer.End(); enabled = false; _onLeave?.Invoke(); }
+
+            // Customize my player.
+            if (UITheme.Button(new Rect(x + 164f, by, 170f, 42f), "Customize", btn)) { enabled = false; _onCustomize?.Invoke(); }
+
+            // Ready toggle (me).
+            bool ready = _s.LocalReady;
+            var readyBtn = new GUIStyle(btn); if (ready) readyBtn.normal.textColor = UITheme.Green;
+            if (UITheme.Toggle(new Rect(x + w - 154f, by, 130f, 42f), ready ? "Ready" : "Ready", ready, readyBtn, UITheme.GoodTint))
+                _s.SetReady(!ready);
+
+            // Host start (needs all humans ready).
+            if (_s.IsHost)
+            {
+                bool can = _s.AllReady();
+                var sr = new Rect(x + w * 0.5f - 90f, by - 52f, 180f, 44f);
+                // Live once everyone is ready, and lit so it looks like the thing to press.
+                if (can) UITheme.Glow(new Rect(sr.x - 20f, sr.y - 10f, sr.width + 40f, sr.height + 20f),
+                                      new Color(UITheme.Green.r, UITheme.Green.g, UITheme.Green.b, 0.14f));
+                GUI.enabled = can;
+                var startBtn = new GUIStyle(btn) { fontSize = 18 };
+                var keepStart = GUI.backgroundColor;
+                if (can) GUI.backgroundColor = UITheme.GoodTint;
+                if (UITheme.Button(sr, can ? "START MATCH" : "waiting...", startBtn)) _s.StartMatch();
+                GUI.backgroundColor = keepStart;
+                GUI.enabled = true;
+            }
+        }
+
+        // The flat per-slot list every non-Match mode used before Match got its own team columns
+        // (see DrawMatchTeams) - unchanged from the original single-column roster.
+        void DrawFlatRoster(float lx, float top, float lw)
+        {
             var name = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink } };
             var tag = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleRight };
-            float row = rosterTop, lx = x + 28f, lw = w - 56f, rowH = 30f;
-            var roster = _s.Roster;
             var claimBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
+            float row = top, rowH = 30f;
+            var roster = _s.Roster;
             for (int i = 0; i < roster.Length; i++)
             {
                 var slot = roster[i];
@@ -193,37 +250,76 @@ namespace Trickshot
                 }
                 row += rowH;
             }
+        }
 
-            // Footer buttons.
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 17, fontStyle = FontStyle.Bold };
-            float by = y + panelH - 54f;
-            UITheme.Divider(x + 24f, by - 10f, w - 48f);
-            if (UITheme.Button(new Rect(x + 24f, by, 130f, 42f), "Leave", btn, true)) { Multiplayer.End(); enabled = false; _onLeave?.Invoke(); }
+        // Home/Away position columns for Match (Pro Clubs style): one cell per seatable shirt
+        // (NetSession.SlotAllowed already caps this at ScrimPerSide per team, so Roster only ever
+        // carries the real seats - a 3v3 lobby shows 3 cells a side, not four). A click on an open
+        // cell is the exact same RequestSlot the old flat Claim button sent; the host's per-slot
+        // AI toggle is unchanged too. Laid out in the same vertical band the flat list used, so no
+        // panel resize was needed: ScrimPerSide tops out at ScrimSlotsPerTeam (4), one cell per
+        // shirt, well inside the height the old up-to-eight-row flat list already budgeted for.
+        void DrawMatchTeams(float lx, float top, float lw)
+        {
+            var head = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
+            var name = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink } };
+            var tag = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleRight };
+            var claimBtn = new GUIStyle(GUI.skin.button) { fontSize = 11, fontStyle = FontStyle.Bold };
+            const float cellH = 46f, gap = 16f;
+            float colW = (lw - gap) * 0.5f, homeX = lx, awayX = lx + colW + gap;
 
-            // Customize my player.
-            if (UITheme.Button(new Rect(x + 164f, by, 170f, 42f), "Customize", btn)) { enabled = false; _onCustomize?.Invoke(); }
+            GUI.Label(new Rect(homeX, top, colW, 18f), "HOME", head);
+            GUI.Label(new Rect(awayX, top, colW, 18f), "AWAY", head);
+            float gridTop = top + 20f;
 
-            // Ready toggle (me).
-            bool ready = _s.LocalReady;
-            var readyBtn = new GUIStyle(btn); if (ready) readyBtn.normal.textColor = UITheme.Green;
-            if (UITheme.Toggle(new Rect(x + w - 154f, by, 130f, 42f), ready ? "Ready" : "Ready", ready, readyBtn, UITheme.GoodTint))
-                _s.SetReady(!ready);
-
-            // Host start (needs all humans ready).
-            if (_s.IsHost)
+            int perSide = _s.Config.perSide;
+            var roster = _s.Roster;
+            for (int i = 0; i < roster.Length; i++)
             {
-                bool can = _s.AllReady();
-                var sr = new Rect(x + w * 0.5f - 90f, by - 52f, 180f, 44f);
-                // Live once everyone is ready, and lit so it looks like the thing to press.
-                if (can) UITheme.Glow(new Rect(sr.x - 20f, sr.y - 10f, sr.width + 40f, sr.height + 20f),
-                                      new Color(UITheme.Green.r, UITheme.Green.g, UITheme.Green.b, 0.14f));
-                GUI.enabled = can;
-                var startBtn = new GUIStyle(btn) { fontSize = 18 };
-                var keepStart = GUI.backgroundColor;
-                if (can) GUI.backgroundColor = UITheme.GoodTint;
-                if (UITheme.Button(sr, can ? "START MATCH" : "waiting...", startBtn)) _s.StartMatch();
-                GUI.backgroundColor = keepStart;
-                GUI.enabled = true;
+                var slot = roster[i];
+                int team = NetSession.ScrimTeamOfSlot(slot.slot);
+                int shirt = NetSession.ScrimShirtOfSlot(slot.slot);
+                float cx = team == 0 ? homeX : awayX;
+                float cy = gridTop + shirt * cellH;
+                bool isMe = slot.slot == _s.LocalSlot;
+                string pos = SimConfig.PositionName(perSide, shirt);
+
+                if (isMe)
+                {
+                    UITheme.Fill(new Rect(cx - 6f, cy, colW + 12f, cellH - 4f), new Color(0.14f, 0.28f, 0.48f, 0.55f));
+                    UITheme.Fill(new Rect(cx - 6f, cy, 2.5f, cellH - 4f), UITheme.Gold);
+                }
+                else UITheme.Divider(cx, cy + cellH - 4f, colW);
+
+                GUI.Label(new Rect(cx + 6f, cy, colW - 12f, 20f), $"{pos}  -  {slot.name}{(isMe ? "  (you)" : "")}", name);
+
+                if (slot.human)
+                {
+                    Color rc = slot.ready ? UITheme.Green : UITheme.Gold;
+                    tag.normal.textColor = rc;
+                    string rt = slot.ready ? "READY" : "not ready";
+                    float rw = tag.CalcSize(new GUIContent(rt)).x;
+                    UITheme.Dot(cx + colW - rw - 8f, cy + 20f + 9f, rc, 2.2f);
+                    GUI.Label(new Rect(cx + 6f, cy + 20f, colW - 12f, 18f), rt, tag);
+                }
+                else
+                {
+                    float bx = cx + colW;
+                    if (!isMe)
+                    {
+                        bx -= 76f;
+                        if (UITheme.Button(new Rect(bx, cy + 20f, 76f, 20f), "Claim", claimBtn))
+                            _s.RequestSlot(slot.slot);
+                    }
+                    if (_s.IsHost)
+                    {
+                        bx -= 62f;
+                        var aiBtn = new GUIStyle(claimBtn);
+                        aiBtn.normal.textColor = slot.ai ? UITheme.Green : UITheme.Faint;
+                        if (UITheme.Toggle(new Rect(bx, cy + 20f, 58f, 20f), slot.ai ? "AI:On" : "AI:Off", slot.ai, aiBtn, UITheme.GoodTint))
+                            _s.SetSlotAi(slot.slot, !slot.ai);
+                    }
+                }
             }
         }
 
