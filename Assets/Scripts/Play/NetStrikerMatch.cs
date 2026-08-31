@@ -284,7 +284,27 @@ namespace Trickshot
 
             if (!hostSim)
             {
-                if (isLocal) { /* client-predicted local crosser: keep real ragdoll */ }
+                if (isLocal)
+                {
+                    // Client-predicted local crosser: the same Striker + CrosserControl wiring the
+                    // HOST branch below gives ITS OWN local human crosser, minus the host-only ball-
+                    // physics housekeeping (IgnoreBody, CrosserBubble) - the client's ball isn't
+                    // authoritatively simulated here, it only renders the host's. Before this fix the
+                    // comment above was the entire branch: a client who claimed the crosser slot got
+                    // a role and a camera follow (Configure's me.striker/me.crosserCtl null checks
+                    // swallowed the rest in silence), but nothing ever read their WASD or LMB/RMB - the
+                    // lobby claim worked, actually playing the role never did.
+                    _crosser.Cosmetic = false;
+                    _crosser.ServeFromFeet = true;
+                    ragdoll.LocomotionEnabled = true;
+                    var striker = ragdoll.gameObject.AddComponent<Striker>();
+                    b.striker = striker;
+                    striker.Init(_input, ragdoll);
+                    striker.ShootingEnabled = false;
+                    var cc = _crosser.gameObject.AddComponent<CrosserControl>();
+                    cc.Init(_input, _crosser);
+                    b.crosserCtl = cc;
+                }
                 else if (ragdoll != null) ragdoll.BecomeDisplayBody();   // remote crosser puppet
             }
             else if (human)
