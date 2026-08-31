@@ -70,8 +70,11 @@ namespace Trickshot
         //    shaft in Z, so the shaft occludes them at rest,
         //  - the shaft root sits just INSIDE the pelvis (above the bottom face) so its top end is
         //    buried in the hips - flush, with no floating gap - and further FORWARD in Z.
-        const float BerryDrop  = 0.13f;   // berries: centre below the bottom face (top ~= -0.098)
-        const float BerryFwd   = 0.025f;  // berries: only slightly forward -> tucked BEHIND the member
+        const float BerryDrop  = 0.16f;   // berries: centre below the bottom face
+        const float BerryFwd   = 0.065f;  // berries: forward, toward the pelvis underside's front
+                                           // edge, but still short of MemberFwd (0.075) so the shaft
+                                           // still roots further forward and the drapes-over-at-rest
+                                           // occlusion described above still holds
         const float MemberDrop = 0.09f;   // member root: just inside the pelvis -> reads as attached
         const float MemberFwd  = 0.075f;  // member root: further forward, so it hangs OVER the berries
         // Long + slender to mirror a forearm (~0.60 tall at 0.09 dia ≈ 6.7:1). Three segments at
