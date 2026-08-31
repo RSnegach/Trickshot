@@ -55,8 +55,8 @@
     "semantic_hash": "6daf8531338c4587bf7721e37d06c6e5"
   },
   "Assets/Scripts/Net/NetSession.cs": {
-    "mtime": 1787966590.963823,
-    "ast_hash": "690702a543ff365a42efa3bc419bffad",
+    "mtime": 1788136055.5368605,
+    "ast_hash": "be067f6ebe52775cdfd75d46126c5511",
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/ReliableChannel.cs": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/GameManager.cs": {
-    "mtime": 1787957213.9866211,
-    "ast_hash": "d4b4061c2f94b22de1bc19eea20296e5",
+    "mtime": 1788136294.6871407,
+    "ast_hash": "28b4da7ee8be9ee3752a0fe0853f9aa9",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Goal.cs": {
@@ -170,8 +170,8 @@
     "semantic_hash": "03b6b3770dd9e0915ed3ecf3dab21d8e"
   },
   "Assets/Scripts/Play/Goalkeeper.cs": {
-    "mtime": 1787965530.1310549,
-    "ast_hash": "c89781ba6e83a112a3cb8a27b2f95edd",
+    "mtime": 1788134883.9884462,
+    "ast_hash": "b0f8bd42677e631050756c846f947a81",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/HostSetupUI.cs": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetStrikerMatch.cs": {
-    "mtime": 1788128367.641523,
-    "ast_hash": "b992797a62e6d03d5372a757febb1062",
+    "mtime": 1788136040.68112,
+    "ast_hash": "dafcd0bacf4d29946575bca84e147bb0",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/OptionsMenu.cs": {
@@ -310,8 +310,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/PauseMenu.cs": {
-    "mtime": 1787260854.4961054,
-    "ast_hash": "8194d3cd30a374e3c586d8576024412b",
+    "mtime": 1788136306.2735434,
+    "ast_hash": "ce8d4860be851697728bc02901d8812c",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/PlayerPreview.cs": {
@@ -685,8 +685,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/UITheme.cs": {
-    "mtime": 1788134325.186129,
-    "ast_hash": "067b3d7b46878e37ff9c8bf3279ddd11",
+    "mtime": 1788136672.5680928,
+    "ast_hash": "a89be28d236c01d04f28ac24cf28a5d6",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/Turf.cs": {
@@ -880,13 +880,13 @@
     "semantic_hash": ""
   },
   "DESIGN_NOTES.md": {
-    "mtime": 1788128212.0897884,
-    "ast_hash": "7ef36e5b018c7b07ec5f85e72b2a7cf4",
+    "mtime": 1788136716.201868,
+    "ast_hash": "ea44cec354a79599b879dd175dc69ff0",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/TitleGlyph.cs": {
-    "mtime": 1788132186.6102033,
-    "ast_hash": "847d4144982142331c1ee1d0b1b5a897",
+    "mtime": 1788136534.0465,
+    "ast_hash": "d78c37276010214810a5fecfacefa1af",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuIcons.cs": {

@@ -41,6 +41,15 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   making a character feels like a real choice, not something to spam-generate dozens of. Not
   scoped beyond this — just an idea, not being built yet.
 
+- **Scrimmage: team jersey design + vote in the prematch.** Right now every player on a
+  scrimmage team wears the same shared team torso material — nobody actually picks the kit.
+  Idea: a prematch screen (or a couple of screens) where any human on a team can submit a jersey
+  design (reusing the existing jersey-painting flow), and every human on that team votes on which
+  submitted design the whole team wears that match. Needs to be robust (works with 1 human on a
+  side, works with nobody submitting anything, works with a tie), visually clean, and feel like a
+  native step in the prematch flow rather than a bolted-on extra screen. Not scoped beyond this —
+  just an idea, not being built yet.
+
 ## Open questions (not answered yet)
 
 - Where does progression/stats persistence live — local save file, or does it need an account
