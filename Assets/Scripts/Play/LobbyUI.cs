@@ -21,10 +21,13 @@ namespace Trickshot
         string _inviteCode;     // host + direct-IP only: the short code friends paste to join
         float _copiedUntil;     // brief "Copied!" confirmation after the Copy button
 
-        // Online (ranked drop-in) only: the host auto-starts once this fires, rather than
-        // waiting on a manual Ready/Start - a drop-in queue is meant to just go. -1 = not an
-        // Online lobby (Friendlies keeps its exact manual flow, untouched).
-        float _onlineDeadline = -1f;
+        // Online (ranked drop-in) only: when the lobby last became fully ready (AllReady()).
+        // The host auto-starts once that's held continuously for AutoStartHoldSec, rather than
+        // waiting on a manual Ready/Start button - a drop-in queue is meant to just go, but a new
+        // joiner still gets a window to land before the match locks. -1 = not currently all-ready
+        // (a fresh joiner's own auto-ready message hasn't landed yet, or nobody's here at all).
+        float _allReadySince = -1f;
+        const float AutoStartHoldSec = 10f;
 
         // Match only: which of the roster/jersey-vote tabs is showing (see DrawLobby).
         bool _showJerseyTab;
@@ -49,8 +52,6 @@ namespace Trickshot
                     : "No network address. Check Tailscale is up.";
             }
 
-            if (_s != null && _s.IsHost && _s.Config.onlineRanked)
-                _onlineDeadline = Time.unscaledTime + 20f;   // short window for strangers to trickle in
         }
 
         void OnDestroy()
@@ -80,8 +81,18 @@ namespace Trickshot
             // sticky (re-applied every frame) rather than a one-shot, so a stray un-ready click
             // can't stall the host's countdown below.
             if (_s.LocalSlot >= 0 && !_s.LocalReady) _s.SetReady(true);
-            if (_s.IsHost && _onlineDeadline >= 0f && Time.unscaledTime >= _onlineDeadline && _s.AllReady())
-                _s.StartMatch();
+            if (_s.IsHost)
+            {
+                // A new joiner's own auto-ready hasn't landed yet, so AllReady() briefly goes
+                // false the moment they're seated - that's what re-arms the window below, giving
+                // every fresh arrival another AutoStartHoldSec before the lobby locks.
+                if (!_s.AllReady()) _allReadySince = -1f;
+                else
+                {
+                    if (_allReadySince < 0f) _allReadySince = Time.unscaledTime;
+                    if (Time.unscaledTime - _allReadySince >= AutoStartHoldSec) _s.StartMatch();
+                }
+            }
         }
 
         // Scale the lobby up on big displays (see MenuScale). Wrapped so the early return can't

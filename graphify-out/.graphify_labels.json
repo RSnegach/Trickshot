@@ -143,6 +143,7 @@
   "141": "UIFont",
   "142": ".DrawCustomize",
   "143": ".DrawScoreboard",
-  "144": ".SnapFacing",
+  "144": ".BuildScene",
+  "145": ".Update",
   "148": "OtherModesUI"
 }
