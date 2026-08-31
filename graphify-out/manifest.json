@@ -914,31 +914,6 @@
     "ast_hash": "688e0f79de5d93c3f4f0833cbdee7a6c",
     "semantic_hash": ""
   },
-  ".firecrawl/scrape-g2a.json": {
-    "mtime": 1788207085.248078,
-    "ast_hash": "450428ba047f2b18af9a3e14d12f1b7b",
-    "semantic_hash": ""
-  },
-  ".firecrawl/scrape-lagofast.json": {
-    "mtime": 1788207090.3149805,
-    "ast_hash": "74d3b451346033e3945cc294cbeaf748",
-    "semantic_hash": ""
-  },
-  ".firecrawl/search-meccha-chameleon.json": {
-    "mtime": 1788207056.6146827,
-    "ast_hash": "b8d38d749fe506d387ac9bcd9c5e5b5e",
-    "semantic_hash": ""
-  },
-  ".synth.json": {
-    "mtime": 1788208419.5597155,
-    "ast_hash": "3139bc2da4fc4317394777f35d9af7cc",
-    "semantic_hash": ""
-  },
-  ".verify.json": {
-    "mtime": 1788208419.6190736,
-    "ast_hash": "afa1aa2b4380ebe32f0ab5b262f68394",
-    "semantic_hash": ""
-  },
   "Assets/Scripts/Net/SteamFriendsAPI.cs": {
     "mtime": 1788209359.3914416,
     "ast_hash": "44cdfa2dc194fbb212b1d683a8064e10",

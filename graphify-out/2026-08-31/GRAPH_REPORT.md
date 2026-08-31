@@ -1,11 +1,11 @@
 # Graph Report - Trickshot  (2026-08-31)
 
 ## Corpus Check
-- 158 files · ~683,183 words
+- 158 files · ~683,135 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3137 nodes · 8072 edges · 146 communities (136 shown, 10 thin omitted)
+- 3137 nodes · 8072 edges · 145 communities (135 shown, 10 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 845 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -41,7 +41,6 @@
 - SkillTree
 - Footballer
 - SteamTransport
-- .Join
 - NetSetPieceMatch
 - com.unity.modules.jsonserialize
 - INetTransport
@@ -196,7 +195,7 @@
 - **Active-ragdoll bicycle-kick mechanic** — readme_activeragdoll, readme_ragdollpose, readme_kickdetector, readme_jointmath, readme_bicycle_kick [INFERRED 0.85]
 - **Host-authoritative frame loop (poll, input, snapshot)** — multiplayer_multiplayer, multiplayer_netsession, multiplayer_netmessages, multiplayer_host_authoritative [INFERRED 0.85]
 
-## Communities (146 total, 10 thin omitted)
+## Communities (145 total, 10 thin omitted)
 
 ### Community 0 - "Ball Physics & Launch"
 Cohesion: 0.08
@@ -288,7 +287,7 @@ Nodes (6): dependencies, depth, source, version, com.unity.modules.jsonserialize
 
 ### Community 22 - "Celebration"
 Cohesion: 0.08
-Nodes (16): Rigidbody, Rigidbody, Rigidbody, bool, Bounds, byte, Collider, ConfigurableJoint (+8 more)
+Nodes (16): bool, Bounds, byte, Collider, ConfigurableJoint, Dictionary, float, IReadOnlyList (+8 more)
 
 ### Community 23 - "SkillTree"
 Cohesion: 0.05
@@ -301,10 +300,6 @@ Nodes (9): Action, bool, string, BuildAll, Plat, BuildTarget, MenuItem, Plat (+1
 ### Community 25 - "SteamTransport"
 Cohesion: 0.14
 Nodes (10): bool, float, int, List, Vector3, GoalBound(), Note(), MatchProbe (+2 more)
-
-### Community 26 - ".Join"
-Cohesion: 0.13
-Nodes (5): Color, Quaternion, Quaternion, Transform, Vector3
 
 ### Community 27 - "NetSetPieceMatch"
 Cohesion: 0.09
@@ -347,7 +342,7 @@ Cohesion: 0.20
 Nodes (9): Collider, Color, float, GameObject, int, Material, Transform, Vector3 (+1 more)
 
 ### Community 37 - ".Configure"
-Cohesion: 0.20
+Cohesion: 0.22
 Nodes (4): bool, float, Vector3, KeeperHands
 
 ### Community 38 - "PlayerPreview"
@@ -387,7 +382,7 @@ Cohesion: 0.14
 Nodes (10): bool, float, int, Random, string, Vector3, FreeKickGame, Outcome (+2 more)
 
 ### Community 47 - ".Box"
-Cohesion: 0.17
+Cohesion: 0.16
 Nodes (8): bool, float, Func, Quaternion, Vector3, SetPieceTaker, State, State
 
 ### Community 48 - "Goalkeeper"
@@ -563,8 +558,8 @@ Cohesion: 0.18
 Nodes (7): byte, Dictionary, float, List, uint, Pending, ReliableChannel
 
 ### Community 93 - ".Box"
-Cohesion: 0.14
-Nodes (12): Material, bool, byte, Color, float, int, label, string (+4 more)
+Cohesion: 0.13
+Nodes (13): Color, Quaternion, bool, byte, Color, float, int, label (+5 more)
 
 ### Community 94 - "NetPump"
 Cohesion: 0.07
@@ -707,8 +702,8 @@ Cohesion: 0.29
 Nodes (4): Collider, float, Transform, CrosserBubble
 
 ### Community 137 - "Vector3"
-Cohesion: 0.10
-Nodes (9): float, KickDetector, bool, Collider, float, Vector3, Striker, Trick (+1 more)
+Cohesion: 0.07
+Nodes (13): float, KickDetector, Rigidbody, Rigidbody, Rigidbody, bool, Collider, float (+5 more)
 
 ### Community 138 - "Goal"
 Cohesion: 0.29
@@ -750,7 +745,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.219) - this node is a cross-community bridge._
 - **Why does `NetSession` connect `SkillTree` to `.Empty`, `Goalkeeper AI & Control`, `AccuracyGame`, `Footballer`, `SetPieceMap`, `.Configure`, `Bone`, `TimeTrialGame`, `CustomizeUI`, `.ClientUpdate`, `.OnGUI`, `JerseyDesigns.Nations7.cs`, `KeeperHands`, `NetSetPieceMatch`, `GameInput`?**
   _High betweenness centrality (0.113) - this node is a cross-community bridge._
-- **Why does `ActiveRagdoll` connect `Celebration` to `Dribble System`, `Net Messages & Wire Codec`, `CrosserBubble`, `AccuracyGame`, `Vector3`, `LobbyUI`, `BodyLayoutDef`, `.Configure`, `OptionsMenu`, `.Join`, `NetSetPieceMatch`, `INetTransport`, `.ClientUpdate`, `Dribble`, `.Configure`, `PitchBuilder`, `.Empty`, `NetCodec`, `.Configure`, `SessionBrowserUI`, `.Empty`, `.Box`, `.SetLocalInput`, `GameInput`, `IStrikerInput`, `MenuUI`, `TimeTrialGame`, `.AddVelocityToAll`, `.SetLocalInput`, `.Box`, `NetPump`, `Role.cs`, `.Begin`, `Bone`, `BoneSpec`, `Color`, `SaveWatch`?**
+- **Why does `ActiveRagdoll` connect `Celebration` to `Dribble System`, `Net Messages & Wire Codec`, `CrosserBubble`, `AccuracyGame`, `Vector3`, `LobbyUI`, `BodyLayoutDef`, `.Configure`, `OptionsMenu`, `NetSetPieceMatch`, `INetTransport`, `.ClientUpdate`, `Dribble`, `.Configure`, `PitchBuilder`, `.Empty`, `NetCodec`, `.Configure`, `SessionBrowserUI`, `.Empty`, `.Box`, `.SetLocalInput`, `GameInput`, `IStrikerInput`, `MenuUI`, `TimeTrialGame`, `.AddVelocityToAll`, `.SetLocalInput`, `.Box`, `NetPump`, `Role.cs`, `.Begin`, `Bone`, `BoneSpec`, `Color`, `SaveWatch`?**
   _High betweenness centrality (0.103) - this node is a cross-community bridge._
 - **What connects `Reason`, `Phase`, `SetPieceSpin` to the rest of the system?**
   _180 weakly-connected nodes found - possible documentation gaps or missing edges._

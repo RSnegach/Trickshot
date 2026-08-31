@@ -25,6 +25,7 @@
   "23": "SkillTree",
   "24": "Footballer",
   "25": "SteamTransport",
+  "26": "PeerId",
   "27": "NetSetPieceMatch",
   "28": "com.unity.modules.jsonserialize",
   "29": "INetTransport",
@@ -142,6 +143,18 @@
   "141": "UIFont",
   "142": ".Configure",
   "143": "StadiumSelectUI",
+  "144": ".ListLobbies",
+  "145": "ulong",
   "146": "SteamAchievementsAPI.cs",
-  "147": "OtherModesUI"
+  "147": "OtherModesUI",
+  "148": "Color",
+  "149": "Bar",
+  "150": "Camera",
+  "151": "Material",
+  "152": "Refs",
+  "153": "Rigidbody",
+  "154": "Transform",
+  "155": "uint",
+  "156": "Vector3",
+  "157": "Func"
 }
