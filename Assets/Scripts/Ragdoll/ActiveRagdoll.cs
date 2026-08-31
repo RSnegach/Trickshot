@@ -1225,7 +1225,17 @@ namespace Trickshot
         /// </summary>
         void FloorRescue()
         {
-            if (Pelvis.isKinematic) return;
+            // EmoteHeightOffset != 0 means the carry servo has already been handed off to a
+            // deliberate, bounded, scripted height change (a sit, a slide) - see the gate one
+            // function below this ("EmoteHeightOffset == 0f") for the same signal used the same
+            // way. This clamp existed to catch a body teleported pathologically underground
+            // (measured at pelvis -2, -6), not to fight an intentional low pose it was never tuned
+            // against: at SitDrop's own 0.55 m the hips alone clear BodyFloorClampY (-0.30) fine,
+            // but other bones legitimately sink past it in a full sit, and this was silently
+            // un-doing the pose every tick before it could ever settle into view. A real physics
+            // fall (a knockdown/back-landing tumble) does NOT set EmoteHeightOffset, so it is
+            // unaffected and still gets the safety net.
+            if (Pelvis.isKinematic || EmoteHeightOffset != 0f) return;
 
             float floor = SimConfig.BodyFloorClampY;
             float lowest = float.MaxValue;

@@ -505,8 +505,7 @@ namespace Trickshot
                 if (_ball == null) _ball = FindAnyObjectByType<BallController>();
                 if (_ball == null) return false;
                 bool busy = _sitting || _sliding || _mode != Trick.None;
-                return Passing.CanPlay(_ball, _ragdoll.Pelvis.position,
-                                       _dribble != null && _dribble.Carrying, busy, out _);
+                return Passing.CanShoot(_ball, _ragdoll.Pelvis.position, busy);
             }
         }
 
@@ -526,10 +525,13 @@ namespace Trickshot
             }
         }
 
-        // A full bend needs him this far to the side of the ball-to-aim line at contact. 0.9 m is
-        // most of the 1.32 m the possession gate allows (Passing.CanPlay: BallRadius + 1.1), so
-        // curling hard means approaching from a real angle - which costs time and telegraphs.
-        const float ShotCurlOffsetFull = 0.9f;
+        // A full bend needs him this far to the side of the ball-to-aim line at contact. Same ~68%-
+        // of-the-gate proportion the old 0.9 m was against the old 1.32 m possession-gate radius,
+        // rescaled to the shot gate's own tighter 0.57 m (Passing.CanShoot: BallRadius + ShotContact
+        // Radius) - curling hard still means approaching from a real angle, which still costs time
+        // and telegraphs, but "full" has to stay reachable inside the range a shot can fire from at
+        // all now that shooting no longer shares passing's forgiveness radius.
+        const float ShotCurlOffsetFull = 0.39f;
 
         // Shared probe buffer. Only touched from FireChargedShot, once per shot, synchronously.
         static readonly Collider[] _pressureHits = new Collider[24];
@@ -553,8 +555,7 @@ namespace Trickshot
             bool gesture = legL && legR;                                 // sit / slide / header
             bool busy = _sitting || _sliding || _mode != Trick.None;
             bool inRange = _ball != null && _ragdoll.Pelvis != null
-                           && Passing.CanPlay(_ball, _ragdoll.Pelvis.position,
-                                              _dribble != null && _dribble.Carrying, busy, out _);
+                           && Passing.CanShoot(_ball, _ragdoll.Pelvis.position, busy);
             bool canPlay = grounded && !gesture && !busy && inRange;
 
             // Reuse Passing.StepCharge rather than writing a second charger. It already owns the

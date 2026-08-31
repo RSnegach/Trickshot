@@ -69,7 +69,7 @@
   "67": "CrosserBubble",
   "68": "AccuracyGame",
   "69": "AimReticle",
-  "70": "QuickChat",
+  "70": "List",
   "71": ".SkillPresetButtons",
   "72": ".AdvanceTurn",
   "73": ".Build",
@@ -114,7 +114,6 @@
   "112": ".ListLobbies",
   "113": ".Update",
   "114": "com.unity.modules.screencapture",
-  "115": "PlayerAppearance",
   "116": ".AttachKickDetectors",
   "117": ".OnCollisionEnter",
   "118": "StadiumSelectUI",
@@ -133,7 +132,8 @@
   "131": ".Set",
   "132": ".OptionGrid",
   "133": "CrosserControl",
+  "134": "IPlayerController",
   "135": "postprep.py",
-  "136": "Transform",
+  "136": ".HandleModelDrag",
   "140": "NetBackstop.cs"
 }

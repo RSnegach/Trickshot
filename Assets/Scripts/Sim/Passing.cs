@@ -112,6 +112,25 @@ namespace Trickshot
             return false;
         }
 
+        /// <summary>
+        /// Can this body STRIKE the ball right now - real foot-contact range, not CanPlay's passing-
+        /// forgiveness radius. A shot is not a pass: releasing a pass without the ball glued to the
+        /// foot is the right feel, but a shot firing at a ball reported as "3 feet to the left" of
+        /// the striker and still finding the goal is not - the ball has to actually be interacting
+        /// with the body. Same XZ-flattened-against-the-pelvis shape as CanPlay's own check (this
+        /// project has no per-foot reference point to test against instead), just SimConfig.
+        /// ShotContactRadius (0.35 m) in place of CanPlay's 1.1 m. No speed/first-time distinction:
+        /// Striker mode is volley-only, so an arriving ball has to be shootable exactly like a
+        /// settled one the moment it is close enough.
+        /// </summary>
+        public static bool CanShoot(BallController ball, Vector3 bodyPos, bool blocked)
+        {
+            if (blocked || ball == null) return false;
+            Vector3 me = bodyPos; me.y = 0f;
+            Vector3 b = ball.transform.position; b.y = 0f;
+            return Vector3.Distance(me, b) <= SimConfig.BallRadius + SimConfig.ShotContactRadius;
+        }
+
         /// <summary>Seconds held -> 0..1 bar fill.</summary>
         public static float Charge01(float held) => Mathf.Clamp01(held / SimConfig.PassMaxCharge);
 

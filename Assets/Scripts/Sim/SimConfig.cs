@@ -767,7 +767,14 @@ namespace Trickshot
         // sits below zero when a limb is flat on the turf and its collider radius carries it - so
         // this only fires when a body is unambiguously wrong, and then it moves the WHOLE body as one
         // rather than dragging a single bone through its joints.
-        public const float BodyFloorClampY = -0.30f;   // lowest a bone centre may be before a rescue
+        //
+        // Widened from -0.30: that was sized for a single limb lying flat, but a full BACK-LANDING
+        // (a missed bicycle kick, a Knockdown.Down tumble) rests the whole torso/pelvis flat at once,
+        // and was tripping this every tick before the fall could ever settle into view - the rescue
+        // kept yanking the body back upright mid-fall. The original bug this exists for was measured
+        // at pelvis -2 to -6 (see the commit that added this), so -0.60 still leaves an enormous
+        // margin below any legitimate ground-level pose while catching the actual pathological case.
+        public const float BodyFloorClampY = -0.60f;   // lowest a bone centre may be before a rescue
         public const float CarryHeightGain     = 10f;   // vertical velocity per metre of height error
         public const float CarryHeightMaxSpeed = 2.4f;  // m/s cap, so a big correction is still a glide
         public const float CarryErrUp          = 0.60f; // max height error it will lift out of (m)
@@ -1589,6 +1596,13 @@ namespace Trickshot
         public const float PassScatterPressure     = 0.6f;   // +60% of the cone when fully closed down
         public const float PassFirstTimeScatterMul = 1.7f;   // hitting it without settling it costs accuracy
         public const float PassFirstTouchRadius    = 1.9f;   // ball within this of the feet = a first-time pass is on
+        // A shot is not a pass: Passing.CanPlay's own radius above (BallRadius + 1.1, ~1.3 m total,
+        // XZ-only against the PELVIS) is deliberately forgiving for releasing a PASS, but
+        // Striker.UpdateShotCharge/ShotInRange used to reuse that same gate for SHOOTING, which let
+        // a striker fire at a ball reported as "3 feet to the left" of them and still score. This is
+        // the tighter radius Passing.CanShoot uses instead - real foot-contact range, not passing's
+        // forgiveness margin.
+        public const float ShotContactRadius       = 0.35f;  // ball within BallRadius + this = in range to shoot
         public const float PassPressureRadius      = 3.5f;   // an opponent inside this is pressure
         // Target choice. Weighs where you are pointing, forward progress, the receiver's
         // space, range fit, and whether the lane is blocked.
