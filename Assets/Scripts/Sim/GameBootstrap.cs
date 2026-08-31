@@ -106,6 +106,9 @@ namespace Trickshot
             foreach (var ui in FindObjectsByType<SessionBrowserUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<HostSetupUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<MultiplayerHubUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<MatchModeUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<OtherModesUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<OnlineQueueUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<CustomizeUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<SpeciesSelectUI>()) Destroy(ui.gameObject);
         }
@@ -159,22 +162,67 @@ namespace Trickshot
             _menuBg = null;
         }
 
-        // ---- Multiplayer flow: hub -> host setup / browser -> lobby -> networked match ----
+        // ---- Multiplayer flow: hub -> Match|Other Modes -> host setup / browser / queue -> lobby
+        //      -> networked match. Match splits into Friendlies (host/join with friends, exactly
+        //      the flow every mode used to share) and Online (ranked drop-in, see OnlineQueueUI);
+        //      every other mode keeps the plain host/join split, now under "Other Modes". ----
         void ShowMultiplayerHub()
         {
             var go = new GameObject("MultiplayerHubUI");
             go.AddComponent<MultiplayerHubUI>().Init(
-                onHost: () => { Destroy(go); ShowHostSetup(); },
-                onJoin: () => { Destroy(go); ShowSessionBrowser(); },
-                onBack: () => { Destroy(go); ShowMainMenu(); });
+                onMatch:       () => { Destroy(go); ShowMatchMode(); },
+                onOtherModes:  () => { Destroy(go); ShowOtherModes(); },
+                onBack:        () => { Destroy(go); ShowMainMenu(); });
         }
 
-        void ShowHostSetup()
+        void ShowMatchMode()
+        {
+            var go = new GameObject("MatchModeUI");
+            go.AddComponent<MatchModeUI>().Init(
+                onFriendlies: () => { Destroy(go); ShowFriendliesSetup(); },
+                onOnline:     () => { Destroy(go); ShowOnlineQueue(); },
+                onBack:       () => { Destroy(go); ShowMultiplayerHub(); });
+        }
+
+        void ShowOtherModes()
+        {
+            var go = new GameObject("OtherModesUI");
+            go.AddComponent<OtherModesUI>().Init(
+                onHost: () => { Destroy(go); ShowHostSetup(); },
+                onJoin: () => { Destroy(go); ShowSessionBrowser(); },
+                onBack: () => { Destroy(go); ShowMultiplayerHub(); },
+                title:  "OTHER MODES");
+        }
+
+        // Friendlies reuses the exact same Host/Find screen Other Modes does - only the title and
+        // where Host Setup locks its mode differ.
+        void ShowFriendliesSetup()
+        {
+            var go = new GameObject("FriendliesUI");
+            go.AddComponent<OtherModesUI>().Init(
+                onHost: () => { Destroy(go); ShowHostSetup(GameMode.Match); },
+                onJoin: () => { Destroy(go); ShowSessionBrowser(); },
+                onBack: () => { Destroy(go); ShowMatchMode(); },
+                title:  "FRIENDLIES");
+        }
+
+        void ShowOnlineQueue()
+        {
+            var go = new GameObject("OnlineQueueUI");
+            go.AddComponent<OnlineQueueUI>().Init(
+                onJoinedLobby: () => { Destroy(go); ShowLobby(); },
+                onBack:        () => { Destroy(go); ShowMatchMode(); });
+        }
+
+        // lockedMode: null shows the picker (Other Modes, Match excluded); a value skips it
+        // entirely and goes straight to that mode's own settings (Friendlies, locked to Match).
+        void ShowHostSetup(GameMode? lockedMode = null)
         {
             var go = new GameObject("HostSetupUI");
             go.AddComponent<HostSetupUI>().Init(
                 onCreated: () => { Destroy(go); ShowLobby(); },
-                onBack:    () => { Destroy(go); ShowMultiplayerHub(); });
+                onBack:    () => { Destroy(go); if (lockedMode.HasValue) ShowFriendliesSetup(); else ShowOtherModes(); },
+                lockedMode: lockedMode);
         }
 
         void ShowSessionBrowser()

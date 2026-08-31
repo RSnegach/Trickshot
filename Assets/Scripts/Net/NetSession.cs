@@ -415,7 +415,9 @@ namespace Trickshot.Net
         }
 
         /// <summary>Short mode line for a browser row. Match carries its team size, since that
-        /// is what tells a joiner how big the game is.</summary>
+        /// is what tells a joiner how big the game is. An Online (ranked) lobby is prefixed so
+        /// OnlineQueueUI's own search can match on the exact string with no changes to the
+        /// discovery/probe wire format at all - the "mode" field it already carries is enough.</summary>
         public string ModeLabel()
         {
             var mode = (GameMode)Config.mode;
@@ -423,7 +425,8 @@ namespace Trickshot.Net
             {
                 case GameMode.Match:
                     int n = Mathf.Max(1, (int)Config.perSide);
-                    return "Match " + n + "v" + n;
+                    string label = "Match " + n + "v" + n;
+                    return Config.onlineRanked ? "Online " + label : label;
                 case GameMode.SetPieces: return "Set Pieces";
                 default: return mode.ToString();
             }

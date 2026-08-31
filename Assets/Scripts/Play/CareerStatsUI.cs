@@ -18,7 +18,7 @@ namespace Trickshot
     /// </summary>
     public class CareerStatsUI
     {
-        enum Cat { Overall, Striker, Goalkeeper, Accuracy, FreeKick, Match, Friends }
+        enum Cat { Overall, Striker, Goalkeeper, Accuracy, FreeKick, Match, Rank, Friends }
         int _cat;
 
         // Reset-all confirm. Same shape as PauseMenu's _confirmAct/_confirmTitle/_confirmBody/
@@ -38,6 +38,7 @@ namespace Trickshot
                 case Cat.Accuracy:   return "ACCURACY";
                 case Cat.FreeKick:   return "FREE KICK";
                 case Cat.Match:      return "MATCH";
+                case Cat.Rank:       return "RANK";
                 default:             return "FRIENDS";
             }
         }
@@ -73,6 +74,9 @@ namespace Trickshot
 
             float cy = y + 128f, cw = w;   // 104 + 24 to leave room for DrawRows' own SP/MP header
             if ((Cat)_cat == Cat.Friends) DrawFriends(x, cy, cw);
+            // Rank has no SP/MP split (it's fed only by Online, one bucket) - the generic 3-column
+            // label/SP/MP rows would misleadingly imply it does, so it gets its own draw path too.
+            else if ((Cat)_cat == Cat.Rank) DrawRank(x, cy, cw);
             else DrawRows(x, cy, cw, RowsFor((Cat)_cat));
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
@@ -210,6 +214,35 @@ namespace Trickshot
                 GUI.Label(new Rect(xSp, ry, colVal, rowH), rows[i].sp, val);
                 GUI.Label(new Rect(xMp, ry, colVal, rowH), rows[i].mp, val);
                 UITheme.Divider(lx, ry + rowH + gap * 0.5f, rw);
+            }
+        }
+
+        // Online (ranked drop-in) only. One MMR per playlist, exactly like Rocket League tracks
+        // 1v1/2v2/3v3 separately - three stacked blocks, not the generic 3-column SP/MP layout
+        // (there's no SP/MP split here, only a playlist split).
+        void DrawRank(float x, float y, float w)
+        {
+            var tierSt = new GUIStyle(GUI.skin.label) { fontSize = 19, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Gold } };
+            var mmrSt = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Dim } };
+            var wldSt = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Dim } };
+
+            float lx = x + 24f, rw = w - 48f, blockH = 68f;
+            (string label, RankData r)[] playlists =
+            {
+                ("3v3", CareerStats.Data.Rank.ThreeVThree),
+                ("5v5", CareerStats.Data.Rank.FiveVFive),
+                ("11v11", CareerStats.Data.Rank.ElevenVEleven),
+            };
+            for (int i = 0; i < playlists.Length; i++)
+            {
+                var (label, r) = playlists[i];
+                float by = y + i * blockH;
+                GUI.Label(new Rect(lx, by, rw * 0.5f, 30f), label + "  -  " + CareerStats.RankTierName(r), tierSt);
+                GUI.Label(new Rect(lx + rw * 0.5f, by, rw * 0.5f, 30f),
+                    r.MatchesPlayed > 0 ? Mathf.RoundToInt(r.Mmr) + " MMR" : "-", mmrSt);
+                GUI.Label(new Rect(lx, by + 30f, rw, 22f),
+                    $"{r.Wins}W - {r.Losses}L - {r.Draws}D  ({r.MatchesPlayed} played)", wldSt);
+                UITheme.Divider(lx, by + blockH - 8f, rw);
             }
         }
 

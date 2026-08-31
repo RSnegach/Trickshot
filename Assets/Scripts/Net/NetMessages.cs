@@ -97,6 +97,11 @@ namespace Trickshot.Net
         // seed is host-chosen and carried here so every peer derives the identical 10-spot schedule.
         public bool fkRandom;
         public uint fkSeed;
+        // Online (ranked drop-in): set only by OnlineQueueUI's auto-host path, never by
+        // HostSetupUI (Friendlies/Other Modes are never ranked). Read by ModeLabel() so a
+        // ranked lobby is distinguishable in the discovery-probe string itself, with no changes
+        // needed to the probe/browse wire format - the existing "mode" string already carries it.
+        public bool onlineRanked;
     }
 
     // Host -> clients: the set-pieces shootout tally. activeShooter = slot currently up;
@@ -436,6 +441,7 @@ namespace Trickshot.Net
             // Accuracy fields appended last so the existing field order stays untouched.
             w.U8(cfg.accWallCount); w.U8(cfg.accTargets);
             w.B(cfg.accTurnByTime); w.U8(cfg.accTurnKicks); w.U32(cfg.accTurnSeconds);
+            w.B(cfg.onlineRanked);   // appended last for the same reason
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); }
@@ -453,7 +459,8 @@ namespace Trickshot.Net
                                     // Accuracy fields, read in the same order they were appended.
                                     accWallCount = r.U8(), accTargets = r.U8(),
                                     accTurnByTime = r.B(), accTurnKicks = r.U8(),
-                                    accTurnSeconds = (ushort)r.U32() };
+                                    accTurnSeconds = (ushort)r.U32(),
+                                    onlineRanked = r.B() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)

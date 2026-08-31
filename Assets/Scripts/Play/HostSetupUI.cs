@@ -13,9 +13,12 @@ namespace Trickshot
     {
         System.Action _onCreated, _onBack;
 
-        // Networkable modes.
-        static readonly GameMode[] Modes = { GameMode.Match, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
-        static readonly string[] ModeNames = { "Match", "Striker", "Set Pieces", "Accuracy" };
+        // Networkable modes. Match is reached ONLY pre-locked now (via Match -> Friendlies -> Host
+        // a Session) - the generic picker (reached via Other Modes) never offers it, so the two
+        // arrays are built per-Init rather than being one static list every path shares.
+        GameMode[] Modes;
+        string[] ModeNames;
+        bool _modeLocked;          // true when Modes has exactly one entry - skip drawing the picker
         int _mode;                 // index into Modes
         int _stadium;
         int _perSide = 3;          // match team size (3/5/11)
@@ -47,9 +50,22 @@ namespace Trickshot
         int _accSeconds = 60;      // turn seconds (<=120) when _accByTime
         string _hostError = "";    // shown when Create couldn't open the host port
 
-        public void Init(System.Action onCreated, System.Action onBack)
+        public void Init(System.Action onCreated, System.Action onBack, GameMode? lockedMode = null)
         {
             _onCreated = onCreated; _onBack = onBack;
+            if (lockedMode.HasValue)
+            {
+                Modes = new[] { lockedMode.Value };
+                ModeNames = new[] { lockedMode.Value == GameMode.Match ? "Match" : lockedMode.Value.ToString() };
+                _modeLocked = true;
+            }
+            else
+            {
+                Modes = new[] { GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
+                ModeNames = new[] { "Striker", "Set Pieces", "Accuracy" };
+                _modeLocked = false;
+            }
+            _mode = 0;
             _stadium = StadiumStyle.SelectedIndex;
             GameInput.CaptureCursor(false);
         }
@@ -60,17 +76,18 @@ namespace Trickshot
             // unchanged, they just fill more of the screen.
             MenuScale.Begin();
             // Accuracy adds four extra option rows (wall / targets / turn format / turn amount).
-            float w = 480f, panelH = Modes[_mode] == GameMode.Accuracy ? 610f : 470f;
+            // A locked single mode skips the picker row entirely (one option is not a choice).
+            float w = 480f, panelH = (Modes[_mode] == GameMode.Accuracy ? 610f : 470f) - (_modeLocked ? 58f : 0f);
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 640f);
             UITheme.Panel(new Rect(x, y, w, panelH), UITheme.Blue);
 
-            UITheme.Title(new Rect(x, y + 12f, w, 36f), "HOST SETUP", 28);
+            UITheme.Title(new Rect(x, y + 12f, w, 36f), _modeLocked ? ModeNames[0].ToUpper() + " - HOST SETUP" : "HOST SETUP", 28);
 
             float lx = x + 30f, lw = w - 60f, row = y + 60f;
             UITheme.Divider(lx, row - 8f, lw);
-            Picker(lx, ref row, lw, "Mode", ModeNames, ref _mode);
+            if (!_modeLocked) Picker(lx, ref row, lw, "Mode", ModeNames, ref _mode);
             // PickerVals, not Picker: the names are filtered to the OFFERED venues, so the button
             // position is no longer the All index, and Create() sends _stadium as the wire byte.
             PickerVals(lx, ref row, lw, "Stadium", StadiumNames(), StadiumStyle.PickableIndices(), ref _stadium);
