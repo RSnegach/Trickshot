@@ -22,10 +22,11 @@ namespace Trickshot
         float _copiedUntil;     // brief "Copied!" confirmation after the Copy button
 
         // Online (ranked drop-in) only: when the lobby last became fully ready (AllReady()).
-        // The host auto-starts once that's held continuously for AutoStartHoldSec, rather than
-        // waiting on a manual Ready/Start button - a drop-in queue is meant to just go, but a new
-        // joiner still gets a window to land before the match locks. -1 = not currently all-ready
-        // (a fresh joiner's own auto-ready message hasn't landed yet, or nobody's here at all).
+        // Readying up is still the player's own manual click (same Ready button as Friendlies -
+        // they get to look at the position picker and jersey vote first), but the HOST auto-
+        // starts once every seated human has stayed ready for AutoStartHoldSec straight, instead
+        // of needing someone to also press Start. -1 = not currently all-ready (someone hasn't
+        // clicked Ready yet, a fresh joiner reset it, or nobody's here at all).
         float _allReadySince = -1f;
         const float AutoStartHoldSec = 10f;
 
@@ -76,22 +77,15 @@ namespace Trickshot
             // handling it locally too would tear down twice.
             Multiplayer.Poll();
 
-            if (_s == null || _started || !_s.Config.onlineRanked) return;
-            // Online drop-in: no manual ready-up - the moment you have a seat, you're in. Kept
-            // sticky (re-applied every frame) rather than a one-shot, so a stray un-ready click
-            // can't stall the host's countdown below.
-            if (_s.LocalSlot >= 0 && !_s.LocalReady) _s.SetReady(true);
-            if (_s.IsHost)
+            if (_s == null || _started || !_s.Config.onlineRanked || !_s.IsHost) return;
+            // A fresh joiner isn't ready yet (same manual click as Friendlies), so AllReady()
+            // goes false the moment they're seated - that's what re-arms the window below,
+            // giving every arrival a fair shot at being seen before the lobby locks.
+            if (!_s.AllReady()) _allReadySince = -1f;
+            else
             {
-                // A new joiner's own auto-ready hasn't landed yet, so AllReady() briefly goes
-                // false the moment they're seated - that's what re-arms the window below, giving
-                // every fresh arrival another AutoStartHoldSec before the lobby locks.
-                if (!_s.AllReady()) _allReadySince = -1f;
-                else
-                {
-                    if (_allReadySince < 0f) _allReadySince = Time.unscaledTime;
-                    if (Time.unscaledTime - _allReadySince >= AutoStartHoldSec) _s.StartMatch();
-                }
+                if (_allReadySince < 0f) _allReadySince = Time.unscaledTime;
+                if (Time.unscaledTime - _allReadySince >= AutoStartHoldSec) _s.StartMatch();
             }
         }
 
@@ -363,6 +357,7 @@ namespace Trickshot
             var head = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
             var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } };
             var rowName = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink } };
+            var voteCount = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Gold } };
             var subBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
 
             float row = top;
@@ -399,8 +394,12 @@ namespace Trickshot
                 if (tex != null) GUI.DrawTexture(trect, tex, ScaleMode.ScaleToFit);
                 else { UITheme.Fill(trect, new Color(1f, 1f, 1f, 0.06f)); GUI.Label(trect, "...", hint); }
 
-                GUI.Label(new Rect(lx + thumb + 10f, row, lw - thumb - 130f, cellH),
+                float nameW = lw - thumb - 130f;
+                GUI.Label(new Rect(lx + thumb + 10f, row, nameW, 20f),
                           s.name + (s.slot == _s.LocalSlot ? "  (you)" : ""), rowName);
+                int votes = NetSession.JerseyVoteCount(roster, s.slot);
+                GUI.Label(new Rect(lx + thumb + 10f, row + 20f, nameW, 18f),
+                          votes == 1 ? "1 vote" : votes + " votes", voteCount);
 
                 bool votedFor = haveMine && mine.voteFor == s.slot;
                 if (UITheme.Toggle(new Rect(lx + lw - 100f, row + (cellH - 26f) * 0.5f, 100f, 26f),

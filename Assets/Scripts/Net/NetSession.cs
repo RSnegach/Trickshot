@@ -280,11 +280,19 @@ namespace Trickshot.Net
             foreach (var s in roster)
             {
                 if (!s.nominated || ScrimTeamOfSlot(s.slot) != team) continue;
-                int votes = 0;
-                foreach (var v in roster) if (v.voteFor == s.slot) votes++;
+                int votes = JerseyVoteCount(roster, s.slot);
                 if (votes > bestVotes) { bestVotes = votes; best = s.slot; }
             }
             return best;
+        }
+
+        // How many votes a candidate slot currently has, straight off Roster - so the lobby's
+        // vote UI can show a live tally without duplicating JerseyWinnerSlot's own count.
+        public static int JerseyVoteCount(LobbySlot[] roster, byte candidateSlot)
+        {
+            int votes = 0;
+            foreach (var v in roster) if (v.voteFor == candidateSlot) votes++;
+            return votes;
         }
 
         // Re-sync the local player's appearance after they re-customize in the lobby (the initial
