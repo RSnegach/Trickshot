@@ -31,7 +31,12 @@ namespace Trickshot
     public class MenuBackground : MonoBehaviour
     {
         // ---- Tuning (all local so the reel is easy to eyeball-adjust) ----
-        const float KeeperAbilityLevel = 1.0f;   // max (Goalkeeper clamps to 1): fastest tracking + longest dive reach
+        // Was 1.0 (max): deliberately the fastest tracking + longest dive reach, for a flashier
+        // reel. But dive reach and reaction speed are the SAME ability lever in Goalkeeper.cs, and
+        // pinning it to the literal maximum showcases the high dive's reach at its absolute upper
+        // bound - reported as diving too far out of the goal. 0.6 keeps him quick and competent
+        // without deliberately dialing reach to the ceiling of what the AI ladder allows.
+        const float KeeperAbilityLevel = 0.6f;
         const float BallSpeedBoost     = 1.5f;   // multiplies launch speed (shortens flight) for punch
         const float PlantOutZ          = 11f;    // metres in front of goal the shooter plants + strikes from
         // Orbit geometry, sized so the camera stays inside the playing surface now that a stadium
