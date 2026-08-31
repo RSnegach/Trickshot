@@ -149,10 +149,18 @@ namespace Trickshot
             // desaturated teal that read as ATMOSPHERE rather than as ground - a flat band behind the
             // stand rather than land. 0.32 still separates the hills from the pitch without dissolving
             // them.
+            //
+            // A handful clustered behind the short end OPPOSITE the buildings, not a full ring around
+            // the venue - Skyline sits at bearing 0 (+Z, behind the attacking goal; see its own doc
+            // comment), so this cluster sits at bearing 0.5 (-Z) instead, on the same narrow arc width
+            // Skyline uses for its own district. Both long sides and the buildings' own end now show a
+            // clean horizon instead of land.
             var hillMat = Make.Mat(Blend(new Color(0.26f, 0.36f, 0.22f), sky, 0.32f), 0.05f);
-            for (int i = 0; i < 26; i++)
+            const int HillCount = 8;
+            const float HillSpan = 0.16f;   // ~58 degrees, matching Skyline's ClusterSpan
+            for (int i = 0; i < HillCount; i++)
             {
-                float t = i / 26f + 0.023f;
+                float t = 0.5f + ((i / (float)(HillCount - 1)) - 0.5f) * HillSpan;
                 Vector3 pos = RingPoint(t, Range(250f, 400f), 55f);
                 float h = Range(26f, 62f);
                 // FOOTPRINT MATTERS MORE THAN HEIGHT at this distance, and the first attempt got it
