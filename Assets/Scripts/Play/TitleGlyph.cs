@@ -11,12 +11,14 @@ namespace Trickshot
     /// badly stretched to hero wordmark scale. 256px here comfortably covers even the most extreme
     /// MenuScale.MaxFactor(2.1) x title-fontSize(132) combination with room to spare.
     ///
-    /// THE DESIGN: a capital K is already a vertical stem plus two diagonals meeting at one vertex.
-    /// A bicycle kick is a torso plus two legs meeting at one hip. Those are the SAME three-stroke
-    /// skeleton, just relabeled - which is what lets this read as "K" at a glance (the eye keys off
-    /// the classic stem+diagonals wedge first) and as a kicker up close, rather than two unrelated
-    /// shapes forced together. The torso is deliberately more upright than a real bicycle kick would
-    /// be, to keep the K legible - a legibility trade-off, not an oversight.
+    /// THE DESIGN: a literal K, not a torso standing in for one. A capital K is a vertical stem
+    /// plus two diagonals meeting at one vertex - here the STEM is the figure's ARMS (one stroke
+    /// straight up from the vertex, one straight down - together they trace the same line a plain
+    /// K's stem would), and the two DIAGONALS are his LEGS, branching up-and-out / down-and-out from
+    /// that same vertex, same as a real K's branches. A small head perches just past the raised
+    /// arm's own tip (the same "sits just past the stroke's end" offset trick as everything else
+    /// here), and a small ring-drawn ball arcs off the top foot - the kicking read the original
+    /// design carried, kept even though the pose is more literally the letter now.
     /// </summary>
     public static class TitleGlyph
     {
@@ -81,6 +83,21 @@ namespace Trickshot
             }
         }
 
+        // Outline circle (a chain of short Strokes around the circumference), for the ball - a
+        // SOLID Dot would just be a blob; the seam-like cross drawn over a ring reads as a ball
+        // via the same negative-space idea SkillIcons.Ball()/MenuIcons.Ball() already use.
+        static void Ring(float cx, float cy, float rad, float w)
+        {
+            int steps = Mathf.CeilToInt(rad * 6.5f) + 8;
+            float px = cx + rad, py = cy;
+            for (int i = 1; i <= steps; i++)
+            {
+                float a = (i / (float)steps) * Mathf.PI * 2f;
+                float x = cx + Mathf.Cos(a) * rad, y = cy + Mathf.Sin(a) * rad;
+                Stroke(px, py, x, y, w); px = x; py = y;
+            }
+        }
+
         static void FillPoly(params float[] p)
         {
             int n = p.Length / 2;
@@ -118,31 +135,41 @@ namespace Trickshot
         // higher y than its leg strokes). All coordinates below are in that 256x256 buffer space.
         static void Draw()
         {
-            // Torso (the K's stem): a slight backward lean, hip vertex at the bottom.
-            Stroke(107f, 171f, 119f, 69f, 30f);
+            // The vertex: the K's own branch point, where the stem meets both diagonals. Arms and
+            // legs both radiate from here, same as a real K's stem meets its two diagonals at one
+            // spot rather than three separate joints.
+            const float vx = 100f, vy = 128f;
 
-            // Head: a solid disc, not a ring - "silhouette" reads as a solid pictogram shape, and a
-            // thin outline (right for a 46px skill badge) is the wrong visual weight at hero scale.
-            Dot(105f, 187f, 19f);
+            // Arms ARE the K's vertical stem - one straight up from the vertex, one straight down,
+            // rather than one continuous stroke, per the brief. Together they trace the same line a
+            // plain K's stem would.
+            Stroke(vx, vy, vx, 205f, 24f);          // arm up
+            Stroke(vx, vy, vx, 38f, 22f);           // arm down
 
-            // Hip vertex (119,69): both legs branch from here - the same point a real K's two
-            // diagonals would meet its stem.
+            // Head: a small solid disc perched just past the raised arm's own tip - the same
+            // "sits just past the stroke's end" offset the original design used for its torso.
+            Dot(vx - 3f, 222f, 17f);
 
-            // Kicking leg: the K's UPPER diagonal, swept up and over the head - the one unambiguous
-            // "bicycle kick" tell. Deliberately overshoots above the head's own top.
-            Stroke(119f, 69f, 159f, 145f, 26f);    // thigh
-            Stroke(159f, 145f, 149f, 209f, 22f);   // shin
-            FillPoly(149f, 209f, 163f, 215f, 155f, 221f, 139f, 217f);   // boot
+            // Kicking leg: the K's UPPER diagonal, up and out from the vertex - the top foot the
+            // ball arcs off of.
+            Stroke(vx, vy, 152f, 168f, 25f);        // thigh
+            Stroke(152f, 168f, 196f, 192f, 20f);    // shin
+            FillPoly(196f, 192f, 210f, 197f, 205f, 207f, 189f, 201f);   // boot
 
-            // Trailing leg: the K's LOWER diagonal, foot landing on the baseline so the glyph stands
-            // on the same line as the surrounding lettering.
-            Stroke(119f, 69f, 163f, 35f, 26f);     // thigh
-            Stroke(163f, 35f, 175f, 29f, 18f);     // toe flick
+            // Trailing leg: the K's LOWER diagonal, down and out from the vertex - a real K's other
+            // branch.
+            Stroke(vx, vy, 155f, 90f, 25f);         // thigh
+            Stroke(155f, 90f, 178f, 78f, 18f);      // toe flick
 
-            // Arms, for balance - kept short so they stay inside the silhouette's own bounding box
-            // rather than widening the glyph past what the TRI/K/SHOT kerning expects.
-            Stroke(111f, 159f, 81f, 145f, 18f);    // back arm
-            Stroke(113f, 153f, 137f, 177f, 16f);   // front arm
+            // A small stylized ball arcing off the top foot: an outline ring, not a solid disc, so
+            // it reads as a ball (not a blob) even shrunk down to the hub's small wordmark size.
+            // Two shrinking trail dots between the boot and the ball read as the arc's motion.
+            const float bx = 222f, by = 212f, br = 12f;
+            Dot(205f, 205f, 5f);
+            Dot(213f, 209f, 7f);
+            Ring(bx, by, br, 4f);
+            Stroke(bx - br * 0.4f, by - br * 0.2f, bx + br * 0.4f, by + br * 0.3f, 2.6f);
+            Stroke(bx - br * 0.1f, by - br * 0.5f, bx - br * 0.1f, by + br * 0.5f, 2.6f);
         }
     }
 }

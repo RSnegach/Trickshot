@@ -462,11 +462,13 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// The "TRICKSHOT" wordmark with the K replaced by TitleGlyph.K (a stick-figure silhouette
-        /// mid-bicycle-kick). Same bloom+shadow+rule treatment as Title(), but the word is drawn as
+        /// The "TRICKSHOT" wordmark with the K replaced by TitleGlyph.K (a figure shaped like the
+        /// letter itself: arms up/down for the stem, legs branching up-and-out/down-and-out for the
+        /// two diagonals). Same bloom+shadow+rule treatment as Title(), but the word is drawn as
         /// three pieces - "TRI", the glyph, "SHOT" - kerned by measuring the real font
-        /// (GUIStyle.CalcSize) rather than a hardcoded offset, so it stays correct at any fontSize
-        /// (this is called at both the splash's hero size and the hub's small top wordmark).
+        /// (GUIStyle.CalcSize) rather than a hardcoded offset, so it stays correct at any fontSize.
+        /// Currently only called at the splash's hero size (the hub dropped its own copy - see
+        /// MenuUI.DrawHub).
         /// </summary>
         public static void TitleWithKickK(Rect r, int fontSize = 132, Color? rule = null)
         {
