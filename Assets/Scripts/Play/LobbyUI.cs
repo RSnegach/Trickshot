@@ -159,6 +159,22 @@ namespace Trickshot
 
                 rosterTop = iy + ih + 10f;
             }
+            else if (_s.IsHost)
+            {
+                // Steam-linked host (mutually exclusive with the direct-IP block above -
+                // Multiplayer.NewTransport() never picks DirectIpTransport when Steam is
+                // available): invite via Steam's OWN overlay dialog rather than a custom
+                // friend-picker - SteamFriendsAPI.OpenInviteDialog is the entire feature.
+                float iy = y + 72f, ih = 44f;
+                UITheme.Chip(new Rect(x + 20f, iy, w - 40f, ih), new Color(0.10f, 0.14f, 0.21f, 0.96f), UITheme.Green);
+                var inviteBtn = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
+                GUI.enabled = SteamFriendsAPI.Available;
+                if (UITheme.Button(new Rect(x + 32f, iy + 7f, w - 64f, ih - 14f),
+                    SteamFriendsAPI.Available ? "Invite Steam Friends" : "Invite Steam Friends (Steam not connected)", inviteBtn))
+                    SteamFriendsAPI.OpenInviteDialog();
+                GUI.enabled = true;
+                rosterTop = iy + ih + 10f;
+            }
 
             // Roster. Match gets Home/Away position columns (below) so friends can pick a team
             // and a shirt, plus a Jerseys tab (submit/vote); every other mode keeps the flat

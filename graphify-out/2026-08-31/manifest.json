@@ -260,8 +260,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/LobbyUI.cs": {
-    "mtime": 1788205344.1492758,
-    "ast_hash": "4de03d9a78788e6e6abeb69b1254356a",
+    "mtime": 1788209811.6235917,
+    "ast_hash": "f4f582be4400cd6b5bdad84a14c14944",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuBackground.cs": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuUI.cs": {
-    "mtime": 1788200764.8386722,
-    "ast_hash": "763d396ced13f56a636a7b781a609205",
+    "mtime": 1788209996.4686298,
+    "ast_hash": "7fa079262b4db432fff93c50c5507a60",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MultiplayerHubUI.cs": {
@@ -855,8 +855,8 @@
     "semantic_hash": ""
   },
   "DESIGN_NOTES.md": {
-    "mtime": 1788136716.201868,
-    "ast_hash": "ea44cec354a79599b879dd175dc69ff0",
+    "mtime": 1788209651.267396,
+    "ast_hash": "e5d791ea2ac867ab66393f9495180edb",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/TitleGlyph.cs": {
@@ -870,8 +870,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/CareerStats.cs": {
-    "mtime": 1788201957.493991,
-    "ast_hash": "260e0ab3cd14ffe132555d74446bc449",
+    "mtime": 1788209399.250619,
+    "ast_hash": "9eb618fda2d212d0d1a2d2dacc32ee5e",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/CareerStatsUI.cs": {
@@ -885,8 +885,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetMatch.cs": {
-    "mtime": 1788204237.0158694,
-    "ast_hash": "db527006ee2100b68b1ee40f5b7ce5f2",
+    "mtime": 1788209580.2975879,
+    "ast_hash": "061d54eebd22063da0e093bb14b987f5",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/MatchArena.cs": {
@@ -912,6 +912,61 @@
   "Assets/Scripts/Play/OnlineQueueUI.cs": {
     "mtime": 1788202895.992069,
     "ast_hash": "688e0f79de5d93c3f4f0833cbdee7a6c",
+    "semantic_hash": ""
+  },
+  ".firecrawl/scrape-g2a.json": {
+    "mtime": 1788207085.248078,
+    "ast_hash": "450428ba047f2b18af9a3e14d12f1b7b",
+    "semantic_hash": ""
+  },
+  ".firecrawl/scrape-lagofast.json": {
+    "mtime": 1788207090.3149805,
+    "ast_hash": "74d3b451346033e3945cc294cbeaf748",
+    "semantic_hash": ""
+  },
+  ".firecrawl/search-meccha-chameleon.json": {
+    "mtime": 1788207056.6146827,
+    "ast_hash": "b8d38d749fe506d387ac9bcd9c5e5b5e",
+    "semantic_hash": ""
+  },
+  ".synth.json": {
+    "mtime": 1788208419.5597155,
+    "ast_hash": "3139bc2da4fc4317394777f35d9af7cc",
+    "semantic_hash": ""
+  },
+  ".verify.json": {
+    "mtime": 1788208419.6190736,
+    "ast_hash": "afa1aa2b4380ebe32f0ab5b262f68394",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/SteamFriendsAPI.cs": {
+    "mtime": 1788209359.3914416,
+    "ast_hash": "44cdfa2dc194fbb212b1d683a8064e10",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/SteamAchievementsAPI.cs": {
+    "mtime": 1788209371.9407196,
+    "ast_hash": "c4d334ddea51b35cfb6f49f4de7a963e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Achievements.cs": {
+    "mtime": 1788209873.289554,
+    "ast_hash": "ed91be09b82d964e959342e15da5ba8f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NotificationToastUI.cs": {
+    "mtime": 1788209930.9437335,
+    "ast_hash": "1bff136dc36d9b80250424fa6fb88dc7",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/FriendsPanelUI.cs": {
+    "mtime": 1788210047.8725934,
+    "ast_hash": "68315652189914e6e297fb4ec25ac765",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AchievementsPanelUI.cs": {
+    "mtime": 1788209623.8179667,
+    "ast_hash": "efec88cd9adc6b98029a6b531136af89",
     "semantic_hash": ""
   }
 }

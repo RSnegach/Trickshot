@@ -82,6 +82,10 @@ namespace Trickshot
         public ModeStats SP = new ModeStats();
         public ModeStats MP = new ModeStats();
         public OnlineRanks Rank = new OnlineRanks();
+        // Online (ranked) only - MP.MatchGoals above counts Friendlies too, and nothing else
+        // tracks a goals total scoped to ranked play alone. Bumped only inside RecordRankedMatch,
+        // same gate as Rank itself. Exists for achievement checks (see Achievements.cs).
+        public int OnlineGoals;
     }
 
     /// <summary>
@@ -236,13 +240,14 @@ namespace Trickshot
         /// MMR is synced the same way, pass the real opposing average here and this becomes a
         /// genuine Elo update with no other change.
         /// </summary>
-        public static void RecordRankedMatch(int perSide, int result, float? opponentAvgMmr = null)
+        public static void RecordRankedMatch(int perSide, int result, int goals = 0, float? opponentAvgMmr = null)
         {
             var r = RankFor(perSide);
             r.MatchesPlayed++;
             if (result > 0) r.Wins++;
             else if (result < 0) r.Losses++;
             else r.Draws++;
+            Data.OnlineGoals += goals;
 
             float actual = result > 0 ? 1f : result < 0 ? 0f : 0.5f;
             float opp = opponentAvgMmr ?? r.Mmr;
@@ -251,6 +256,11 @@ namespace Trickshot
             r.Mmr += K * (actual - expected);
             Save();
         }
+
+        /// <summary>Total ranked wins across every playlist (3v3+5v5+11v11) - for a "win N online
+        /// matches" achievement, which doesn't care which playlist they came from.</summary>
+        public static int TotalOnlineWins()
+            => Data.Rank.ThreeVThree.Wins + Data.Rank.FiveVFive.Wins + Data.Rank.ElevenVEleven.Wins;
 
         // Division names by MMR, tuned around the 1000 baseline. Simple, visible thresholds -
         // easy to retune.

@@ -37,6 +37,10 @@ namespace Trickshot
         bool _optionsOpen;
         CareerStatsUI _careerStats;
 
+        // Small Friends/Achievements chips, bottom-right of the Hub only (see DrawHub). Mutually
+        // exclusive flyouts - opening one closes the other.
+        bool _showFriends, _showAchievements;
+
         public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null,
                          GameInput input = null)
         {
@@ -145,6 +149,38 @@ namespace Trickshot
             if (hasOptions && UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("options"),
                 "Options", "Keybinds, audio, and camera settings"))
                 _optionsOpen = true;
+
+            DrawCornerTabs(marginX);
+        }
+
+        // Small Friends/Achievements chips in the bottom-right corner - the only place on this
+        // screen they belong, per the request ("the first screen after clicking any button to
+        // continue"). Flyouts open UPWARD from the chip so they never run off the bottom edge.
+        void DrawCornerTabs(float marginX)
+        {
+            const float chipW = 150f, chipH = 40f, chipGap = 10f;
+            const float panelW = 320f, panelH = 260f;
+            float chipY = MenuScale.Height - 24f - chipH;
+            float achX = MenuScale.Width - marginX - chipW;
+            float frX = achX - chipGap - chipW;
+
+            var chipBtn = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
+
+            if (UITheme.Toggle(new Rect(frX, chipY, chipW, chipH), "FRIENDS", _showFriends, chipBtn, UITheme.GoodTint))
+            {
+                _showFriends = !_showFriends;
+                if (_showFriends) { _showAchievements = false; FriendsPanelUI.OnOpened(); }
+            }
+            if (UITheme.Toggle(new Rect(achX, chipY, chipW, chipH), "ACHIEVEMENTS", _showAchievements, chipBtn, UITheme.GoodTint))
+            {
+                _showAchievements = !_showAchievements;
+                if (_showAchievements) _showFriends = false;
+            }
+
+            if (_showFriends)
+                FriendsPanelUI.Draw(new Rect(frX, chipY - panelH - 10f, panelW, panelH), () => _showFriends = false);
+            if (_showAchievements)
+                AchievementsPanelUI.Draw(new Rect(achX + chipW - panelW, chipY - panelH - 10f, panelW, panelH), () => _showAchievements = false);
         }
 
         // Consolidates what used to be two separate things (the top-level Striker/Goalkeeper
