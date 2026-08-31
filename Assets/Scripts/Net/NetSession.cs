@@ -1038,6 +1038,30 @@ namespace Trickshot.Net
         // Host: give a newly-hello'd client the lowest free SHOOTER slot (1..N); if none,
         // and slot 0 (keeper) is free, give them the keeper; else spectator. Then re-push
         // the full roster (+ config) so everyone, including the new joiner, is in sync.
+        // Which Match team GrantSlot should try first: whichever has fewer humans right now,
+        // ties going to Home. See GrantSlot's Match branch.
+        int PreferredMatchTeam()
+        {
+            int home = 0, away = 0;
+            for (int s = 0; s < ScrimSlotsPerTeam; s++) if (_slotOwner[s].IsValid) home++;
+            for (int s = ScrimSlotsPerTeam; s < MaxSlots; s++) if (_slotOwner[s].IsValid) away++;
+            return away < home ? 1 : 0;
+        }
+
+        // Within one Match team: lowest free outfield shirt first, then that team's own keeper
+        // (shirt 0) - the same per-team priority GrantSlot's non-Match branch uses, just scoped
+        // to one team's ScrimSlotsPerTeam slots instead of walking the whole board.
+        int GrantWithinTeam(int team)
+        {
+            int baseSlot = team * ScrimSlotsPerTeam;
+            for (int shirt = 1; shirt < ScrimSlotsPerTeam; shirt++)
+            {
+                int s = baseSlot + shirt;
+                if (!_slotOwner[s].IsValid && SlotAllowed(s)) return s;
+            }
+            return !_slotOwner[baseSlot].IsValid && SlotAllowed(baseSlot) ? baseSlot : -1;
+        }
+
         void GrantSlot(PeerId peer, string name, PlayerAppearance appearance, byte version)
         {
             // FIRST, before the peer is recorded or given anything. A build that does not share our
@@ -1076,22 +1100,30 @@ namespace Trickshot.Net
                 return;
             }
             int granted = -1;
-            // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
-            // (MaxSlots-1). Players re-pick any free role in the lobby afterward.
-            //
-            // Every branch below is SlotAllowed-gated, so the match per-side cap is enforced by
-            // the same search that already skipped the crosser. In a 3-a-side lobby that leaves the
-            // allowed set {0,1,2,4,5,6} and this walk fills 1, 2, 4, 5, 6, then 0 - six seats
-            // against a maxPlayers of six, so the two limits bite together instead of one silently
-            // over-admitting. The order is unchanged and is still lopsided (Away's keeper fills
-            // before Home's), which the lobby's role picker exists to fix.
-            for (int s = 1; s < CrosserSlot; s++)
-                if (!_slotOwner[s].IsValid && SlotAllowed(s)) { granted = s; break; }
-            if (granted < 0 && !_slotOwner[0].IsValid && SlotAllowed(0)) granted = 0;
-            // The crosser is only a real playable role in STRIKER mode; the set-piece/accuracy
-            // drivers skip that slot entirely (no body, no camera, never in the shooter rotation),
-            // so handing it out there stranded the player. SlotAllowed gates it by mode.
-            if (granted < 0 && !_slotOwner[CrosserSlot].IsValid && SlotAllowed(CrosserSlot)) granted = CrosserSlot;
+            if ((GameMode)Config.mode == GameMode.Match)
+            {
+                // Two real teams: fill whichever has fewer humans first, so strangers dropping
+                // into an empty lobby alternate sides instead of both landing on Home (the old
+                // flat 1..6 walk filled every Home shooter before ever touching Away). Ties -
+                // including the very first joiner, 0 vs 0 - prefer Home, matching today's
+                // starting behaviour. Friendlies' position picker can always override this by
+                // hand; this only decides where an unclaimed join FIRST lands.
+                int first = PreferredMatchTeam(), second = 1 - first;
+                granted = GrantWithinTeam(first);
+                if (granted < 0) granted = GrantWithinTeam(second);
+            }
+            else
+            {
+                // Lowest free SHOOTER slot (1..MaxSlots-2), then keeper (0), then crosser
+                // (MaxSlots-1). Players re-pick any free role in the lobby afterward.
+                for (int s = 1; s < CrosserSlot; s++)
+                    if (!_slotOwner[s].IsValid && SlotAllowed(s)) { granted = s; break; }
+                if (granted < 0 && !_slotOwner[0].IsValid && SlotAllowed(0)) granted = 0;
+                // The crosser is only a real playable role in STRIKER mode; the set-piece/accuracy
+                // drivers skip that slot entirely (no body, no camera, never in the shooter rotation),
+                // so handing it out there stranded the player. SlotAllowed gates it by mode.
+                if (granted < 0 && !_slotOwner[CrosserSlot].IsValid && SlotAllowed(CrosserSlot)) granted = CrosserSlot;
+            }
             // Respect the host's player cap (Host(maxPlayers)); it used to be accepted and dropped,
             // so 8 humans could pile into a 2v2 lobby.
             if (granted >= 0 && HumanCount() >= _maxPlayers) granted = -1;
