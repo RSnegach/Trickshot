@@ -95,6 +95,9 @@ namespace Trickshot
                 // swallow the raw key read that lands a frame after the IMGUI close). Escape closes the
                 // field and must NOT also open the pause menu.
                 if (QuickChatFeed.EscapeOwned) return;
+                // Same reasoning: the cross-targeting map (GameManager, single-player striker) closes
+                // on Escape too, and must not ALSO open the pause menu on that same press.
+                if (GameManager.CrossMapEscapeOwned) return;
 
                 // Back out one level at a time: confirm card -> options -> buttons -> unpause.
                 if (_confirmAct != null) { ClearConfirm(); return; }

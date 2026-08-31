@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Trickshot
 {
@@ -47,6 +48,17 @@ namespace Trickshot
         Vector3 _crossTarget = SimConfig.ServeTarget;
         Vector3 _crosserSpot = SimConfig.CrosserStart;
         int _crossEdit;
+
+        // PauseMenu owns Escape globally and reacts to it in its OWN Update, independent of this
+        // one - so Escape closing the map here and PauseMenu opening on the very same press is a
+        // real race, not a hypothetical (Update order between the two is unspecified). Same fix as
+        // QuickChatFeed.EscapeOwned: a static flag PauseMenu checks to skip its own action, true
+        // while the map is open AND for one extra frame after close, so PauseMenu still skips even
+        // if its Update happens to run right after the frame this one closed the map.
+        static bool s_crossMapOpenStatic;
+        static int s_crossMapClosedFrame = -10;
+        public static bool CrossMapEscapeOwned
+            => s_crossMapOpenStatic || (Time.frameCount - s_crossMapClosedFrame) <= 1;
         bool _crossGround;   // Crosser tab: false = lofted air cross (default), true = ground cross
 
         // Post-goal broadcast replay. Records a rolling window; on a goal it freezes play
@@ -148,7 +160,11 @@ namespace Trickshot
 
             // Cross-targeting map (M): toggle. While open, the striker doesn't tick (aiming
             // is frozen) so you can click the map without steering, and the cursor is freed.
+            // Escape also closes it (never opens it) - a second way out for a mouse-only reflex,
+            // matching every other overlay in the game (options, quickchat, pause itself).
             if (_input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
+            else if (_crossMapOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                SetCrossMapOpen(false);
             if (_crossMapOpen)
             {
                 if (_keeper != null) _keeper.Tick();
@@ -319,6 +335,8 @@ namespace Trickshot
         void SetCrossMapOpen(bool open)
         {
             _crossMapOpen = open;
+            s_crossMapOpenStatic = open;
+            if (!open) s_crossMapClosedFrame = Time.frameCount;
             GameInput.CaptureCursor(!open);
             if (_cam != null) _cam.FreezeLook = open;   // hold the view still while placing on the map
             if (!open)
@@ -376,7 +394,7 @@ namespace Trickshot
                 }
                 Hud.OverlayLabel(mapRect,
                                  _crossEdit == 1 ? "PLACE THE CROSSER" : "WHERE SHOULD CROSSES LAND?",
-                                 "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M to close.",
+                                 "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M or Esc to close.",
                                  60f);
             }
 
