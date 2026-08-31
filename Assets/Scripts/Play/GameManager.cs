@@ -129,7 +129,10 @@ namespace Trickshot
             if (PlayerProfile.PerkMaestro) acc = 1f;
             float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
             _crosser.ServeNow(target, lofted, 0.5f, scatter);
-            _attempts++; _resolved = false; _save.Arm();
+            // _attempts is NOT bumped here - ServeNow only arms the windup, and the completion
+            // block below (both _crosser.Tick() sites) already counts every actual launch,
+            // manual or auto. Counting it here too double-counted every manual call-for-cross.
+            _resolved = false; _save.Arm();
         }
 
         void Update()
