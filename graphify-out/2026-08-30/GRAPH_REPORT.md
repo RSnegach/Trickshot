@@ -1,7 +1,7 @@
 # Graph Report - Trickshot  (2026-08-30)
 
 ## Corpus Check
-- 143 files · ~666,354 words
+- 143 files · ~666,457 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -472,8 +472,8 @@ Cohesion: 0.17
 Nodes (12): com.unity.ext.nunit, com.unity.test-framework, dependencies, depth, source, version, dependencies, depth (+4 more)
 
 ### Community 72 - ".AdvanceTurn"
-Cohesion: 0.14
-Nodes (14): Action, List, Action, bool, ConcurrentQueue, float, IPAddress, IPEndPoint (+6 more)
+Cohesion: 0.18
+Nodes (12): Action, bool, ConcurrentQueue, float, IPAddress, IPEndPoint, List, string (+4 more)
 
 ### Community 73 - ".Build"
 Cohesion: 0.17
@@ -540,8 +540,8 @@ Cohesion: 0.38
 Nodes (4): Vector3, KeeperPose, b, e
 
 ### Community 89 - ".Set"
-Cohesion: 0.07
-Nodes (18): bool, int, string, ulong, LobbyAdvert, LobbyInfo, NetChannel, Action (+10 more)
+Cohesion: 0.06
+Nodes (20): Action, List, bool, int, string, ulong, LobbyAdvert, LobbyInfo (+12 more)
 
 ### Community 90 - "MenuUI"
 Cohesion: 0.18
