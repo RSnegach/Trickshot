@@ -118,7 +118,7 @@ namespace Trickshot
         // session; loose-ball trapping / open-play contacts are unaffected (they stay grounded).
         public bool MatchLoftKicks { get; set; }
 
-        // NO-CARRY modes (Striker, Freeplay, Time Trial): no Dribble is enabled anywhere, so a
+        // NO-CARRY modes (Striker): no Dribble is enabled anywhere, so a
         // dead touch has nothing to hand the ball to and used to leave it resting between the
         // striker's boots. While true a dead touch is pushed clear of the body instead (see the
         // deadTrap branch in OnCollisionEnter). Set by GameBootstrap / NetStrikerMatch.

@@ -31,19 +31,9 @@ namespace Trickshot
         public int AccuracyBestScore;
         public long AccuracyTotalScore;
 
-        // ---- Time Trial ----
-        public int TimeTrialRunsPlayed;
-        public int TimeTrialCrosses;
-        public int TimeTrialGoals;
-        public int TimeTrialBestRunGoals;
-
         // ---- Free Kick / Penalty ----
         public int FreeKickAttempts;
         public int FreeKickGoals;
-
-        // ---- Freeplay ----
-        public int FreeplayCrosses;
-        public int FreeplayGoals;
 
         // ---- Match (was Scrimmage) ----
         public int MatchesPlayed;
@@ -168,23 +158,9 @@ namespace Trickshot
             Save();
         }
 
-        // ---- Time Trial (single-player only) ----
-        public static void RecordTimeTrialCross() { Data.SP.TimeTrialCrosses++; Save(); }
-        public static void RecordTimeTrialGoal() { Data.SP.TimeTrialGoals++; Save(); }
-        public static void RecordTimeTrialRunEnd(int goals)
-        {
-            Data.SP.TimeTrialRunsPlayed++;
-            if (goals > Data.SP.TimeTrialBestRunGoals) Data.SP.TimeTrialBestRunGoals = goals;
-            Save();
-        }
-
         // ---- Free Kick / Penalty (single-player only) ----
         public static void RecordFreeKickAttempt() { Data.SP.FreeKickAttempts++; Save(); }
         public static void RecordFreeKickGoal() { Data.SP.FreeKickGoals++; Save(); }
-
-        // ---- Freeplay (single-player only) ----
-        public static void RecordFreeplayCross() { Data.SP.FreeplayCrosses++; Save(); }
-        public static void RecordFreeplayGoal() { Data.SP.FreeplayGoals++; Save(); }
 
         // ---- Match (SP and, from the host's own side, MP) ----
         // result: +1 win, 0 draw, -1 loss (from the local human's own side).

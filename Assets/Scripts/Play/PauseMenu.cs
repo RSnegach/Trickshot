@@ -74,8 +74,6 @@ namespace Trickshot
             {
                 case GameMode.Striker:    return "Striker";
                 case GameMode.Goalkeeper: return "Goalkeeper";
-                case GameMode.Freeplay:   return "Freeplay";
-                case GameMode.TimeTrial:  return "Time Trial";
                 case GameMode.Accuracy:   return "Accuracy";
                 case GameMode.FreeKick:   return SimConfig.PenaltyMode ? "Penalties" : "Free Kick";
                 case GameMode.Match:  return "Match";

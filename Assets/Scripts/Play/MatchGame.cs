@@ -14,7 +14,7 @@ namespace Trickshot
     ///  - Keeper role: the human controls the Home keeper (KeeperController) the whole
     ///    match; every outfielder is AI.
     ///
-    /// Scoring: geometric per-frame test at each goal (like FreeplayGame). Ball into the
+    /// Scoring: geometric per-frame test at each goal. Ball into the
     /// +Z goal = Away scores; into the -Z goal = Home scores. Reset to kickoff after a goal.
     /// </summary>
     public class MatchGame : MonoBehaviour

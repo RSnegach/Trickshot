@@ -540,8 +540,6 @@ namespace Trickshot
             switch (mode)
             {
                 case GameMode.Goalkeeper: BuildKeeperMode(root, cam, gameCam, ball, arena); break;
-                case GameMode.Freeplay:
-                case GameMode.TimeTrial:  BuildChallengeMode(mode, root, cam, gameCam, ball, arena); break;
                 // Accuracy is now a free-kick shooting gallery (dead ball + SetPieceTaker at
                 // pop-up targets), so it builds like a set piece, not like the crosser-served
                 // challenge modes.
@@ -773,39 +771,6 @@ namespace Trickshot
               .Configure(GetInput(), ball, striker, ragdoll, keeper, keeperRagdoll, wall, gameCam);
 
             LockCursor();
-        }
-
-        // ------------------------------------------------- Freeplay / Time Trial
-        void BuildChallengeMode(GameMode mode, Transform root, Camera cam, GameCamera gameCam,
-                                BallController ball, Arena.Refs arena)
-        {
-            BuildCrosser(root, ball, out var crosser, out var crosserRagdoll, out var launch, out var reticle);
-            BuildStrikerPlayer(root, ball, out var striker, out var ragdoll, out var dribble);
-
-            // NO carry in the volley challenge modes either. The capture gate was taking a
-            // settling cross and leashing it to his boots, which turned the volley he was lining
-            // up into a point-blank dribble poke. The ball is now only ever struck where it lies,
-            // and a mistimed dead touch is pushed clear instead of trapped (NoCarry).
-            // Reversible in two lines: Enabled = true, NoCarry = false.
-            dribble.Enabled = false;
-            ball.NoCarry = true;
-
-            // Both challenge modes honour the pre-match keeper ability slider now: 0 leaves the goal
-            // open (BuildAiKeeper returns null), anything else puts an AI keeper on the line.
-            var keeper = BuildAiKeeper(root, ball, out _);
-
-            gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
-            ball.SetCamera(gameCam);   // auto ball-cam on a shot
-
-            var go = new GameObject(mode + "Game");
-            go.transform.SetParent(root, true);
-            if (mode == GameMode.Freeplay)
-                go.AddComponent<FreeplayGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
-            else
-                go.AddComponent<TimeTrialGame>().Configure(GetInput(), crosser, reticle, ball, striker, ragdoll, keeper, gameCam, launch);
-
-            LockCursor();
-            ball.ResetTo(launch.position);
         }
 
         // ------------------------------------------------ Free Kick / Penalty mode

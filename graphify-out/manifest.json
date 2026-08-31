@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/BallController.cs": {
-    "mtime": 1788196648.325257,
-    "ast_hash": "d76a1049cd91632152403bd010c85fe6",
+    "mtime": 1788201090.2112343,
+    "ast_hash": "cf9221d77a2549b5d513eee3c5b42a5d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Celebration.cs": {
@@ -147,11 +147,6 @@
   "Assets/Scripts/Play/FreeKickGame.cs": {
     "mtime": 1788187172.820182,
     "ast_hash": "c4c2cc169bd4360500839b4aa7761332",
-    "semantic_hash": ""
-  },
-  "Assets/Scripts/Play/FreeplayGame.cs": {
-    "mtime": 1788187205.6459026,
-    "ast_hash": "db715c2f8a80d978300a61c4c34e2b1d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/GameCamera.cs": {
@@ -275,8 +270,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuUI.cs": {
-    "mtime": 1788195996.0506823,
-    "ast_hash": "5576da654e17e93e460fde20626a363f",
+    "mtime": 1788200764.8386722,
+    "ast_hash": "763d396ced13f56a636a7b781a609205",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MultiplayerHubUI.cs": {
@@ -305,8 +300,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/PauseMenu.cs": {
-    "mtime": 1788196008.024155,
-    "ast_hash": "77d8364d5767537b42d93e2d890cac89",
+    "mtime": 1788200791.8919947,
+    "ast_hash": "1acd8a9c754a1e1f6da013d712b3486b",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/PlayerPreview.cs": {
@@ -315,8 +310,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/PrematchUI.cs": {
-    "mtime": 1788196130.3214738,
-    "ast_hash": "6e1c62629f1972efc6327ca9bc6e8677",
+    "mtime": 1788201031.174411,
+    "ast_hash": "d0f2af069548807ec63e046a08558be0",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/ReplaySystem.cs": {
@@ -379,11 +374,6 @@
     "ast_hash": "54fffce6db19ef99ab3382f59d636edc",
     "semantic_hash": ""
   },
-  "Assets/Scripts/Play/TimeTrialGame.cs": {
-    "mtime": 1788186923.891618,
-    "ast_hash": "b931882d094979ec57a57a82110eecab",
-    "semantic_hash": ""
-  },
   "Assets/Scripts/Ragdoll/ActiveRagdoll.cs": {
     "mtime": 1788143263.581534,
     "ast_hash": "aa0f0d20c2a9f4f823613502e1b5bcf8",
@@ -415,8 +405,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
-    "mtime": 1788196615.3445396,
-    "ast_hash": "e7271f7505f256a3562c8c3075c9aac4",
+    "mtime": 1788201167.400188,
+    "ast_hash": "361a1545b91934d6cfd7968497c40313",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/Make.cs": {
@@ -440,8 +430,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/SimConfig.cs": {
-    "mtime": 1788196844.4317431,
-    "ast_hash": "cee431e712fd2a2f2be09be261dc32f2",
+    "mtime": 1788201299.5841296,
+    "ast_hash": "a6e4c77fcb0027252390d21aa4182351",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/SkillTree.cs": {
@@ -525,8 +515,8 @@
     "semantic_hash": "a828f2c2b7926df90f0c472affeec564"
   },
   "Assets/Scripts/Sim/AudioManager.cs": {
-    "mtime": 1788196812.2896755,
-    "ast_hash": "300e636180103891a25ec9858766a7ce",
+    "mtime": 1788201067.9806144,
+    "ast_hash": "b7f4a79be956f8a5965f12df0c189326",
     "semantic_hash": ""
   },
   "Assets/Resources/Audio/applause.mp3": {
@@ -880,18 +870,18 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/CareerStats.cs": {
-    "mtime": 1788196950.9562752,
-    "ast_hash": "73c13a34d905f07f6283b67756963d5b",
+    "mtime": 1788201355.5344462,
+    "ast_hash": "38bd062e4afdd31f14369e9259e541d9",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/CareerStatsUI.cs": {
-    "mtime": 1788198033.155501,
-    "ast_hash": "4751c84411b8b2cdec5cd1d2d814e312",
+    "mtime": 1788201481.2277148,
+    "ast_hash": "c8cbfb7a3c4ef18690db4a40e3abb27c",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MatchGame.cs": {
-    "mtime": 1788199161.3339977,
-    "ast_hash": "80b21f480711d52ea1857b37abdd88aa",
+    "mtime": 1788201317.863317,
+    "ast_hash": "7c03b427cff3ca8fa92f6816a1e17cec",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetMatch.cs": {

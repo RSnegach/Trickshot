@@ -18,7 +18,7 @@ namespace Trickshot
     /// </summary>
     public class CareerStatsUI
     {
-        enum Cat { Overall, Striker, Goalkeeper, Accuracy, TimeTrial, FreeKick, Freeplay, Match, Friends }
+        enum Cat { Overall, Striker, Goalkeeper, Accuracy, FreeKick, Match, Friends }
         int _cat;
 
         // Reset-all confirm. Same shape as PauseMenu's _confirmAct/_confirmTitle/_confirmBody/
@@ -36,9 +36,7 @@ namespace Trickshot
                 case Cat.Striker:    return "STRIKER";
                 case Cat.Goalkeeper: return "GOALKEEPER";
                 case Cat.Accuracy:   return "ACCURACY";
-                case Cat.TimeTrial:  return "TIME TRIAL";
                 case Cat.FreeKick:   return "FREE KICK";
-                case Cat.Freeplay:   return "FREEPLAY";
                 case Cat.Match:      return "MATCH";
                 default:             return "FRIENDS";
             }
@@ -99,9 +97,7 @@ namespace Trickshot
                 case Cat.Striker:    return StrikerRows();
                 case Cat.Goalkeeper: return GoalkeeperRows();
                 case Cat.Accuracy:   return AccuracyRows();
-                case Cat.TimeTrial:  return TimeTrialRows();
                 case Cat.FreeKick:   return FreeKickRows();
-                case Cat.Freeplay:   return FreeplayRows();
                 default:             return MatchRows();
             }
         }
@@ -117,9 +113,9 @@ namespace Trickshot
                 ("Crosses (all modes)", OverallCrosses(sp).ToString(), OverallCrosses(mp).ToString()),
             };
         }
-        static int OverallGoals(ModeStats d) => d.StrikerGoals + d.TimeTrialGoals + d.FreeKickGoals + d.FreeplayGoals + d.MatchGoals;
+        static int OverallGoals(ModeStats d) => d.StrikerGoals + d.FreeKickGoals + d.MatchGoals;
         static int OverallSaves(ModeStats d) => d.KeeperSaves + d.MatchSaves;
-        static int OverallCrosses(ModeStats d) => d.StrikerCrosses + d.TimeTrialCrosses + d.FreeplayCrosses;
+        static int OverallCrosses(ModeStats d) => d.StrikerCrosses;
 
         static (string, string, string)[] StrikerRows()
         {
@@ -158,18 +154,6 @@ namespace Trickshot
             };
         }
 
-        static (string, string, string)[] TimeTrialRows()
-        {
-            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
-            return new[]
-            {
-                ("Runs played", sp.TimeTrialRunsPlayed.ToString(), mp.TimeTrialRunsPlayed.ToString()),
-                ("Crosses", sp.TimeTrialCrosses.ToString(), mp.TimeTrialCrosses.ToString()),
-                ("Goals scored", sp.TimeTrialGoals.ToString(), mp.TimeTrialGoals.ToString()),
-                ("Best run (goals)", sp.TimeTrialBestRunGoals.ToString(), mp.TimeTrialBestRunGoals.ToString()),
-            };
-        }
-
         static (string, string, string)[] FreeKickRows()
         {
             var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
@@ -178,16 +162,6 @@ namespace Trickshot
                 ("Attempts", sp.FreeKickAttempts.ToString(), mp.FreeKickAttempts.ToString()),
                 ("Goals scored", sp.FreeKickGoals.ToString(), mp.FreeKickGoals.ToString()),
                 ("Conversion", Pct(sp.FreeKickGoals, sp.FreeKickAttempts), Pct(mp.FreeKickGoals, mp.FreeKickAttempts)),
-            };
-        }
-
-        static (string, string, string)[] FreeplayRows()
-        {
-            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
-            return new[]
-            {
-                ("Crosses", sp.FreeplayCrosses.ToString(), mp.FreeplayCrosses.ToString()),
-                ("Goals scored", sp.FreeplayGoals.ToString(), mp.FreeplayGoals.ToString()),
             };
         }
 

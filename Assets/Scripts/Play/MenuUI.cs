@@ -5,9 +5,10 @@ namespace Trickshot
     // Core roles plus the single-player modes and the full match.
     // SetPieces = networked free-kick shootout (also playable solo via the FreeKick build).
     // NOTE: append new values at the END - MatchConfig sends GameMode as a byte over the wire.
-    // Match is at the same position (byte value 6) it always was as Scrimmage - only the
-    // token was renamed, never reordered.
-    public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Match, SetPieces }
+    // Freeplay and TimeTrial were removed outright (not just reordered) - pre-release, no
+    // external client needs the old byte values to stay stable, so every value after them
+    // shifted down rather than leaving a permanent gap.
+    public enum GameMode { Striker, Goalkeeper, Accuracy, FreeKick, Match, SetPieces }
 
     /// <summary>
     /// IMGUI start menu, two screens: a title SPLASH (the wordmark + "press any key"), then a
@@ -153,13 +154,12 @@ namespace Trickshot
         {
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
 
-            // Two columns x 4 rows. A single column of 8 (tried first) clipped the title off the
-            // top of the screen: MenuScale.Height is NOT a fixed 760 - it shrinks with the real
-            // window size and the UI Scale option (measured live at 649.8 in this session's
-            // window), and 8 stacked rows plus a title needed more room than that virtual canvas
-            // reliably has. Two columns halves the footprint and fits comfortably instead.
+            // Two columns x 3 rows, since Freeplay/TimeTrial's removal dropped this from 8 entries
+            // to 6 - kept the same tested two-column shape (a single column of 8 measurably
+            // clipped the title against MenuScale.Height's real, UI-Scale-shrunk size) rather than
+            // risking an untested single-column-of-6 against the same constraint.
             float w = 320f, h = 52f, gap = 16f, colGap = 40f;
-            float totalH = h * 4f + gap * 3f;
+            float totalH = h * 3f + gap * 2f;
             float cy = MenuScale.Height * 0.5f - totalH * 0.5f;
             float cxL = MenuScale.Width * 0.5f - (w * 2f + colGap) * 0.5f;
             float cxR = cxL + w + colGap;
@@ -170,12 +170,10 @@ namespace Trickshot
             if (UITheme.Button(new Rect(cxL, cy, w, h), "Striker", btn, markerBar: false)) Choose(GameMode.Striker);
             if (UITheme.Button(new Rect(cxL, cy + (h + gap), w, h), "Goalkeeper", btn, markerBar: false)) Choose(GameMode.Goalkeeper);
             if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Match", btn, markerBar: false)) Choose(GameMode.Match);
-            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 3f, w, h), "Freeplay", btn, markerBar: false)) Choose(GameMode.Freeplay);
 
-            if (UITheme.Button(new Rect(cxR, cy, w, h), "Time Trial", btn, markerBar: false)) Choose(GameMode.TimeTrial);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap), w, h), "Accuracy", btn, markerBar: false)) Choose(GameMode.Accuracy);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 2f, w, h), "Free Kick / Penalty", btn, markerBar: false)) Choose(GameMode.FreeKick);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 3f, w, h), "Back", btn, markerBar: false)) _phase = Phase.Hub;
+            if (UITheme.Button(new Rect(cxR, cy, w, h), "Accuracy", btn, markerBar: false)) Choose(GameMode.Accuracy);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap), w, h), "Free Kick / Penalty", btn, markerBar: false)) Choose(GameMode.FreeKick);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 2f, w, h), "Back", btn, markerBar: false)) _phase = Phase.Hub;
         }
 
         // Career Stats / Zoo: an honest placeholder, not fabricated data - see the class doc.

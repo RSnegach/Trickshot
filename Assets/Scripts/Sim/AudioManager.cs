@@ -229,7 +229,7 @@ namespace Trickshot
             if (_ambient[1] != null) _ambient[1].volume = crowd * (1f - t);
         }
 
-        // Match 15-20s; every other action mode (Striker/GK/Accuracy/TimeTrial/Freeplay) 60-90s.
+        // Match 15-20s; every other action mode (Striker/GK/Accuracy) 60-90s.
         float NextSwellInterval() =>
             _mode == GameMode.Match ? Random.Range(15f, 20f) : Random.Range(60f, 90f);
 

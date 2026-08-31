@@ -36,7 +36,6 @@ namespace Trickshot
         static float _shotDifficulty = 0.5f, _keeperSpeed = 1f, _keeperJump = 1f;      // keeper
 
         // ---- Challenge-mode raw settings ----
-        static float _timeTrialSeconds = 60f;
         static float _accuracySeconds = 90f;
         static float _accuracyTargets = 4f;
         static bool  _penaltyMode = false;
@@ -51,10 +50,6 @@ namespace Trickshot
         static Vector3 _fkBall, _fkWall;
         static int     _fkEdit;      // 0 = ball, 1 = wall
         static bool    _fkRandom;    // fresh legal spot every attempt
-
-        // Freeplay delivery
-        static SimConfig.Delivery _delivery = SimConfig.Delivery.AutoCross;
-        static Vector3 _aimTarget = SimConfig.ServeTarget;   // where an aimed cross lands
 
         // Match
         static int _scrimPerSide = 3;                                  // 3 / 5 / 11
@@ -98,16 +93,9 @@ namespace Trickshot
             {
                 n += 1; // striker speed
                 n += 1; // keeper ability (every mode in this branch can carry an AI keeper)
-                if (_mode == GameMode.Freeplay)
-                {
-                    n += 1; // delivery picker
-                    if (_delivery != SimConfig.Delivery.BallAtFeet) n += 1; // cross interval
-                    if (_delivery == SimConfig.Delivery.AimSpot) n += 3;    // aim map (~154px)
-                }
-                else if (_mode == GameMode.TimeTrial) n += 2;   // cross interval + round time
                 // Accuracy: time + targets + wall count. The spot and the wall are PLACED on the
                 // map panel now, so the distance/wall-distance/wall-offset rows are gone.
-                else if (_mode == GameMode.Accuracy)  n += 3;
+                if (_mode == GameMode.Accuracy)  n += 3;
                 // Free kick: penalty toggle (+ wall players; spot + wall are placed on the map panel)
                 else if (_mode == GameMode.FreeKick)  n += _penaltyMode ? 1 : 2;
             }
@@ -181,28 +169,12 @@ namespace Trickshot
             else
             {
                 _strikerSpeed = Slider(lx, ref row, lw, "Striker speed", _strikerSpeed, 0.5f, 1.8f, 1f);
-                // Every mode down here can carry an AI keeper, so this picker is shared: free kicks,
-                // the accuracy gallery, freeplay and the time trial all read it (None = no keeper is
-                // built at all, an open goal).
+                // Every mode down here can carry an AI keeper, so this picker is shared: free kicks
+                // and the accuracy gallery both read it (None = no keeper is built at all, an open
+                // goal).
                 _keeperAbility = KeeperPicker(lx, ref row, lw, "Keeper", _keeperAbility);
 
-                if (_mode == GameMode.Freeplay)
-                {
-                    DeliveryPicker(lx, ref row, lw);
-                    // Cross interval only matters when the crosser is delivering.
-                    if (_delivery != SimConfig.Delivery.BallAtFeet)
-                        _crossInterval = Slider(lx, ref row, lw, "Cross interval", _crossInterval, 0.4f, 2f, 1f);
-                    if (_delivery == SimConfig.Delivery.AimSpot)
-                        AimMap(lx, ref row, lw);
-                }
-                // Accuracy has no crosser any more (it's a dead-ball free-kick gallery), so the
-                // cross interval only applies to Time Trial here.
-                else if (_mode == GameMode.TimeTrial)
-                    _crossInterval = Slider(lx, ref row, lw, "Cross interval", _crossInterval, 0.4f, 2f, 1f);
-
-                if (_mode == GameMode.TimeTrial)
-                    _timeTrialSeconds = RawSlider(lx, ref row, lw, "Round time", _timeTrialSeconds, 30f, 180f, "0", "s");
-                else if (_mode == GameMode.Accuracy)
+                if (_mode == GameMode.Accuracy)
                 {
                     // Accuracy is a free-kick shooting gallery, so it carries the free-kick furniture
                     // too - but the spot and the wall are PLACED on the map panel to the right, the
@@ -425,14 +397,8 @@ namespace Trickshot
             {
                 SimConfig.StrikerMoveSpeed = BaseStrikerSpeed * _strikerSpeed;
                 SimConfig.ServeInterval    = BaseServeInterval * _crossInterval;
-                if (_mode == GameMode.Freeplay)
-                {
-                    SimConfig.FreeplayDelivery = _delivery;
-                    SimConfig.FreeplayAimTarget = _aimTarget;
-                }
                 // One keeper slider covers all of these modes (0 = no keeper is built at all).
                 SimConfig.KeeperAbility    = _keeperAbility;
-                SimConfig.TimeTrialSeconds = _timeTrialSeconds;
                 SimConfig.AccuracySeconds  = _accuracySeconds;
                 SimConfig.AccuracyTargetCount = Mathf.RoundToInt(_accuracyTargets);
                 SimConfig.PenaltyMode      = _penaltyMode;
@@ -526,76 +492,6 @@ namespace Trickshot
             return val;
         }
 
-        // Freeplay delivery: a row of buttons picking how the ball comes in.
-        static readonly SimConfig.Delivery[] Deliveries =
-        {
-            SimConfig.Delivery.AutoCross, SimConfig.Delivery.CornerLeft,
-            SimConfig.Delivery.CornerRight, SimConfig.Delivery.AimSpot,
-            SimConfig.Delivery.BallAtFeet,
-        };
-        static readonly string[] DeliveryNames = { "Auto", "Cnr L", "Cnr R", "Aim", "Feet" };
-
-        void DeliveryPicker(float lx, ref float row, float lw)
-        {
-            GUI.Label(new Rect(lx, row, lw, 20f), "Ball delivery:", RowLabel());
-            float bw = (lw - 4f * (Deliveries.Length - 1)) / Deliveries.Length;
-            for (int i = 0; i < Deliveries.Length; i++)
-            {
-                bool sel = _delivery == Deliveries[i];
-                var s = PickStyle(sel); s.fontSize = 12;
-                if (UITheme.Toggle(new Rect(lx + i * (bw + 4f), row + 22f, bw, 26f), DeliveryNames[i], sel, s))
-                    _delivery = Deliveries[i];
-            }
-            EndRow(lx, ref row, lw);
-        }
-
-        // Clickable top-down map of the penalty box; click to place where the aimed cross
-        // lands. X spans the goal width; the vertical axis spans out from the goal line.
-        void AimMap(float lx, ref float row, float lw)
-        {
-            UITheme.Hint(new Rect(lx, row, lw, 18f), "Click to place where the cross lands:", TextAnchor.MiddleLeft);
-            row += 22f;
-
-            float mapW = lw, mapH = 120f;
-            var mapRect = new Rect(lx, row, mapW, mapH);
-            // Pitch band shown: full goal width (+margin) across, 18m out from the line deep.
-            float halfShown = SimConfig.GoalWidth * 0.5f + 3f;
-            float depthShown = 18f;
-
-            // Turf-coloured plate in the chosen venue's shade, darkened so markings read over it.
-            Color turf = StadiumStyle.Active != null ? StadiumStyle.Active.Grass : new Color(0.15f, 0.35f, 0.18f);
-            UITheme.Chip(mapRect, new Color(turf.r * 0.45f, turf.g * 0.45f, turf.b * 0.45f, 0.96f));
-            // Six-yard hint band and the centre line, faint, purely for orientation.
-            UITheme.Fill(new Rect(mapRect.center.x - mapW * 0.22f, mapRect.y + 1f, mapW * 0.44f, 1f), new Color(1f, 1f, 1f, 0.12f));
-            UITheme.Fill(new Rect(mapRect.center.x, mapRect.y + 8f, 1f, mapH - 10f), new Color(1f, 1f, 1f, 0.10f));
-
-            // Goal (thin bar along the top edge).
-            float goalPxHalf = (SimConfig.GoalWidth * 0.5f / halfShown) * (mapW * 0.5f);
-            UITheme.Fill(new Rect(mapRect.center.x - goalPxHalf, mapRect.y + 2f, goalPxHalf * 2f, 6f), new Color(1f, 1f, 1f, 0.85f));
-
-            // Handle a click inside the map -> world aim target.
-            Event e = Event.current;
-            if (e.type == EventType.MouseDown && mapRect.Contains(e.mousePosition))
-            {
-                float fx = (e.mousePosition.x - mapRect.x) / mapW;        // 0..1 left->right
-                float fy = (e.mousePosition.y - mapRect.y) / mapH;        // 0..1 top(goal)->bottom(out)
-                float wx = Mathf.Lerp(-halfShown, halfShown, fx);
-                float wz = SimConfig.GoalCenter.z - Mathf.Lerp(0f, depthShown, fy);
-                _aimTarget = new Vector3(wx, 0.25f, wz);
-                e.Use();
-            }
-
-            // Draw the current marker.
-            float mfx = Mathf.InverseLerp(-halfShown, halfShown, _aimTarget.x);
-            float mfy = Mathf.InverseLerp(0f, depthShown, SimConfig.GoalCenter.z - _aimTarget.z);
-            float mx = mapRect.x + mfx * mapW, my = mapRect.y + mfy * mapH;
-            UITheme.Glow(new Rect(mx - 16f, my - 16f, 32f, 32f), new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, 0.55f));
-            UITheme.Fill(new Rect(mx - 7f, my - 1f, 14f, 2f), UITheme.Gold);
-            UITheme.Fill(new Rect(mx - 1f, my - 7f, 2f, 14f), UITheme.Gold);
-
-            row += mapH + 12f;
-        }
-
         bool Toggle(float lx, ref float row, float lw, string label, bool val)
         {
             var st = new GUIStyle(GUI.skin.toggle) { fontSize = 15 };
@@ -612,11 +508,10 @@ namespace Trickshot
             _goalWidth = _goalHeight = _ballSpeed = 1f;
             _crossInterval = _strikerSpeed = _keeperSpeed = _keeperJump = 1f;
             _keeperAbility = _shotDifficulty = 0.5f;
-            _timeTrialSeconds = 60f; _accuracySeconds = 90f; _accuracyTargets = 4f;
+            _accuracySeconds = 90f; _accuracyTargets = 4f;
             _penaltyMode = false; _freeKickDistance = 20f;
             _wallCount = 4f; _wallDistance = 9.15f; _wallOffset = 0f;
             _fkInit = false; _fkEdit = 0; _fkRandom = false;
-            _delivery = SimConfig.Delivery.AutoCross; _aimTarget = SimConfig.ServeTarget;
             // These are static and survived Reset All, so a match kept whatever was last dialled
             // in even after the button said everything was back to default.
             _scrimPerSide = 3; _scrimShirt = 2; _scrimPos = SimConfig.ScrimPos.ST;

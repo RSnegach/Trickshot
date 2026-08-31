@@ -415,8 +415,6 @@ namespace Trickshot
         public const float AiKeeperLowDiveUp = 1.6f;      // small upward pop on a low dive (stays low)
 
         // ---- Challenge modes (set from their pre-match screens) ----
-        // Time Trial: round length in seconds.
-        public static float TimeTrialSeconds = 60f;
         // Accuracy: round length and how many targets are up at once.
         public static float AccuracySeconds = 90f;
         public static int   AccuracyTargetCount = 4;
@@ -477,16 +475,6 @@ namespace Trickshot
         public static readonly Vector3 ServeTarget =
             new Vector3(0f, 0.25f, GoalCenter.z - 8f);
 
-        // ---- Freeplay delivery (set from the Freeplay pre-match screen) ----
-        // How the ball comes to the player in freeplay.
-        public enum Delivery { AutoCross, CornerLeft, CornerRight, AimSpot, BallAtFeet }
-        public static Delivery FreeplayDelivery = Delivery.AutoCross;
-        // Where an AimSpot cross lands (X across the mouth, Z off the line). Set by the
-        // clickable penalty-box map. Defaults to the standard cross target.
-        public static Vector3 FreeplayAimTarget = new Vector3(0f, 0.25f, GoalCenter.z - 8f);
-        // Where a ball-at-feet spawns and respawns (in front of the striker's start).
-        public static readonly Vector3 BallAtFeetSpot =
-            new Vector3(0f, BallRadius, GoalCenter.z - 10f);
 
         // ---- Camera (mouse orbit / ball lock) ----
         public const float CamYawSpeed = 0.42f;    // deg per mouse-delta unit
@@ -999,7 +987,7 @@ namespace Trickshot
         public const float DeadTouchPower = 0.12f;   // velocity kept on a dead (non-kicking) touch
 
         // ---- NO-CARRY MODES: a dead touch must never park the ball under his feet ----
-        // Striker / Freeplay / Time Trial have no dribble at all, so the normal trap (keep 12%
+        // Striker has no dribble at all, so the normal trap (keep 12%
         // of the pace) left the ball resting between his boots with nothing to hand it to, and
         // every follow-up swing was point blank. In those modes a dead touch instead PUSHES the
         // ball away from the body: more pace is kept AND a floor is enforced on the outward
@@ -1429,7 +1417,7 @@ namespace Trickshot
         ///                         dive height all read.
         ///
         /// NOT written, because no match code path reads them: ShotDifficulty, ServeInterval, the
-        /// wall / set-piece placement statics, the challenge-mode timers, FreeplayDelivery. GoalDepth
+        /// wall / set-piece placement statics, the challenge-mode timers. GoalDepth
         /// is left alone too - it is mutable but nothing anywhere assigns it, and resetting statics
         /// nobody mutates is noise that hides the ones that matter.
         ///
