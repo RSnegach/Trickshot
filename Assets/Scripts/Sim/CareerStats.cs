@@ -99,11 +99,19 @@ namespace Trickshot
         /// Eager save, same convention Keybinds/QuickChat already use for their PlayerPrefs
         /// writes: every Record* call below saves immediately rather than batching. Nothing here
         /// fires faster than about once a second, and the file is small, so a rewrite per event
-        /// costs nothing and can never lose a stat to a crash.
+        /// costs nothing. Written to a temp file first and swapped in - a crash mid-write only
+        /// corrupts the temp file, never the real one, so lifetime stats can't be wiped by a kill
+        /// at the wrong instant.
         /// </summary>
         public static void Save()
         {
-            try { File.WriteAllText(FilePath, JsonUtility.ToJson(Data, true)); }
+            string tmp = FilePath + ".tmp";
+            try
+            {
+                File.WriteAllText(tmp, JsonUtility.ToJson(Data, true));
+                if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+                else File.Move(tmp, FilePath);
+            }
             catch (Exception e) { Debug.LogWarning("CareerStats: failed to save. " + e.Message); }
         }
 

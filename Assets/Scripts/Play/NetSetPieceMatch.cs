@@ -567,7 +567,8 @@ namespace Trickshot
         readonly bool[] _turnPlayed = new bool[NetSession.MaxSlots];   // timed accuracy: turn finished
 
         // A target was struck during the active shooter's live attempt: bank the points to that
-        // shooter and publish the tally. Host only (its board is authoritative).
+        // shooter and flash it to every peer. Host only (its board is authoritative); the tally
+        // itself is published later, by ResolveAttempt's broadcast (see the comment below).
         void OnAccuracyScored(int points, int index)
         {
             if (_activeShooter >= NetSession.MaxSlots) return;
@@ -576,8 +577,13 @@ namespace Trickshot
             if (_hitThisKick) return;
             _scored[_activeShooter] += points;
             _hitThisKick = true;
-            Flash("+" + points);
-            BroadcastShootout();
+            // No BroadcastShootout here: taken[] hasn't moved yet, and broadcasting scored[] alone
+            // desyncs OnShootoutUpdated's per-attempt delta (it'd see dt=0 now, then dt=1/dg=0 at
+            // ResolveAttempt's own broadcast - a made shot reads as a miss for the audio/streak
+            // logic, and on a client - which never runs ResolveAttempt - that delta IS the only
+            // goal/miss signal, so it never hears the cheer at all). ResolveAttempt's broadcast
+            // already carries this bumped _scored value alongside the taken[] increment.
+            Announce("+" + points);
         }
 
         void BroadcastShootout()

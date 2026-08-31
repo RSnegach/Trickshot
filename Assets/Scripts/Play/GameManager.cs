@@ -130,7 +130,6 @@ namespace Trickshot
             float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
             _crosser.ServeNow(target, lofted, 0.5f, scatter);
             _attempts++; _resolved = false; _save.Arm();
-            CareerStats.RecordStrikerCross();
         }
 
         void Update()

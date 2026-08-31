@@ -42,7 +42,9 @@ namespace Trickshot
 
         public void Draw(System.Action onBack)
         {
-            float w = 700f, h = 560f;
+            // 600 tall: Scrimmage's 12 rows (28px + 6px gap each) need the extra room over the
+            // other categories' handful, or the last row and its divider bleed under the buttons.
+            float w = 700f, h = 600f;
             float x = MenuScale.Width * 0.5f - w * 0.5f, y = MenuScale.Height * 0.5f - h * 0.5f;
 
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 260f);
@@ -50,6 +52,12 @@ namespace Trickshot
 
             var title = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Ink } };
             UITheme.Shadowed(new Rect(x + 24f, y + 14f, w - 48f, 34f), "CAREER STATS", title, UITheme.Ink, 0.7f, 2f);
+
+            // Modal, same as PauseMenu.DrawConfirm's own guard: while a reset confirm is pending,
+            // it fully replaces the switcher/rows/buttons rather than sitting over still-clickable
+            // ones - otherwise Back stays live under it, and leaving that way carries the pending
+            // confirm into the next visit (this page's CareerStatsUI instance is never recreated).
+            if (_confirmAct != null) { DrawConfirm(); return; }
 
             int count = System.Enum.GetValues(typeof(Cat)).Length;
             var arrow = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
@@ -84,8 +92,6 @@ namespace Trickshot
                 _confirmBody = "Erases every lifetime stat on this machine. This cannot be undone.";
                 _confirmYes = false;
             }
-
-            if (_confirmAct != null) DrawConfirm();
         }
 
         // ---- per-category rows ----
