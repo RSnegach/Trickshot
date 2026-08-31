@@ -239,16 +239,25 @@ namespace Trickshot
             _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(60f), 1f - Mathf.Exp(-5f * dt));
         }
 
+        // Half of the 68m regulation width every current Broadcast caller (GameManager,
+        // NetSetPieceMatch, NetStrikerMatch) always builds at - the dist/height clamps below were
+        // tuned against that. Not reachable at any other width today: Broadcast is never wired into
+        // Scrimmage, the one mode with a different pitch size. Scaling the clamps with the pitch
+        // anyway costs nothing (this is 1.0 for every caller that exists right now) and means a
+        // future Scrimmage broadcast camera doesn't inherit numbers tuned for a wider pitch.
+        const float BroadcastRegulationHalfWidth = 34f;
+
         void BroadcastUpdate()
         {
             float dt = Time.unscaledDeltaTime;
             Vector3 ballPos = _ball != null ? _ball.position : SimConfig.GoalCenter;
             Vector3 strikerPos = _striker != null ? _striker.position : SimConfig.StrikerStart;
+            float pitchScale = PitchLayout.HalfWidth / BroadcastRegulationHalfWidth;
 
             Vector3 focus = Vector3.Lerp(GroupCenter(), ballPos, 0.5f);
             float spread = Vector3.Distance(ballPos, strikerPos);
-            float dist = Mathf.Clamp(12f + spread * 0.6f, 14f, 30f);
-            float height = Mathf.Clamp(9f + spread * 0.35f, 9f, 18f);
+            float dist = Mathf.Clamp(12f + spread * 0.6f, 14f, 30f) * pitchScale;
+            float height = Mathf.Clamp(9f + spread * 0.35f, 9f, 18f) * pitchScale;
 
             Vector3 dir = new Vector3(0.85f, 0f, -0.5f).normalized;
             Vector3 desired = focus + new Vector3(dir.x * dist, height, dir.z * dist);

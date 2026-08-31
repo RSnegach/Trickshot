@@ -155,8 +155,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/GameCamera.cs": {
-    "mtime": 1788139071.5895987,
-    "ast_hash": "5deb70b5dfa78dae81ffaa692bd973cc",
+    "mtime": 1788140939.20398,
+    "ast_hash": "bd8d672d192e344a12217a8ba7f20e10",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/GameManager.cs": {
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
-    "mtime": 1788139973.9165027,
-    "ast_hash": "d66e26e4410ebdd1c57ba9c9a4a10cea",
+    "mtime": 1788140874.9864619,
+    "ast_hash": "411926ae2bd5c9c8b875277d4703c6f2",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/Make.cs": {

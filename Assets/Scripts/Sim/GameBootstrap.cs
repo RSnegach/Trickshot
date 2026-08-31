@@ -854,8 +854,10 @@ namespace Trickshot
             // Wrap the scrimmage pitch with the SAME stadium bowl + crowd the other venues use,
             // sized to this (centred) field. Point the shared PitchLayout contract at it first,
             // then build the shell + crowd (skip PitchBuilder - scrimmage lays its own ground).
+            // No SkyDome.Apply here: BuildMode's shared preamble already applied it once for
+            // whichever style is active, moments before dispatching into this function - a second
+            // call rebuilt the same sky material and re-ran DynamicGI.UpdateEnvironment for nothing.
             PitchLayout.ConfigureScrimmage(arena.halfLength * 2f, arena.halfWidth * 2f, 0f);
-            SkyDome.Apply(_cam, _sun);
             StadiumBuilder.Build(root);
             _crowd = Crowd.Create(root);
             CrowdCheer.Register(_crowd);
