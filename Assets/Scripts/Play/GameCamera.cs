@@ -222,7 +222,14 @@ namespace Trickshot
             Vector3 fwd = viewRot * Vector3.forward;
             Vector3 pivot = _followTarget.position;
 
-            Vector3 desired = pivot - fwd * 5.5f + Vector3.up * 3.0f;
+            // The 3.0m height was sized against the base 2.44m goal. Set Pieces lets the host scale
+            // the goal up to 1.5x (GameBootstrap.cs, cfg.goalScale), and this camera is one of that
+            // mode's own - a fixed 3.0m no longer clears a 3.66m goal's own back frame/net at that
+            // size, putting the camera below the crossbar looking up into the net structure from
+            // behind. Scale with it so the camera always sits proportionally above whatever goal is
+            // actually built; at the base 2.44m height this is exactly the old fixed 3.0m.
+            float heightScale = SimConfig.GoalHeight / 2.44f;
+            Vector3 desired = pivot - fwd * 5.5f + Vector3.up * (3.0f * heightScale);
             if (desired.y < 0.8f) desired.y = 0.8f;
             _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.18f, Mathf.Infinity, dt);
 

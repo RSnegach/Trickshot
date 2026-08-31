@@ -48,16 +48,29 @@ namespace Trickshot
         // ---- Corner towers ----
         const int   CornerSteps      = 5;
         const float CornerInsetOut   = 7f;   // how far the tower sits outward from the bowl corner point
-        const float CornerBaseFoot   = 20f;  // bottom footprint edge
-        const float CornerTopFoot    = 8f;   // top footprint edge
+        const float CornerBaseFoot   = 20f;  // bottom footprint edge, AT the regulation pitch (see CornerPylonScale)
+        const float CornerTopFoot    = 8f;   // top footprint edge, AT the regulation pitch
 
         // ---- Floodlight pylons ----
-        const float PylonHeight   = 32f;
+        const float PylonHeight   = 32f;   // AT the regulation pitch (see CornerPylonScale)
         const float PylonRadius   = 0.5f;
         const float PylonInsetOut = 12f;   // outward from the bowl corner point
         const int   LampCols      = 3;     // emissive lamp grid on the pitch-facing head
         const int   LampRows      = 2;
         const float LampCell      = 1.5f;
+
+        // Every other piece of the shell (terraces, walls, roof) reads its size straight off
+        // PitchLayout.StandFront on each call, so it always matches whatever pitch is currently
+        // configured. Corner towers and pylons didn't - CornerBaseFoot/PylonHeight above were
+        // tuned once, at the regulation 68m-wide pitch, and stayed that size at every OTHER pitch
+        // too. That's invisible at the 11-a-side scrimmage (which IS the regulation width), but at
+        // the smallest scrimmage (18m half-width) it put a 20m-footprint corner ziggurat and a
+        // 32m floodlight mast - both sized for a bowl nearly twice as wide - around a tiny pitch,
+        // dwarfing it. Scale footprint/height down with the pitch instead; floored so a hypothetical
+        // even-smaller pitch can't shrink them to nothing.
+        const float RegulationHalfWidth  = 34f;   // half of the 68m regulation width these were tuned against
+        const float MinCornerPylonScale  = 0.4f;
+        static float CornerPylonScale => Mathf.Clamp(PitchLayout.HalfWidth / RegulationHalfWidth, MinCornerPylonScale, 1f);
 
         // ---- Tunnel (player entrance) ----
         const float TunnelWidth  = 5f;
@@ -166,8 +179,11 @@ namespace Trickshot
             }
             else
             {
-                // Two segments leaving a gap for the tunnel at the centre of this side.
-                float segLen = (standLen - TunnelWidth) * 0.5f;
+                // Two segments leaving a gap for the tunnel at the centre of this side. Floored so a
+                // stand shorter than the tunnel itself (nothing currently produces one - the
+                // smallest caller's tunnel-side stand still clears TunnelWidth by a wide margin -
+                // but nothing guarantees it never will) can't collapse this to a negative extent.
+                float segLen = Mathf.Max(0.5f, (standLen - TunnelWidth) * 0.5f);
                 float segAlong = TunnelWidth * 0.5f + segLen * 0.5f;
                 Vector3 segSize = SizeVec(alongDir, segLen, outDir, PerimeterThickness, PerimeterWallHeight);
                 SolidWall(side + "_PerimWallL", segSize, P(center, alongDir, -segAlong, outDir, outOffset, cy), accent, p, phys);
@@ -243,6 +259,7 @@ namespace Trickshot
         {
             var cornerRoot = Make.Empty("Corners", Vector3.zero, stadium).transform;
             float cornerX = PitchLayout.HalfWidth + PitchLayout.StandFrontGap;
+            float scale = CornerPylonScale;
 
             int c = 0;
             foreach (float xSign in new[] { 1f, -1f })
@@ -258,8 +275,8 @@ namespace Trickshot
                 for (int i = 0; i < CornerSteps; i++)
                 {
                     float t = i / (float)(CornerSteps - 1);
-                    float foot = Mathf.Lerp(CornerBaseFoot, CornerTopFoot, t);
-                    float segH = Mathf.Lerp(5f, 3.5f, t);
+                    float foot = Mathf.Lerp(CornerBaseFoot, CornerTopFoot, t) * scale;
+                    float segH = Mathf.Lerp(5f, 3.5f, t) * scale;
                     float cy = bottom + segH * 0.5f;
                     Make.Box("Corner" + c + "_" + i, new Vector3(foot, segH, foot),
                              new Vector3(baseX, cy, baseZ), concrete, cornerRoot, collider: false);
@@ -280,6 +297,7 @@ namespace Trickshot
             var pylonRoot = Make.Empty("Pylons", Vector3.zero, stadium).transform;
             Vector3 pitchCenter = new Vector3(0f, 0f, PitchLayout.PitchCenterZ);
             float cornerX = PitchLayout.HalfWidth + PitchLayout.StandFrontGap;
+            float pylonHeight = PylonHeight * CornerPylonScale;
 
             int c = 0;
             foreach (float xSign in new[] { 1f, -1f })
@@ -293,15 +311,15 @@ namespace Trickshot
                 var pos = new Vector3(px, 0f, pz);
 
                 // Pole: vertical cylinder. Destroy the capsule collider Make.Cylinder adds.
-                var pole = Make.Cylinder("Pylon" + c + "_Pole", PylonRadius, PylonHeight,
-                                         new Vector3(px, PylonHeight * 0.5f, pz), 1, pylonMat, pylonRoot);
+                var pole = Make.Cylinder("Pylon" + c + "_Pole", PylonRadius, pylonHeight,
+                                         new Vector3(px, pylonHeight * 0.5f, pz), 1, pylonMat, pylonRoot);
                 var col = pole.GetComponent<Collider>();
                 if (col != null) Object.Destroy(col);
 
                 // Head: face the pitch centre. inward = flat direction from mast to centre.
                 Vector3 inward = pitchCenter - pos; inward.y = 0f; inward = inward.normalized;
                 Vector3 perp = new Vector3(-inward.z, 0f, inward.x);   // horizontal, across the head
-                float headY = PylonHeight - 1.5f;
+                float headY = pylonHeight - 1.5f;
                 Vector3 headCenter = new Vector3(px, headY, pz);
 
                 // Dark backing frame, then the emissive lamp grid on its pitch-facing face.
