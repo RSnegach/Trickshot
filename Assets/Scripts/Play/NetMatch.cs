@@ -796,6 +796,10 @@ namespace Trickshot
                 MatchGame.PlayerStat myRow = null;
                 foreach (var row in rows) if (row.slot == _localSlot) { myRow = row; break; }
                 _statsUI.Draw(rows, hs, as_, myRow);
+                // Quickchat can still be opened over the board (Update()'s Typing gate only skips
+                // TickInput, so A/D don't fight the flip keys with typed text) - draw it here too,
+                // or a player who opens it gets a text box that's silently never rendered.
+                if (_qcFeed != null) _qcFeed.Draw();
                 Hud.End();
                 return;
             }

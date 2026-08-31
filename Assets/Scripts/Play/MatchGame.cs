@@ -187,11 +187,16 @@ namespace Trickshot
             if (_ball != null)
                 DriveLandingReticle(_ball.Rb.position, _ball.Rb.linearVelocity, _ball.Guided);
 
-            // Full time: play is frozen. R starts a fresh match (rematch).
+            // Full time: play is frozen. R starts a fresh match (rematch) - single-player only,
+            // same as the net-host guard right below: an unguarded Rematch() here used to restart
+            // the sim out from under NetMatch (no coordinated MP rematch exists), re-arming
+            // _fullTime's falling/rising edge and firing the MP CareerStats hook a second time
+            // with PlayerStat rows that were never reset (BuildStatRows only runs once, from
+            // Configure) - a silent double-record, not just a missing feature.
             if (_fullTime)
             {
                 _statsUI.TickInput();
-                if (_input.ResetPressed) Rematch();
+                if (!_netHost && _input.ResetPressed) Rematch();
                 return;
             }
 
