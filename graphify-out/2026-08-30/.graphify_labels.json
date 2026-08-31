@@ -69,6 +69,7 @@
   "67": "CrosserBubble",
   "68": "AccuracyGame",
   "69": "AimReticle",
+  "70": "List",
   "71": ".SkillPresetButtons",
   "72": ".AdvanceTurn",
   "73": ".Build",
@@ -134,5 +135,9 @@
   "133": "CrosserControl",
   "134": "IPlayerController",
   "135": "postprep.py",
+  "136": "CallLimiter",
+  "137": "IPlayerController",
+  "138": "JerseyDesigns.Nations2.cs",
+  "139": "JerseyDesigns.Nations3.cs",
   "140": "NetBackstop.cs"
 }

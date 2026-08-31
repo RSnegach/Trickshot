@@ -698,20 +698,10 @@ namespace Trickshot
             PlayerProfile.Height = _height;
             PlayerProfile.Weight = _weight;
 
-            // Lower region: the trait readout (default) OR the selected appearance sub-menu,
-            // switched by the ‹ › arrows beside the title.
-            if (_bodySub == 0)
-            {
-                var hdr = new GUIStyle(st) { fontStyle = FontStyle.Bold };
-                GUI.Label(new Rect(lx, row, lw, 20f), "Resulting traits:", hdr); row += 26f;
-                Trait(lx, ref row, lw, "Move speed",  PlayerProfile.MoveSpeedMul);
-                Trait(lx, ref row, lw, "Sprint speed", PlayerProfile.SprintSpeedMul);
-                Trait(lx, ref row, lw, "Jump height", PlayerProfile.JumpMul);
-                Trait(lx, ref row, lw, "Shot power",  PlayerProfile.ShotPowerMul);
-                Trait(lx, ref row, lw, "Push / strength", PlayerProfile.PushMul);
-                Trait(lx, ref row, lw, "Reach",       PlayerProfile.ReachMul);
-            }
-            else
+            // Lower region: sub-index 0 (BODY) has nothing further of its own now - the sliders/
+            // foot buttons above already cover it - so only the selected appearance sub-menu draws
+            // anything down here, switched by the ‹ › arrows beside the title.
+            if (_bodySub != 0)
             {
                 var slot = SlotAt(_bodySub);
                 if (slot != null) SlotSubMenu(slot, lx, row, lw, y + ph - 60f);
@@ -978,24 +968,6 @@ namespace Trickshot
             }
         }
 
-        void Trait(float lx, ref float row, float lw, string label, float mul)
-        {
-            // Bar centred on 1.0x: green above, amber below, with a tick at the neutral mark.
-            var st = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = UITheme.Ink } };
-            GUI.Label(new Rect(lx, row, 150f, 18f), label, st);
-            float barX = lx + 160f, barW = lw - 200f, barH = 12f;
-            var bar = new Rect(barX, row + 2f, barW, barH);
-            float t = Mathf.InverseLerp(0.6f, 1.5f, mul);
-            Color tc = mul >= 1f ? UITheme.Green : new Color(0.95f, 0.62f, 0.28f);
-            UITheme.Bar(bar, Mathf.Clamp01(t), new Color(tc.r * 0.5f, tc.g * 0.5f, tc.b * 0.5f, 1f), tc);
-            // Marker at 1.00x, so above/below reads without doing the arithmetic.
-            float nx = bar.x + bar.width * Mathf.InverseLerp(0.6f, 1.5f, 1f);
-            UITheme.Fill(new Rect(nx, bar.y - 1f, 1f, bar.height + 2f), new Color(1f, 1f, 1f, 0.35f));
-            var valSt = new GUIStyle(st) { fontStyle = FontStyle.Bold };
-            valSt.normal.textColor = tc;
-            GUI.Label(new Rect(barX + barW + 6f, row, 44f, 18f), $"{mul:0.00}x", valSt);
-            row += 20f;
-        }
 
         // A foot-choice toggle. Selected = lit green plate, bold gold label, gold underline;
         // unselected = the standard button plate in dim text. Returns true if clicked this frame.
