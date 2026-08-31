@@ -8,20 +8,30 @@ namespace Trickshot
     public enum GameMode { Striker, Goalkeeper, Freeplay, TimeTrial, Accuracy, FreeKick, Scrimmage, SetPieces }
 
     /// <summary>
-    /// IMGUI start menu. Top level: Striker, Goalkeeper, Mode. "Mode" opens a submenu of
-    /// the extra modes (Freeplay, Time Trial, Accuracy, Free Kick, Scrimmage). Invokes a
-    /// callback with the chosen mode. Kept as IMGUI so it needs no Canvas/EventSystem
-    /// wiring (consistent with the rest of the runtime build).
+    /// IMGUI start menu, two screens: a title SPLASH (the wordmark + "press any key"), then a
+    /// FIFA-style HUB of mode cards (Single Player / Multiplayer / Career Stats / Zoo / Options).
+    /// Single Player opens a consolidated flat list of every solo mode (Striker/Goalkeeper plus
+    /// what used to be the separate "Mode" submenu). Kept as IMGUI so it needs no Canvas/
+    /// EventSystem wiring (consistent with the rest of the runtime build).
+    ///
+    /// Career Stats and Zoo are "Coming Soon" placeholders on purpose: there is no persisted
+    /// player data anywhere in this project (PlayerProfile/SkillTree reset every launch; the only
+    /// real save surface is keybinds/audio/display/quickchat), so a real Career Stats screen would
+    /// mean building this project's first save system - out of scope for a menu redesign. Shipping
+    /// an honest placeholder beats fabricating lifetime numbers that don't exist.
     /// </summary>
     public class MenuUI : MonoBehaviour
     {
         System.Action<GameMode> _onChoose;
         System.Action _onMultiplayer;
         bool _chosen;
-        bool _inChallenges;
+
+        enum Phase { Splash, Hub, SinglePlayer, CareerStats, Zoo }
+        Phase _phase = Phase.Splash;
+        int _splashStartFrame;   // guards Input.anyKeyDown against a false-positive on frame one
 
         // Options overlay (Keybindings + Audio), same panel the pause menu uses. Built lazily from
-        // the passed GameInput; null if none was supplied (then no Options button is shown).
+        // the passed GameInput; null if none was supplied (then no Options card is shown).
         OptionsMenu _options;
         bool _optionsOpen;
 
@@ -33,6 +43,18 @@ namespace Trickshot
             if (input != null) _options = new OptionsMenu(input);
             // Menu needs a visible, free cursor.
             GameInput.CaptureCursor(false);
+            _splashStartFrame = Time.frameCount;
+        }
+
+        // Legacy Input.anyKeyDown is deliberate here, not GameInput/IStrikerInput: that abstraction
+        // is a gameplay action map (Jump, LegL, LegR, ...) with no "any key at all" concept, and is
+        // itself optional (null when no Options should show) - the wrong coupling for a one-shot,
+        // non-gameplay splash dismiss. activeInputHandler is "Both" in this project (confirmed in
+        // ProjectSettings.asset), so legacy Input isn't disabled, just unused by gameplay code.
+        void Update()
+        {
+            if (_phase == Phase.Splash && Time.frameCount > _splashStartFrame && Input.anyKeyDown)
+                _phase = Phase.Hub;
         }
 
         void OnGUI()
@@ -42,18 +64,8 @@ namespace Trickshot
             // Fit to the window (see MenuScale); virtual coordinates from here on.
             MenuScale.Begin();
 
-            float w = 320f, h = 66f, gap = 20f;
-            float cx = MenuScale.Width * 0.5f - w * 0.5f;
-
-            // Darken behind the menu so the white title and buttons read over the moving scene.
-            // Ramped from nothing at the top, because the top of the frame is sky and this used to
-            // be a flat 0.30 over it: measured, the backdrop was reaching the screen at 0.70 of its
-            // authored brightness at the edges and 0.35 down the middle. Ramped it comes to 0.95 at
-            // the top corners and 0.64 at the column, and the title's own bloom plus the button
-            // plates carry the local contrast that the flat dim was being asked for.
-            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
-
             // Options overlay takes over the whole menu while open (same panel as the pause menu).
+            // Only ever reachable from Phase.Hub (the Options card), same as the old Options button.
             if (_optionsOpen && _options != null)
             {
                 _options.Draw(() => _optionsOpen = false);
@@ -61,38 +73,119 @@ namespace Trickshot
                 return;
             }
 
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
-
-            if (!_inChallenges)
+            switch (_phase)
             {
-                // Row count grows by one when Options is available, so keep the column centered.
-                bool hasOptions = _options != null;
-                float rows = hasOptions ? 5f : 4f;
-                float cy = MenuScale.Height * 0.5f - (h * rows + gap * (rows - 1f)) * 0.5f;
-                UITheme.Title(new Rect(0, cy - 110f, MenuScale.Width, 80f), "TRICKSHOT");
-                if (UITheme.Button(new Rect(cx, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Mode", btn)) _inChallenges = true;
-                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Multiplayer", btn))
-                {
-                    _chosen = true; enabled = false; _onMultiplayer?.Invoke();
-                }
-                if (hasOptions && UITheme.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Options", btn))
-                    _optionsOpen = true;
-            }
-            else
-            {
-                float cy = MenuScale.Height * 0.5f - (h * 3f + gap * 2.5f);
-                UITheme.Title(new Rect(0, cy - 110f, MenuScale.Width, 80f), "MODE");
-                if (UITheme.Button(new Rect(cx, cy, w, h), "Scrimmage", btn)) Choose(GameMode.Scrimmage);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap), w, h), "Freeplay", btn)) Choose(GameMode.Freeplay);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Time Trial", btn)) Choose(GameMode.TimeTrial);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 3f, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 4f, w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
-                if (UITheme.Button(new Rect(cx, cy + (h + gap) * 5f, w, h), "Back", btn)) _inChallenges = false;
+                case Phase.Splash: DrawSplash(); break;
+                case Phase.Hub: DrawHub(); break;
+                case Phase.SinglePlayer: DrawSinglePlayer(); break;
+                case Phase.CareerStats: DrawComingSoon("CAREER STATS"); break;
+                case Phase.Zoo: DrawComingSoon("ZOO"); break;
             }
 
             MenuScale.End();
+        }
+
+        // Just the wordmark + prompt, over the orbiting background - no buttons, nothing else
+        // competing for attention. A lighter scrim than the Hub's: there's far less text to read
+        // over the backdrop here, and the point is to show the backdrop off.
+        void DrawSplash()
+        {
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.18f, 900f, 0.20f, 0f);
+            UITheme.TitleWithKickK(new Rect(0, 210f, MenuScale.Width, 200f), 132);
+            UITheme.PulseHint(new Rect(0, 446f, MenuScale.Width, 40f), "PRESS ANY KEY TO CONTINUE");
+        }
+
+        // The FIFA-style hub: straight to a row of mode cards, no wordmark - the splash already
+        // showed the logo once, so repeating it here just ate space the cards can use instead.
+        // Card count adapts if Options has nothing to open into (no GameInput supplied) - same
+        // "hasOptions" guard the old single-column button list used, just sizing a row instead of
+        // a column. Card size and spacing are fractions of the real canvas (MenuScale.Width/
+        // Height), not fixed pixel values - that canvas is NOT a constant 1280x760, it scales with
+        // the actual window and the UI Scale setting (measured live elsewhere in this project at
+        // 1361.5x649.8 in one ordinary window), so a fixed-size block under-fills a larger canvas
+        // and overflows a smaller one.
+        void DrawHub()
+        {
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
+
+            bool hasOptions = _options != null;
+            int count = hasOptions ? 5 : 4;
+
+            float marginX = MenuScale.Width * 0.05f;
+            float gap = MenuScale.Width * 0.022f;
+            float cw = (MenuScale.Width - marginX * 2f - gap * (count - 1)) / count;
+            float ch = MenuScale.Height * 0.58f;
+            float y = MenuScale.Height * 0.5f - ch * 0.5f;
+            float startX = marginX;
+            int i = 0;
+
+            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("single"),
+                "Single Player", "Striker, goalkeeper, and every challenge mode"))
+                _phase = Phase.SinglePlayer;
+
+            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("multiplayer"),
+                "Multiplayer", "Play online with friends"))
+            {
+                _chosen = true; enabled = false; _onMultiplayer?.Invoke();
+            }
+
+            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("career"),
+                "Career Stats", "Track your progress over time", comingSoon: true))
+                _phase = Phase.CareerStats;
+
+            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("zoo"),
+                "Zoo", "Build and visit custom creatures", comingSoon: true))
+                _phase = Phase.Zoo;
+
+            if (hasOptions && UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("options"),
+                "Options", "Keybinds, audio, and camera settings"))
+                _optionsOpen = true;
+        }
+
+        // Consolidates what used to be two separate things (the top-level Striker/Goalkeeper
+        // buttons, and the old "Mode" submenu's 5 entries) into one flat list under the Single
+        // Player card. Every row still calls the same Choose(GameMode) unchanged.
+        void DrawSinglePlayer()
+        {
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
+
+            // Two columns x 4 rows. A single column of 8 (tried first) clipped the title off the
+            // top of the screen: MenuScale.Height is NOT a fixed 760 - it shrinks with the real
+            // window size and the UI Scale option (measured live at 649.8 in this session's
+            // window), and 8 stacked rows plus a title needed more room than that virtual canvas
+            // reliably has. Two columns halves the footprint and fits comfortably instead.
+            float w = 320f, h = 52f, gap = 16f, colGap = 40f;
+            float totalH = h * 4f + gap * 3f;
+            float cy = MenuScale.Height * 0.5f - totalH * 0.5f;
+            float cxL = MenuScale.Width * 0.5f - (w * 2f + colGap) * 0.5f;
+            float cxR = cxL + w + colGap;
+            var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
+
+            UITheme.Title(new Rect(0, cy - 78f, MenuScale.Width, 60f), "SINGLE PLAYER", 40, showRule: false);
+
+            if (UITheme.Button(new Rect(cxL, cy, w, h), "Striker", btn, markerBar: false)) Choose(GameMode.Striker);
+            if (UITheme.Button(new Rect(cxL, cy + (h + gap), w, h), "Goalkeeper", btn, markerBar: false)) Choose(GameMode.Goalkeeper);
+            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Scrimmage", btn, markerBar: false)) Choose(GameMode.Scrimmage);
+            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 3f, w, h), "Freeplay", btn, markerBar: false)) Choose(GameMode.Freeplay);
+
+            if (UITheme.Button(new Rect(cxR, cy, w, h), "Time Trial", btn, markerBar: false)) Choose(GameMode.TimeTrial);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap), w, h), "Accuracy", btn, markerBar: false)) Choose(GameMode.Accuracy);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 2f, w, h), "Free Kick / Penalty", btn, markerBar: false)) Choose(GameMode.FreeKick);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 3f, w, h), "Back", btn, markerBar: false)) _phase = Phase.Hub;
+        }
+
+        // Career Stats / Zoo: an honest placeholder, not fabricated data - see the class doc.
+        void DrawComingSoon(string label)
+        {
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
+            float cy = MenuScale.Height * 0.5f;
+            var btn = new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
+
+            UITheme.Title(new Rect(0, cy - 140f, MenuScale.Width, 80f), label, 44, showRule: false);
+            UITheme.Hint(new Rect(MenuScale.Width * 0.5f - 260f, cy - 30f, 520f, 60f),
+                "Coming soon - check back in a future update.");
+            if (UITheme.Button(new Rect(MenuScale.Width * 0.5f - 160f, cy + 60f, 320f, 66f), "Back", btn, markerBar: false))
+                _phase = Phase.Hub;
         }
 
         void Choose(GameMode m)

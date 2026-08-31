@@ -436,8 +436,9 @@ namespace Trickshot
             st.normal.textColor = keep;
         }
 
-        /// <summary>Screen title: big shadowed text with a short gold rule centred beneath it.</summary>
-        public static void Title(Rect r, string text, int fontSize = 54, Color? rule = null)
+        /// <summary>Screen title: big shadowed text, with an optional short gold rule centred
+        /// beneath it (pass showRule: false for a screen that shouldn't carry the rule line).</summary>
+        public static void Title(Rect r, string text, int fontSize = 54, Color? rule = null, bool showRule = true)
         {
             if (_titleStyle == null)
             {
@@ -451,6 +452,61 @@ namespace Trickshot
             Glow(new Rect(r.center.x - r.width * 0.42f, r.y + r.height * 0.1f, r.width * 0.84f, r.height * 0.9f),
                  new Color(0.06f, 0.10f, 0.18f, 0.5f));
             Shadowed(r, text, _titleStyle, Ink, 0.8f, 3f);
+
+            if (!showRule) return;
+            var rc = rule ?? Gold;
+            float rw = Mathf.Min(140f, r.width * 0.3f);
+            Fill(new Rect(r.center.x - rw * 0.5f, r.yMax - 6f, rw, 2.5f), rc);
+            var bleed = rc; bleed.a = 0.22f;
+            Glow(new Rect(r.center.x - rw * 0.7f, r.yMax - 16f, rw * 1.4f, 24f), bleed);
+        }
+
+        /// <summary>
+        /// The "TRICKSHOT" wordmark with the K replaced by TitleGlyph.K (a stick-figure silhouette
+        /// mid-bicycle-kick). Same bloom+shadow+rule treatment as Title(), but the word is drawn as
+        /// three pieces - "TRI", the glyph, "SHOT" - kerned by measuring the real font
+        /// (GUIStyle.CalcSize) rather than a hardcoded offset, so it stays correct at any fontSize
+        /// (this is called at both the splash's hero size and the hub's small top wordmark).
+        /// </summary>
+        public static void TitleWithKickK(Rect r, int fontSize = 132, Color? rule = null)
+        {
+            if (_titleStyle == null)
+            {
+                _titleStyle = new GUIStyle { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                UIFont.Heavy(_titleStyle);
+            }
+            _titleStyle.fontSize = fontSize;
+            _titleStyle.normal.textColor = Ink;
+
+            Glow(new Rect(r.center.x - r.width * 0.42f, r.y + r.height * 0.1f, r.width * 0.84f, r.height * 0.9f),
+                 new Color(0.06f, 0.10f, 0.18f, 0.5f));
+
+            float wTri = _titleStyle.CalcSize(new GUIContent("TRI")).x;
+            float wShot = _titleStyle.CalcSize(new GUIContent("SHOT")).x;
+            // The glyph gets its OWN full-size slot, not a real "K" character's narrow advance
+            // width - it runs taller AND wider than a plain letter (the kicking leg overshoots
+            // above cap-height on purpose), so sizing off CalcSize("K") would either draw it tiny
+            // (fit to the slot) or overlap "TRI"/"SHOT" (grown past the slot it was given).
+            float kSize = fontSize * 1.1f;
+            float total = wTri + kSize + wShot;
+            float x = r.center.x - total * 0.5f;
+
+            var triRect = new Rect(x, r.y, wTri, r.height); x += wTri;
+            var kSquare = new Rect(x, r.center.y - kSize * 0.5f, kSize, kSize); x += kSize;
+            var shotRect = new Rect(x, r.y, wShot, r.height);
+
+            Shadowed(triRect, "TRI", _titleStyle, Ink, 0.8f, 3f);
+            Shadowed(shotRect, "SHOT", _titleStyle, Ink, 0.8f, 3f);
+
+            // The glyph carries the same drop-shadow treatment as the letters flanking it (an
+            // offset dark copy, then the real one).
+            var kShadow = new Rect(kSquare.x + 3f, kSquare.y + 3f, kSquare.width, kSquare.height);
+            var pc = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.8f);
+            GUI.DrawTexture(kShadow, TitleGlyph.K);
+            GUI.color = Ink;
+            GUI.DrawTexture(kSquare, TitleGlyph.K);
+            GUI.color = pc;
 
             var rc = rule ?? Gold;
             float rw = Mathf.Min(140f, r.width * 0.3f);
@@ -485,6 +541,28 @@ namespace Trickshot
             _hintStyle.alignment = align;
             _hintStyle.normal.textColor = Faint;
             GUI.Label(r, text, _hintStyle);
+        }
+
+        static GUIStyle _pulseStyle;
+        /// <summary>
+        /// An inviting call-to-action that breathes rather than sits still - "press any key to
+        /// continue". Same alpha-pulse idiom Hud.Clock() uses under its 15s countdown, but at a
+        /// slow, calm 2.2 (period ~2.9s) instead of Clock's urgent 7 - this is an invitation, not a
+        /// warning. Gold rather than Faint/Dim: on a splash with nothing else to click, this IS the
+        /// primary call to action, not a footnote.
+        /// </summary>
+        public static void PulseHint(Rect r, string text)
+        {
+            _pulseStyle ??= new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            UIFont.Heavy(_pulseStyle);
+            _pulseStyle.fontSize = 20;
+
+            float pulse = 0.55f + 0.45f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 2.2f));
+            var col = Gold; col.a = pulse;
+
+            var bleed = Gold; bleed.a = 0.12f * pulse;
+            Glow(new Rect(r.center.x - r.width * 0.3f, r.y - r.height * 0.3f, r.width * 0.6f, r.height * 1.6f), bleed);
+            Shadowed(r, text, _pulseStyle, col, 0.7f * pulse, 2f);
         }
 
         /// <summary>
@@ -536,16 +614,18 @@ namespace Trickshot
         /// <summary>
         /// Menu button. The plate itself comes from the skin (so padding, font and size are the
         /// caller's); this adds a marker bar off the leading edge and a soft glow while hovered,
-        /// which is what makes a row read as "the one I'm about to click".
+        /// which is what makes a row read as "the one I'm about to click". Pass markerBar: false
+        /// for a screen that shouldn't carry the leading-edge line (the glow highlight still shows).
         /// </summary>
-        public static bool Button(Rect r, string label, GUIStyle st, bool bad = false)
+        public static bool Button(Rect r, string label, GUIStyle st, bool bad = false, bool markerBar = true)
         {
             LockText(st);
             var e = Event.current;
             if (e != null && r.Contains(e.mousePosition))
             {
                 Color bar = bad ? Red : Gold;
-                Fill(new Rect(r.x - 12f, r.y + 8f, 4f, Mathf.Max(4f, r.height - 16f)), bar);
+                if (markerBar)
+                    Fill(new Rect(r.x - 12f, r.y + 8f, 4f, Mathf.Max(4f, r.height - 16f)), bar);
                 Glow(new Rect(r.x - 26f, r.y - 6f, r.width + 52f, r.height + 12f),
                      new Color(bar.r, bar.g, bar.b, 0.10f));
             }
@@ -616,6 +696,62 @@ namespace Trickshot
             GUI.backgroundColor = keep;
             if (on) Fill(new Rect(r.x + 5f, r.yMax - 3f, r.width - 10f, 2.5f), Gold);
             return hit;
+        }
+
+        static GUIStyle _cardTitleStyle, _cardSubStyle, _cardSoonStyle;
+        /// <summary>
+        /// A FIFA-style mode card: an icon zone, a bold title, a wrapped subtitle - the hub's
+        /// panel-button, in place of the plain UITheme.Button list every screen has used until now.
+        /// Panel()'s own hover-plate tint is off limits (it forces GUI.backgroundColor to white
+        /// before drawing), so hover reads the same way Button()'s glow does instead: an ambient
+        /// bloom around the whole card, no accent rule line. comingSoon draws a small gold "SOON"
+        /// chip in the corner, so the not-yet-built status is visible before the click, not after.
+        /// </summary>
+        public static bool ModeCard(Rect r, Texture2D icon, string title, string subtitle, bool comingSoon = false)
+        {
+            var e = Event.current;
+            bool hot = e != null && r.Contains(e.mousePosition);
+
+            Panel(r, accent: null);
+            if (hot)
+                Glow(new Rect(r.x - 14f, r.y - 14f, r.width + 28f, r.height + 28f),
+                     new Color(Gold.r, Gold.g, Gold.b, 0.10f));
+
+            // The icon+title+subtitle block is centred in the card rather than pinned under a
+            // fixed top pad: cards now size off the real canvas (see MenuUI.DrawHub) and can run
+            // much taller than this content stack, which top-anchored would leave as a dead band
+            // at the bottom of every card.
+            const float iconSize = 150f, titleH = 34f, subH = 40f, blockGap = 8f;
+            float contentH = iconSize + blockGap + titleH + 2f + subH;
+            float blockY = r.y + Mathf.Max(20f, (r.height - contentH) * 0.5f);
+            var iconRect = new Rect(r.center.x - iconSize * 0.5f, blockY, iconSize, iconSize);
+            if (icon != null)
+            {
+                var pc = GUI.color; GUI.color = hot ? Ink : Dim;
+                GUI.DrawTexture(iconRect, icon);
+                GUI.color = pc;
+            }
+
+            _cardTitleStyle ??= new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            UIFont.Heavy(_cardTitleStyle); _cardTitleStyle.fontSize = 20;
+            var titleRect = new Rect(r.x, iconRect.yMax + 8f, r.width, titleH);
+            Shadowed(titleRect, title, _cardTitleStyle, Ink);
+
+            _cardSubStyle ??= new GUIStyle { fontSize = 13, wordWrap = true, alignment = TextAnchor.UpperCenter };
+            _cardSubStyle.normal.textColor = Dim;
+            var subRect = new Rect(r.x + 10f, titleRect.yMax + 2f, r.width - 20f, subH);
+            GUI.Label(subRect, subtitle, _cardSubStyle);
+
+            if (comingSoon)
+            {
+                var soonRect = new Rect(r.xMax - 66f, r.y + 10f, 56f, 22f);
+                Chip(soonRect, Gold);
+                _cardSoonStyle ??= new GUIStyle { fontSize = 11, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                _cardSoonStyle.normal.textColor = new Color(0.08f, 0.07f, 0.03f);
+                GUI.Label(soonRect, "SOON", _cardSoonStyle);
+            }
+
+            return GUI.Button(r, GUIContent.none, GUIStyle.none);
         }
 
         /// <summary>
