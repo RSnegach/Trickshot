@@ -157,7 +157,6 @@ namespace Trickshot
                 new StadiumStyle
                 {
                     Name = "Olympic Stadium", Blurb = "Roofed bowl with a running track.",
-                    Pickable = false,
                     StandRows = 34, RowRise = 0.95f, RowDepth = 1.05f, HasRoof = true,
                     Grass = new Color(0.13f, 0.27f, 0.14f),
                     Seats = new Color(0.13f, 0.13f, 0.15f),
@@ -179,7 +178,6 @@ namespace Trickshot
                 new StadiumStyle
                 {
                     Name = "Arena", Blurb = "Steep enclosed stands. Loud.",
-                    Pickable = false,
                     StandRows = 28, RowRise = 1.05f, RowDepth = 0.95f, HasRoof = true,
                     Grass = new Color(0.12f, 0.28f, 0.14f),
                     Seats = new Color(0.10f, 0.10f, 0.12f),
@@ -236,7 +234,6 @@ namespace Trickshot
                 new StadiumStyle
                 {
                     Name = "National Stadium", Blurb = "Big steep tiers. Flags and statues.",
-                    Pickable = false,
                     StandRows = 30, RowRise = 1.0f, RowDepth = 1.0f, HasRoof = true,
                     Grass = new Color(0.14f, 0.29f, 0.15f),
                     Seats = new Color(0.12f, 0.12f, 0.14f),
