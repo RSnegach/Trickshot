@@ -22,14 +22,14 @@ namespace Trickshot
     {
         NetSetPieceMatch _driver;
 
-        public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball,
+        public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball, Transform goal,
                               Material torso, Material limb, Material glove, Transform root)
         {
             // AccuracyMode must be set BEFORE Configure so the driver reads the accuracy config
             // and builds the target board during setup.
             _driver = gameObject.AddComponent<NetSetPieceMatch>();
             _driver.AccuracyMode = true;
-            _driver.Configure(input, cam, gameCam, ball, torso, limb, glove, root);
+            _driver.Configure(input, cam, gameCam, ball, goal, torso, limb, glove, root);
         }
     }
 }

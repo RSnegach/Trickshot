@@ -566,7 +566,8 @@ namespace Trickshot
             var go = new GameObject("NetStrikerMatch");
             go.transform.SetParent(root, true);
             go.AddComponent<NetStrikerMatch>()
-              .Configure(GetInput(), cam, gameCam, ball, crosser, reticle, launch, torso, limb, glove, root);
+              .Configure(GetInput(), cam, gameCam, ball, crosser, reticle, launch, arena.goalCenter,
+                         torso, limb, glove, root);
             LockCursor();
             ball.ResetTo(launch.position);
         }
@@ -584,7 +585,7 @@ namespace Trickshot
             var go = new GameObject("NetSetPieceMatch");
             go.transform.SetParent(root, true);
             go.AddComponent<NetSetPieceMatch>()
-              .Configure(GetInput(), cam, gameCam, ball, torso, limb, glove, root);
+              .Configure(GetInput(), cam, gameCam, ball, arena.goalCenter, torso, limb, glove, root);
             LockCursor();
         }
 
@@ -601,7 +602,7 @@ namespace Trickshot
             var go = new GameObject("NetAccuracyMatch");
             go.transform.SetParent(root, true);
             go.AddComponent<NetAccuracyMatch>()
-              .Configure(GetInput(), cam, gameCam, ball, torso, limb, glove, root);
+              .Configure(GetInput(), cam, gameCam, ball, arena.goalCenter, torso, limb, glove, root);
             LockCursor();
         }
 

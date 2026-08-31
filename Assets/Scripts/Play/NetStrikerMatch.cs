@@ -52,6 +52,7 @@ namespace Trickshot
         GameCamera _cam;
         BallController _ball;
         Crosser _crosser;
+        Transform _goal;   // for the Broadcast/replay camera's GroupCenter framing only
         AimReticle _reticle;
         Transform _launch;
         NetSession _s;
@@ -84,10 +85,11 @@ namespace Trickshot
         float _goalHold;
 
         public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball, Crosser crosser,
-                              AimReticle reticle, Transform launch,
+                              AimReticle reticle, Transform launch, Transform goal,
                               Material torso, Material limb, Material glove, Transform root)
         {
             _input = input; _cam = gameCam; _ball = ball; _crosser = crosser; _reticle = reticle; _launch = launch;
+            _goal = goal;
             _ball.NoCarry = true;   // striker mode has no carry: a dead touch is pushed clear of his feet
             _s = Multiplayer.Session;
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
@@ -109,7 +111,15 @@ namespace Trickshot
             _localIsKeeper = me != null && me.isKeeper;
             if (me != null && me.ragdoll != null && me.ragdoll.Pelvis != null)
             {
-                _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, null, null);
+                // Single-player's own Striker builder passes the real crosser + goal into the same
+                // slots (GameBootstrap.BuildStrikerMode) so the Broadcast/replay camera's
+                // GroupCenter can widen its framing to include them after a shot; this was passing
+                // null for both despite already holding a live _crosser reference, giving every
+                // networked single-goal match a visibly tighter post-shot framing than its
+                // single-player twin.
+                Transform crosserT = _crosser != null && _crosser.Ragdoll != null && _crosser.Ragdoll.Pelvis != null
+                                    ? _crosser.Ragdoll.Pelvis.transform : null;
+                _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, crosserT, _goal);
                 if (_localIsKeeper)
                 {
                     // Human keeper: identical to single-player goalkeeper mode. The camera pans

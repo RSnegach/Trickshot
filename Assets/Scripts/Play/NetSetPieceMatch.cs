@@ -62,6 +62,7 @@ namespace Trickshot
         GameCamera _cam;
         BallController _ball;
         Transform _root;
+        Transform _goal;   // for the Broadcast/replay camera's GroupCenter framing only
         NetSession _s;
         DefensiveWall _wall;
 
@@ -115,10 +116,10 @@ namespace Trickshot
 
         const float KickSpeed = 2.5f, RestSpeed = 0.7f, RestHold = 0.6f, MaxLiveTime = 6f;
 
-        public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball,
+        public void Configure(GameInput input, Camera cam, GameCamera gameCam, BallController ball, Transform goal,
                               Material torso, Material limb, Material glove, Transform root)
         {
-            _input = input; _cam = gameCam; _ball = ball; _root = root;
+            _input = input; _cam = gameCam; _ball = ball; _root = root; _goal = goal;
             _s = Multiplayer.Session;
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
             _goalLineZ = SimConfig.GoalCenter.z;
@@ -170,7 +171,10 @@ namespace Trickshot
             _localIsKeeper = me != null && me.isKeeper;
             if (me != null && me.ragdoll != null && me.ragdoll.Pelvis != null)
             {
-                _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, null, null);
+                // No crosser in this mode (matches single-player Set Pieces/Accuracy), but the real
+                // goal now reaches the Broadcast/replay camera's GroupCenter the same way it already
+                // does for single-player - this was hardcoding null and framing visibly tighter.
+                _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, null, _goal);
                 if (_localIsKeeper)
                 {
                     // Human keeper: identical to single-player goalkeeper mode. The camera pans in a
