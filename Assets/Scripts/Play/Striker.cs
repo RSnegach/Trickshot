@@ -330,7 +330,7 @@ namespace Trickshot
 
             // Re-lock upright only in normal state, grounded, past the jump grace. (Not
             // while airborne - the mouse wheel is controlling his pitch there.)
-            if (_mode == Trick.None && _airborneLock <= 0f && grounded && !_ragdoll.UprightLock)
+            if (_mode == Trick.None && _airborneLock <= 0f && grounded && !_ragdoll.UprightLock && !_sitting)
                 _ragdoll.UprightLock = true;
 
             // Leg control (LMB/RMB) works the same grounded OR airborne - bicycle kicks
@@ -1026,6 +1026,8 @@ namespace Trickshot
                     _sitting = true;
                     _lmbDownT = 0f; _rmbDownT = 0f;
                     _ragdoll.MoveInput = Vector3.zero;
+                    _ragdoll.UprightLock = false;     // let the pelvis tilt so the butt reaches the turf
+                    _ragdoll.BalanceEnabled = false;   // balance PD drives toward upright (pitch=0), fighting the sit
                     _ragdoll.SetPose(RagdollPose.Sit, SimConfig.SitPoseSpeed);
                 }
             }
@@ -1052,6 +1054,8 @@ namespace Trickshot
         {
             _sitting = false;
             _lmbDownT = 0f; _rmbDownT = 0f;
+            _ragdoll.UprightLock = true;
+            _ragdoll.BalanceEnabled = true;
             _ragdoll.SetPose(RagdollPose.Stand, SimConfig.SitPoseSpeed);
         }
 
@@ -1077,6 +1081,7 @@ namespace Trickshot
             _rmbDownT = 0f;
             _sitDrop = 0f;
             _ragdoll.EmoteHeightOffset = 0f;
+            _ragdoll.UprightLock = true;
             _gaitPhase = 0f;
             _gaitWeight = 0f;
             _ragdoll.DiveYawLock = false;

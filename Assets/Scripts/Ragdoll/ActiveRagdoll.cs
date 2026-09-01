@@ -922,7 +922,7 @@ namespace Trickshot
                 if (!_emoteHeightBased) { _emoteHeightRestY = Pelvis.position.y; _emoteHeightBased = true; }
                 float wantY = _emoteHeightRestY + EmoteHeightOffset;
                 var v = Pelvis.linearVelocity;
-                v.y = (wantY - Pelvis.position.y) * 12f;   // PD toward the target height
+                v.y = (wantY - Pelvis.position.y) * 36f;   // PD toward the target height
                 Pelvis.linearVelocity = v;
             }
             else _emoteHeightBased = false;

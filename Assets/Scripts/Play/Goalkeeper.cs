@@ -183,6 +183,23 @@ namespace Trickshot
             float dt = Time.deltaTime;
             if (_diveCooldown > 0f) _diveCooldown -= dt;
             if (_spread > 0f) _spread -= dt;
+            // When the spread block ends, pop back up to guard stance the same way a dive
+            // calls RestorePhysics — just resetting EmoteHeightOffset leaves the pelvis at
+            // ground height with the carry servo fighting to lift it, which can take several
+            // frames and looks like staggering.
+            if (_spread <= 0f)
+            {
+                _spread = 0f;
+                if (_ragdoll.EmoteHeightOffset != 0f)
+                {
+                    _ragdoll.EmoteHeightOffset = 0f;
+                    _ragdoll.UprightLock = true;
+                    _ragdoll.BalanceEnabled = true;
+                    _ragdoll.LocomotionEnabled = true;
+                    _ragdoll.SnapFacing(_facing);
+                    _ragdoll.SetPose(KeeperPose.Ready, 12f);
+                }
+            }
             _hands.Tick(dt);
 
             float ability = Mathf.Clamp01(SimConfig.KeeperAbility);
@@ -331,6 +348,7 @@ namespace Trickshot
             {
                 _ragdoll.MoveInput = Vector3.zero;
                 _ragdoll.FacingRotation = _facing;
+                _ragdoll.EmoteHeightOffset = -0.50f;   // drop flush to the ground like the human keeper does
                 _ragdoll.SetPose(KeeperPose.Split, 14f);
                 return;
             }
@@ -527,8 +545,14 @@ namespace Trickshot
             float layoutDeg = band == Band.Low ? SimConfig.KeeperDiveLayoutLow
                             : band == Band.Mid ? SimConfig.KeeperDiveLayoutHigh : HighLayoutDeg;
 
+            // Cancel ALL residual horizontal velocity on every bone (the shuffle from
+            // the previous FixedUpdate's locomotion is still in the Rigidbody), then apply the
+            // clean dive impulse. If we just add, the shuffle carry-over defeats the cap.
+            var pv = _ragdoll.Pelvis.linearVelocity;
+            _ragdoll.AddVelocityToAll(new Vector3(-pv.x, 0f, -pv.z));
             float horiz = SimConfig.AiKeeperDiveHoriz * horizMul * abil
                           * (SimConfig.KeeperStrafeSpeed / 5.5f);
+            horiz = Mathf.Min(horiz, SimConfig.KeeperDiveHorizBase * Mathf.Lerp(1.0f, 1.10f, ability));
             // The pre-match jump slider scales every vertical, including the low band's - it used to
             // scale the full dive and the jump but not the low dive, which made the slider lie.
             up *= abil * (SimConfig.KeeperJumpVel / SimConfig.KeeperJumpVelBase);
@@ -558,8 +582,13 @@ namespace Trickshot
             // the ball while the lunge carried him toward it.
             float side = dir * RightSign();      // +1 = crossing on his own right
             _lowPose = side < 0f ? KeeperPose.SaveLeft : KeeperPose.SaveRight;
+            // Cancel residual shuffle velocity before applying the clean lunge, same as
+            // LaunchBandDive. Without this the shuffle carry-over adds to the splay impulse.
+            var pv = _ragdoll.Pelvis.linearVelocity;
+            _ragdoll.AddVelocityToAll(new Vector3(-pv.x, 0f, -pv.z));
             float horiz = SimConfig.KeeperSaveLunge * DiveAbil(ability)
                           * (SimConfig.KeeperStrafeSpeed / 5.5f);
+            horiz = Mathf.Min(horiz, SimConfig.KeeperSaveLunge * 0.72f);   // splay is grounded — cap well below the full lunge
             _ragdoll.AddVelocityToAll(new Vector3(dir * horiz, SimConfig.AiKeeperLowSaveUp, 0f));
             _diveOrient = _facing;               // keep low, no full layout roll
             _ragdoll.BodyOrientTarget = _diveOrient;
@@ -667,6 +696,7 @@ namespace Trickshot
         {
             _lowPose = null;
             _ragdoll.BodyOrientTarget = null;
+            _ragdoll.EmoteHeightOffset = 0f;
             _ragdoll.SnapFacing(_facing);
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;

@@ -1003,8 +1003,12 @@ namespace Trickshot
                 // REDIRECT onto a mostly-goal-ward horizontal line (a glancing touch is
                 // steered toward goal, not just sped up in its old direction) and give it
                 // real pace, floored so even a soft header flies. Vertical is largely
-                // flattened so it drives in low and hard. Only when FACING the goal; a
-                // header while turned away is a plain deflection along its incoming line.
+                // flattened so it drives in low and hard.
+                //
+                // Facing dependence: goalBias is scaled by how directly the striker is
+                // looking at goal (facingDot), same as shots use for accuracy. Dead-on =
+                // full steer toward goal; side-on = weak steer; turned away = plain
+                // deflection.
                 Vector3 toGoal = SimConfig.AttackGoalCenter - Rb.position; toGoal.y = 0f;
                 if (toGoal.sqrMagnitude < 0.01f) toGoal = Vector3.forward;
                 toGoal.Normalize();
@@ -1012,7 +1016,9 @@ namespace Trickshot
                 // Aerial capstone: steer harder toward goal and keep more of the incoming
                 // pace/vertical (a more dangerous header).
                 bool aerial = PlayerProfile.PerkAerial;
-                float goalBias = !facingGoal ? 0f : (aerial ? SimConfig.AerialGoalBias : SimConfig.HeaderGoalBias);
+                float goalBias = !facingGoal ? 0f
+                    : (aerial ? SimConfig.AerialGoalBias : SimConfig.HeaderGoalBias)
+                      * Mathf.Clamp01((facingDot - SimConfig.AssistFacingDot) / (1f - SimConfig.AssistFacingDot));
 
                 float vKeep = aerial ? SimConfig.AerialPaceKeep : SimConfig.HeaderVerticalKeep;
 
@@ -1040,7 +1046,7 @@ namespace Trickshot
                 // the human response is untouched to the bit.
                 var hdr = Species.ById(ragdoll.SpeciesId).Header;
 
-                float headVy = v.y * vKeep;
+                float headVy = v.y * vKeep - SimConfig.HeaderDownwardBias;
 
                 Vector3 flatIn = new Vector3(v.x, 0f, v.z);
                 // PACE. `v` is read POST-SOLVE, so flatIn is the bounce off the head and carries the

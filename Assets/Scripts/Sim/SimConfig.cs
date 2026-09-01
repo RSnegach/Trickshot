@@ -91,6 +91,10 @@ namespace Trickshot
         // other, and the reach was covering ground the dive is supposed to be for.
         public const float KeeperSaveLunge = 5.6f;
         public const float KeeperSaveReleaseTime = 0.12f; // brief settle after release before standing
+        // Minimum time a single-button lunge must play out before recovery can begin. This is the
+        // anti-feathering fix: without it, tap-release-tap chains the full KeeperSaveLunge impulse
+        // at speed because recovery started the instant the button came up.
+        public const float KeeperSaveCommitTime = 0.35f;  // full lunge to ground, then recover
         // The release timer alone let a spammed LMB/RMB re-trigger BeginSave (another full
         // KeeperSaveLunge impulse, additive) before the PREVIOUS lunge's velocity had bled off,
         // compounding speed with every click. These gate recovery on the body actually having
@@ -659,7 +663,7 @@ namespace Trickshot
         public const float BicycleLegEase = 22f;      // single airborne leg snaps up this fast (bicycle kick)
         public const float BicycleLegRaiseMul = 1.35f; // and this much higher than a normal raise
         public const float HeaderLegRaiseMul = 0.25f; // airborne header: legs come forward only minimally
-        public const float HeaderTorsoBend = 90f;    // deg the torso folds forward on an airborne header (snappy, far)
+        public const float HeaderTorsoBend = 90f;   // deg the torso folds forward on an airborne header
         public const float HeaderBendEase = 60f;     // how fast the torso snaps forward into the header (very fast)
         public const float HeaderGrace = 0.12f;      // sec an airborne header stays live after the click (GK-split-style)
 
@@ -669,7 +673,7 @@ namespace Trickshot
         // swinging, then pressing the other is still two ordinary leg raises.
         public const float SitWindow    = 0.18f;  // sec the two clicks may be apart and still read as together
         public const float SitRaiseMax  = 0.5f;   // a leg already this far up is a committed strike - no sit
-        public const float SitDrop      = 0.55f;  // m the hips sink to seat height (scaled by build height)
+        public const float SitDrop      = 0.72f;  // m the hips sink to seat height (scaled by build height)
         public const float SitDropEase  = 2.2f;   // m/s the hips sink into, and rise out of, the sit
         public const float SitPoseSpeed = 4f;     // pose blend rate into Sit and back to Stand
         // Arbitration with the SLIDE TACKLE, which reads the identical both-buttons combo in
@@ -700,7 +704,7 @@ namespace Trickshot
         // 6.5 m/s launch and fixedDeltaTime 0.014: as a raw per-frame multiply it carried 3.34 m at
         // 30 fps, 2.29 m at 60, 1.10 m at 144 and 0.69 m at 240 - a 4.8x spread. Raised to dt*60 the
         // same integration holds 2.24 / 2.29 / 2.31 / 2.32 m across that range.
-        public const float SlideFriction = 0.96f;
+        public const float SlideFriction = 0.94f;
         public const float SlideRecover  = 0.45f;   // s after standing up before he can slide again
         public const float SlidePoseSpeed = 7f;     // pose blend into Slide: faster than the sit, it is a lunge
         // Ceiling on the TOTAL horizontal launch speed (carried run + SlideLunge). It exists because
@@ -1062,10 +1066,10 @@ namespace Trickshot
         // normal shot - it only lowers the launch angle.
         public const float BicycleVKeepRaw     = 0.58f; // vertical kept at zero Shooting+Control
         public const float BicycleVKeepSkilled = 0.36f; // vertical kept at full Shooting+Control
-        public const float BicyclePaceRaw      = 1.05f; // goalward pace mul at zero skill
-        public const float BicyclePaceSkilled  = 1.12f; // goalward pace mul at full skill
-        public const float BicycleBonusLiftRaw     = 0.26f; // trick-bonus up component at zero skill
-        public const float BicycleBonusLiftSkilled = 0.12f; // trick-bonus up component at full skill
+        public const float BicyclePaceRaw      = 1.18f;  // goalward pace mul at zero skill — straighter toward goal
+        public const float BicyclePaceSkilled  = 1.30f;  // goalward pace mul at full skill — straighter toward goal
+        public const float BicycleBonusLiftRaw     = 0.18f; // trick-bonus up component at zero skill — less loft
+        public const float BicycleBonusLiftSkilled = 0.08f; // trick-bonus up component at full skill — near-flat line
         // Trading vertical for pace lowers the AVERAGE bike; it does not BOUND the worst one. The
         // launch is a solve plus an AddForce bonus on top, so a steep contact could still clear the
         // bar. The last word is therefore geometric rather than statistical: BallController solves
@@ -1376,7 +1380,7 @@ namespace Trickshot
         // Easy currently never dives, never rushes and never claims - two of five tiers are statues.
         // Moving this to 0.31 would tiptoe past that instead of fixing it. The gates are the bug.
         public static readonly string[] AiLevelNames   = { "None", "Easy", "Normal", "Hard", "Insane" };
-        public static readonly float[]  AiLevelAbility = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+        public static readonly float[]  AiLevelAbility = { 0f, 0.15f, 0.30f, 0.55f, 0.80f };
 
         /// <summary>Nearest ladder index to a raw 0..1 ability, so a value left over from the old
         /// slider (or from a future retune of these steps) still lands on a named button.</summary>
@@ -1771,6 +1775,9 @@ namespace Trickshot
         public const float HeaderGoalBias = 0.85f;   // 0..1: how strongly it aims at goal
         public const float HeaderMinSpeed = 15f;     // floor horizontal speed off a header (m/s)
         public const float HeaderVerticalKeep = 0.35f; // fraction of incoming vertical kept (stays flat)
+        // m/s downward added to every header's vertical velocity so it drives in lower and harder.
+        // Only applies when the ball is not struck on its bottom third (that's a natural lift).
+        public const float HeaderDownwardBias = 1.8f;
 
         // Hard floor on a header's outgoing PITCH, in degrees below horizontal, after a species'
         // HeaderAction.DownDeg tilt is applied. The tilt is there so a body that heads from a

@@ -69,7 +69,6 @@ namespace Trickshot
         bool _diveIsJump;     // straight jump (stays upright) vs. lay-out dive
         bool _diveIsHigh;     // high (full lay-out) dive vs. low dash dive
         float _saveReleaseTimer;
-        float _saveSettle;    // seconds GroundSpeed has stayed below KeeperSaveSettleSpeed, continuously
 
         // Getting up off the turf (see ManageStumble).
         float _stumbleTimer;
@@ -230,29 +229,54 @@ namespace Trickshot
 
         // Reflex save: one-time sideways lunge with arm+leg out, on his feet. Locomotion
         // steering is OFF so the lunge momentum carries him sideways instead of being
-        // instantly arrested. Very short timer -> gets up immediately.
+        // instantly arrested. A single-button lunge commits for a minimum time to prevent
+        // feathering: tap-release-tap chains the full lunge impulse at speed, so the commit
+        // must play out to the ground before recovery can begin.
         Vector3[] _savePose;
+        float _saveCommitTimer;   // >0 while a directional lunge commit is locked in
         void BeginSave(float dir, Vector3 kRight, Vector3[] pose)
         {
             _state = State.Saving;
             _saveReleaseTimer = -1f;                 // -1 = still held
-            _saveSettle = 0f;
             _savePose = pose;
+            _saveCommitTimer = Mathf.Abs(dir) > 0.1f ? SimConfig.KeeperSaveCommitTime : 0f;
             _ragdoll.LocomotionEnabled = false;      // let the lunge carry
             _ragdoll.MoveInput = Vector3.zero;
-            if (Mathf.Abs(dir) > 0.1f)
+            if (_saveCommitTimer > 0f)
                 _ragdoll.AddVelocityToAll(kRight * (dir * SimConfig.KeeperSaveLunge));
+            else
+            {
+                // Split (both buttons): kill residual horizontal velocity.
+                var v = _ragdoll.Pelvis.linearVelocity;
+                v.x = 0f; v.z = 0f;
+                _ragdoll.Pelvis.linearVelocity = v;
+            }
             _ragdoll.SetPose(pose, 16f);
         }
 
         void ManageSave()
         {
-            // Gathering mid-lunge is fair game, same as mid-dive. This is also what makes
-            // TryClaim's State.Saving restore arm reachable: without it, holding the button
-            // pinned him in the save pose and the rebound stayed live until he let go.
             if (TryClaim()) return;
 
             bool lmb = _input.LeftLegHeld, rmb = _input.RightLegHeld;
+
+            // During the commit window, the lunge is locked in — releasing early does nothing.
+            // This is the anti-feathering fix: tap-release-tap used to chain full-lunge impulses
+            // because recovery started the instant the button came up.
+            if (_saveCommitTimer > 0f)
+            {
+                _saveCommitTimer -= Time.deltaTime;
+                // Still holding: stay in the original pose, keep timer frozen at -1.
+                // Released: let the commit timer run out, then fall through to recovery.
+                if (lmb || rmb)
+                {
+                    _savePose = (lmb && rmb) ? KeeperPose.Split
+                              : lmb ? KeeperPose.SaveLeft : KeeperPose.SaveRight;
+                }
+                _ragdoll.SetPose(_savePose, 16f);
+                if (_saveCommitTimer > 0f) return;   // still committed
+                // Commit expired — fall through to normal release handling below.
+            }
 
             // Live-switch the held pose: both = split, else the one-sided reach.
             if (lmb || rmb)
@@ -263,21 +287,11 @@ namespace Trickshot
             }
             _ragdoll.SetPose(_savePose, 16f);        // hold the reach
 
-            // Released: brief settle, then stand - but ONLY once he has actually slowed down, not
-            // just after a flat timer. BeginSave's lunge (KeeperSaveLunge) is a real velocity
-            // impulse with LocomotionEnabled off, so it barely decays on its own; recovering on a
-            // timer alone let a spammed LMB/RMB re-trigger BeginSave - another full lunge, additive
-            // - before the previous one had bled off, compounding speed with every click.
+            // Released: brief settle on a flat timer, then stand up.
             if (!lmb && !rmb)
             {
                 if (_saveReleaseTimer < 0f) _saveReleaseTimer = SimConfig.KeeperSaveReleaseTime;
-                _saveReleaseTimer -= Time.deltaTime;
-                bool timerDone = _saveReleaseTimer <= 0f;
-                if (timerDone && _ragdoll.GroundSpeed < SimConfig.KeeperSaveSettleSpeed)
-                    _saveSettle += Time.deltaTime;
-                else
-                    _saveSettle = 0f;
-                if (timerDone && _saveSettle >= SimConfig.KeeperSaveSettleTime) RecoverToReady();
+                if ((_saveReleaseTimer -= Time.deltaTime) <= 0f) RecoverToReady();
             }
         }
 
@@ -289,6 +303,7 @@ namespace Trickshot
             _facing = Quaternion.LookRotation(_faceDir, Vector3.up);
             _ragdoll.FacingRotation = _facing;   // face forward again after getting up
             _ragdoll.BodyOrientTarget = null;    // stop driving the dive lay-out
+            _ragdoll.EmoteHeightOffset = 0f;     // cancel any external height offset
             _ragdoll.SnapFacing(_facing);        // hard-snap to forward (no wrong-way slew)
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
@@ -593,6 +608,7 @@ namespace Trickshot
             _diveAir = 0f; _diveGround = 0f;
             _airPose = null;
             _ragdoll.BodyOrientTarget = null;
+            _ragdoll.EmoteHeightOffset = 0f;
             _ragdoll.BalanceEnabled = true;
             _ragdoll.LocomotionEnabled = true;
             _ragdoll.UprightLock = true;
