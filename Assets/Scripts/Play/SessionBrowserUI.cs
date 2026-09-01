@@ -269,7 +269,7 @@ namespace Trickshot
                 // which is the difference between patience and assuming the screen is broken.
                 bool sweeping = !_swept || TailnetDiscovery.Scanning;
                 if (sweeping) UITheme.Spinner(new Rect(er.center.x - 16f, er.y + 18f, 32f, 32f), UITheme.Gold);
-                GUI.Label(new Rect(er.x, er.y + (sweeping ? 44f : 0f), er.width, er.height - (sweeping ? 44f : 0f)),
+                UITheme.Label(new Rect(er.x, er.y + (sweeping ? 44f : 0f), er.width, er.height - (sweeping ? 44f : 0f)),
                           BrowseStatus(), empty);
             }
             for (int i = 0; i < _lobbies.Count && i < 6; i++)
@@ -281,8 +281,7 @@ namespace Trickshot
                 { _sel = i; _selHandle = l.handle; }
                 // Green while the lobby has room, gold once it is full: the joinable ones stand out.
                 UITheme.Dot(r.x + 16f, r.center.y, l.players < l.maxPlayers ? UITheme.Green : UITheme.Gold, 2.5f);
-                if (sel) UITheme.Fill(new Rect(r.x + 5f, r.y + 7f, 3f, r.height - 14f), UITheme.Gold);
-                GUI.Label(new Rect(r.x, r.y, r.width - 14f, rowH), $"{l.mode}    {l.players}/{l.maxPlayers}  ", meta);
+                UITheme.Label(new Rect(r.x, r.y, r.width - 14f, rowH), $"{l.mode}    {l.players}/{l.maxPlayers}  ", meta);
                 row += rowH + gap;
             }
             if (_lobbies.Count > 0)
@@ -318,7 +317,7 @@ namespace Trickshot
                 // clipped to a single 18px line, hiding the part that says what to fix.
                 var err = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Red } };
                 UITheme.Chip(new Rect(lx - 6f, ipY + 55f, lw + 12f, 50f), new Color(0.22f, 0.07f, 0.07f, 0.9f), UITheme.Red);
-                GUI.Label(new Rect(lx, ipY + 58f, lw, 46f), _ipError, err);
+                UITheme.Label(new Rect(lx, ipY + 58f, lw, 46f), _ipError, err);
             }
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };

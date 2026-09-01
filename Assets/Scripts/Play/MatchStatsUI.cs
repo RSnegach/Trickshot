@@ -145,7 +145,7 @@ namespace Trickshot
             if (s.motm)
             {
                 var tagSt = _motmTagSt;
-                GUI.Label(new Rect(cx, y + 34f, w - 112f, 20f), "MAN OF THE MATCH", tagSt);
+                UITheme.Label(new Rect(cx, y + 34f, w - 112f, 20f), "MAN OF THE MATCH", tagSt);
             }
 
             float ry = y + 66f;
@@ -165,10 +165,10 @@ namespace Trickshot
 
         void DrawStatRow(ref float ry, float x, float w, float rowH, float gap, string label, string value, Color? valColor = null)
         {
-            GUI.Label(new Rect(x, ry, w * 0.55f, rowH), label, _labelSt);
+            UITheme.Label(new Rect(x, ry, w * 0.55f, rowH), label, _labelSt);
             var vs = _valSt;
             if (valColor.HasValue) { vs = new GUIStyle(_valSt); vs.normal.textColor = valColor.Value; }
-            GUI.Label(new Rect(x + w * 0.55f, ry, w * 0.45f, rowH), value, vs);
+            UITheme.Label(new Rect(x + w * 0.55f, ry, w * 0.45f, rowH), value, vs);
             UITheme.Divider(x, ry + rowH, w);
             ry += rowH + gap;
         }

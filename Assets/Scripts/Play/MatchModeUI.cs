@@ -36,8 +36,8 @@ namespace Trickshot
             if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
 
             var sub = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Faint } };
-            GUI.Label(new Rect(cx, cy + h - 22f, w, 18f), "Play with friends", sub);
-            GUI.Label(new Rect(cx, cy + (h + gap) + h - 22f, w, 18f), "Ranked drop-in", sub);
+            UITheme.Label(new Rect(cx, cy + h - 22f, w, 18f), "Play with friends", sub);
+            UITheme.Label(new Rect(cx, cy + (h + gap) + h - 22f, w, 18f), "Ranked drop-in", sub);
 
             MenuScale.End();
         }

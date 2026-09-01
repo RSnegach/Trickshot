@@ -177,7 +177,7 @@ namespace Trickshot
             var shuf = SkillIcons.Get("_shuffle");
             if (shuf != null) GUI.DrawTexture(new Rect(randRect.x + 8f, randRect.y + 5f, 20f, 20f), shuf, ScaleMode.ScaleToFit, true);
             var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = random ? UITheme.Gold : UITheme.Ink } };
-            GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), random ? "RANDOM SPOTS: ON" : "RANDOM SPOTS: OFF", randSt);
+            UITheme.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), random ? "RANDOM SPOTS: ON" : "RANDOM SPOTS: OFF", randSt);
             if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) random = !random;
 
             // Ball / Wall edit selector (disabled while Random is on - spots are auto-generated).
@@ -194,7 +194,7 @@ namespace Trickshot
             GUI.enabled = true;
 
             var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
-            GUI.Label(new Rect(px, py + h + 78f, w, 20f), random
+            UITheme.Label(new Rect(px, py + h + 78f, w, 20f), random
                 ? randomTip
                 : "Click the map to place the " + (editing == 1 ? "wall" : "ball") + ".", tip);
         }
@@ -232,7 +232,7 @@ namespace Trickshot
             DrawReticle(c, 10f + pulse * 4f, new Color(col.r, col.g, col.b, 0.55f + 0.45f * pulse), true);
             var lab = new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = col } };
             var pc = GUI.color; GUI.color = Color.white;
-            GUI.Label(new Rect(c.x - 24f, c.y + 8f, 48f, 16f), label, lab);
+            UITheme.Label(new Rect(c.x - 24f, c.y + 8f, 48f, 16f), label, lab);
             GUI.color = pc;
         }
 

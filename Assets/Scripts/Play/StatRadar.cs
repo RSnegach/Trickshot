@@ -51,7 +51,7 @@ namespace Trickshot
             for (int i = 0; i < n; i++)
             {
                 Vector2 p = Axis(c, radius + 16f, i, n);
-                GUI.Label(new Rect(p.x - 22f, p.y - 9f, 44f, 18f), stats[i].label, lbl);
+                UITheme.Label(new Rect(p.x - 22f, p.y - 9f, 44f, 18f), stats[i].label, lbl);
             }
         }
 
@@ -65,9 +65,9 @@ namespace Trickshot
             float y = top, rowH = 22f;
             for (int i = 0; i < stats.Length; i++)
             {
-                GUI.Label(new Rect(x, y, w, 20f), i < names.Length ? names[i] : stats[i].label, key);
+                UITheme.Label(new Rect(x, y, w, 20f), i < names.Length ? names[i] : stats[i].label, key);
                 val.normal.textColor = RateColor(stats[i].value);
-                GUI.Label(new Rect(x, y, w, 20f), stats[i].value.ToString(), val);
+                UITheme.Label(new Rect(x, y, w, 20f), stats[i].value.ToString(), val);
                 y += rowH;
             }
             return y;

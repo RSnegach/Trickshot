@@ -27,6 +27,15 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   (goals, save %, streak PBs, matches played) rather than only a single match's scoreboard.
   Implies some form of save-file or account-tied persistence that doesn't exist yet.
 
+- **Face paint / face tattoo: unlockable "draw on your face" mode.** The old fixed Face Tattoo
+  accessory (three cheek-line boxes) was removed from the catalog; this is the idea it pointed
+  at. An unlockable cosmetic mode that lets the player PAINT on the character's face directly -
+  the same flow as the jersey painter (a brush over a face UV region), saved into the player's
+  appearance and synced to peers like the jersey texture is. Unlock gate not decided yet
+  (achievement, level, currency — needs the same unresolved persistence question as Career
+  Stats). Needs face-UV groundwork on the head mesh that doesn't exist yet. Not scoped beyond
+  this — just an idea, not being built yet.
+
 - **"Zoo": custom-animal creation + social/multiplayer viewing.** A character-creation interface
   where players build/customize their own animal (builds on the existing `Species`/`AnatomySim`
   system — human, horse, elephant, etc. already have anatomy scaling). Play with your own

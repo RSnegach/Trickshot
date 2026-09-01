@@ -117,7 +117,7 @@ namespace Trickshot
         GameObject _matchRoot;   // holds everything spawned for a running match
         MenuBackground _menuBg;  // aesthetic bicycle-kick backdrop, alive only on the title screen
 
-        void ShowMainMenu()
+        void ShowMainMenu(bool skipSplash = false)
         {
             // Menu music loops unbroken across every pregame screen + the host lobby. Idempotent,
             // so re-entering the menu (or walking hub -> lobby -> customize) never restarts it.
@@ -135,7 +135,8 @@ namespace Trickshot
             menu.Init(
                 onChoose: mode => { HideMenuBackground(); Destroy(menuGo); ShowStadiumSelect(mode); },
                 onMultiplayer: () => { HideMenuBackground(); Destroy(menuGo); ShowMultiplayerHub(); },
-                input: GetInput());   // enables the title-screen Options button (Keybindings + Audio)
+                input: GetInput(),
+                skipSplash: skipSplash);
         }
 
         void ShowMenuBackground()
@@ -172,7 +173,7 @@ namespace Trickshot
             go.AddComponent<MultiplayerHubUI>().Init(
                 onMatch:       () => { Destroy(go); ShowMatchMode(); },
                 onOtherModes:  () => { Destroy(go); ShowOtherModes(); },
-                onBack:        () => { Destroy(go); ShowMainMenu(); });
+                onBack:        () => { Destroy(go); ShowMainMenu(skipSplash: true); });
         }
 
         void ShowMatchMode()
@@ -353,7 +354,10 @@ namespace Trickshot
             var ss = go.AddComponent<StadiumSelectUI>();
             ss.Init(
                 onPicked: () => { Destroy(go); AfterStadium(mode); },
-                onBack:   () => { Destroy(go); ShowMainMenu(); });
+                // Back lands on the menu Hub (the SP/MP/Career Stats page), not the splash:
+                // skipSplash rebuilds MenuUI directly in its Hub phase, exactly like the
+                // multiplayer hub's own Back does.
+                onBack:   () => { Destroy(go); ShowMainMenu(skipSplash: true); });
         }
 
         // Every human-player mode gets the customize screen, keeper included (the keeper wears

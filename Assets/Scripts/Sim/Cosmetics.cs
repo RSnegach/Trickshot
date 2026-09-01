@@ -140,8 +140,9 @@ namespace Trickshot
                 // scalp peeks through the gaps between clumps. Because it's placed at the real head
                 // radius (HeadR * girth) it scales with head size and follows the head silhouette,
                 // instead of the old fixed floating sphere shell. Skipped for the Mohawk, which
-                // bares the sides by design - a full crown skin would fill in the shaved scalp.
-                if (entry.Name != "Mohawk")
+                // bares the sides by design - a full crown skin would fill in the shaved scalp -
+                // and for Buzz, whose dot field NEEDS bare scalp in the daylight between dots.
+                if (entry.Name != "Mohawk" && entry.Name != "Buzz")
                 {
                     // Wear the HAIR shader (opaque variant) so the cap shares the hair's tint +
                     // anisotropic sheen instead of reading as a flat plastic dome.
@@ -306,6 +307,229 @@ namespace Trickshot
             go.transform.localPosition = localPos * _cosScale;      // offset + size scale with the head girth
             go.transform.localRotation = Quaternion.Euler(euler);
             go.transform.localScale = localScale * _cosScale;
+        }
+
+        // ---- "drawn on" head pieces -----------------------------------------
+        // The next three build the same way as BeardMesh below: a small triangle grid pushed a
+        // few mm proud of the head sphere, so they read as regions painted ON the actual head
+        // (an eyepatch, a strap, a headband) rather than boxes floating around it. Same
+        // double-sided emit, same GeneratedMeshOwner teardown, same _cosScale tracking.
+
+        // An elliptical patch flush to the head, centred on `dir` (any direction; normalised
+        // here), halfW/halfH angular half-sizes in RADIANS. The eyepatch: the eye is simply
+        // covered on the head itself.
+        static void HeadPatch(Transform head, Material mat, Vector3 dir, float halfW, float halfH)
+        {
+            dir.Normalize();
+            Vector3 side = Vector3.Cross(dir, Vector3.up);
+            if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(dir, Vector3.forward);
+            side.Normalize();
+            Vector3 up2 = Vector3.Cross(side, dir).normalized;
+
+            const int cols = 12, rows = 8;
+            var verts = new Vector3[(cols + 1) * (rows + 1)];
+            var norms = new Vector3[verts.Length];
+            var uvs = new Vector2[verts.Length];
+            for (int j = 0; j <= rows; j++)
+            for (int i = 0; i <= cols; i++)
+            {
+                float u = (i / (float)cols) * 2f - 1f;       // -1..1 across
+                float v = (j / (float)rows) * 2f - 1f;        // -1..1 down
+                // Swing the centre direction across (yaw about up2) then down (pitch about
+                // side): a small-angle cap that stays an ellipse-ish region on the sphere.
+                Vector3 d = Quaternion.AngleAxis(u * halfW * Mathf.Rad2Deg, up2) * dir;
+                d = Quaternion.AngleAxis(v * halfH * Mathf.Rad2Deg, side) * d;
+                d.Normalize();
+                int idx = j * (cols + 1) + i;
+                verts[idx] = d * (HeadR + 0.004f) * _cosScale;
+                norms[idx] = d;
+                uvs[idx] = new Vector2(i / (float)cols, 1f - j / (float)rows);
+            }
+            EmitHeadGrid(head, mat, verts, norms, uvs, cols, rows);
+        }
+
+        // A thin strap lying ON the head sphere from `from` to `to` (unit directions), bowing
+        // down mid-path like a cord under its own weight (`bow` = how far it droops toward the
+        // neck, 0 = taut great-circle). The eyepatch strap over the back of the head.
+        static void HeadLine(Transform head, Material mat, Vector3 from, Vector3 to, float width, float bow)
+        {
+            from.Normalize(); to.Normalize();
+            Vector3 DirAt(float t)
+            {
+                Vector3 d = Vector3.Slerp(from, to, t);
+                return Vector3.Slerp(d, Vector3.down, bow * Mathf.Sin(t * Mathf.PI)).normalized;
+            }
+            const int seg = 24;
+            var verts = new Vector3[(seg + 1) * 2];
+            var norms = new Vector3[verts.Length];
+            var uvs = new Vector2[verts.Length];
+            for (int i = 0; i <= seg; i++)
+            {
+                float t = i / (float)seg;
+                Vector3 d = DirAt(t);
+                Vector3 tan = (DirAt(Mathf.Min(t + 0.02f, 1f)) - DirAt(Mathf.Max(t - 0.02f, 0f))).normalized;
+                if (tan.sqrMagnitude < 1e-8f) tan = Vector3.Cross(d, Vector3.up);
+                // Edge = tangent x radial, so the ribbon lies flat along the sphere surface.
+                Vector3 edge = Vector3.Cross(tan, d);
+                if (edge.sqrMagnitude < 1e-8f) edge = Vector3.Cross(tan, Vector3.up);
+                edge.Normalize();
+                float rr = (HeadR + 0.004f) * _cosScale;
+                float hw = width * 0.5f * _cosScale;
+                verts[i * 2]     = d * rr - edge * hw;
+                verts[i * 2 + 1] = d * rr + edge * hw;
+                norms[i * 2] = d; norms[i * 2 + 1] = d;
+                uvs[i * 2] = new Vector2(0f, t); uvs[i * 2 + 1] = new Vector2(1f, t);
+            }
+            EmitHeadStrip(head, mat, verts, norms, uvs, seg);
+        }
+
+        // A band ringing the whole head at latitude `phi` (radians down from the crown),
+        // lying flush on the sphere. The headband: drawn on, not a box around the head.
+        static void HeadRing(Transform head, Material mat, float phi, float width)
+        {
+            const int seg = 32;
+            var verts = new Vector3[(seg + 1) * 2];
+            var norms = new Vector3[verts.Length];
+            var uvs = new Vector2[verts.Length];
+            float cphi = Mathf.Cos(phi), sphi = Mathf.Sin(phi);
+            for (int i = 0; i <= seg; i++)
+            {
+                float theta = (i / (float)seg) * Mathf.PI * 2f;
+                Vector3 d = new Vector3(sphi * Mathf.Sin(theta), cphi, sphi * Mathf.Cos(theta)).normalized;
+                // Edge along the meridian so the band lies flat and follows the latitude.
+                Vector3 edge = new Vector3(-cphi * Mathf.Sin(theta), sphi, -cphi * Mathf.Cos(theta)).normalized;
+                float rr = (HeadR + 0.004f) * _cosScale;
+                float hw = width * 0.5f * _cosScale;
+                verts[i * 2]     = d * rr - edge * hw;
+                verts[i * 2 + 1] = d * rr + edge * hw;
+                norms[i * 2] = d; norms[i * 2 + 1] = d;
+                uvs[i * 2] = new Vector2(0f, i / (float)seg); uvs[i * 2 + 1] = new Vector2(1f, i / (float)seg);
+            }
+            EmitHeadStrip(head, mat, verts, norms, uvs, seg);
+        }
+
+        // A field of small circles painted ON the head - stipple (Stubble's beard, Buzz's
+        // scalp). One merged mesh: every dot is a little 7-sided disc lying tangent to the
+        // head sphere a few mm proud of the skin, and the dots are laid out on a golden-angle
+        // sunflower over the spherical band so the spacing between them is even and none
+        // overlap: they read as a scatter of drawn-on circles with DAYLIGHT between them,
+        // not a solid cap.
+        //   phiTop..phiBot   band of latitudes to cover (rad; 0 = crown, ~pi = under-chin)
+        //   thetaHalf       half the azimuth span (rad; pi = the whole head). Theta 0 = +Z,
+        //                   the face, so a front wedge keeps it off the ears/nape.
+        //   count           dot count (the density knob; spacing = sqrt(bandArea/count))
+        //   dotR            dot radius in metres
+        static void StippleDots(Transform head, Material mat,
+                                float phiTop, float phiBot, float thetaHalf, int count, float dotR)
+        {
+            // Golden angle: consecutive dots land ~2.4 rad apart in azimuth, which stays spread
+            // out even after the modulo wrap - that spread is what makes the sunflower pattern.
+            const float GA = 2.399963f;
+            const int seg = 7;                                 // ring verts per dot (heptagon)
+
+            float cTop = Mathf.Cos(phiTop), cBot = Mathf.Cos(phiBot);
+            float thetaW = thetaHalf * 2f;
+            float aUnit = (cTop - cBot) * thetaW;               // band area on the unit sphere
+
+            var verts = new Vector3[count * (seg + 1)];
+            var norms = new Vector3[verts.Length];
+            var uvs = new Vector2[verts.Length];
+            var tris = new int[count * seg * 6];                // both windings per wedge
+            int v = 0, t = 0;
+            for (int i = 0; i < count; i++)
+            {
+                // Fraction of the band's AREA (not of phi), so the rows stay even where the
+                // latitudes get short near a pole; then a golden-angle azimuth.
+                float s = (i + 0.5f) / count;
+                float cphi = cTop - s * aUnit / thetaW;
+                float phi = Mathf.Acos(Mathf.Clamp(cphi, -1f, 1f));
+                float theta = Mathf.Repeat(i * GA, thetaW) - thetaHalf;
+                float sp = Mathf.Sin(phi);
+                var n = new Vector3(sp * Mathf.Sin(theta), cphi, sp * Mathf.Cos(theta)).normalized;
+
+                // Tangent basis at the dot, so the disc lies flat on the head.
+                Vector3 side = Vector3.Cross(n, Vector3.up);
+                if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(n, Vector3.forward);
+                side.Normalize();
+                Vector3 up2 = Vector3.Cross(side, n).normalized;
+
+                float rr = (HeadR + 0.003f) * _cosScale;
+                float rd = dotR * _cosScale;
+                int c0 = v;
+                verts[v] = n * rr;
+                norms[v] = n;
+                uvs[v] = new Vector2(0.5f, 0.5f);
+                v++;
+                for (int k = 0; k < seg; k++)
+                {
+                    float a = (k / (float)seg) * Mathf.PI * 2f;
+                    verts[v] = n * rr + (Mathf.Cos(a) * side + Mathf.Sin(a) * up2) * rd;
+                    norms[v] = n;
+                    uvs[v] = new Vector2(0.5f + Mathf.Cos(a) * 0.5f, 0.5f + Mathf.Sin(a) * 0.5f);
+                    v++;
+                }
+                // Double-sided fan (both windings over the same verts), same cull-convention
+                // insurance as the beard/crown meshes.
+                for (int k = 0; k < seg; k++)
+                {
+                    int a = c0 + 1 + k, b = c0 + 1 + (k + 1) % seg;
+                    tris[t++] = c0; tris[t++] = a; tris[t++] = b;
+                    tris[t++] = c0; tris[t++] = b; tris[t++] = a;
+                }
+            }
+            EmitHeadMesh(head, mat, verts, norms, uvs, tris);
+        }
+
+        // Shared tail for the drawn-on GRID pieces: mesh + double-sided triangles + the
+        // GeneratedMeshOwner so teardown frees the runtime mesh (same as BeardMesh).
+        static void EmitHeadGrid(Transform head, Material mat,
+                                 Vector3[] verts, Vector3[] norms, Vector2[] uvs, int cols, int rows)
+        {
+            var tris = new int[cols * rows * 12];
+            int t = 0;
+            for (int j = 0; j < rows; j++)
+            for (int i = 0; i < cols; i++)
+            {
+                int a = j * (cols + 1) + i, b = a + 1, c = a + (cols + 1), d = c + 1;
+                tris[t++] = a; tris[t++] = c; tris[t++] = b;
+                tris[t++] = b; tris[t++] = c; tris[t++] = d;
+                tris[t++] = a; tris[t++] = b; tris[t++] = c;
+                tris[t++] = b; tris[t++] = d; tris[t++] = c;
+            }
+            EmitHeadMesh(head, mat, verts, norms, uvs, tris);
+        }
+
+        // Shared tail for the drawn-on STRIP pieces (2 verts per sample down the path).
+        static void EmitHeadStrip(Transform head, Material mat,
+                                   Vector3[] verts, Vector3[] norms, Vector2[] uvs, int seg)
+        {
+            var tris = new int[seg * 12];
+            int t = 0;
+            for (int i = 0; i < seg; i++)
+            {
+                int a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+                tris[t++] = a; tris[t++] = c; tris[t++] = b;
+                tris[t++] = b; tris[t++] = c; tris[t++] = d;
+                tris[t++] = a; tris[t++] = b; tris[t++] = c;
+                tris[t++] = b; tris[t++] = d; tris[t++] = c;
+            }
+            EmitHeadMesh(head, mat, verts, norms, uvs, tris);
+        }
+
+        static void EmitHeadMesh(Transform head, Material mat,
+                                 Vector3[] verts, Vector3[] norms, Vector2[] uvs, int[] tris)
+        {
+            var mesh = new Mesh();
+            mesh.vertices = verts; mesh.normals = norms; mesh.uv = uvs; mesh.triangles = tris;
+            mesh.RecalculateBounds();
+            var go = new GameObject("cz");
+            go.transform.SetParent(head, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+            go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
         }
 
         // A curved polygon "bib" for facial hair, generated as a triangle grid that wraps the
@@ -481,11 +705,15 @@ namespace Trickshot
         {
             new HairEntry { Name = "Bald", Group = HairGroup.Short, Bald = true },
 
-            // SHORT (STATIC scalp caps - no sim; heavy fan for dense coverage, free) ------
-            // Buzz: shortest possible flat stubble-cap, dense + very stiff, no wobble.
-            new HairEntry { Name = "Buzz", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 130, nodes = 2, length = 0.035f, fan = 4, staticToHead = true,
-                stiffness = 0.98f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.35f, thickness = 0.05f } },
+            // SHORT (STATIC scalp pieces - no sim) --------------------------------
+            // Buzz: the stubble treatment on the scalp - a field of small drawn-on circles
+            // with daylight between them, sunflower-scattered over the WHOLE TOP half of the
+            // head (crown down to ear level, all the way round). No cards and no crown cap: a
+            // solid cap would fill in the daylight and read as a painted helmet; the dots read
+            // as clipped stubble.
+            new HairEntry { Name = "Buzz", Group = HairGroup.Short, NoCards = true, Extra = (h,m) => {
+                StippleDots(h, m, phiTop: 0.03f, phiBot: Mathf.PI * 0.5f, thetaHalf: Mathf.PI, count: 560, dotR: 0.006f);
+            } },
             // Crew Cut: a touch longer than buzz, slightly forward flat-top feel.
             new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.Crown, strands = 130, nodes = 3, length = 0.075f, fan = 4, staticToHead = true,
@@ -509,11 +737,6 @@ namespace Trickshot
             new HairEntry { Name = "Messy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.Crown, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
                 stiffness = 0.32f, flow = new Vector3(0f, 0.5f, 0f), curl = 0.02f, jitter = 0.7f, thickness = 0.05f } },
-            // Wavy: long, LOOSE big waves (low-frequency curl over a long strand), soft drape,
-            // low jitter so the waves read as coherent sheets, not frizz. Wider cards.
-            new HairEntry { Name = "Wavy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 84, nodes = 6, length = 0.28f, fan = 5, staticToHead = false,
-                stiffness = 0.22f, flow = new Vector3(0f, -0.4f, 0.1f), curl = 0.05f, jitter = 0.18f, thickness = 0.07f } },
             // Curly: TIGHT high-frequency curl on shorter strands, springy (mid stiffness so it
             // holds a round bounce instead of draping), high jitter for a packed coily look.
             new HairEntry { Name = "Curly", Group = HairGroup.Medium, Def = new HairSim.HairDef {
@@ -536,12 +759,6 @@ namespace Trickshot
                 Ball(h, new Vector3(0f, 0.24f, -0.13f), new Vector3(0.20f, 0.20f, 0.20f), m);   // the bun
                 Ball(h, new Vector3(0f, 0.21f, -0.19f), new Vector3(0.07f, 0.07f, 0.07f), m);   // tie wrap
             } },
-            // Dreads: CHUNKY heavy ropes - few thick cards (big thickness, low fan so each reads as
-            // one rope), barely any curl, high jitter so the ropes separate, semi-stiff so they hang
-            // like weighted cords with minimal sway. The rope look, opposite of fine Long hair.
-            new HairEntry { Name = "Dreads", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 40, nodes = 9, length = 0.48f, fan = 2, staticToHead = false,
-                stiffness = 0.34f, flow = new Vector3(0f, -1f, -0.05f), curl = 0.004f, jitter = 0.55f, thickness = 0.09f } },
             // Shoulder Length: mid-length with body - between Long and Wavy, a bit of wave, slightly
             // stiffer than Long so it keeps some shape at the shoulders.
             new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Def = new HairSim.HairDef {
@@ -572,16 +789,18 @@ namespace Trickshot
             // Stubble: dead-flush shell on chin + jaw (bulge/drop 0), no protrusion at all. Flat
             // material (CardTexture=false) - it's a shadow, not strands.
             new FacialEntry { Name = "Stubble",   CardTexture = false, Build = (h,m) =>
-                BeardMesh(h, m, thetaMax: 1.25f, phiTop: -0.30f, phiBot: -1.20f,
-                          drop: 0f, bulge: 0f, widenBottom: 0.80f) },
+                // A field of small drawn-on circles with daylight between them, wrapped around
+                // the front bottom half of the head (cheeks/jaw/under-chin, off the mouth area).
+                StippleDots(h, m, phiTop: 1.30f, phiBot: 2.95f, thetaHalf: 1.25f, count: 300, dotR: 0.006f) },
             // Short Beard: modest-volume polygon bib + mustache. Small hang, slight thickness.
             new FacialEntry { Name = "Short Beard", Build = (h,m) => {
-                BeardMesh(h, m, thetaMax: 1.20f, phiTop: -0.28f, phiBot: -1.25f,
+                BeardMesh(h, m, thetaMax: 1.20f, phiTop: -0.40f, phiBot: -1.37f,
                           drop: 0.035f, bulge: 0.022f, widenBottom: 0.75f);
                 Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.13f, 0.025f, 0.045f), m); } },
-            // Full Beard: fuller polygon bib (more hang + thickness, reaches higher on the cheeks).
+            // Full Beard: fuller polygon bib (more hang + thickness, sits as low as Short Beard
+            // but starting higher on the cheeks).
             new FacialEntry { Name = "Full Beard", Build = (h,m) => {
-                BeardMesh(h, m, thetaMax: 1.35f, phiTop: -0.20f, phiBot: -1.30f,
+                BeardMesh(h, m, thetaMax: 1.35f, phiTop: -0.32f, phiBot: -1.42f,
                           drop: 0.075f, bulge: 0.042f, widenBottom: 0.85f);
                 Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.15f, 0.03f, 0.045f), m); } },
             new FacialEntry { Name = "Sideburns", Build = (h,m) => {
@@ -610,15 +829,6 @@ namespace Trickshot
                 Blk(h, new Vector3(-0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);        // left arm
                 Blk(h, new Vector3(0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);         // right arm
             } },
-            new AccessoryEntry { Name = "Round Glasses", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.085f, 0.02f, 0.185f), new Vector3(0.095f, 0.095f, 0.02f), m);    // left rim (very round)
-                Ball(h, new Vector3(0.085f, 0.02f, 0.185f), new Vector3(0.095f, 0.095f, 0.02f), m);     // right rim
-                Blk(h, new Vector3(-0.085f, 0.02f, 0.192f), new Vector3(0.07f, 0.07f, 0.012f), Glass());
-                Blk(h, new Vector3(0.085f, 0.02f, 0.192f), new Vector3(0.07f, 0.07f, 0.012f), Glass());
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.03f, 0.012f, 0.018f), m);          // small round bridge
-                Blk(h, new Vector3(-0.155f, 0.03f, 0.09f), new Vector3(0.02f, 0.018f, 0.18f), m);       // thin left arm
-                Blk(h, new Vector3(0.155f, 0.03f, 0.09f), new Vector3(0.02f, 0.018f, 0.18f), m);        // thin right arm
-            } },
             new AccessoryEntry { Name = "Square Glasses", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(-0.08f, 0.02f, 0.185f), new Vector3(0.11f, 0.09f, 0.02f), m);        // left rectangular frame
                 Blk(h, new Vector3(-0.08f, 0.02f, 0.193f), new Vector3(0.09f, 0.07f, 0.012f), Glass());
@@ -637,16 +847,6 @@ namespace Trickshot
                 Blk(h, new Vector3(0.15f, 0.04f, 0.10f), new Vector3(0.03f, 0.02f, 0.16f), m);          // right arm
             } },
             new AccessoryEntry { Name = "Aviators", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.09f, 0.035f, 0.185f), new Vector3(0.10f, 0.075f, 0.02f), m);     // left teardrop frame
-                Blk(h, new Vector3(-0.09f, 0.02f, 0.192f), new Vector3(0.09f, 0.11f, 0.014f), Glass());  // taller teardrop lens
-                Ball(h, new Vector3(0.09f, 0.035f, 0.185f), new Vector3(0.10f, 0.075f, 0.02f), m);      // right teardrop frame
-                Blk(h, new Vector3(0.09f, 0.02f, 0.192f), new Vector3(0.09f, 0.11f, 0.014f), Glass());
-                Blk(h, new Vector3(0f, 0.05f, 0.185f), new Vector3(0.06f, 0.015f, 0.015f), m);          // double-bridge top bar
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.04f, 0.012f, 0.015f), m);          // double-bridge lower bar
-                Blk(h, new Vector3(-0.16f, 0.045f, 0.10f), new Vector3(0.02f, 0.015f, 0.16f), m);       // thin left arm
-                Blk(h, new Vector3(0.16f, 0.045f, 0.10f), new Vector3(0.02f, 0.015f, 0.16f), m);        // thin right arm
-            } },
-            new AccessoryEntry { Name = "Wayfarers", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(-0.085f, 0.02f, 0.185f), new Vector3(0.12f, 0.10f, 0.03f), m);       // thick left frame (trapezoid feel)
                 Blk(h, new Vector3(-0.085f, 0.02f, 0.196f), new Vector3(0.09f, 0.07f, 0.014f), Dark());
                 Blk(h, new Vector3(0.085f, 0.02f, 0.185f), new Vector3(0.12f, 0.10f, 0.03f), m);        // thick right frame
@@ -656,14 +856,7 @@ namespace Trickshot
                 Blk(h, new Vector3(-0.16f, 0.03f, 0.09f), new Vector3(0.035f, 0.025f, 0.18f), m);       // chunky left arm
                 Blk(h, new Vector3(0.16f, 0.03f, 0.09f), new Vector3(0.035f, 0.025f, 0.18f), m);        // chunky right arm
             } },
-            new AccessoryEntry { Name = "Rimless Glasses", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.188f), new Vector3(0.09f, 0.07f, 0.014f), Glass()); // left lens, no frame ring
-                Blk(h, new Vector3(0.08f, 0.02f, 0.188f), new Vector3(0.09f, 0.07f, 0.014f), Glass());  // right lens, no frame ring
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.025f, 0.01f, 0.015f), m);          // tiny bridge stud
-                Blk(h, new Vector3(-0.13f, 0.025f, 0.14f), new Vector3(0.015f, 0.012f, 0.12f), m);      // hairline left arm
-                Blk(h, new Vector3(0.13f, 0.025f, 0.14f), new Vector3(0.015f, 0.012f, 0.12f), m);       // hairline right arm
-            } },
-            new AccessoryEntry { Name = "Sport Visor Shades", Headgear = false, Build = (h,m) => {
+            new AccessoryEntry { Name = "Visor Shades", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(0f, 0.02f, 0.19f), new Vector3(0.30f, 0.07f, 0.02f), Dark());        // main wraparound band
                 Blk(h, new Vector3(-0.17f, 0.02f, 0.12f), new Vector3(0.05f, 0.06f, 0.08f), new Vector3(0f, 35f, 0f), Dark()); // left wrap edge
                 Blk(h, new Vector3(0.17f, 0.02f, 0.12f), new Vector3(0.05f, 0.06f, 0.08f), new Vector3(0f, -35f, 0f), Dark()); // right wrap edge
@@ -678,21 +871,12 @@ namespace Trickshot
                 Blk(h, new Vector3(0.13f, -0.02f, 0.16f), new Vector3(0.012f, 0.06f, 0.012f), new Vector3(0f, 0f, 25f), m);  // chain link 1
                 Blk(h, new Vector3(0.16f, -0.09f, 0.13f), new Vector3(0.012f, 0.08f, 0.012f), new Vector3(0f, 0f, 45f), m);  // chain link 2, hangs down
             } },
-            new AccessoryEntry { Name = "3D Glasses", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.185f), new Vector3(0.11f, 0.085f, 0.025f), m);      // thick left frame
-                Blk(h, new Vector3(0.08f, 0.02f, 0.185f), new Vector3(0.11f, 0.085f, 0.025f), m);       // thick right frame
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.195f), new Vector3(0.085f, 0.065f, 0.012f), m);     // red-ish lens (tinted)
-                Blk(h, new Vector3(0.08f, 0.02f, 0.195f), new Vector3(0.085f, 0.065f, 0.012f), Dark()); // dark lens
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.05f, 0.02f, 0.02f), m);            // bridge
-                Blk(h, new Vector3(-0.15f, 0.03f, 0.10f), new Vector3(0.03f, 0.02f, 0.16f), m);         // left arm
-                Blk(h, new Vector3(0.15f, 0.03f, 0.10f), new Vector3(0.03f, 0.02f, 0.16f), m);          // right arm
-            } },
             new AccessoryEntry { Name = "Eyepatch", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.08f, 0.02f, 0.183f), new Vector3(0.115f, 0.135f, 0.012f), m);      // patch rim
-                Blk(h, new Vector3(0.08f, 0.02f, 0.193f), new Vector3(0.10f, 0.12f, 0.018f), Dark());   // dark oval patch, right eye
-                Blk(h, new Vector3(0f, 0.15f, 0.05f), new Vector3(0.02f, 0.02f, 0.42f), new Vector3(0f, 0f, 8f), m);   // strap over crown to left ear
-                Blk(h, new Vector3(-0.17f, 0.05f, 0.02f), new Vector3(0.02f, 0.10f, 0.02f), m);         // strap drop to left ear
-                Ball(h, new Vector3(-0.19f, 0.02f, 0f), new Vector3(0.03f, 0.03f, 0.03f), m);           // knot at ear
+                // No added shapes: the patch is a region DRAWN ON the head where the right eye
+                // is (a flush dark cap, same trick as the beard bib), and the strap is a line
+                // drawn from the patch edge over the crown to the nape that sags like a cord.
+                HeadPatch(h, Dark(), new Vector3(0.08f, 0.02f, 0.19f), 0.30f, 0.34f);
+                HeadLine(h, m, new Vector3(0.08f, 0.10f, 0.18f), new Vector3(0f, -0.06f, -0.19f), 0.018f, 0.15f);
             } },
             new AccessoryEntry { Name = "Ski Goggles", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(0f, 0.02f, 0.19f), new Vector3(0.32f, 0.11f, 0.02f), Glass());       // big lens band
@@ -702,15 +886,6 @@ namespace Trickshot
                 Blk(h, new Vector3(0.16f, 0.02f, 0.17f), new Vector3(0.03f, 0.10f, 0.04f), m);          // right side frame
                 Blk(h, new Vector3(-0.19f, 0.05f, 0.02f), new Vector3(0.03f, 0.04f, 0.20f), new Vector3(0f, 20f, 0f), m);   // left strap
                 Blk(h, new Vector3(0.19f, 0.05f, 0.02f), new Vector3(0.03f, 0.04f, 0.20f), new Vector3(0f, -20f, 0f), m);   // right strap
-            } },
-            new AccessoryEntry { Name = "Nerd Glasses", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.08f, 0.02f, 0.185f), new Vector3(0.10f, 0.10f, 0.025f), m);      // thick left round rim
-                Ball(h, new Vector3(0.08f, 0.02f, 0.185f), new Vector3(0.10f, 0.10f, 0.025f), m);       // thick right round rim
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.193f), new Vector3(0.075f, 0.075f, 0.014f), Glass());
-                Blk(h, new Vector3(0.08f, 0.02f, 0.193f), new Vector3(0.075f, 0.075f, 0.014f), Glass());
-                Blk(h, new Vector3(0f, 0.02f, 0.19f), new Vector3(0.06f, 0.03f, 0.02f), m);             // bulky taped bridge
-                Blk(h, new Vector3(-0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);        // left arm
-                Blk(h, new Vector3(0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);         // right arm
             } },
             new AccessoryEntry { Name = "Reading Glasses", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(-0.07f, -0.01f, 0.19f), new Vector3(0.09f, 0.045f, 0.018f), m);      // half-height left frame, low on nose
@@ -741,13 +916,6 @@ namespace Trickshot
                 Blk(h, new Vector3(0.05f, 0.14f, 0.205f), new Vector3(0.015f, 0.015f, 0.012f), Dark());  // forehead vent right
                 Blk(h, new Vector3(0f, -0.16f, 0.16f), new Vector3(0.14f, 0.06f, 0.06f), m);            // chin guard ridge
             } },
-            new AccessoryEntry { Name = "Domino Mask", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.03f, 0.19f), new Vector3(0.28f, 0.09f, 0.02f), m);             // eye-region plate
-                Blk(h, new Vector3(-0.08f, 0.03f, 0.197f), new Vector3(0.06f, 0.045f, 0.012f), Dark()); // left eye hole
-                Blk(h, new Vector3(0.08f, 0.03f, 0.197f), new Vector3(0.06f, 0.045f, 0.012f), Dark());  // right eye hole
-                Blk(h, new Vector3(-0.16f, 0.04f, 0.10f), new Vector3(0.015f, 0.02f, 0.16f), new Vector3(0f, 10f, 0f), m); // thin left strap
-                Blk(h, new Vector3(0.16f, 0.04f, 0.10f), new Vector3(0.015f, 0.02f, 0.16f), new Vector3(0f, -10f, 0f), m); // thin right strap
-            } },
             new AccessoryEntry { Name = "Venetian Mask", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(0f, 0.05f, 0.175f), new Vector3(0.34f, 0.26f, 0.06f), m);            // ornate upper-face plate
                 Blk(h, new Vector3(0f, 0.15f, 0.19f), new Vector3(0.30f, 0.04f, 0.03f), new Vector3(4f, 0f, 0f), m);  // brow curve accent
@@ -757,15 +925,17 @@ namespace Trickshot
                 Ball(h, new Vector3(0.15f, -0.02f, 0.16f), new Vector3(0.04f, 0.05f, 0.03f), m);        // cheek flourish right
                 Blk(h, new Vector3(0f, 0.22f, 0.14f), new Vector3(0.06f, 0.10f, 0.03f), new Vector3(-15f, 0f, 0f), m); // top flourish/feather
             } },
-            new AccessoryEntry { Name = "Gas Mask", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(0f, -0.07f, 0.22f), new Vector3(0.10f, 0.10f, 0.10f), m);           // round front canister at mouth
-                Blk(h, new Vector3(0f, -0.07f, 0.27f), new Vector3(0.05f, 0.05f, 0.04f), m);            // filter nub
-                Blk(h, new Vector3(-0.08f, 0.03f, 0.185f), new Vector3(0.11f, 0.10f, 0.025f), m);       // left eye frame
-                Blk(h, new Vector3(-0.08f, 0.03f, 0.193f), new Vector3(0.085f, 0.075f, 0.014f), Glass());
-                Blk(h, new Vector3(0.08f, 0.03f, 0.185f), new Vector3(0.11f, 0.10f, 0.025f), m);        // right eye frame
-                Blk(h, new Vector3(0.08f, 0.03f, 0.193f), new Vector3(0.085f, 0.075f, 0.014f), Glass());
-                Blk(h, new Vector3(-0.17f, 0.03f, 0.05f), new Vector3(0.025f, 0.025f, 0.20f), new Vector3(0f, 20f, 0f), m);  // left strap
-                Blk(h, new Vector3(0.17f, 0.03f, 0.05f), new Vector3(0.025f, 0.025f, 0.20f), new Vector3(0f, -20f, 0f), m);  // right strap
+            // ENVELOPS the whole head: a full-head hood replaces the old front-plate + straps,
+            // so this is now headgear (hair cards would clip straight through the shell). The
+            // canister and the eye frames sit proud of the hood's surface.
+            new AccessoryEntry { Name = "Gas Mask", Headgear = true, Build = (h,m) => {
+                Ball(h, new Vector3(0f, 0.02f, 0f), new Vector3(0.50f, 0.44f, 0.50f), m);             // full-head hood
+                Ball(h, new Vector3(0f, -0.07f, 0.24f), new Vector3(0.11f, 0.11f, 0.11f), m);         // round front canister at mouth
+                Blk(h, new Vector3(0f, -0.07f, 0.30f), new Vector3(0.05f, 0.05f, 0.04f), m);          // filter nub
+                Blk(h, new Vector3(-0.09f, 0.03f, 0.245f), new Vector3(0.11f, 0.10f, 0.025f), m);      // left eye frame
+                Blk(h, new Vector3(-0.09f, 0.03f, 0.255f), new Vector3(0.085f, 0.075f, 0.014f), Glass());
+                Blk(h, new Vector3(0.09f, 0.03f, 0.245f), new Vector3(0.11f, 0.10f, 0.025f), m);        // right eye frame
+                Blk(h, new Vector3(0.09f, 0.03f, 0.255f), new Vector3(0.085f, 0.075f, 0.014f), Glass());
             } },
             new AccessoryEntry { Name = "Welding Mask", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(0f, 0.02f, 0.16f), new Vector3(0.38f, 0.42f, 0.06f), m);             // large flat front plate
@@ -806,18 +976,6 @@ namespace Trickshot
                 Blk(h, new Vector3(0.19f, -0.045f, 0.0f), new Vector3(0.006f, 0.03f, 0.006f), m);      // right link
                 Ball(h, new Vector3(0.19f, -0.09f, 0.0f), new Vector3(0.022f, 0.028f, 0.022f), m);     // right dangling drop
             } },
-            new AccessoryEntry { Name = "Gauges", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.19f, 0.0f, 0.0f), new Vector3(0.03f, 0.03f, 0.018f), m);        // left lobe stretched rim
-                Ball(h, new Vector3(-0.19f, 0.0f, 0.0f), new Vector3(0.018f, 0.018f, 0.02f), Dark());  // left gauge hollow
-                Ball(h, new Vector3(0.19f, 0.0f, 0.0f), new Vector3(0.03f, 0.03f, 0.018f), m);         // right lobe stretched rim
-                Ball(h, new Vector3(0.19f, 0.0f, 0.0f), new Vector3(0.018f, 0.018f, 0.02f), Dark());   // right gauge hollow
-            } },
-            new AccessoryEntry { Name = "Nose Ring", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.03f, -0.018f, 0.20f), new Vector3(0.005f, 0.005f, 0.012f), m);    // hoop top
-                Blk(h, new Vector3(0.03f, -0.042f, 0.20f), new Vector3(0.005f, 0.005f, 0.012f), m);    // hoop bottom
-                Blk(h, new Vector3(0.018f, -0.03f, 0.20f), new Vector3(0.012f, 0.005f, 0.005f), m);    // hoop left
-                Blk(h, new Vector3(0.042f, -0.03f, 0.20f), new Vector3(0.012f, 0.005f, 0.005f), m);    // hoop right
-            } },
             new AccessoryEntry { Name = "Nose Stud", Headgear = false, Build = (h,m) => {
                 Ball(h, new Vector3(0.035f, -0.02f, 0.205f), new Vector3(0.01f, 0.01f, 0.01f), m);     // stud base on the nostril
                 Ball(h, new Vector3(0.035f, -0.02f, 0.212f), new Vector3(0.006f, 0.006f, 0.006f), Glass()); // tiny gem sparkle
@@ -833,11 +991,16 @@ namespace Trickshot
                 Ball(h, new Vector3(0.02f, 0.06f, 0.19f), new Vector3(0.008f, 0.008f, 0.008f), m);     // inner ball end
                 Ball(h, new Vector3(0.08f, 0.06f, 0.19f), new Vector3(0.008f, 0.008f, 0.008f), m);     // outer ball end
             } },
-            new AccessoryEntry { Name = "Lip Ring", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.03f, -0.078f, 0.185f), new Vector3(0.005f, 0.005f, 0.014f), m);   // hoop top
-                Blk(h, new Vector3(0.03f, -0.102f, 0.185f), new Vector3(0.005f, 0.005f, 0.014f), m);   // hoop bottom
-                Blk(h, new Vector3(0.018f, -0.09f, 0.185f), new Vector3(0.014f, 0.005f, 0.005f), m);   // hoop left
-                Blk(h, new Vector3(0.042f, -0.09f, 0.185f), new Vector3(0.014f, 0.005f, 0.005f), m);   // hoop right
+            new AccessoryEntry { Name = "Nipple Piercings", Headgear = false, Build = (h,m) => {
+                // The eyebrow piercing's barbell (same bar + ball ends), worn twice on the chest
+                // and spaced apart like nipples. Head-bone offsets like the Chain Necklace: the
+                // pieces sit LOW and FORWARD of the head bone so they ride the front of the torso.
+                Blk(h, new Vector3(-0.06f, -0.36f, 0.20f), new Vector3(0.03f, 0.006f, 0.006f), m);     // left bar
+                Ball(h, new Vector3(-0.09f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);  // left outer ball end
+                Ball(h, new Vector3(-0.03f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);  // left inner ball end
+                Blk(h, new Vector3(0.06f, -0.36f, 0.20f), new Vector3(0.03f, 0.006f, 0.006f), m);     // right bar
+                Ball(h, new Vector3(0.03f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);   // right inner ball end
+                Ball(h, new Vector3(0.09f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);   // right outer ball end
             } },
             new AccessoryEntry { Name = "Cigar", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(-0.05f, -0.07f, 0.26f), new Vector3(0.03f, 0.03f, 0.15f), m);       // thick body forward from the mouth
@@ -856,20 +1019,6 @@ namespace Trickshot
             new AccessoryEntry { Name = "Bindi", Headgear = false, Build = (h,m) => {
                 Ball(h, new Vector3(0.0f, 0.06f, 0.188f), new Vector3(0.014f, 0.014f, 0.008f), m);     // backing dot centered on the brow
                 Ball(h, new Vector3(0.0f, 0.06f, 0.194f), new Vector3(0.008f, 0.008f, 0.006f), Glass()); // small jewel center
-            } },
-            new AccessoryEntry { Name = "Face Gem", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(0.11f, -0.04f, 0.168f), new Vector3(0.012f, 0.012f, 0.008f), m);   // metal setting on the cheek
-                Ball(h, new Vector3(0.11f, -0.04f, 0.174f), new Vector3(0.008f, 0.008f, 0.006f), Glass()); // faceted gem
-            } },
-            new AccessoryEntry { Name = "Beauty Mark", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.11f, -0.03f, 0.172f), new Vector3(0.006f, 0.006f, 0.004f), Dark()); // tiny dot on the cheek
-            } },
-            new AccessoryEntry { Name = "Grill", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.0f, -0.07f, 0.185f), new Vector3(0.05f, 0.022f, 0.01f), m);       // base band across the front teeth
-                Blk(h, new Vector3(-0.03f, -0.07f, 0.188f), new Vector3(0.012f, 0.02f, 0.01f), m);     // tooth
-                Blk(h, new Vector3(-0.01f, -0.07f, 0.188f), new Vector3(0.012f, 0.02f, 0.01f), m);     // tooth
-                Blk(h, new Vector3(0.01f, -0.07f, 0.188f), new Vector3(0.012f, 0.02f, 0.01f), m);      // tooth
-                Blk(h, new Vector3(0.03f, -0.07f, 0.188f), new Vector3(0.012f, 0.02f, 0.01f), m);      // tooth
             } },
             new AccessoryEntry { Name = "Vampire Fangs", Headgear = false, Build = (h,m) => {
                 Blk(h, new Vector3(-0.035f, -0.10f, 0.185f), new Vector3(0.008f, 0.022f, 0.008f), new Vector3(8f, 0f, 0f), m);   // left fang pointing down
@@ -890,11 +1039,6 @@ namespace Trickshot
                 Ball(h, new Vector3(-0.20f, -0.27f, 0.04f), new Vector3(0.016f, 0.016f, 0.016f), m);   // left shoulder
                 Ball(h, new Vector3(-0.12f, -0.32f, 0.16f), new Vector3(0.016f, 0.016f, 0.016f), m);   // front-left
             } },
-            new AccessoryEntry { Name = "Face Tattoo", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.10f, 0.00f, 0.178f), new Vector3(0.05f, 0.005f, 0.003f), new Vector3(0f, 0f, 20f), m);    // line marking, upper cheek
-                Blk(h, new Vector3(-0.10f, -0.02f, 0.175f), new Vector3(0.045f, 0.005f, 0.003f), new Vector3(0f, 0f, -15f), m); // line marking, mid cheek
-                Blk(h, new Vector3(-0.10f, -0.045f, 0.17f), new Vector3(0.035f, 0.005f, 0.003f), new Vector3(0f, 0f, 20f), m);  // line marking, lower cheek
-            } },
 
             // HEADWEAR (only wearable when bald) --------------------------
             new AccessoryEntry { Name = "Cap", Headgear = true, Build = (h,m) => {
@@ -905,23 +1049,9 @@ namespace Trickshot
                 Ball(h, new Vector3(0f, 0.30f, -0.01f), new Vector3(0.06f, 0.06f, 0.06f), m);     // top button
                 Blk(h, new Vector3(0f, 0.06f, -0.20f), new Vector3(0.10f, 0.05f, 0.03f), Dark()); // rear adjuster
             } },
-            new AccessoryEntry { Name = "Snapback", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.16f, -0.01f), new Vector3(0.46f, 0.22f, 0.46f), m);      // boxy flat crown
-                Blk(h, new Vector3(0f, 0.11f, 0.24f), new Vector3(0.40f, 0.03f, 0.22f), m);       // wide flat bill
-                Ball(h, new Vector3(0f, 0.28f, -0.01f), new Vector3(0.06f, 0.06f, 0.06f), m);     // top button
-                Blk(h, new Vector3(0f, 0.06f, -0.19f), new Vector3(0.14f, 0.05f, 0.05f), Dark()); // back strap accent
-            } },
-            new AccessoryEntry { Name = "Beanie", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.16f, -0.01f), new Vector3(0.46f, 0.32f, 0.46f), m);     // knit dome
-                Blk(h, new Vector3(0f, 0.05f, 0f), new Vector3(0.48f, 0.07f, 0.48f), m);          // fold band
-                Blk(h, new Vector3(0f, 0.03f, 0f), new Vector3(0.485f, 0.02f, 0.485f), Dark());   // ribbed cuff seam
-                Blk(h, new Vector3(0f, 0.20f, 0.235f), new Vector3(0.06f, 0.10f, 0.02f), Dark());  // knit-brand tab
-                Ball(h, new Vector3(0f, 0.34f, -0.01f), new Vector3(0.10f, 0.10f, 0.10f), m);     // pom
-            } },
             new AccessoryEntry { Name = "Bucket Hat", Headgear = true, Build = (h,m) => {
                 Ball(h, new Vector3(0f, 0.16f, -0.01f), new Vector3(0.44f, 0.24f, 0.44f), m);     // short crown
                 Ball(h, new Vector3(0f, 0.10f, 0f), new Vector3(0.66f, 0.06f, 0.66f), m);         // all-around sloped brim
-                Blk(h, new Vector3(0f, 0.20f, 0f), new Vector3(0.45f, 0.02f, 0.45f), Dark());     // stitch line round the crown
                 Blk(h, new Vector3(0.13f, 0.14f, 0.13f), new Vector3(0.02f, 0.02f, 0.02f), Dark()); // eyelet vent
                 Blk(h, new Vector3(-0.13f, 0.14f, -0.13f), new Vector3(0.02f, 0.02f, 0.02f), Dark()); // eyelet vent
             } },
@@ -950,44 +1080,25 @@ namespace Trickshot
                 Blk(h, new Vector3(0.30f, 0.16f, 0f), new Vector3(0.24f, 0.03f, 0.30f), new Vector3(0f, 0f, -35f), m);  // right curl
             } },
             new AccessoryEntry { Name = "Beret", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0.02f, 0.17f, -0.02f), new Vector3(0.52f, 0.10f, 0.50f), new Vector3(0f, 0f, 14f), m); // tilted disc crown
-                Ball(h, new Vector3(0.02f, 0.24f, -0.02f), new Vector3(0.05f, 0.05f, 0.05f), m);  // tiny stalk
+                Ball(h, new Vector3(0.02f, 0.17f, -0.02f), new Vector3(0.40f, 0.09f, 0.36f), m);   // small elliptical disc crown
+                Ball(h, new Vector3(0.02f, 0.23f, -0.02f), new Vector3(0.04f, 0.04f, 0.04f), m);   // tiny stalk
             } },
-            new AccessoryEntry { Name = "Flat Cap", Headgear = true, Build = (h,m) => {
+            new AccessoryEntry { Name = "Peaky Cap", Headgear = true, Build = (h,m) => {
                 Ball(h, new Vector3(0f, 0.14f, -0.01f), new Vector3(0.46f, 0.22f, 0.46f), m);     // low rounded crown
                 Ball(h, new Vector3(0f, 0.15f, 0.10f), new Vector3(0.44f, 0.16f, 0.30f), m);      // front peak swept over the brim
                 Blk(h, new Vector3(0f, 0.09f, 0.20f), new Vector3(0.30f, 0.03f, 0.12f), m);       // short stubby brim
                 Blk(h, new Vector3(0f, 0.078f, 0.20f), new Vector3(0.28f, 0.01f, 0.11f), Dark()); // brim underside
                 Ball(h, new Vector3(0f, 0.24f, -0.01f), new Vector3(0.05f, 0.05f, 0.05f), m);     // top button
             } },
-            new AccessoryEntry { Name = "Visor", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.08f, 0f), new Vector3(0.48f, 0.06f, 0.48f), m);          // headband ring
-                Blk(h, new Vector3(0f, 0.09f, 0.22f), new Vector3(0.34f, 0.03f, 0.20f), m);       // forward brim
-                Blk(h, new Vector3(0f, 0.076f, 0.22f), new Vector3(0.32f, 0.012f, 0.19f), Dark()); // shaded brim underside
-                Blk(h, new Vector3(0f, 0.05f, -0.22f), new Vector3(0.10f, 0.04f, 0.03f), Dark());  // rear hook-and-loop closure
-            } },
             new AccessoryEntry { Name = "Headband", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.10f, 0f), new Vector3(0.46f, 0.05f, 0.46f), m);          // ring band
-                Ball(h, new Vector3(0f, 0.10f, -0.22f), new Vector3(0.06f, 0.05f, 0.04f), m);     // back knot bump
+                // DRAWN ON: a thin ribbon lying flush on the head sphere around the brow
+                // (HeadRing), not a box ringing the head. Nothing sticks out.
+                HeadRing(h, m, 1.07f, 0.045f);
             } },
-            new AccessoryEntry { Name = "Sweatband", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.05f, 0f), new Vector3(0.50f, 0.10f, 0.50f), m);          // thick terry band
-                Blk(h, new Vector3(0f, 0.05f, 0f), new Vector3(0.51f, 0.02f, 0.51f), Dark());     // stripe trim
-            } },
-            new AccessoryEntry { Name = "Bandana", Headgear = true, Build = (h,m) => {
+            new AccessoryEntry { Name = "Trapper Hat", Headgear = true, Build = (h,m) => {
                 Ball(h, new Vector3(0f, 0.15f, -0.01f), new Vector3(0.46f, 0.26f, 0.46f), m);     // draped cloth dome
                 Ball(h, new Vector3(0f, 0.12f, -0.20f), new Vector3(0.08f, 0.08f, 0.08f), m);     // back knot
-                Blk(h, new Vector3(0f, 0.06f, -0.24f), new Vector3(0.05f, 0.10f, 0.03f), m);      // hanging tail
-            } },
-            new AccessoryEntry { Name = "Durag", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.15f, -0.01f), new Vector3(0.44f, 0.26f, 0.44f), m);     // smooth crown cover
-                Blk(h, new Vector3(-0.06f, 0.02f, -0.22f), new Vector3(0.05f, 0.14f, 0.03f), m);  // left tie tail
-                Blk(h, new Vector3(0.06f, 0.02f, -0.22f), new Vector3(0.05f, 0.14f, 0.03f), m);   // right tie tail
-            } },
-            new AccessoryEntry { Name = "Hard Hat", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.17f, -0.01f), new Vector3(0.50f, 0.34f, 0.50f), m);     // domed shell
-                Blk(h, new Vector3(0f, 0.09f, 0.20f), new Vector3(0.40f, 0.03f, 0.14f), m);       // forward brim ridge
-                Blk(h, new Vector3(0f, 0.32f, 0f), new Vector3(0.06f, 0.04f, 0.50f), Dark());     // top ridge line
+                Blk(h, new Vector3(0f, -0.02f, -0.26f), new Vector3(0.09f, 0.28f, 0.04f), m);      // beaver-tail flap, hangs down the nape
             } },
             new AccessoryEntry { Name = "Sombrero", Headgear = true, Build = (h,m) => {
                 Ball(h, new Vector3(0f, 0.20f, -0.01f), new Vector3(0.32f, 0.18f, 0.32f), m);     // small crown
@@ -995,29 +1106,15 @@ namespace Trickshot
                 Ball(h, new Vector3(0f, 0.12f, 0f), new Vector3(0.90f, 0.03f, 0.90f), m);         // very wide flat brim
             } },
             new AccessoryEntry { Name = "Party Hat", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.09f, 0f), new Vector3(0.42f, 0.04f, 0.42f), m);          // base band
+                // Just a cone on top of the head: no base band, no tip gem.
                 Ball(h, new Vector3(0f, 0.18f, -0.01f), new Vector3(0.32f, 0.16f, 0.32f), m);     // lower cone
                 Ball(h, new Vector3(0f, 0.30f, -0.01f), new Vector3(0.16f, 0.16f, 0.16f), m);     // upper cone taper
-                Ball(h, new Vector3(0f, 0.40f, -0.01f), new Vector3(0.07f, 0.07f, 0.07f), Glass()); // tip gem
             } },
-            new AccessoryEntry { Name = "Crown", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.10f, 0f), new Vector3(0.46f, 0.08f, 0.46f), m);          // band ring
-                Blk(h, new Vector3(0f, 0.22f, 0.17f), new Vector3(0.08f, 0.14f, 0.08f), m);       // center front point
-                Blk(h, new Vector3(-0.13f, 0.20f, 0.13f), new Vector3(0.07f, 0.11f, 0.07f), m);   // left-front point
-                Blk(h, new Vector3(0.13f, 0.20f, 0.13f), new Vector3(0.07f, 0.11f, 0.07f), m);    // right-front point
-                Ball(h, new Vector3(0f, 0.14f, 0.19f), new Vector3(0.05f, 0.05f, 0.05f), Glass()); // front gem
-            } },
-            new AccessoryEntry { Name = "Santa Hat", Headgear = true, Build = (h,m) => {
+            new AccessoryEntry { Name = "Wizard Hat", Headgear = true, Build = (h,m) => {
                 Blk(h, new Vector3(0f, 0.08f, 0f), new Vector3(0.48f, 0.07f, 0.48f), m);          // band
                 Ball(h, new Vector3(0f, 0.18f, -0.01f), new Vector3(0.34f, 0.20f, 0.34f), m);     // cone base
                 Ball(h, new Vector3(0f, 0.28f, -0.08f), new Vector3(0.22f, 0.18f, 0.22f), m);     // slumping cone
                 Ball(h, new Vector3(0f, 0.34f, -0.16f), new Vector3(0.09f, 0.09f, 0.09f), m);     // drooping pom
-            } },
-            new AccessoryEntry { Name = "Chef Hat", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.10f, -0.01f), new Vector3(0.40f, 0.10f, 0.40f), m);      // short stiff band
-                Ball(h, new Vector3(0f, 0.26f, -0.01f), new Vector3(0.50f, 0.28f, 0.50f), m);     // puffy top
-                Ball(h, new Vector3(0.10f, 0.30f, 0.05f), new Vector3(0.20f, 0.20f, 0.20f), m);   // pleat bump
-                Ball(h, new Vector3(-0.10f, 0.30f, -0.05f), new Vector3(0.20f, 0.20f, 0.20f), m); // pleat bump
             } },
         };
 

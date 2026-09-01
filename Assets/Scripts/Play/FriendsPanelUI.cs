@@ -41,19 +41,19 @@ namespace Trickshot
             if (!SteamFriendsAPI.Available)
             {
                 var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Dim } };
-                GUI.Label(new Rect(lx, y, lw, r.height - 44f), "Steam not connected. Friends will appear here once Steam is linked.", hint);
+                UITheme.Label(new Rect(lx, y, lw, r.height - 44f), "Steam not connected. Friends will appear here once Steam is linked.", hint);
                 return;
             }
 
             if (_friends == null)
             {
-                GUI.Label(new Rect(lx, y, lw, 20f), "Loading...", new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
+                UITheme.Label(new Rect(lx, y, lw, 20f), "Loading...", new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
                 return;
             }
 
             if (_friends.Count == 0)
             {
-                GUI.Label(new Rect(lx, y, lw, 20f), "No friends online.", new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
+                UITheme.Label(new Rect(lx, y, lw, 20f), "No friends online.", new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
                 return;
             }
 
@@ -65,10 +65,10 @@ namespace Trickshot
             {
                 var f = _friends[i];
                 var row = new Rect(lx, y, lw, rowH);
-                GUI.Label(row, f.name, name);
+                UITheme.Label(row, f.name, name);
                 string status = f.playingTrickshot ? "IN TRICKSHOT" : f.online ? "ONLINE" : "OFFLINE";
                 tag.normal.textColor = f.playingTrickshot ? UITheme.Green : f.online ? UITheme.Gold : UITheme.Faint;
-                GUI.Label(row, status, tag);
+                UITheme.Label(row, status, tag);
                 y += rowH;
             }
         }

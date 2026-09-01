@@ -77,15 +77,15 @@ namespace Trickshot
             }
         }
 
-        // Tab button with the active one lit and marked by a gold underline. Tints have to exceed
+        // Tab button with the active one lit. Tints have to exceed
         // 1.0: GUI.backgroundColor MULTIPLIES the plate, so a saturated colour would only darken it.
+        // (No gold underline under the active tab - the lit plate alone marks it.)
         static bool TabBtn(Rect r, string label, bool on, GUIStyle normal, GUIStyle selected)
         {
             var keep = GUI.backgroundColor;
             if (on) GUI.backgroundColor = UITheme.SelTint;
             bool hit = GUI.Button(r, label, on ? selected : normal);
             GUI.backgroundColor = keep;
-            if (on) UITheme.Fill(new Rect(r.x + 6f, r.yMax - 3f, r.width - 12f, 2.5f), UITheme.Gold);
             return hit;
         }
 
@@ -107,7 +107,7 @@ namespace Trickshot
                 float ry = y + r * (rowH + gap);
                 var (action, label) = actions[i];
 
-                GUI.Label(new Rect(cx, ry, colW * 0.55f, rowH), label, keyLbl);
+                UITheme.Label(new Rect(cx, ry, colW * 0.55f, rowH), label, keyLbl);
 
                 bool listening = _listening == action;
                 bool dup = Keybinds.IsDuplicate(action);
@@ -124,7 +124,7 @@ namespace Trickshot
             }
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
-            GUI.Label(new Rect(x + 24f, y + perCol * (rowH + gap) + 6f, w - 48f, 34f),
+            UITheme.Label(new Rect(x + 24f, y + perCol * (rowH + gap) + 6f, w - 48f, 34f),
                 "Click a binding, then press a key. Esc cancels. Red = shared.", note);
 
             var reset = new GUIStyle(GUI.skin.button) { fontSize = 14 };
@@ -148,7 +148,7 @@ namespace Trickshot
 
             if (am == null)
             {
-                GUI.Label(new Rect(x + 24f, y, w - 48f, 30f), "Audio system not available.", lbl);
+                UITheme.Label(new Rect(x + 24f, y, w - 48f, 30f), "Audio system not available.", lbl);
                 return;
             }
 
@@ -166,18 +166,18 @@ namespace Trickshot
             for (int i = 0; i < rows.Length; i++)
             {
                 float ry = y + i * (rowH + gap);
-                GUI.Label(new Rect(lx, ry, 120f, rowH), rows[i].label, lbl);
+                UITheme.Label(new Rect(lx, ry, 120f, rowH), rows[i].label, lbl);
 
                 float cur = am.GetVolume(rows[i].ch);
                 float next = GUI.HorizontalSlider(new Rect(lx + 130f, ry + rowH * 0.4f, sliderW, rowH), cur, 0f, 1f);
                 if (!Mathf.Approximately(next, cur)) am.SetVolume(rows[i].ch, next);
 
-                GUI.Label(new Rect(lx + 130f + sliderW + 12f, ry, 60f, rowH), Mathf.RoundToInt(next * 100f) + "%", pct);
+                UITheme.Label(new Rect(lx + 130f + sliderW + 12f, ry, 60f, rowH), Mathf.RoundToInt(next * 100f) + "%", pct);
                 UITheme.Divider(lx, ry + rowH + 6f, w - 48f);
             }
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
-            GUI.Label(new Rect(lx, y + rows.Length * (rowH + gap) + 6f, w - 48f, 40f),
+            UITheme.Label(new Rect(lx, y + rows.Length * (rowH + gap) + 6f, w - 48f, 40f),
                 "Per player, saved on this machine.", note);
         }
 
@@ -195,7 +195,7 @@ namespace Trickshot
             for (int key = 1; key <= 6; key++)
             {
                 float ry = y + (key - 1) * (rowH + gap);
-                GUI.Label(new Rect(lx, ry, labelW, rowH), "Key " + key, keyLbl);
+                UITheme.Label(new Rect(lx, ry, labelW, rowH), "Key " + key, keyLbl);
                 string cur = QuickChat.PhraseForKey(key);
                 var prevBg = GUI.backgroundColor;
                 if (_qcPickingSlot == key) GUI.backgroundColor = UITheme.WarnTint;   // gold while picking
@@ -210,7 +210,7 @@ namespace Trickshot
                 float py = y + 6f * (rowH + gap) + 8f;
                 float ph = h - (py - y) - 52f;
                 var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Gold } };
-                GUI.Label(new Rect(lx, py, w - 48f, 18f), "Pick a phrase for Key " + _qcPickingSlot + ":", hint);
+                UITheme.Label(new Rect(lx, py, w - 48f, 18f), "Pick a phrase for Key " + _qcPickingSlot + ":", hint);
                 py += 20f; ph -= 20f;
 
                 var phrases = QuickChat.Phrases;
@@ -242,7 +242,7 @@ namespace Trickshot
             else
             {
                 var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
-                GUI.Label(new Rect(lx, y + 6f * (rowH + gap) + 10f, w - 48f, 40f),
+                UITheme.Label(new Rect(lx, y + 6f * (rowH + gap) + 10f, w - 48f, 40f),
                     "Press 1-6 to quickchat. Tab to type.", note);
             }
 
@@ -268,7 +268,7 @@ namespace Trickshot
             UITheme.Section(new Rect(lx, y, cw, 20f), "DISPLAY");
 
             // ---- resolution list (deduped by size, current one highlighted) ----
-            GUI.Label(new Rect(lx, y + 24f, 120f, 24f), "Resolution", lbl);
+            UITheme.Label(new Rect(lx, y + 24f, 120f, 24f), "Resolution", lbl);
             var list = DisplaySettings.Available;
             float cellW = (fw - 8f) * 0.5f, cellH = 24f, cgap = 4f;
             const int cols = 2;
@@ -294,7 +294,7 @@ namespace Trickshot
 
             // ---- window mode ----
             float y2 = y + 134f;
-            GUI.Label(new Rect(lx, y2, 120f, 28f), "Window", lbl);
+            UITheme.Label(new Rect(lx, y2, 120f, 28f), "Window", lbl);
             var modes = DisplaySettings.Modes;
             float mw = (fw - 12f) / 3f;
             for (int i = 0; i < modes.Length; i++)
@@ -309,34 +309,34 @@ namespace Trickshot
 
             // ---- vsync ----
             float y3 = y2 + 34f;
-            GUI.Label(new Rect(lx, y3, 120f, 28f), "VSync", lbl);
+            UITheme.Label(new Rect(lx, y3, 120f, 28f), "VSync", lbl);
             if (GUI.Button(new Rect(fx, y3, 110f, 28f), DisplaySettings.VSync ? "On" : "Off", btn))
                 DisplaySettings.VSync = !DisplaySettings.VSync;
 
             // ---- UI scale (multiplies the automatic fit) ----
             float y4 = y3 + 34f;
-            GUI.Label(new Rect(lx, y4, 120f, 28f), "UI Scale", lbl);
+            UITheme.Label(new Rect(lx, y4, 120f, 28f), "UI Scale", lbl);
             float uiCur = DisplaySettings.UiScale;
             float uiNext = GUI.HorizontalSlider(new Rect(fx, y4 + 11f, fw - 74f, 20f), uiCur,
                                                 MenuScale.MinUserScale, MenuScale.MaxUserScale);
             if (!Mathf.Approximately(uiNext, uiCur)) DisplaySettings.UiScale = uiNext;
-            GUI.Label(new Rect(fx + fw - 66f, y4, 66f, 28f), Mathf.RoundToInt(uiNext * 100f) + "%", val);
+            UITheme.Label(new Rect(fx + fw - 66f, y4, 66f, 28f), Mathf.RoundToInt(uiNext * 100f) + "%", val);
 
             // ---- camera ----
             float y5 = y4 + 38f;
             UITheme.Section(new Rect(lx, y5, cw, 20f), "CAMERA");
             float y6 = y5 + 24f;
-            GUI.Label(new Rect(lx, y6, 120f, 28f), "Field of View", lbl);
+            UITheme.Label(new Rect(lx, y6, 120f, 28f), "Field of View", lbl);
             float fovCur = DisplaySettings.FovOffset;
             float fovNext = GUI.HorizontalSlider(new Rect(fx, y6 + 11f, fw - 74f, 20f), fovCur,
                                                  DisplaySettings.MinFov, DisplaySettings.MaxFov);
             if (!Mathf.Approximately(fovNext, fovCur)) DisplaySettings.FovOffset = fovNext;
             int fovShown = Mathf.RoundToInt(fovNext);
-            GUI.Label(new Rect(fx + fw - 66f, y6, 66f, 28f),
+            UITheme.Label(new Rect(fx + fw - 66f, y6, 66f, 28f),
                       (fovShown > 0 ? "+" : "") + fovShown, val);
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
-            GUI.Label(new Rect(lx, y6 + 36f, cw, 34f),
+            UITheme.Label(new Rect(lx, y6 + 36f, cw, 34f),
                 "Saved on this machine. UI Scale resizes menus and the control banner.", note);
         }
 

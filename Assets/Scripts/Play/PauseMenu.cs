@@ -277,12 +277,12 @@ namespace Trickshot
                 var keep = GUI.backgroundColor;
                 if (sel) GUI.backgroundColor = _entries[i].Kind == Kind.Bad ? UITheme.BadTint : UITheme.SelTint;
 
-                // Selection marker: a bright bar off the leading edge, so the highlight reads even
-                // at a glance and even if the plate tint is subtle on a bright pitch.
+                // Selection glow: the plate tint can read subtle on a bright pitch, so the
+                // selected row also carries a soft ambient bloom. (The old bright bar off the
+                // leading edge is gone - selection reads from the tint + glow alone.)
                 if (sel)
                 {
                     Color bar = _entries[i].Kind == Kind.Bad ? UITheme.Red : UITheme.Gold;
-                    UITheme.Fill(new Rect(r.x - 12f, r.y + 8f, 4f, r.height - 16f), bar);
                     UITheme.Glow(new Rect(r.x - 26f, r.y - 6f, r.width + 52f, r.height + 12f),
                                  new Color(bar.r, bar.g, bar.b, 0.10f));
                 }

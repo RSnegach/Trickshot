@@ -31,8 +31,8 @@ namespace Trickshot
                 var a = Achievements.All[i];
                 bool unlocked = Achievements.IsUnlocked(a.Id);
                 title.normal.textColor = unlocked ? UITheme.Gold : UITheme.Ink;
-                GUI.Label(new Rect(lx, y, lw, 18f), (unlocked ? "★ " : "") + a.Title, title);
-                GUI.Label(new Rect(lx, y + 17f, lw, 16f), a.Description, desc);
+                UITheme.Label(new Rect(lx, y, lw, 18f), (unlocked ? "★ " : "") + a.Title, title);
+                UITheme.Label(new Rect(lx, y + 17f, lw, 16f), a.Description, desc);
 
                 if (a.Kind == AchievementKind.StatThreshold)
                 {
@@ -43,11 +43,11 @@ namespace Trickshot
                     if (frac > 0f) UITheme.Fill(new Rect(barBack.x, barBack.y, barBack.width * frac, barBack.height),
                                                 unlocked ? UITheme.Gold : UITheme.Green);
                     var progSt = new GUIStyle(GUI.skin.label) { fontSize = 10, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Faint } };
-                    GUI.Label(new Rect(lx, y + 36f, lw, 8f), cur + " / " + a.Target, progSt);
+                    UITheme.Label(new Rect(lx, y + 36f, lw, 8f), cur + " / " + a.Target, progSt);
                 }
                 else
                 {
-                    GUI.Label(new Rect(lx, y + 36f, lw, 14f), "Not available yet.",
+                    UITheme.Label(new Rect(lx, y + 36f, lw, 14f), "Not available yet.",
                               new GUIStyle(GUI.skin.label) { fontSize = 10, normal = { textColor = UITheme.Faint } });
                 }
 

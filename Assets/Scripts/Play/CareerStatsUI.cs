@@ -204,15 +204,15 @@ namespace Trickshot
             float xSp = lx + colLabel, xMp = xSp + colVal;
 
             // One SP/MP mini-header above the list, not per row.
-            GUI.Label(new Rect(xSp, y - 24f, colVal, 16f), "SP", head);
-            GUI.Label(new Rect(xMp, y - 24f, colVal, 16f), "MP", head);
+            UITheme.Label(new Rect(xSp, y - 24f, colVal, 16f), "SP", head);
+            UITheme.Label(new Rect(xMp, y - 24f, colVal, 16f), "MP", head);
 
             for (int i = 0; i < rows.Length; i++)
             {
                 float ry = y + i * (rowH + gap);
-                GUI.Label(new Rect(lx, ry, colLabel, rowH), rows[i].label, lbl);
-                GUI.Label(new Rect(xSp, ry, colVal, rowH), rows[i].sp, val);
-                GUI.Label(new Rect(xMp, ry, colVal, rowH), rows[i].mp, val);
+                UITheme.Label(new Rect(lx, ry, colLabel, rowH), rows[i].label, lbl);
+                UITheme.Label(new Rect(xSp, ry, colVal, rowH), rows[i].sp, val);
+                UITheme.Label(new Rect(xMp, ry, colVal, rowH), rows[i].mp, val);
                 UITheme.Divider(lx, ry + rowH + gap * 0.5f, rw);
             }
         }
@@ -237,10 +237,10 @@ namespace Trickshot
             {
                 var (label, r) = playlists[i];
                 float by = y + i * blockH;
-                GUI.Label(new Rect(lx, by, rw * 0.5f, 30f), label + "  -  " + CareerStats.RankTierName(r), tierSt);
-                GUI.Label(new Rect(lx + rw * 0.5f, by, rw * 0.5f, 30f),
+                UITheme.Label(new Rect(lx, by, rw * 0.5f, 30f), label + "  -  " + CareerStats.RankTierName(r), tierSt);
+                UITheme.Label(new Rect(lx + rw * 0.5f, by, rw * 0.5f, 30f),
                     r.MatchesPlayed > 0 ? Mathf.RoundToInt(r.Mmr) + " MMR" : "-", mmrSt);
-                GUI.Label(new Rect(lx, by + 30f, rw, 22f),
+                UITheme.Label(new Rect(lx, by + 30f, rw, 22f),
                     $"{r.Wins}W - {r.Losses}L - {r.Draws}D  ({r.MatchesPlayed} played)", wldSt);
                 UITheme.Divider(lx, by + blockH - 8f, rw);
             }
@@ -249,7 +249,7 @@ namespace Trickshot
         void DrawFriends(float x, float y, float w)
         {
             var hint = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true, alignment = TextAnchor.UpperLeft, normal = { textColor = UITheme.Faint } };
-            GUI.Label(new Rect(x + 24f, y + 8f, w - 48f, 80f),
+            UITheme.Label(new Rect(x + 24f, y + 8f, w - 48f, 80f),
                 "Needs player accounts - coming later. Once accounts exist, a friend's own stats will show here.",
                 hint);
         }

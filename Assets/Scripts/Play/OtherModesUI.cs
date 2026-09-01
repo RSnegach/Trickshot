@@ -50,7 +50,7 @@ namespace Trickshot
             Color dot = steam ? UITheme.Green : UITheme.Gold;
             UITheme.Glow(new Rect(nr.center.x - tw * 0.5f - 24f, nr.y + 1f, 20f, 20f), new Color(dot.r, dot.g, dot.b, 0.7f));
             UITheme.Fill(new Rect(nr.center.x - tw * 0.5f - 17f, nr.y + 8f, 6f, 6f), dot);
-            GUI.Label(nr, status, note);
+            UITheme.Label(nr, status, note);
 
             MenuScale.End();
         }

@@ -258,8 +258,18 @@ namespace Trickshot
                     // Cover the TOP of the head + sides + back, but keep a front wedge (the face)
                     // clear. phi from the very top (0.03) down past the sides so the crown is fully
                     // filled; theta spans everything EXCEPT a +/-40deg wedge around the face.
+                    //
+                    // ONE exception: the strand at the LEFT edge of that wedge (t = 1, the
+                    // innermost one, closest to the centre of the forehead) grows straight down
+                    // onto the left brow and reads as a strand coming out of the middle left of
+                    // the face. Its ROOT is moved to the back of the head instead - the strand
+                    // still exists (counts, sim and coverage budget are untouched) but it
+                    // drapes at the nape, so the left curtain starts one strand further out
+                    // and the face is clear. The right edge keeps its strand: only the left
+                    // one was the offender on both styles that use this mode.
                     phi = Mathf.Lerp(0.03f, 1.5f, Rand01());
                     theta = Mathf.Lerp(Mathf.PI * 0.22f, Mathf.PI * 1.78f, t) + RandSym() * 0.2f;
+                    if (t > 0.999f) theta = Mathf.PI + RandSym() * 0.1f;   // left-edge strand -> back
                     break;
                 case RootMode.BackCluster:
                     // TIGHT gather point at the back of the crown (ponytail tie / bun). Small phi +

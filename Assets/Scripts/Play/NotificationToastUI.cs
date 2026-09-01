@@ -68,8 +68,8 @@ namespace Trickshot
 
                 var titleSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, alpha) } };
                 var bodySt = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = new Color(UITheme.Ink.r, UITheme.Ink.g, UITheme.Ink.b, alpha) } };
-                GUI.Label(new Rect(x + 14f, y + 8f, w - 28f, 22f), t.title, titleSt);
-                GUI.Label(new Rect(x + 14f, y + 30f, w - 28f, 26f), t.body, bodySt);
+                UITheme.Label(new Rect(x + 14f, y + 8f, w - 28f, 22f), t.title, titleSt);
+                UITheme.Label(new Rect(x + 14f, y + 30f, w - 28f, 26f), t.body, bodySt);
 
                 y += h + gap;
             }

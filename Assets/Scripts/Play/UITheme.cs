@@ -260,8 +260,8 @@ namespace Trickshot
 
                 // Buttons and toggles used to brighten their LABEL to pure white on hover, which
                 // read as a glare rather than as feedback. One text colour for every state now; the
-                // hover cue is carried entirely by the plate (BtnHovTex) plus the marker bar and
-                // glow that Button draws. Note the checked look of a toggle is carried by
+                // hover cue is carried entirely by the plate (BtnHovTex) plus the glow that Button
+                // draws. Note the checked look of a toggle is carried by
                 // onNormal.background, not by its text, so locking the colour costs nothing there.
                 Skin4(_skin.button, BtnTex, BtnHovTex, BtnDownTex, slice, Ink, Ink, Ink);
                 Skin4(_skin.box, PanelTex, PanelTex, PanelTex, slice, Dim, Dim, Dim);
@@ -424,14 +424,17 @@ namespace Trickshot
             }
         }
 
-        /// <summary>Label with a drop shadow. The single biggest readability win over a pitch.</summary>
+        /// <summary>Label with a drop shadow. The single biggest readability win over a pitch.
+        /// Every pass LockTexts so the mouse can never re-colour the text mid-shadow.</summary>
         public static void Shadowed(Rect r, string text, GUIStyle st, Color col, float shadowAlpha = 0.7f, float off = 2f)
         {
             if (string.IsNullOrEmpty(text)) return;
             var keep = st.normal.textColor;
             st.normal.textColor = new Color(0f, 0f, 0f, shadowAlpha * col.a);
+            LockText(st);
             GUI.Label(new Rect(r.x + off, r.y + off, r.width, r.height), text, st);
             st.normal.textColor = col;
+            LockText(st);
             GUI.Label(r, text, st);
             st.normal.textColor = keep;
         }
@@ -524,6 +527,7 @@ namespace Trickshot
         {
             _sectionStyle ??= new GUIStyle { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
             _sectionStyle.normal.textColor = Gold;
+            LockText(_sectionStyle);
             var content = new GUIContent(text);
             float tw = _sectionStyle.CalcSize(content).x;
             GUI.Label(r, content, _sectionStyle);
@@ -542,6 +546,7 @@ namespace Trickshot
             _hintStyle ??= new GUIStyle { fontSize = 12, wordWrap = true };
             _hintStyle.alignment = align;
             _hintStyle.normal.textColor = Faint;
+            LockText(_hintStyle);
             GUI.Label(r, text, _hintStyle);
         }
 
@@ -615,19 +620,17 @@ namespace Trickshot
 
         /// <summary>
         /// Menu button. The plate itself comes from the skin (so padding, font and size are the
-        /// caller's); this adds a marker bar off the leading edge and a soft glow while hovered,
-        /// which is what makes a row read as "the one I'm about to click". Pass markerBar: false
-        /// for a screen that shouldn't carry the leading-edge line (the glow highlight still shows).
+        /// caller's); this adds a soft glow while hovered, which is what makes a row read as
+        /// "the one I'm about to click". (The old gold marker bar off the leading edge is gone
+        /// - hover now reads purely from the plate + glow, never from an accent bar.)
         /// </summary>
-        public static bool Button(Rect r, string label, GUIStyle st, bool bad = false, bool markerBar = true)
+        public static bool Button(Rect r, string label, GUIStyle st, bool bad = false)
         {
             LockText(st);
             var e = Event.current;
             if (e != null && r.Contains(e.mousePosition))
             {
                 Color bar = bad ? Red : Gold;
-                if (markerBar)
-                    Fill(new Rect(r.x - 12f, r.y + 8f, 4f, Mathf.Max(4f, r.height - 16f)), bar);
                 Glow(new Rect(r.x - 26f, r.y - 6f, r.width + 52f, r.height + 12f),
                      new Color(bar.r, bar.g, bar.b, 0.10f));
             }
@@ -652,7 +655,6 @@ namespace Trickshot
             bool hot = e != null && r.Contains(e.mousePosition);
             if (hot)
             {
-                Fill(new Rect(r.x - 12f, r.y + 8f, 4f, Mathf.Max(4f, r.height - 16f)), Gold);
                 Glow(new Rect(r.x - 26f, r.y - 6f, r.width + 52f, r.height + 12f),
                      new Color(Gold.r, Gold.g, Gold.b, 0.10f));
             }
@@ -687,16 +689,38 @@ namespace Trickshot
             st.onFocused.textColor = c;
         }
 
+        /// <summary>
+        /// GUI.Label that never changes colour on hover. The same problem LockText solves for
+        /// buttons, for labels: dozens of call sites build a label style as
+        /// new GUIStyle(GUI.skin.label) { normal = { textColor = X } }, which overrides only the
+        /// normal state - the copy keeps the skin's hover colour (Ink), so dim text brightened as
+        /// the mouse passed over it. This pins every state to the normal colour at draw time.
+        /// Idempotent and allocation-free, safe for reused static styles.
+        /// </summary>
+        public static void Label(Rect r, string text, GUIStyle st)
+        {
+            LockText(st);
+            GUI.Label(r, text, st);
+        }
+
+        public static void Label(Rect r, GUIContent content, GUIStyle st)
+        {
+            LockText(st);
+            GUI.Label(r, content, st);
+        }
+
+        public static void Label(Rect r, string text) { Label(r, text, GUI.skin.label); }
+
         /// <summary>Button held in an "on" state (current selection in a list of choices). Tints
         /// have to exceed 1.0: GUI.backgroundColor MULTIPLIES the plate, so a saturated colour
-        /// would only darken it.</summary>
+        /// would only darken it. The selection is carried entirely by the lit plate - no accent
+        /// bar is drawn under or beside it.</summary>
         public static bool Toggle(Rect r, string label, bool on, GUIStyle st, Color? tint = null)
         {
             var keep = GUI.backgroundColor;
             if (on) GUI.backgroundColor = tint ?? SelTint;
             bool hit = Button(r, label, st);
             GUI.backgroundColor = keep;
-            if (on) Fill(new Rect(r.x + 5f, r.yMax - 3f, r.width - 10f, 2.5f), Gold);
             return hit;
         }
 
@@ -741,6 +765,7 @@ namespace Trickshot
 
             _cardSubStyle ??= new GUIStyle { fontSize = 13, wordWrap = true, alignment = TextAnchor.UpperCenter };
             _cardSubStyle.normal.textColor = Dim;
+            LockText(_cardSubStyle);
             var subRect = new Rect(r.x + 10f, titleRect.yMax + 2f, r.width - 20f, subH);
             GUI.Label(subRect, subtitle, _cardSubStyle);
 
@@ -750,6 +775,7 @@ namespace Trickshot
                 Chip(soonRect, Gold);
                 _cardSoonStyle ??= new GUIStyle { fontSize = 11, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
                 _cardSoonStyle.normal.textColor = new Color(0.08f, 0.07f, 0.03f);
+                LockText(_cardSoonStyle);
                 GUI.Label(soonRect, "SOON", _cardSoonStyle);
             }
 

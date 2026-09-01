@@ -162,7 +162,7 @@ namespace Trickshot
                     ? CareerStats.RankTierName(r) + " - " + Mathf.RoundToInt(r.Mmr) + " MMR"
                     : "Unranked";
                 if (UITheme.Button(new Rect(cx, by, w, h), n + "v" + n, btn)) StartQueue(n);
-                GUI.Label(new Rect(cx, by + h - 24f, w, 18f), rankLine, sub);
+                UITheme.Label(new Rect(cx, by + h - 24f, w, 18f), rankLine, sub);
             }
 
             float backY = cy + (h + gap) * Playlists.Length;
@@ -179,7 +179,7 @@ namespace Trickshot
             UITheme.Title(new Rect(0, cy - 90f, MenuScale.Width, 60f), _perSide + "v" + _perSide + " ONLINE", 36);
 
             var st = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
-            GUI.Label(new Rect(cx, cy, w, 30f), _status, st);
+            UITheme.Label(new Rect(cx, cy, w, 30f), _status, st);
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
             if (UITheme.Button(new Rect(cx + w * 0.5f - 160f, cy + 50f, 320f, 56f), "Cancel", btn)) Cancel();

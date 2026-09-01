@@ -115,7 +115,7 @@ namespace Trickshot
 
             // Config summary.
             var meta = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
-            GUI.Label(new Rect(x, y + 46f, w, 22f), ConfigLine(), meta);
+            UITheme.Label(new Rect(x, y + 46f, w, 22f), ConfigLine(), meta);
 
             // Invite block (direct-IP host only): the code friends paste into Find a Session. Shown
             // big because reading it aloud / pasting it is the whole join flow off Steam.
@@ -145,7 +145,7 @@ namespace Trickshot
                 GUI.enabled = true;
 
                 var addr = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Dim } };
-                GUI.Label(new Rect(x + 32f, iy + 52f, w - 64f, 18f), "or by address:  " + _hostAddrLine, addr);
+                UITheme.Label(new Rect(x + 32f, iy + 52f, w - 64f, 18f), "or by address:  " + _hostAddrLine, addr);
 
                 // Discoverability read-out. Discovery is silent by design: a host that is private,
                 // full, or already playing simply does not answer probes, so it vanishes from every
@@ -155,7 +155,7 @@ namespace Trickshot
                 Color vc; string vis = VisibilityLine(out vc);
                 var visStyle = new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = vc } };
                 UITheme.Dot(x + 26f, iy + 79f, vc, 2.5f);
-                GUI.Label(new Rect(x + 32f, iy + 70f, w - 64f, 18f), vis, visStyle);
+                UITheme.Label(new Rect(x + 32f, iy + 70f, w - 64f, 18f), vis, visStyle);
 
                 rosterTop = iy + ih + 10f;
             }
@@ -245,16 +245,15 @@ namespace Trickshot
                 string role = RoleName(slot.role, slot.slot);
                 // Row occupant: human name, "Clanker N", or "Open" (all baked into slot.name).
                 string who = slot.name;
-                // Your own row gets a lit band plus a gold spine, so it is findable at a glance
+                // Your own row gets a lit band, so it is findable at a glance
                 // in an eight-slot roster.
                 if (isMe)
                 {
                     UITheme.Fill(new Rect(lx - 6f, row, lw + 12f, rowH - 2f), new Color(0.14f, 0.28f, 0.48f, 0.55f));
-                    UITheme.Fill(new Rect(lx - 6f, row, 2.5f, rowH - 2f), UITheme.Gold);
                 }
                 else UITheme.Divider(lx, row + rowH - 2f, lw);
 
-                GUI.Label(new Rect(lx + 8f, row, lw * 0.5f, rowH), $"{role}:  {who}{(isMe ? "  (you)" : "")}", name);
+                UITheme.Label(new Rect(lx + 8f, row, lw * 0.5f, rowH), $"{role}:  {who}{(isMe ? "  (you)" : "")}", name);
 
                 if (slot.human)
                 {
@@ -264,7 +263,7 @@ namespace Trickshot
                     string rt = slot.ready ? "READY" : "not ready";
                     float rw = tag.CalcSize(new GUIContent(rt)).x;
                     UITheme.Dot(lx + lw - rw - 10f, row + rowH * 0.5f, rc, 2.5f);
-                    GUI.Label(new Rect(lx, row, lw, rowH), rt, tag);
+                    UITheme.Label(new Rect(lx, row, lw, rowH), rt, tag);
                 }
                 else
                 {
@@ -306,8 +305,8 @@ namespace Trickshot
             const float cellH = 46f, gap = 16f;
             float colW = (lw - gap) * 0.5f, homeX = lx, awayX = lx + colW + gap;
 
-            GUI.Label(new Rect(homeX, top, colW, 18f), "HOME", head);
-            GUI.Label(new Rect(awayX, top, colW, 18f), "AWAY", head);
+            UITheme.Label(new Rect(homeX, top, colW, 18f), "HOME", head);
+            UITheme.Label(new Rect(awayX, top, colW, 18f), "AWAY", head);
             float gridTop = top + 20f;
 
             int perSide = _s.Config.perSide;
@@ -325,11 +324,10 @@ namespace Trickshot
                 if (isMe)
                 {
                     UITheme.Fill(new Rect(cx - 6f, cy, colW + 12f, cellH - 4f), new Color(0.14f, 0.28f, 0.48f, 0.55f));
-                    UITheme.Fill(new Rect(cx - 6f, cy, 2.5f, cellH - 4f), UITheme.Gold);
                 }
                 else UITheme.Divider(cx, cy + cellH - 4f, colW);
 
-                GUI.Label(new Rect(cx + 6f, cy, colW - 12f, 20f), $"{pos}  -  {slot.name}{(isMe ? "  (you)" : "")}", name);
+                UITheme.Label(new Rect(cx + 6f, cy, colW - 12f, 20f), $"{pos}  -  {slot.name}{(isMe ? "  (you)" : "")}", name);
 
                 if (slot.human)
                 {
@@ -338,7 +336,7 @@ namespace Trickshot
                     string rt = slot.ready ? "READY" : "not ready";
                     float rw = tag.CalcSize(new GUIContent(rt)).x;
                     UITheme.Dot(cx + colW - rw - 8f, cy + 20f + 9f, rc, 2.2f);
-                    GUI.Label(new Rect(cx + 6f, cy + 20f, colW - 12f, 18f), rt, tag);
+                    UITheme.Label(new Rect(cx + 6f, cy + 20f, colW - 12f, 18f), rt, tag);
                 }
                 else
                 {
@@ -383,7 +381,7 @@ namespace Trickshot
             foreach (var s in roster) if (s.slot == _s.LocalSlot) { mine = s; haveMine = true; break; }
             int myTeam = _s.LocalSlot >= 0 ? NetSession.ScrimTeamOfSlot(_s.LocalSlot) : -1;
 
-            GUI.Label(new Rect(lx, row, lw, 18f), "MY JERSEY", head);
+            UITheme.Label(new Rect(lx, row, lw, 18f), "MY JERSEY", head);
             row += 20f;
             if (haveMine)
             {
@@ -391,12 +389,12 @@ namespace Trickshot
                 if (UITheme.Toggle(new Rect(lx, row, 240f, 26f), on ? "Submitted - withdraw" : "Submit as candidate", on, subBtn, UITheme.GoodTint))
                     _s.ToggleNominateJersey();
             }
-            else GUI.Label(new Rect(lx, row, lw, 20f), "Claim a slot first.", hint);
+            else UITheme.Label(new Rect(lx, row, lw, 20f), "Claim a slot first.", hint);
             row += 34f;
 
             UITheme.Divider(lx, row, lw); row += 10f;
 
-            GUI.Label(new Rect(lx, row, lw, 18f), myTeam == 1 ? "AWAY CANDIDATES" : "HOME CANDIDATES", head);
+            UITheme.Label(new Rect(lx, row, lw, 18f), myTeam == 1 ? "AWAY CANDIDATES" : "HOME CANDIDATES", head);
             row += 24f;
 
             bool any = false;
@@ -408,13 +406,13 @@ namespace Trickshot
                 var tex = _s.JerseyForSlot(s.slot);
                 var trect = new Rect(lx, row + (cellH - thumb) * 0.5f, thumb, thumb);
                 if (tex != null) GUI.DrawTexture(trect, tex, ScaleMode.ScaleToFit);
-                else { UITheme.Fill(trect, new Color(1f, 1f, 1f, 0.06f)); GUI.Label(trect, "...", hint); }
+                else { UITheme.Fill(trect, new Color(1f, 1f, 1f, 0.06f)); UITheme.Label(trect, "...", hint); }
 
                 float nameW = lw - thumb - 130f;
-                GUI.Label(new Rect(lx + thumb + 10f, row, nameW, 20f),
+                UITheme.Label(new Rect(lx + thumb + 10f, row, nameW, 20f),
                           s.name + (s.slot == _s.LocalSlot ? "  (you)" : ""), rowName);
                 int votes = NetSession.JerseyVoteCount(roster, s.slot);
-                GUI.Label(new Rect(lx + thumb + 10f, row + 20f, nameW, 18f),
+                UITheme.Label(new Rect(lx + thumb + 10f, row + 20f, nameW, 18f),
                           votes == 1 ? "1 vote" : votes + " votes", voteCount);
 
                 bool votedFor = haveMine && mine.voteFor == s.slot;
@@ -427,7 +425,7 @@ namespace Trickshot
             if (!any)
             {
                 string msg = myTeam < 0 ? "Claim a slot to see your team's candidates." : "Nobody has submitted a jersey yet.";
-                GUI.Label(new Rect(lx, row, lw, 20f), msg, hint);
+                UITheme.Label(new Rect(lx, row, lw, 20f), msg, hint);
             }
         }
 

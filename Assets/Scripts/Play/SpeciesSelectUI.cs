@@ -125,8 +125,6 @@ namespace Trickshot
                 // Row click SELECTS only (same convention as the stadium picker); Next advances.
                 if (UITheme.Toggle(r, "    " + def.Name, selected, nameSt))
                     Species.ApplySelection(def.Id);
-                // Gold spine on the leading edge marks the pick (replaces the old text arrow).
-                if (selected) UITheme.Fill(new Rect(r.x + 6f, r.y + 7f, 3f, r.height - 14f), UITheme.Gold);
                 row += rowH + rowGap;
             }
 
@@ -134,8 +132,7 @@ namespace Trickshot
             // entries the loop above skips). Hovers like a row, never clicks: UITheme.Tease builds
             // no control, and GUI.enabled = false would have killed the highlight too.
             var soon = new Rect(lx, row, lw, rowH);
-            bool soonHot = UITheme.Tease(soon, "    Coming Soon...", nameSt);
-            if (soonHot) UITheme.Fill(new Rect(soon.x + 6f, soon.y + 7f, 3f, soon.height - 14f), UITheme.Dim);
+            UITheme.Tease(soon, "    Coming Soon...", nameSt);
 
             // ---- Back / Next anchored to the screen edges (same as the customize screen) ----
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };

@@ -306,7 +306,7 @@ namespace Trickshot
             }
             // Nobody has to pick anything for a match to start - every shirt the humans do not take is
             // already filled by an AI body, so this only ever moves WHICH body you are.
-            GUI.Label(new Rect(lx, row, lw, 20f), "Rest are AI.", RowValue());
+            UITheme.Label(new Rect(lx, row, lw, 20f), "Rest are AI.", RowValue());
             return LadderPicker(lx, ref row, lw, "You play:", _posNames,
                                 Mathf.Clamp(shirt, 0, form.Length - 1), PosPerRow, 12);
         }
@@ -322,7 +322,7 @@ namespace Trickshot
                                        string[] names, int cur, int perRow = 0, int fontSize = 13)
         {
             if (names == null || names.Length == 0) { EndRow(lx, ref row, lw); return 0; }
-            GUI.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
+            UITheme.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
             int per = perRow <= 0 ? names.Length : Mathf.Min(perRow, names.Length);
             int rows = GridRows(names.Length, per);
             const float gap = 6f;
@@ -471,8 +471,8 @@ namespace Trickshot
             float resetW = 52f, gap = 10f, sliderW = lw - resetW - gap;
 
             // Name on the left, value right-aligned over the track: the pair reads as a spec sheet.
-            GUI.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
-            GUI.Label(new Rect(lx, row, sliderW, 20f), $"{val:0.00}x", RowValue());
+            UITheme.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
+            UITheme.Label(new Rect(lx, row, sliderW, 20f), $"{val:0.00}x", RowValue());
             val = GUI.HorizontalSlider(new Rect(lx, row + 24f, sliderW, 20f), val, min, max);
             if (UITheme.Button(new Rect(lx + sliderW + gap, row + 20f, resetW, 24f), "reset", smallBtn))
                 val = def;
@@ -485,8 +485,8 @@ namespace Trickshot
                         float min, float max, string fmt, string unit)
         {
             string u = string.IsNullOrEmpty(unit) ? "" : " " + unit;
-            GUI.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
-            GUI.Label(new Rect(lx, row, lw, 20f), val.ToString(fmt) + u, RowValue());
+            UITheme.Label(new Rect(lx, row, lw, 20f), label, RowLabel());
+            UITheme.Label(new Rect(lx, row, lw, 20f), val.ToString(fmt) + u, RowValue());
             val = GUI.HorizontalSlider(new Rect(lx, row + 24f, lw, 20f), val, min, max);
             EndRow(lx, ref row, lw);
             return val;

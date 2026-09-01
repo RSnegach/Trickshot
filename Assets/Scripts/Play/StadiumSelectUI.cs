@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// Stadium picker shown after the mode is chosen and before the pre-match config.
-    /// Lists every StadiumStyle with its blurb; selecting one sets
+    /// Lists every pickable StadiumStyle by name; selecting one sets
     /// StadiumStyle.SelectedIndex and continues. IMGUI, no Canvas wiring.
     /// </summary>
     public class StadiumSelectUI : MonoBehaviour
@@ -41,9 +41,7 @@ namespace Trickshot
             UITheme.Title(new Rect(x, y + 14f, panelW, 44f), "SELECT STADIUM", 34);
 
             var name = new GUIStyle(GUI.skin.button)
-            { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
-            var blurb = new GUIStyle(GUI.skin.label)
-            { fontSize = 13, alignment = TextAnchor.LowerLeft, normal = { textColor = UITheme.Dim }, wordWrap = true };
+            { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
 
             float row = y + 70f;
             for (int i = 0; i < all.Length; i++)
@@ -54,19 +52,11 @@ namespace Trickshot
                 bool selected = i == StadiumStyle.SelectedIndex;
                 var r = new Rect(x + 30f, row, panelW - 60f, rowH);
                 // Row click SELECTS only (highlights it); a dedicated Next button advances,
-                // so the flow matches the other screens' back/forward buttons.
-                if (UITheme.Toggle(r, "    " + all[i].Name, selected, name))
+                // so the flow matches the other screens' back/forward buttons. The name IS the
+                // row: big and centred, no blurb underneath, no palette swatches, no accent
+                // spine - the lit plate alone marks the pick.
+                if (UITheme.Toggle(r, all[i].Name, selected, name))
                     StadiumStyle.SelectedIndex = i;
-                // Gold spine on the leading edge marks the pick (replaces the old text arrow).
-                if (selected) UITheme.Fill(new Rect(r.x + 6f, r.y + 8f, 3f, r.height - 16f), UITheme.Gold);
-
-                // Palette swatch: turf, seats, accent. Tells the venues apart at a glance.
-                var st = all[i];
-                UITheme.Chip(new Rect(r.xMax - 74f, r.y + 11f, 20f, 20f), st.Grass);
-                UITheme.Chip(new Rect(r.xMax - 48f, r.y + 11f, 20f, 20f), st.Seats);
-                UITheme.Chip(new Rect(r.xMax - 22f, r.y + 11f, 20f, 20f), st.Accent);
-
-                GUI.Label(new Rect(r.x + 14f, row + 34f, r.width - 28f, rowH - 36f), all[i].Blurb, blurb);
                 row += rowH + gap;
             }
 
@@ -74,10 +64,7 @@ namespace Trickshot
             // venues still to come are visible without pretending they are playable. UITheme.Tease
             // builds no control at all; GUI.enabled = false would have taken the highlight with it.
             var soon = new Rect(x + 30f, row, panelW - 60f, rowH);
-            bool soonHot = UITheme.Tease(soon, "    Coming Soon...", name);
-            GUI.Label(new Rect(soon.x + 14f, row + 34f, soon.width - 28f, rowH - 36f),
-                      "More venues on the way.", blurb);
-            if (soonHot) UITheme.Fill(new Rect(soon.x + 6f, soon.y + 8f, 3f, soon.height - 16f), UITheme.Dim);
+            UITheme.Tease(soon, "Coming Soon...", name);
 
             // Back/Next anchored to the far left/right screen edges.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };

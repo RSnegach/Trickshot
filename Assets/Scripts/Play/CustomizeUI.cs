@@ -451,7 +451,7 @@ namespace Trickshot
                 fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight,
                 normal = { textColor = UITheme.Gold }
             };
-            GUI.Label(new Rect(x + panelW - 128f, y + 18f, 100f, 22f), Species.Current.Name.ToUpper(), spTag);
+            UITheme.Label(new Rect(x + panelW - 128f, y + 18f, 100f, 22f), Species.Current.Name.ToUpper(), spTag);
             // Short gold rule under the title (same stub as the species screen). Clears every
             // stage's first row: Body starts at y+56, Skill y+52, Jersey y+58, Name y+76.
             UITheme.Fill(new Rect(x + 28f, y + 46f, 48f, 2.5f), UITheme.Gold);
@@ -490,7 +490,7 @@ namespace Trickshot
             ModalPanel(new Rect(px, py, w, h));
 
             var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
-            GUI.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
+            UITheme.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
                 "You confirm you are over 18.", msg);
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
@@ -539,9 +539,9 @@ namespace Trickshot
             ModalPanel(new Rect(px, py, w, h));
 
             var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
-            GUI.Label(new Rect(px + 20f, py + 12f, w - 40f, 20f), "ADULT KNOWLEDGE CHECK", hdr);
+            UITheme.Label(new Rect(px + 20f, py + 12f, w - 40f, 20f), "ADULT KNOWLEDGE CHECK", hdr);
             var msg = new GUIStyle(GUI.skin.label) { fontSize = 18, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
-            GUI.Label(new Rect(px + 30f, py + 36f, w - 60f, 70f), q.Text, msg);
+            UITheme.Label(new Rect(px + 30f, py + 36f, w - 60f, 70f), q.Text, msg);
 
             bool feedback = _quizPick >= 0;   // a pick is being shown with red/green outlines
             var ansStyle = new GUIStyle(GUI.skin.button) { fontSize = 15, alignment = TextAnchor.MiddleLeft };
@@ -588,7 +588,7 @@ namespace Trickshot
             }
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
-            GUI.Label(new Rect(px + 20f, py + h - 44f, w - 40f, 18f), "Answer correctly to enable Adult Mode.", note);
+            UITheme.Label(new Rect(px + 20f, py + h - 44f, w - 40f, 18f), "Answer correctly to enable Adult Mode.", note);
             var backBtn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
             if (UITheme.Button(new Rect(px + w - 110f, py + h - 34f, 90f, 26f), "Cancel", backBtn, true))
             {
@@ -608,7 +608,7 @@ namespace Trickshot
             ModalPanel(new Rect(px, py, w, h));
 
             var msg = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
-            GUI.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
+            UITheme.Label(new Rect(px + 30f, py + 26f, w - 60f, 90f),
                 $"{pct}% of your points went to your penis. Continue?", msg);
 
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
@@ -680,15 +680,15 @@ namespace Trickshot
             // Axis label, unit, numeric format and range all come from the species (SpeciesAxis.Read),
             // because a horse is measured at the withers and an elephant's mass is nowhere near the
             // human band. Human reads "Height:  1.80 m" / "Weight:  75 kg" exactly as before.
-            GUI.Label(new Rect(lx, row, lw, 20f), sp.Size.Read(_height), st); row += 24f;
+            UITheme.Label(new Rect(lx, row, lw, 20f), sp.Size.Read(_height), st); row += 24f;
             _height = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _height, PlayerProfile.MinHeight, PlayerProfile.MaxHeight); row += 40f;
 
-            GUI.Label(new Rect(lx, row, lw, 20f), sp.Mass.Read(_weight), st); row += 24f;
+            UITheme.Label(new Rect(lx, row, lw, 20f), sp.Mass.Read(_weight), st); row += 24f;
             _weight = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _weight, PlayerProfile.MinWeight, PlayerProfile.MaxWeight); row += 44f;
 
             // Strong foot: two toggle buttons. The selected one is tinted bright green with
             // a bold label + check; the other is dimmed so the choice is unmistakable.
-            GUI.Label(new Rect(lx, row, lw, 20f), "Strong foot:", st); row += 24f;
+            UITheme.Label(new Rect(lx, row, lw, 20f), "Strong foot:", st); row += 24f;
             float bw = (lw - 10f) * 0.5f;
             if (FootButton(new Rect(lx, row, bw, 34f), "Left", _leftFooted))  _leftFooted = true;
             if (FootButton(new Rect(lx + bw + 10f, row, bw, 34f), "Right", !_leftFooted)) _leftFooted = false;
@@ -886,11 +886,11 @@ namespace Trickshot
             {
                 var grp = new GUIStyle(GUI.skin.label)
                 { fontSize = 14, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
-                GUI.Label(new Rect(lx, row, lw, 20f), SpeciesCosmetics.SkinGroupLabel(sp), grp); row += 24f;
+                UITheme.Label(new Rect(lx, row, lw, 20f), SpeciesCosmetics.SkinGroupLabel(sp), grp); row += 24f;
                 PlayerProfile.Appearance.Skin = SwatchRow(lx, row, lw, PlayerProfile.Appearance.Skin,
                                                          SpeciesCosmetics.SkinSwatches(sp), 34f, 8f);
                 row += 2 * (34f + 8f) + 12f;   // two rows of swatches
-                GUI.Label(new Rect(lx, row, lw, 20f), slot.ColorLabel, grp); row += 24f;
+                UITheme.Label(new Rect(lx, row, lw, 20f), slot.ColorLabel, grp); row += 24f;
                 float skinWsz = Mathf.Min(lw, bottom - row, 150f);
                 PlayerProfile.Appearance.Skin = WheelPick(new Rect(lx, row, skinWsz, skinWsz), PlayerProfile.Appearance.Skin);
                 return;
@@ -918,11 +918,11 @@ namespace Trickshot
             if (headgearRule && !Cosmetics.IsBald(PlayerProfile.Appearance.HairStyle))
             {
                 var hint = new GUIStyle(st) { fontSize = 11, normal = { textColor = UITheme.Gold } };
-                GUI.Label(new Rect(lx, row + gridH + 2f, gridW, 20f), "Headgear needs Bald hair.", hint);
+                UITheme.Label(new Rect(lx, row + gridH + 2f, gridW, 20f), "Headgear needs Bald hair.", hint);
             }
 
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
-            GUI.Label(new Rect(wx, row, wsz, 18f), slot.ColorLabel, st);
+            UITheme.Label(new Rect(wx, row, wsz, 18f), slot.ColorLabel, st);
             Color tint = WheelPick(new Rect(wx, row + 20f, wsz, wsz), SlotColor(slot.Kind));
             // The HSV wheel is fixed at full value so it can't reach dark shades; a value bar under
             // it goes white -> the picked hue -> black.
@@ -1114,7 +1114,7 @@ namespace Trickshot
                 }
                 GUI.color = prev;
 
-                GUI.Label(new Rect(r.x, r.yMax - 14f, r.width, 12f), owned ? "✓" : n.Cost.ToString(), costSt);
+                UITheme.Label(new Rect(r.x, r.yMax - 14f, r.width, 12f), owned ? "✓" : n.Cost.ToString(), costSt);
 
                 // Click: select, then act. Clicking an OWNED node refunds it (and cascades
                 // to every node built on top of it); clicking a buyable node buys it.
@@ -1140,8 +1140,8 @@ namespace Trickshot
                 var nameSt = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Ink } };
                 var descSt = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } };
                 string tag = selNode.Perk != null ? "  [CAPSTONE PERK]" : "";
-                GUI.Label(new Rect(box.x + 10f, box.y + 5f, lw - 130f, 18f), selNode.Name + tag, nameSt);
-                GUI.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), selNode.Desc, descSt);
+                UITheme.Label(new Rect(box.x + 10f, box.y + 5f, lw - 130f, 18f), selNode.Name + tag, nameSt);
+                UITheme.Label(new Rect(box.x + 10f, box.y + 26f, lw - 130f, 26f), selNode.Desc, descSt);
 
                 var actBtn = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
                 var actRect = new Rect(box.xMax - 128f, box.y + 15f, 116f, 28f);
@@ -1201,11 +1201,11 @@ namespace Trickshot
                 GUI.color = p2;
             }
             var randSt = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
-            GUI.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), "RANDOMIZE", randSt);
+            UITheme.Label(new Rect(randRect.x + 20f, randRect.y, randRect.width - 20f, randRect.height), "RANDOMIZE", randSt);
             if (GUI.Button(randRect, GUIContent.none, GUIStyle.none)) { SkillTree.Randomize(); _selNode = null; }
 
             var hdr = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
-            GUI.Label(new Rect(colX, colY + randBh + randGap, bw, 20f), "QUICK BUILDS", hdr);
+            UITheme.Label(new Rect(colX, colY + randBh + randGap, bw, 20f), "QUICK BUILDS", hdr);
 
             float row = colY + randBh + randGap + 26f;
             for (int i = 0; i < presets.Length; i++)
@@ -1225,7 +1225,7 @@ namespace Trickshot
 
                 var lbl = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
                                                         normal = { textColor = active ? UITheme.Ink : canAdd ? UITheme.Dim : UITheme.Faint } };
-                GUI.Label(r, p.Name, lbl);
+                UITheme.Label(r, p.Name, lbl);
                 // Presets TOGGLE and STACK: clicking an unapplied build adds it on top of the current
                 // spend (skipping anything unaffordable), so several can be combined; clicking an
                 // APPLIED (green) one deselects it and clears every node in the areas it covers,
@@ -1243,12 +1243,12 @@ namespace Trickshot
             var clearRect = new Rect(colX, row + 2f, bw, 26f);
             UITheme.Chip(clearRect, new Color(0.24f, 0.09f, 0.09f, 0.96f), UITheme.Red);
             var clearSt = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.84f, 0.82f) } };
-            GUI.Label(clearRect, "CLEAR ALL", clearSt);
+            UITheme.Label(clearRect, "CLEAR ALL", clearSt);
             if (GUI.Button(clearRect, GUIContent.none, GUIStyle.none)) { SkillTree.Clear(); _selNode = null; }
             row += 30f;
 
             var note = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true, alignment = TextAnchor.UpperCenter, normal = { textColor = UITheme.Dim } };
-            GUI.Label(new Rect(colX, row + 2f, bw, 34f),
+            UITheme.Label(new Rect(colX, row + 2f, bw, 34f),
                       "Builds stack. Click green to remove.", note);
         }
 
@@ -1320,7 +1320,7 @@ namespace Trickshot
                 // Crosshair-ish cursor hint follows the mouse.
                 var hintR = new Rect(Event.current.mousePosition.x + 12f, Event.current.mousePosition.y + 12f, 120f, 18f);
                 var hs = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = UITheme.Gold } };
-                GUI.Label(hintR, "pick a colour", hs);
+                UITheme.Label(hintR, "pick a colour", hs);
             }
 
             // --- FRONT / BACK draw-side tabs above the canvas ---
@@ -1351,7 +1351,7 @@ namespace Trickshot
 
             // --- Tools column (right of the canvas) ---
             float tx = lx + canvasSize + 16f, tw = (x + pw - 28f) - tx, tr = top;
-            GUI.Label(new Rect(tx, tr, tw, 18f), "Color", st); tr += 20f;
+            UITheme.Label(new Rect(tx, tr, tw, 18f), "Color", st); tr += 20f;
             float wheelSize = Mathf.Min(tw, 130f);
             var wheelRect = new Rect(tx, tr, wheelSize, wheelSize);
             GUI.DrawTexture(wheelRect, _wheel);
@@ -1378,9 +1378,9 @@ namespace Trickshot
             GUI.DrawTexture(new Rect(edRect.x + 4f, edRect.y + 4f, 20f, 20f), _eyedropperIcon);
             tr += 30f;
 
-            GUI.Label(new Rect(tx, tr, tw, 18f), $"Brush size: {_brushSize:0}", st); tr += 20f;
+            UITheme.Label(new Rect(tx, tr, tw, 18f), $"Brush size: {_brushSize:0}", st); tr += 20f;
             _brushSize = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushSize, 2f, 40f); tr += 26f;
-            GUI.Label(new Rect(tx, tr, tw, 18f), $"Opacity: {_brushOpacity:0.00}", st); tr += 20f;
+            UITheme.Label(new Rect(tx, tr, tw, 18f), $"Opacity: {_brushOpacity:0.00}", st); tr += 20f;
             _brushOpacity = GUI.HorizontalSlider(new Rect(tx, tr, tw, 18f), _brushOpacity, 0.1f, 1f); tr += 28f;
 
             // (Name/number colour is chosen on the NAME stage, to the right of the back preview.)
@@ -1426,7 +1426,7 @@ namespace Trickshot
             _picking = false;
         }
 
-        // A FRONT/BACK tab button. Selected = lit plate, bold gold label, gold underline.
+        // A FRONT/BACK tab button. Selected = lit plate, bold gold label.
         bool SideTab(Rect r, string label, bool selected)
         {
             var style = new GUIStyle(GUI.skin.button)
@@ -1489,7 +1489,7 @@ namespace Trickshot
                     DrawRectOutline(cellRect, selNone ? 2f : 1f);
                     GUI.color = pc;
                     if (GUI.Button(cellRect, GUIContent.none, GUIStyle.none)) ApplyDesign(null);
-                    GUI.Label(new Rect(cxp, cyp + sw + 1f, sw, 14f), "None", capSt);
+                    UITheme.Label(new Rect(cxp, cyp + sw + 1f, sw, 14f), "None", capSt);
                     continue;
                 }
 
@@ -1502,7 +1502,7 @@ namespace Trickshot
                 DrawRectOutline(cellRect, sel ? 2f : 1f);
                 GUI.color = pc2;
                 if (GUI.Button(cellRect, GUIContent.none, GUIStyle.none)) ApplyDesign(d);
-                GUI.Label(new Rect(cxp, cyp + sw + 1f, sw, 16f), d.Name, capSt);
+                UITheme.Label(new Rect(cxp, cyp + sw + 1f, sw, 16f), d.Name, capSt);
             }
             GUI.EndScrollView();
         }
@@ -1711,12 +1711,12 @@ namespace Trickshot
             var st = new GUIStyle(GUI.skin.label) { fontSize = 16, normal = { textColor = UITheme.Ink } };
             float lx = x + 30f, lw = pw - 60f, row = y + 76f;
 
-            GUI.Label(new Rect(lx, row, lw, 22f), "Name (shown on the back):", st); row += 26f;
+            UITheme.Label(new Rect(lx, row, lw, 22f), "Name (shown on the back):", st); row += 26f;
             var tf = new GUIStyle(GUI.skin.textField) { fontSize = 18 };
             _name = GUI.TextField(new Rect(lx, row, lw, 32f), _name ?? "", 12, tf);
             row += 48f;
 
-            GUI.Label(new Rect(lx, row, lw, 22f), $"Number:  {_number}", st); row += 26f;
+            UITheme.Label(new Rect(lx, row, lw, 22f), $"Number:  {_number}", st); row += 26f;
             float n = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _number, 1f, 99f);
             _number = Mathf.RoundToInt(n);
             row += 44f;
@@ -1729,15 +1729,15 @@ namespace Trickshot
             GUI.color = prev;
             UITheme.Frame(preview);   // border ONLY: a filled plate would cover the jersey swatch
             var numStyle = new GUIStyle(GUI.skin.label) { fontSize = 90, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _identityColor } };
-            GUI.Label(new Rect(preview.x, preview.y + 40f, preview.width, 120f), _number.ToString(), numStyle);
+            UITheme.Label(new Rect(preview.x, preview.y + 40f, preview.width, 120f), _number.ToString(), numStyle);
             var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = _identityColor } };
-            GUI.Label(new Rect(preview.x, preview.y + 12f, preview.width, 30f), (_name ?? "").ToUpper(), nameStyle);
+            UITheme.Label(new Rect(preview.x, preview.y + 12f, preview.width, 30f), (_name ?? "").ToUpper(), nameStyle);
 
             // Name/number colour picker, to the RIGHT of the back preview.
             float cxp = preview.xMax + 24f, cyp = preview.y, cw = (x + pw - 30f) - cxp;
             if (cw > 90f)
             {
-                GUI.Label(new Rect(cxp, cyp, cw, 22f), "Name / number colour", st);
+                UITheme.Label(new Rect(cxp, cyp, cw, 22f), "Name / number colour", st);
                 var swatches = new (string n, Color c)[]
                 {
                     ("White",  Color.white),

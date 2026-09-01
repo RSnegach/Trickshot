@@ -145,7 +145,7 @@ namespace Trickshot
                 var err = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true, alignment = TextAnchor.UpperCenter,
                                                         normal = { textColor = UITheme.Red } };
                 UITheme.Chip(new Rect(x + 24f, by - 50f, w - 48f, 44f), new Color(0.22f, 0.07f, 0.07f, 0.9f), UITheme.Red);
-                GUI.Label(new Rect(x + 24f, by - 46f, w - 48f, 40f), _hostError, err);
+                UITheme.Label(new Rect(x + 24f, by - 46f, w - 48f, 40f), _hostError, err);
             }
 
             // Free-kick placement map (Set Pieces only): a side panel to the right of the main
@@ -240,7 +240,7 @@ namespace Trickshot
 
         void Picker(float lx, ref float row, float lw, string label, string[] names, ref int idx)
         {
-            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
+            UITheme.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
             float bw = (lw - 6f * (names.Length - 1)) / names.Length;
             for (int i = 0; i < names.Length; i++)
             {
@@ -261,7 +261,7 @@ namespace Trickshot
 
         void PickerVals(float lx, ref float row, float lw, string label, string[] names, int[] vals, ref int val)
         {
-            GUI.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
+            UITheme.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
             float bw = (lw - 6f * (names.Length - 1)) / names.Length;
             for (int i = 0; i < names.Length; i++)
             {

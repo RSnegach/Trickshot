@@ -42,14 +42,14 @@ namespace Trickshot
         bool _showFriends, _showAchievements;
 
         public void Init(System.Action<GameMode> onChoose, System.Action onMultiplayer = null,
-                         GameInput input = null)
+                         GameInput input = null, bool skipSplash = false)
         {
             _onChoose = onChoose;
             _onMultiplayer = onMultiplayer;
             if (input != null) _options = new OptionsMenu(input);
-            // Menu needs a visible, free cursor.
             GameInput.CaptureCursor(false);
             _splashStartFrame = Time.frameCount;
+            if (skipSplash) _phase = Phase.Hub;
         }
 
         // Legacy Input.anyKeyDown is deliberate here, not GameInput/IStrikerInput: that abstraction
@@ -118,37 +118,34 @@ namespace Trickshot
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
 
             bool hasOptions = _options != null;
-            int count = hasOptions ? 5 : 4;
 
             float marginX = MenuScale.Width * 0.05f;
-            float gap = MenuScale.Width * 0.022f;
-            float cw = (MenuScale.Width - marginX * 2f - gap * (count - 1)) / count;
-            float ch = MenuScale.Height * 0.58f;
-            float y = MenuScale.Height * 0.5f - ch * 0.5f;
-            float startX = marginX;
-            int i = 0;
 
-            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("single"),
+            var optionsBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold, stretchWidth = false };
+            if (hasOptions && GUI.Button(new Rect(MenuScale.Width - marginX - 90f, 26f, 90f, 34f), "OPTIONS", optionsBtn))
+                _optionsOpen = true;
+
+            int cardCount = 3;   // Single Player, Multiplayer, Career Stats
+            float cardGap = MenuScale.Width * 0.028f;
+            float cardWidth = (MenuScale.Width - marginX * 2f - cardGap * (cardCount - 1)) / cardCount;
+            float cardHeight = MenuScale.Height * 0.58f;
+            float cardY = MenuScale.Height * 0.5f - cardHeight * 0.5f;
+            float cardX = marginX;
+            int ci = 0;
+
+            if (UITheme.ModeCard(new Rect(cardX + (cardWidth + cardGap) * ci++, cardY, cardWidth, cardHeight), MenuIcons.Get("single"),
                 "Single Player", "Striker, goalkeeper, and every challenge mode"))
                 _phase = Phase.SinglePlayer;
 
-            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("multiplayer"),
+            if (UITheme.ModeCard(new Rect(cardX + (cardWidth + cardGap) * ci++, cardY, cardWidth, cardHeight), MenuIcons.Get("multiplayer"),
                 "Multiplayer", "Play online with friends"))
             {
                 _chosen = true; enabled = false; _onMultiplayer?.Invoke();
             }
 
-            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("career"),
+            if (UITheme.ModeCard(new Rect(cardX + (cardWidth + cardGap) * ci++, cardY, cardWidth, cardHeight), MenuIcons.Get("career"),
                 "Career Stats", "Track your progress over time"))
                 _phase = Phase.CareerStats;
-
-            if (UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("zoo"),
-                "Zoo", "Build and visit custom creatures", comingSoon: true))
-                _phase = Phase.Zoo;
-
-            if (hasOptions && UITheme.ModeCard(new Rect(startX + (cw + gap) * i++, y, cw, ch), MenuIcons.Get("options"),
-                "Options", "Keybinds, audio, and camera settings"))
-                _optionsOpen = true;
 
             DrawCornerTabs(marginX);
         }
@@ -203,13 +200,13 @@ namespace Trickshot
 
             UITheme.Title(new Rect(0, cy - 78f, MenuScale.Width, 60f), "SINGLE PLAYER", 40, showRule: false);
 
-            if (UITheme.Button(new Rect(cxL, cy, w, h), "Striker", btn, markerBar: false)) Choose(GameMode.Striker);
-            if (UITheme.Button(new Rect(cxL, cy + (h + gap), w, h), "Goalkeeper", btn, markerBar: false)) Choose(GameMode.Goalkeeper);
-            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Match", btn, markerBar: false)) Choose(GameMode.Match);
+            if (UITheme.Button(new Rect(cxL, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
+            if (UITheme.Button(new Rect(cxL, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
+            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Match", btn)) Choose(GameMode.Match);
 
-            if (UITheme.Button(new Rect(cxR, cy, w, h), "Accuracy", btn, markerBar: false)) Choose(GameMode.Accuracy);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap), w, h), "Free Kick / Penalty", btn, markerBar: false)) Choose(GameMode.FreeKick);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 2f, w, h), "Back", btn, markerBar: false)) _phase = Phase.Hub;
+            if (UITheme.Button(new Rect(cxR, cy, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap), w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
+            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 2f, w, h), "Back", btn)) _phase = Phase.Hub;
         }
 
         // Career Stats / Zoo: an honest placeholder, not fabricated data - see the class doc.
@@ -222,7 +219,7 @@ namespace Trickshot
             UITheme.Title(new Rect(0, cy - 140f, MenuScale.Width, 80f), label, 44, showRule: false);
             UITheme.Hint(new Rect(MenuScale.Width * 0.5f - 260f, cy - 30f, 520f, 60f),
                 "Coming soon - check back in a future update.");
-            if (UITheme.Button(new Rect(MenuScale.Width * 0.5f - 160f, cy + 60f, 320f, 66f), "Back", btn, markerBar: false))
+            if (UITheme.Button(new Rect(MenuScale.Width * 0.5f - 160f, cy + 60f, 320f, 66f), "Back", btn))
                 _phase = Phase.Hub;
         }
 
