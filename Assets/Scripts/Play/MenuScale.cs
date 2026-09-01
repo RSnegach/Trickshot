@@ -66,6 +66,10 @@ namespace Trickshot
         /// <summary>The scale currently applied (1 = unscaled). Valid outside a block too.</summary>
         public static float Factor => _depth > 0 ? _factor : Fit();
 
+        /// <summary>True while a Begin/End block is active (i.e. GUI.matrix is scaled by
+        /// Factor right now). UITheme's crisp-text pass only applies inside one.</summary>
+        public static bool Active => _depth > 0;
+
         /// <summary>Virtual screen size to lay out against while scaled (use instead of Screen.*).</summary>
         public static float Width  => Screen.width  / Factor;
         public static float Height => Screen.height / Factor;

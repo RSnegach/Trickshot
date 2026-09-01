@@ -707,12 +707,12 @@ namespace Trickshot
 
             // SHORT (STATIC scalp pieces - no sim) --------------------------------
             // Buzz: the stubble treatment on the scalp - a field of small drawn-on circles
-            // with daylight between them, sunflower-scattered over the WHOLE TOP half of the
-            // head (crown down to ear level, all the way round). No cards and no crown cap: a
-            // solid cap would fill in the daylight and read as a painted helmet; the dots read
-            // as clipped stubble.
+            // with daylight between them, sunflower-scattered over just the TOP THIRD of the
+            // head's diameter (crown down to acos(1/3), well above ear level), denser than
+            // the beard. No cards and no crown cap: a solid cap would fill in the daylight
+            // and read as a painted helmet; the dots read as clipped stubble.
             new HairEntry { Name = "Buzz", Group = HairGroup.Short, NoCards = true, Extra = (h,m) => {
-                StippleDots(h, m, phiTop: 0.03f, phiBot: Mathf.PI * 0.5f, thetaHalf: Mathf.PI, count: 560, dotR: 0.006f);
+                StippleDots(h, m, phiTop: 0.03f, phiBot: Mathf.Acos(1f / 3f), thetaHalf: Mathf.PI, count: 900, dotR: 0.005f);
             } },
             // Crew Cut: a touch longer than buzz, slightly forward flat-top feel.
             new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Def = new HairSim.HairDef {
@@ -790,8 +790,9 @@ namespace Trickshot
             // material (CardTexture=false) - it's a shadow, not strands.
             new FacialEntry { Name = "Stubble",   CardTexture = false, Build = (h,m) =>
                 // A field of small drawn-on circles with daylight between them, wrapped around
-                // the front bottom half of the head (cheeks/jaw/under-chin, off the mouth area).
-                StippleDots(h, m, phiTop: 1.30f, phiBot: 2.95f, thetaHalf: 1.25f, count: 300, dotR: 0.006f) },
+                // the FRONT of the head over just the BOTTOM QUARTER of its diameter (2pi/3
+                // down to near the bottom pole: jaw and under-chin only, off the cheeks).
+                StippleDots(h, m, phiTop: Mathf.PI * 2f / 3f, phiBot: 3.05f, thetaHalf: 1.25f, count: 130, dotR: 0.006f) },
             // Short Beard: modest-volume polygon bib + mustache. Small hang, slight thickness.
             new FacialEntry { Name = "Short Beard", Build = (h,m) => {
                 BeardMesh(h, m, thetaMax: 1.20f, phiTop: -0.40f, phiBot: -1.37f,

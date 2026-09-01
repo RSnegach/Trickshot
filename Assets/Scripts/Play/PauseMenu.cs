@@ -287,7 +287,7 @@ namespace Trickshot
                                  new Color(bar.r, bar.g, bar.b, 0.10f));
                 }
 
-                bool hit = GUI.Button(r, _entries[i].Label, btn);
+                bool hit = UITheme.Button(r, _entries[i].Label, btn);
                 GUI.backgroundColor = keep;
                 if (hit) { Activate(_entries[i]); break; }   // list may be rebuilt by the action
             }
@@ -335,9 +335,9 @@ namespace Trickshot
 
             var keep = GUI.backgroundColor;
             if (!_confirmYes) GUI.backgroundColor = UITheme.SelTint;
-            bool no = GUI.Button(cancel, "Cancel", btn);
+            bool no = UITheme.Button(cancel, "Cancel", btn);
             GUI.backgroundColor = _confirmYes ? UITheme.BadTint : keep;
-            bool yes = GUI.Button(ok, "Confirm", btn);
+            bool yes = UITheme.Button(ok, "Confirm", btn);
             GUI.backgroundColor = keep;
 
             if (no) ClearConfirm();

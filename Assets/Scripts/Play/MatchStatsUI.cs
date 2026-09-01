@@ -122,6 +122,7 @@ namespace Trickshot
                 var previewRect = new Rect(x + 24f, bodyY, leftW, bodyH);
                 UITheme.Frame(previewRect, UITheme.Gold);
                 _preview.ViewportPx = MenuScale.ToScreen(previewRect);
+                _preview.Show();   // first render only after this frame's UI has drawn (no entry flash)
 
                 float rightX = previewRect.xMax + 20f;
                 float rightW = (x + w - 24f) - rightX;
@@ -130,8 +131,8 @@ namespace Trickshot
                 // Flip arrows flank the right pane's header - text glyphs, matching CareerStatsUI's
                 // own just-shipped precedent (no arrow icon assets exist anywhere in the project).
                 var arrowSt = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
-                if (GUI.Button(new Rect(rightX, bodyY, 40f, 36f), "‹", arrowSt)) Step(-1);
-                if (GUI.Button(new Rect(rightX + rightW - 40f, bodyY, 40f, 36f), "›", arrowSt)) Step(1);
+                if (UITheme.Button(new Rect(rightX, bodyY, 40f, 36f), "‹", arrowSt)) Step(-1);
+                if (UITheme.Button(new Rect(rightX + rightW - 40f, bodyY, 40f, 36f), "›", arrowSt)) Step(1);
             }
 
             Hud.Legend("A/D or ‹›  flip player   Esc menu");

@@ -99,6 +99,14 @@ namespace Trickshot
             _cam.farClipPlane = 30f;
             _cam.depth = 5;                 // draw over the main camera
             _cam.fieldOfView = 42f;
+            // OFF until the owner's UI has drawn at least once. The screens create their
+            // preview synchronously while the PREVIOUS screen is still mid-OnGUI, and a camera
+            // that renders before the new screen's first scrim/panel pass paints a full-screen
+            // model over a bare clear colour for a couple of frames - the "preview flashes in
+            // the background" glitch. The owner calls Show() from its own OnGUI (right after it
+            // hands over the ViewportPx rect), so the camera's first render is always a frame
+            // that already has UI on it. See Show.
+            _cam.enabled = false;
 
             // KEY + FILL. One directional at 1.1 was the whole of it, which left every surface facing
             // away from it on ambient alone - and the ambient here is whatever the menu happened to set
@@ -314,6 +322,17 @@ namespace Trickshot
             Vector3 pivot = Stage + new Vector3(0f, sp.PreviewHeight * ps, sp.PreviewZ * ps);
             _cam.transform.position = pivot + new Vector3(0f, 0.2f, -dist);
             _cam.transform.LookAt(pivot);
+        }
+
+        /// <summary>
+        /// Let the preview START rendering. Called by the owning screen's OnGUI, after it has
+        /// supplied ViewportPx - i.e. on a frame that already drew its scrim and panel, so the
+        /// model can never appear before the UI that frames it (see the Setup comment).
+        /// Idempotent.
+        /// </summary>
+        public void Show()
+        {
+            if (_cam != null) _cam.enabled = true;
         }
 
         /// <summary>

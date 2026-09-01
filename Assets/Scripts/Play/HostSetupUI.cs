@@ -279,7 +279,8 @@ namespace Trickshot
             st.normal.textColor = UITheme.Ink;
             st.onNormal.textColor = st.onHover.textColor =
                 st.onActive.textColor = st.onFocused.textColor = UITheme.Gold;
-            val = GUI.Toggle(new Rect(lx, row + 6f, lw, 26f), val, "  " + label, st);
+            val = GUI.Toggle(new Rect(lx, row + 6f, lw, 26f), val, "", st);
+            UITheme.Label(new Rect(lx, row + 6f, lw, 26f), "  " + label, st);
             row += 40f;
         }
 

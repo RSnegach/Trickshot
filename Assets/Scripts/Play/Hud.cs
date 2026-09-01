@@ -109,7 +109,7 @@ namespace Trickshot
         {
             const float pad = 13f;
             var r = new Rect(p.x + pad, p.row, p.w - pad * 2f, 21f);
-            GUI.Label(r, key, _statKey);
+            UITheme.Label(r, key, _statKey);
             UITheme.Shadowed(r, val, _statVal, Ink, 0.55f, 1f);
             p.row += 23f;
         }
@@ -171,7 +171,7 @@ namespace Trickshot
             float half = mid.width * 0.5f;
             UITheme.Shadowed(new Rect(mid.x, mid.y, half - 5f, mid.height), homeScore.ToString(), _score, Ink, 0.7f, 2f);
             UITheme.Shadowed(new Rect(mid.x + half + 5f, mid.y, half - 5f, mid.height), awayScore.ToString(), _score, Ink, 0.7f, 2f);
-            GUI.Label(new Rect(mid.x, mid.y, mid.width, mid.height), "-",
+            UITheme.Label(new Rect(mid.x, mid.y, mid.width, mid.height), "-",
                       new GUIStyle(_score) { normal = { textColor = new Color(1f, 1f, 1f, 0.28f) } });
 
             float below = r.yMax + 4f;
@@ -201,7 +201,7 @@ namespace Trickshot
                 float tw = _tag.CalcSize(content).x + 22f;
                 var sr = new Rect(W * 0.5f - tw * 0.5f, below, tw, 20f);
                 UITheme.Chip(sr, new Color(0.03f, 0.04f, 0.06f, 0.82f));
-                GUI.Label(sr, content, _tag);
+                UITheme.Label(sr, content, _tag);
             }
         }
 
@@ -309,13 +309,13 @@ namespace Trickshot
             _flash.normal.textColor = outline;
             for (int dx = -1; dx <= 1; dx += 2)
                 for (int dy = -1; dy <= 1; dy += 2)
-                    GUI.Label(new Rect(textRect.x + dx * 2.5f, textRect.y + dy * 2.5f, textRect.width, textRect.height), text, _flash);
+                    UITheme.Label(new Rect(textRect.x + dx * 2.5f, textRect.y + dy * 2.5f, textRect.width, textRect.height), text, _flash);
             _flash.normal.textColor = new Color(0f, 0f, 0f, 0.55f * a);
-            GUI.Label(new Rect(textRect.x + 4f, textRect.y + 5f, textRect.width, textRect.height), text, _flash);
+            UITheme.Label(new Rect(textRect.x + 4f, textRect.y + 5f, textRect.width, textRect.height), text, _flash);
 
             var face = tint; face.a = a;
             _flash.normal.textColor = face;
-            GUI.Label(textRect, text, _flash);
+            UITheme.Label(textRect, text, _flash);
             _flash.normal.textColor = Ink;
 
             if (!string.IsNullOrEmpty(sub))
@@ -538,7 +538,7 @@ namespace Trickshot
             if (!string.IsNullOrEmpty(header))
                 UITheme.Shadowed(new Rect(map.x, map.y - headerUp, map.width, 28f), header, _overlayHdr, Ink, 0.75f, 2f);
             if (!string.IsNullOrEmpty(tip))
-                GUI.Label(new Rect(map.x, map.yMax + 6f, map.width, 22f), tip, _overlayTip);
+                UITheme.Label(new Rect(map.x, map.yMax + 6f, map.width, 22f), tip, _overlayTip);
         }
 
         /// <summary>Segmented toggle for the map overlays (Ball/Wall, Target/Crosser).</summary>
@@ -623,7 +623,7 @@ namespace Trickshot
             float textH = _legend.CalcHeight(content, inner);
             float h = Mathf.Max(28f, textH + 10f);
             BandPlate(w, h);
-            GUI.Label(new Rect(pad, H - h + 5f, inner, h - 10f), line, _legend);
+            UITheme.Label(new Rect(pad, H - h + 5f, inner, h - 10f), line, _legend);
             _legend.wordWrap = false;
             _legend.fontSize = LegendFont;
         }
@@ -719,14 +719,14 @@ namespace Trickshot
                 if (!string.IsNullOrEmpty(key))
                 {
                     float kw = _legendKey.CalcSize(new GUIContent(key)).x;
-                    GUI.Label(new Rect(x, rowY, kw + 2f, rowH), key, _legendKey);
+                    UITheme.Label(new Rect(x, rowY, kw + 2f, rowH), key, _legendKey);
                     x += kw;
                 }
                 if (!string.IsNullOrEmpty(act))
                 {
                     string s = " " + act;
                     float aw = _legend.CalcSize(new GUIContent(s)).x;
-                    GUI.Label(new Rect(x, rowY, aw + 2f, rowH), s, _legend);
+                    UITheme.Label(new Rect(x, rowY, aw + 2f, rowH), s, _legend);
                     x += aw;
                 }
                 if (i < _chunks.Count - 1)

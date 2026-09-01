@@ -65,10 +65,10 @@ namespace Trickshot
 
             int count = System.Enum.GetValues(typeof(Cat)).Length;
             var arrow = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
-            if (GUI.Button(new Rect(x + 24f, y + 58f, 36f, 30f), "‹", arrow)) _cat = (_cat - 1 + count) % count;
+            if (UITheme.Button(new Rect(x + 24f, y + 58f, 36f, 30f), "‹", arrow)) _cat = (_cat - 1 + count) % count;
             var catStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
             UITheme.Shadowed(new Rect(x + 60f, y + 58f, w - 48f - 72f, 30f), CatName((Cat)_cat), catStyle, UITheme.Gold, 0.75f, 2f);
-            if (GUI.Button(new Rect(x + w - 24f - 36f, y + 58f, 36f, 30f), "›", arrow)) _cat = (_cat + 1) % count;
+            if (UITheme.Button(new Rect(x + w - 24f - 36f, y + 58f, 36f, 30f), "›", arrow)) _cat = (_cat + 1) % count;
 
             UITheme.Divider(x + 24f, y + 96f, w - 48f);
 
@@ -278,9 +278,9 @@ namespace Trickshot
 
             var keep = GUI.backgroundColor;
             if (!_confirmYes) GUI.backgroundColor = UITheme.SelTint;
-            bool no = GUI.Button(cancel, "Cancel", btn);
+            bool no = UITheme.Button(cancel, "Cancel", btn);
             GUI.backgroundColor = _confirmYes ? UITheme.BadTint : keep;
-            bool yes = GUI.Button(ok, "Confirm", btn);
+            bool yes = UITheme.Button(ok, "Confirm", btn);
             GUI.backgroundColor = keep;
 
             if (no) ClearConfirm();

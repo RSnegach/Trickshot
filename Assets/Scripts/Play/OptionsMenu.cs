@@ -70,7 +70,7 @@ namespace Trickshot
 
             // Back button.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
-            if (GUI.Button(new Rect(x + w - 150f, y + h - 46f, 126f, 34f), "Back", btn))
+            if (UITheme.Button(new Rect(x + w - 150f, y + h - 46f, 126f, 34f), "Back", btn))
             {
                 CancelListening();
                 onClose?.Invoke();
@@ -84,7 +84,7 @@ namespace Trickshot
         {
             var keep = GUI.backgroundColor;
             if (on) GUI.backgroundColor = UITheme.SelTint;
-            bool hit = GUI.Button(r, label, on ? selected : normal);
+            bool hit = UITheme.Button(r, label, on ? selected : normal);
             GUI.backgroundColor = keep;
             return hit;
         }
@@ -118,7 +118,7 @@ namespace Trickshot
                 else if (dup)  GUI.backgroundColor = UITheme.BadTint;
 
                 var bRect = new Rect(cx + colW * 0.55f, ry, colW * 0.45f, rowH);
-                if (GUI.Button(bRect, caption, bindBtn) && !IsRebinding)
+                if (UITheme.Button(bRect, caption, bindBtn) && !IsRebinding)
                     BeginListen(action);
                 GUI.backgroundColor = prev;
             }
@@ -128,7 +128,7 @@ namespace Trickshot
                 "Click a binding, then press a key. Esc cancels. Red = shared.", note);
 
             var reset = new GUIStyle(GUI.skin.button) { fontSize = 14 };
-            if (GUI.Button(new Rect(x + 24f, y + h - 46f, 170f, 34f), "Reset to Defaults", reset) && !IsRebinding)
+            if (UITheme.Button(new Rect(x + 24f, y + h - 46f, 170f, 34f), "Reset to Defaults", reset) && !IsRebinding)
             {
                 Keybinds.ResetDefaults();
                 // Re-apply every default onto the live actions.
@@ -199,7 +199,7 @@ namespace Trickshot
                 string cur = QuickChat.PhraseForKey(key);
                 var prevBg = GUI.backgroundColor;
                 if (_qcPickingSlot == key) GUI.backgroundColor = UITheme.WarnTint;   // gold while picking
-                if (GUI.Button(new Rect(lx + labelW + 8f, ry, btnW, rowH), "  " + cur, rowBtn))
+                if (UITheme.Button(new Rect(lx + labelW + 8f, ry, btnW, rowH), "  " + cur, rowBtn))
                     _qcPickingSlot = (_qcPickingSlot == key) ? 0 : key;
                 GUI.backgroundColor = prevBg;
             }
@@ -228,7 +228,7 @@ namespace Trickshot
                     var cr = new Rect(c * (cellW + cgap), r * (cellH + cgap), cellW, cellH);
                     var prevBg = GUI.backgroundColor;
                     if (i == curIdx) GUI.backgroundColor = UITheme.SelTint;   // highlight current
-                    if (GUI.Button(cr, "  " + phrases[i], cell))
+                    if (UITheme.Button(cr, "  " + phrases[i], cell))
                     {
                         QuickChat.SetSlot(_qcPickingSlot, i);
                         _qcPickingSlot = 0;
@@ -247,7 +247,7 @@ namespace Trickshot
             }
 
             var reset = new GUIStyle(GUI.skin.button) { fontSize = 14 };
-            if (GUI.Button(new Rect(lx, y + h - 46f, 170f, 34f), "Reset to Defaults", reset))
+            if (UITheme.Button(new Rect(lx, y + h - 46f, 170f, 34f), "Reset to Defaults", reset))
             { QuickChat.ResetDefaults(); _qcPickingSlot = 0; }
         }
 
@@ -284,7 +284,7 @@ namespace Trickshot
                 bool cur = list[i].width == Screen.width && list[i].height == Screen.height;
                 var prevBg = GUI.backgroundColor;
                 if (cur) GUI.backgroundColor = sel;
-                if (GUI.Button(cr, list[i].width + " x " + list[i].height, cell)) pick = i;
+                if (UITheme.Button(cr, list[i].width + " x " + list[i].height, cell)) pick = i;
                 GUI.backgroundColor = prevBg;
             }
             GUI.EndScrollView();
@@ -302,7 +302,7 @@ namespace Trickshot
                 bool on = Screen.fullScreenMode == modes[i];
                 var prevBg = GUI.backgroundColor;
                 if (on) GUI.backgroundColor = sel;
-                if (GUI.Button(new Rect(fx + i * (mw + 6f), y2, mw, 28f), DisplaySettings.ModeLabel(modes[i]), btn) && !on)
+                if (UITheme.Button(new Rect(fx + i * (mw + 6f), y2, mw, 28f), DisplaySettings.ModeLabel(modes[i]), btn) && !on)
                     DisplaySettings.ApplyMode(modes[i]);
                 GUI.backgroundColor = prevBg;
             }
@@ -310,7 +310,7 @@ namespace Trickshot
             // ---- vsync ----
             float y3 = y2 + 34f;
             UITheme.Label(new Rect(lx, y3, 120f, 28f), "VSync", lbl);
-            if (GUI.Button(new Rect(fx, y3, 110f, 28f), DisplaySettings.VSync ? "On" : "Off", btn))
+            if (UITheme.Button(new Rect(fx, y3, 110f, 28f), DisplaySettings.VSync ? "On" : "Off", btn))
                 DisplaySettings.VSync = !DisplaySettings.VSync;
 
             // ---- UI scale (multiplies the automatic fit) ----

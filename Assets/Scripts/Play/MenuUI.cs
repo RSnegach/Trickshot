@@ -122,7 +122,7 @@ namespace Trickshot
             float marginX = MenuScale.Width * 0.05f;
 
             var optionsBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold, stretchWidth = false };
-            if (hasOptions && GUI.Button(new Rect(MenuScale.Width - marginX - 90f, 26f, 90f, 34f), "OPTIONS", optionsBtn))
+            if (hasOptions && UITheme.Button(new Rect(MenuScale.Width - marginX - 90f, 26f, 90f, 34f), "OPTIONS", optionsBtn))
                 _optionsOpen = true;
 
             int cardCount = 3;   // Single Player, Multiplayer, Career Stats

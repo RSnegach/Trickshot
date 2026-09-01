@@ -51,12 +51,18 @@ namespace Trickshot
                 if (!all[i].Pickable) continue;
                 bool selected = i == StadiumStyle.SelectedIndex;
                 var r = new Rect(x + 30f, row, panelW - 60f, rowH);
-                // Row click SELECTS only (highlights it); a dedicated Next button advances,
-                // so the flow matches the other screens' back/forward buttons. The name IS the
-                // row: big and centred, no blurb underneath, no palette swatches, no accent
-                // spine - the lit plate alone marks the pick.
+                // A row press picks the stadium AND advances immediately - there is no Next
+                // button. The lit plate still marks the current pick in the frame before the
+                // click lands. The name IS the row: big and centred, no blurb underneath, no
+                // palette swatches, no accent spine.
                 if (UITheme.Toggle(r, all[i].Name, selected, name))
+                {
                     StadiumStyle.SelectedIndex = i;
+                    enabled = false;
+                    _onPicked?.Invoke();
+                    MenuScale.End();
+                    return;
+                }
                 row += rowH + gap;
             }
 
@@ -66,20 +72,13 @@ namespace Trickshot
             var soon = new Rect(x + 30f, row, panelW - 60f, rowH);
             UITheme.Tease(soon, "Coming Soon...", name);
 
-            // Back/Next anchored to the far left/right screen edges.
+            // Back anchored to the far left screen edge.
             var btn = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
             float bw = 150f, edge = 24f, by = MenuScale.Height - 100f;   // 100px above the bottom, clear of panel content
             if (UITheme.Button(new Rect(edge, by, bw, 42f), "Back", btn))
             {
                 enabled = false;
                 _onBack?.Invoke();
-                MenuScale.End();
-                return;
-            }
-            if (UITheme.Button(new Rect(MenuScale.Width - edge - bw, by, bw, 42f), "Next", btn))
-            {
-                enabled = false;
-                _onPicked?.Invoke();
                 MenuScale.End();
                 return;
             }

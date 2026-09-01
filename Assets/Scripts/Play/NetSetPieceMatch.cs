@@ -1230,8 +1230,8 @@ namespace Trickshot
             float cTakenX = x + w * 0.59f, cTakenW = w * 0.14f;
             float progX   = x + w * 0.75f, progW  = w * 0.25f;
             float cy = y - pad + headH;
-            GUI.Label(new Rect(cScoreX, cy, cScoreW, colH), AccuracyMode ? "PTS" : "GLS", colSt);
-            GUI.Label(new Rect(cTakenX, cy, cTakenW, colH), "KCK", colSt);
+            UITheme.Label(new Rect(cScoreX, cy, cScoreW, colH), AccuracyMode ? "PTS" : "GLS", colSt);
+            UITheme.Label(new Rect(cTakenX, cy, cTakenW, colH), "KCK", colSt);
 
             float ry = cy + colH;
             for (int i = 1; i < NetSession.CrosserSlot; i++)
@@ -1249,13 +1249,13 @@ namespace Trickshot
                 int sc = i < st.scored.Length ? st.scored[i] : 0;
                 int tk = i < st.taken.Length ? st.taken[i] : 0;
 
-                GUI.Label(new Rect(x, ry, w * 0.44f, rowH), "  " + RosterName(i), nameSt);
+                UITheme.Label(new Rect(x, ry, w * 0.44f, rowH), "  " + RosterName(i), nameSt);
                 // Leader's score goes gold. RowValue is shared, so put the colour back after.
                 Color keepC = goalsSt.normal.textColor;
                 if (best > 0 && sc == best) goalsSt.normal.textColor = UITheme.Gold;
-                GUI.Label(new Rect(cScoreX, ry, cScoreW, rowH), sc.ToString(), goalsSt);
+                UITheme.Label(new Rect(cScoreX, ry, cScoreW, rowH), sc.ToString(), goalsSt);
                 goalsSt.normal.textColor = keepC;
-                GUI.Label(new Rect(cTakenX, ry, cTakenW, rowH),
+                UITheme.Label(new Rect(cTakenX, ry, cTakenW, rowH),
                           attempts > 0 ? tk + "/" + attempts : tk.ToString(), goalsSt);
 
                 float py = ry + (rowH - 10f) * 0.5f;

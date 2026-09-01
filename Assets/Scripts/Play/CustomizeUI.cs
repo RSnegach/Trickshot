@@ -385,6 +385,7 @@ namespace Trickshot
                 // The preview camera wants REAL device pixels, but previewRect is in the scaled GUI
                 // space - convert, or the 3D model renders in the wrong place/size on a big screen.
                 _preview.ViewportPx = MenuScale.ToScreen(previewRect);
+                _preview.Show();   // first render only after this frame's UI has drawn (no entry flash)
                 _preview.AutoRotate = false;          // every stage: the player turns the model by dragging it
                 HandleModelDrag(previewRect);
             }
@@ -434,10 +435,10 @@ namespace Trickshot
                 // must not leave the index pointing past the end of its list.
                 int subCount = SubCount;
                 if (_bodySub >= subCount) _bodySub = 0;
-                if (GUI.Button(new Rect(axl, y + 16f, 30f, 30f), "‹", arrow))
+                if (UITheme.Button(new Rect(axl, y + 16f, 30f, 30f), "‹", arrow))
                     { _bodySub = (_bodySub - 1 + subCount) % subCount; _apprScroll = Vector2.zero; }
                 UITheme.Shadowed(new Rect(axl + 32f, y + 14f, 150f, 36f), SubName(_bodySub), subName, UITheme.Gold, 0.75f, 2f);
-                if (GUI.Button(new Rect(axl + 184f, y + 16f, 30f, 30f), "›", arrow))
+                if (UITheme.Button(new Rect(axl + 184f, y + 16f, 30f, 30f), "›", arrow))
                     { _bodySub = (_bodySub + 1) % subCount; _apprScroll = Vector2.zero; }
             }
             else
@@ -666,7 +667,8 @@ namespace Trickshot
                 // control on it. Width is hand-set instead of derived: it only has to fit the box
                 // plus the label, and it must NOT track lw, or it goes back to spanning the panel.
                 var togStyle = new GUIStyle(GUI.skin.toggle) { fontSize = 12, fontStyle = FontStyle.Bold };
-                bool want = GUI.Toggle(new Rect(lx, row, 148f, 20f), _adultMode, "  ADULT MODE", togStyle);
+                bool want = GUI.Toggle(new Rect(lx, row, 148f, 20f), _adultMode, "", togStyle);
+                UITheme.Label(new Rect(lx, row, 148f, 20f), "  ADULT MODE", togStyle);
                 if (want && !_adultMode && !_adultPrompt) _adultPrompt = true;   // arm the confirm popup
                 else if (!want && _adultMode) _adultMode = false;                // turn off immediately
                 // Mirror the resolved state into the appearance so it drives the model build + commits +

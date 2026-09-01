@@ -164,8 +164,8 @@ namespace Trickshot
                 // subtle shadow for legibility over the pitch
                 var sh = new GUIStyle(style); sh.normal.textColor = new Color(0f, 0f, 0f, a * 0.6f);
                 float ry = y0 + i * rowH;
-                GUI.Label(new Rect(x + 1f, ry + 1f, 560f, rowH), _lines[i].text, sh);
-                GUI.Label(new Rect(x, ry, 560f, rowH), _lines[i].text, style);
+                UITheme.Label(new Rect(x + 1f, ry + 1f, 560f, rowH), _lines[i].text, sh);
+                UITheme.Label(new Rect(x, ry, 560f, rowH), _lines[i].text, style);
             }
 
             // Spam notice (brief).
@@ -173,7 +173,7 @@ namespace Trickshot
             {
                 var ns = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold,
                     normal = { textColor = new Color(1f, 0.5f, 0.45f) } };
-                GUI.Label(new Rect(x, y0 - rowH, 560f, rowH), _notice, ns);
+                UITheme.Label(new Rect(x, y0 - rowH, 560f, rowH), _notice, ns);
             }
 
             // Custom text-entry box (bottom-left, above the control legend).

@@ -4467,7 +4467,7 @@
       },
       "norm_label": "generatedmeshowner",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1131"
+      "source_location": "L1133"
     },
     {
       "id": "assets_scripts_sim_cosmetics_trickshot_hairentry",
@@ -33509,7 +33509,7 @@
       },
       "norm_label": ".fixedupdate()",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L305"
+      "source_location": "L308"
     },
     {
       "id": "assets_scripts_play_hairsim_trickshot_hairsim_ondestroy",
@@ -33527,7 +33527,7 @@
       },
       "norm_label": ".ondestroy()",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L430"
+      "source_location": "L433"
     },
     {
       "id": "assets_scripts_play_hairsim_trickshot_hairsim_rand01",
@@ -33599,7 +33599,7 @@
       },
       "norm_label": ".writeverts()",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L385"
+      "source_location": "L388"
     },
     {
       "id": "assets_scripts_sim_cosmetics_trickshot_cosmetics_accessoryisheadgear",
@@ -33707,7 +33707,7 @@
       },
       "norm_label": ".dark()",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1124"
+      "source_location": "L1126"
     },
     {
       "id": "assets_scripts_sim_cosmetics_trickshot_cosmetics_emitheadgrid",
@@ -33779,7 +33779,7 @@
       },
       "norm_label": ".glass()",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1123"
+      "source_location": "L1125"
     },
     {
       "id": "assets_scripts_sim_cosmetics_trickshot_cosmetics_headline",
@@ -33869,7 +33869,7 @@
       },
       "norm_label": ".ondestroy()",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1134"
+      "source_location": "L1136"
     },
     {
       "id": "assets_scripts_play_crosser_trickshot_crosser_applykickpose",
@@ -69380,7 +69380,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L338",
+      "source_location": "L341",
       "weight": 1.0
     },
     {
@@ -69392,7 +69392,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L374",
+      "source_location": "L377",
       "weight": 1.0
     },
     {
@@ -69428,7 +69428,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L269",
+      "source_location": "L271",
       "weight": 1.0
     },
     {
@@ -69440,7 +69440,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L281",
+      "source_location": "L284",
       "weight": 1.0
     },
     {
@@ -83509,6 +83509,18 @@
     },
     {
       "source": "assets_scripts_play_stadiumselectui_trickshot_stadiumselectui_ongui",
+      "target": "assets_scripts_play_menuscale_trickshot_menuscale_end",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/StadiumSelectUI.cs",
+      "source_location": "L63",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_stadiumselectui_trickshot_stadiumselectui_ongui",
       "target": "assets_scripts_play_uitheme_trickshot_uitheme_tease",
       "relation": "calls",
       "_origin": "ast",
@@ -83516,7 +83528,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/StadiumSelectUI.cs",
-      "source_location": "L67",
+      "source_location": "L73",
       "weight": 1.0
     },
     {
@@ -83528,19 +83540,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/StadiumSelectUI.cs",
-      "source_location": "L72",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_stadiumselectui_trickshot_stadiumselectui_ongui",
-      "target": "assets_scripts_play_menuscale_trickshot_menuscale_end",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/StadiumSelectUI.cs",
-      "source_location": "L76",
+      "source_location": "L78",
       "weight": 1.0
     },
     {
@@ -87776,7 +87776,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1124",
+      "source_location": "L1126",
       "weight": 1.0
     },
     {
@@ -87824,7 +87824,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1123",
+      "source_location": "L1125",
       "weight": 1.0
     },
     {
@@ -98633,7 +98633,7 @@
         "ref_token": "List"
       },
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L817",
+      "source_location": "L819",
       "weight": 1.0
     },
     {
@@ -98918,7 +98918,7 @@
         "ref_token": "Mesh"
       },
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1133",
+      "source_location": "L1135",
       "weight": 1.0
     },
     {
@@ -106883,7 +106883,7 @@
         "ref_token": "AccessoryEntry"
       },
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L817",
+      "source_location": "L819",
       "weight": 1.0
     },
     {
@@ -122601,7 +122601,7 @@
         "ref_token": "Matrix4x4"
       },
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L385",
+      "source_location": "L388",
       "weight": 1.0
     },
     {
@@ -130274,7 +130274,7 @@
         "ref_token": "Material"
       },
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1124",
+      "source_location": "L1126",
       "weight": 1.0
     },
     {
@@ -130289,7 +130289,7 @@
         "ref_token": "Material"
       },
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1123",
+      "source_location": "L1125",
       "weight": 1.0
     },
     {
@@ -131887,7 +131887,7 @@
         "ref_token": "MonoBehaviour"
       },
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1131",
+      "source_location": "L1133",
       "weight": 1.0
     },
     {
@@ -138545,7 +138545,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1131",
+      "source_location": "L1133",
       "weight": 1.0
     },
     {
@@ -147961,7 +147961,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L305",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -147972,7 +147972,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L385",
+      "source_location": "L388",
       "weight": 1.0
     },
     {
@@ -147983,7 +147983,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HairSim.cs",
-      "source_location": "L430",
+      "source_location": "L433",
       "weight": 1.0
     },
     {
@@ -157080,7 +157080,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1123",
+      "source_location": "L1125",
       "weight": 1.0
     },
     {
@@ -157091,7 +157091,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1124",
+      "source_location": "L1126",
       "weight": 1.0
     },
     {
@@ -157267,7 +157267,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Sim/Cosmetics.cs",
-      "source_location": "L1134",
+      "source_location": "L1136",
       "weight": 1.0
     },
     {
@@ -170998,5 +170998,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "754f5f955c7fd708b49c3453dc3b110f71c1abb8"
+  "built_at_commit": "9bcfbbec775265533bbc6b8136ae20ad7815de19"
 }

@@ -95,6 +95,7 @@ namespace Trickshot
                 // The preview camera wants REAL device pixels, but previewRect is in the scaled GUI
                 // space - convert, or the model renders in the wrong place on a big screen.
                 _preview.ViewportPx = MenuScale.ToScreen(previewRect);
+                _preview.Show();   // first render only after this frame's UI has drawn (no entry flash)
                 _preview.AutoRotate = false;   // the player turns the model by dragging it
                 HandleModelDrag(previewRect);
             }

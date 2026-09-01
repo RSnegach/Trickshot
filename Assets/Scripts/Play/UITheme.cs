@@ -425,18 +425,22 @@ namespace Trickshot
         }
 
         /// <summary>Label with a drop shadow. The single biggest readability win over a pitch.
-        /// Every pass LockTexts so the mouse can never re-colour the text mid-shadow.</summary>
+        /// Every pass LockTexts so the mouse can never re-colour the text mid-shadow, and the
+        /// whole pair draws through the crisp-text pass (native pixel size under MenuScale).</summary>
         public static void Shadowed(Rect r, string text, GUIStyle st, Color col, float shadowAlpha = 0.7f, float off = 2f)
         {
             if (string.IsNullOrEmpty(text)) return;
+            float f = MenuScale.Active ? MenuScale.Factor : 1f;
+            Rect rr; CrispBegin(r, st, out rr);
             var keep = st.normal.textColor;
             st.normal.textColor = new Color(0f, 0f, 0f, shadowAlpha * col.a);
             LockText(st);
-            GUI.Label(new Rect(r.x + off, r.y + off, r.width, r.height), text, st);
+            GUI.Label(new Rect(rr.x + off * f, rr.y + off * f, rr.width, rr.height), text, st);
             st.normal.textColor = col;
             LockText(st);
-            GUI.Label(r, text, st);
+            GUI.Label(rr, text, st);
             st.normal.textColor = keep;
+            CrispEnd(st);
         }
 
         /// <summary>Screen title: big shadowed text, with an optional short gold rule centred
@@ -530,7 +534,9 @@ namespace Trickshot
             LockText(_sectionStyle);
             var content = new GUIContent(text);
             float tw = _sectionStyle.CalcSize(content).x;
-            GUI.Label(r, content, _sectionStyle);
+            Rect rr; CrispBegin(r, _sectionStyle, out rr);
+            GUI.Label(rr, content, _sectionStyle);
+            CrispEnd(_sectionStyle);
             float x0 = r.x + tw + 10f;
             if (r.xMax - x0 > 8f)
                 Fill(new Rect(x0, r.y + r.height * 0.5f, r.xMax - x0, 1f), new Color(1f, 1f, 1f, 0.10f));
@@ -547,7 +553,9 @@ namespace Trickshot
             _hintStyle.alignment = align;
             _hintStyle.normal.textColor = Faint;
             LockText(_hintStyle);
-            GUI.Label(r, text, _hintStyle);
+            Rect rr; CrispBegin(r, _hintStyle, out rr);
+            GUI.Label(rr, text, _hintStyle);
+            CrispEnd(_hintStyle);
         }
 
         static GUIStyle _pulseStyle;
@@ -634,7 +642,15 @@ namespace Trickshot
                 Glow(new Rect(r.x - 26f, r.y - 6f, r.width + 52f, r.height + 12f),
                      new Color(bar.r, bar.g, bar.b, 0.10f));
             }
-            return GUI.Button(r, label, st);
+            // The plate + the click come from the real control in VIRTUAL space (so hit-testing
+            // and the hover plate are exactly as before); the text is then overdrawn on top at
+            // native pixel size (see CrispBegin - GUI.Button would rasterize the label at the
+            // unscaled font size and let the matrix soften it).
+            bool hit = GUI.Button(r, GUIContent.none, st);
+            Rect rr; CrispBegin(r, st, out rr);
+            GUI.Label(rr, label, st);
+            CrispEnd(st);
+            return hit;
         }
 
         /// <summary>
@@ -662,7 +678,9 @@ namespace Trickshot
             // caller's font and padding on the real button plate. Restored immediately.
             var keep = st.normal.background;
             st.normal.background = hot ? BtnHovTex : BtnTex;
-            GUI.Label(r, label, st);
+            Rect rr; CrispBegin(r, st, out rr);
+            GUI.Label(rr, label, st);
+            CrispEnd(st);
             st.normal.background = keep;
             return hot;
         }
@@ -689,24 +707,71 @@ namespace Trickshot
             st.onFocused.textColor = c;
         }
 
+        // ---- crisp text under MenuScale --------------------------------------
+        // GUI.matrix scales the RASTERIZED glyph bitmap, not the request size: every letter in
+        // the game was being drawn at its virtual font size and then blown up by the UI factor
+        // (1.42 at 1080p, ~1.9 at 1440p), which is why the whole UI read as soft. The choke
+        // points below (Label / Button / Toggle / Shadowed / Hint / Section / Tease / ModeCard
+        // - everything that ever draws a string) instead draw text at NATIVE PIXEL RESOLUTION:
+        // the style's fontSize + padding are multiplied by the factor, the rect is converted to
+        // real device pixels, and the GUI matrix is dropped to identity for just that draw.
+        // Every layout metric scales by the same factor, so nothing moves on screen - the
+        // glyphs are simply rasterized at the size they actually appear. No-ops when no
+        // MenuScale block is active or the factor is ~1, so unscaled draws keep their old path.
+        static bool _crispOn;
+        static Matrix4x4 _crispMatrix;
+        static int _crispFont;
+        static RectOffset _crispPad;
+
+        static void CrispBegin(Rect r, GUIStyle st, out Rect rr)
+        {
+            rr = r;
+            float f = MenuScale.Active ? MenuScale.Factor : 1f;
+            if (st == null || f <= 1.0001f || _crispOn) return;
+            _crispOn = true;
+            _crispMatrix = GUI.matrix;
+            _crispFont = st.fontSize;
+            _crispPad = st.padding;
+            if (_crispFont > 0) st.fontSize = Mathf.Max(1, Mathf.RoundToInt(_crispFont * f));
+            var p = _crispPad;
+            st.padding = new RectOffset(Mathf.RoundToInt(p.left * f), Mathf.RoundToInt(p.right * f),
+                                        Mathf.RoundToInt(p.top * f), Mathf.RoundToInt(p.bottom * f));
+            rr = MenuScale.ToScreen(r);
+            GUI.matrix = Matrix4x4.identity;
+        }
+
+        static void CrispEnd(GUIStyle st)
+        {
+            if (!_crispOn) return;
+            _crispOn = false;
+            st.fontSize = _crispFont;
+            st.padding = _crispPad;
+            GUI.matrix = _crispMatrix;
+        }
+
         /// <summary>
         /// GUI.Label that never changes colour on hover. The same problem LockText solves for
         /// buttons, for labels: dozens of call sites build a label style as
         /// new GUIStyle(GUI.skin.label) { normal = { textColor = X } }, which overrides only the
         /// normal state - the copy keeps the skin's hover colour (Ink), so dim text brightened as
-        /// the mouse passed over it. This pins every state to the normal colour at draw time.
+        /// the mouse passed over it. This pins every state to the normal colour at draw time,
+        /// and draws at native pixel size when a MenuScale block is active (see CrispBegin).
         /// Idempotent and allocation-free, safe for reused static styles.
         /// </summary>
         public static void Label(Rect r, string text, GUIStyle st)
         {
             LockText(st);
-            GUI.Label(r, text, st);
+            Rect rr; CrispBegin(r, st, out rr);
+            GUI.Label(rr, text, st);
+            CrispEnd(st);
         }
 
         public static void Label(Rect r, GUIContent content, GUIStyle st)
         {
             LockText(st);
-            GUI.Label(r, content, st);
+            Rect rr; CrispBegin(r, st, out rr);
+            GUI.Label(rr, content, st);
+            CrispEnd(st);
         }
 
         public static void Label(Rect r, string text) { Label(r, text, GUI.skin.label); }
@@ -767,7 +832,9 @@ namespace Trickshot
             _cardSubStyle.normal.textColor = Dim;
             LockText(_cardSubStyle);
             var subRect = new Rect(r.x + 10f, titleRect.yMax + 2f, r.width - 20f, subH);
-            GUI.Label(subRect, subtitle, _cardSubStyle);
+            Rect srr; CrispBegin(subRect, _cardSubStyle, out srr);
+            GUI.Label(srr, subtitle, _cardSubStyle);
+            CrispEnd(_cardSubStyle);
 
             if (comingSoon)
             {
@@ -776,7 +843,9 @@ namespace Trickshot
                 _cardSoonStyle ??= new GUIStyle { fontSize = 11, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
                 _cardSoonStyle.normal.textColor = new Color(0.08f, 0.07f, 0.03f);
                 LockText(_cardSoonStyle);
-                GUI.Label(soonRect, "SOON", _cardSoonStyle);
+                Rect krr; CrispBegin(soonRect, _cardSoonStyle, out krr);
+                GUI.Label(krr, "SOON", _cardSoonStyle);
+                CrispEnd(_cardSoonStyle);
             }
 
             return GUI.Button(r, GUIContent.none, GUIStyle.none);
