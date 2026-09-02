@@ -13,7 +13,7 @@ namespace Trickshot
     // approximated from Unity primitives (spheres/boxes), the same fidelity bar as the flags.
     //
     // Style index 0 is always "none": bald hair, clean-shaven face, no accessory.
-    public static class Cosmetics
+    public static partial class Cosmetics
     {
         // Nominal head radius in world metres (the head sphere is ~0.19 radius). Cosmetics are
         // sized/placed relative to this. Local space of Phys(Bone.Head): +Y up, +Z faces the
@@ -60,20 +60,22 @@ namespace Trickshot
         {
             public string Name; public HairGroup Group;
             public bool Bald;                 // index 0 only: no hair at all
-            public HairSim.HairDef Def;       // the simulated style (ignored when Bald or NoCards)
-            public bool NoCards;              // skip the HairSim card build - this style is just
-                                              // solid pieces (e.g. the man bun = spheres)
-            public Action<Transform, Material> Extra;  // optional solid hair-coloured pieces built
-                                              // on the head (a bun, a tie), in the hair material
+            public HairSim.HairDef Def;       // the simulated card style: the human style for the
+                                              // long drapes, the horse MANE for every entry
+            public bool HumanOnlyDef;         // true: on a HUMAN, Def is skipped and Extra builds
+                                              // the whole style (shell + geometry + its own sims);
+                                              // the horse still builds Def as its mane
+            public Action<Transform, HairMats> Extra;  // the human builder (see Cosmetics.Hair.cs)
         }
         public class FacialEntry
         {
             public string Name;
             public Action<Transform, Material> Build;
-            // True (default): the beard mesh wears the textured hair-card material (strand look +
-            // sheen). False for Stubble (a flush flat shadow) and Clean (nothing) - they read wrong
-            // with strand texture. Small Blk accents (mustache/handlebar) always take a flat mat.
-            public bool CardTexture = true;
+            // Material factory (facial colour, skin colour) -> the style's main material. Null =
+            // the flat lit default. Stubble uses it for a blended decal tinted toward the skin.
+            public Func<Color, Color, Material> Mat;
+            // Optional second pass with a hair-card TUFT material (a beard's wispy fringe).
+            public Action<Transform, Material> Fringe;
         }
         public class AccessoryEntry
         {
@@ -125,52 +127,26 @@ namespace Trickshot
             // number stays exactly rag.GirthScale rather than a round trip through a divide.
             _cosScale = human ? rag.GirthScale : rag.HeadVisualRadius / HeadR;
 
-            // Hair (index 0 = bald -> nothing). A non-bald style is a SOFT DYNAMIC HairSim: a
-            // child of the head carrying the line-mesh + the Verlet strand sim (built like the
-            // net). Cosmetic only - no collider, never a hitbox. Runs on every body with hair,
-            // so remote MP puppets' hair swings too (style + colour ride PlayerAppearance).
+            // Hair (index 0 = bald -> nothing). A HUMAN style builds through its entry: the long
+            // drapes are one HairSim of Def; every short style is Extra (a shaped scalp shell plus
+            // tapered tuft cards, generated geometry or a decal, see Cosmetics.Hair.cs). A HORSE
+            // builds ONLY Def, as tilted cards on the neck crest: shells and geometry are human
+            // anatomy and would land on the skull.
             if (a.HairStyle > 0 && a.HairStyle < _hair.Count && !_hair[a.HairStyle].Bald)
             {
                 var entry = _hair[a.HairStyle];
-                var mat = Make.Hair(a.HairColor);
-                rag.RegisterCosmeticMaterial(mat);
-
-                // Crown patch: a hair-coloured skin over the TOP of the head that hugs the head
-                // sphere (built like the beard bib, upper hemisphere), UNDER the cards, so no bare
-                // scalp peeks through the gaps between clumps. Because it's placed at the real head
-                // radius (HeadR * girth) it scales with head size and follows the head silhouette,
-                // instead of the old fixed floating sphere shell. Skipped for the Mohawk, which
-                // bares the sides by design - a full crown skin would fill in the shaved scalp -
-                // and for Buzz, whose dot field NEEDS bare scalp in the daylight between dots.
-                if (entry.Name != "Mohawk" && entry.Name != "Buzz")
+                var mats = new HairMats(rag, a.HairColor);
+                if (human && entry.HumanOnlyDef)
                 {
-                    // Wear the HAIR shader (opaque variant) so the cap shares the hair's tint +
-                    // anisotropic sheen instead of reading as a flat plastic dome.
-                    var capMat = Make.HairCap(a.HairColor);
-                    rag.RegisterCosmeticMaterial(capMat);
-                    CrownPatch(head, capMat);
+                    entry.Extra?.Invoke(head, mats);
                 }
-
-                // Solid extra pieces for this style (e.g. the man bun's spheres), in hair colour.
-                entry.Extra?.Invoke(head, mat);
-
-                // Dynamic card strands, unless this style is solid-only (NoCards).
-                if (!entry.NoCards)
+                else
                 {
-                    var go = new GameObject("HairSim");
-                    go.transform.SetParent(head, false);
-                    // ROTATION ONLY, never a translation. HairSim treats its anchor's ORIGIN as the
-                    // head sphere's centre in four places (mesh-local space, the collision centre, the
-                    // outward direction in WriteVerts, root placement), so moving the anchor off the
-                    // skull breaks all four at once. Tilting it is free: it turns every style's root
-                    // scatter and flow direction together, which is exactly the knob a mane needs.
-                    go.transform.localPosition = Vector3.zero;
-                    go.transform.localRotation = mane ? Quaternion.Euler(ManeTiltDeg, 0f, 0f)
-                                                      : Quaternion.identity;
-                    go.transform.localScale = Vector3.one;
-                    // Pass the body's real head radius rather than letting HairSim assume the human
-                    // 0.19: on a horse that assumption floats every root ~0.04 m off the skull.
-                    go.AddComponent<HairSim>().Build(head, entry.Def, mat, rag.HeadVisualRadius);
+                    // ROTATION ONLY on the anchor, never a translation: HairSim treats its anchor's
+                    // ORIGIN as the head sphere's centre. Tilting turns every style's root scatter and
+                    // flow together, which is exactly the knob a mane needs.
+                    var tilt = mane ? Quaternion.Euler(ManeTiltDeg, 0f, 0f) : Quaternion.identity;
+                    Sim(head, entry.Def, mats, rag.HeadVisualRadius, tilt);
                 }
             }
 
@@ -239,14 +215,32 @@ namespace Trickshot
             // the species' decor table, NOT _facial and _accessories. Running these builders would
             // draw a beard picked by a marking index. Animal geometry comes from BodyLayout.Decor.
             if (!human) return;
-            // Facial hair (index 0 = clean-shaven -> nothing). Beard styles wear the textured
-            // hair-card material (strand look + sheen); Stubble/Clean use a flat material.
+            // Facial hair (index 0 = clean-shaven -> nothing). Every style is a surface shaped to
+            // the head (see Cosmetics.Facial.cs); the chest seam is measured first so no outline
+            // dips into the jersey, and Sideburns read the bald flag for their top edge.
             if (a.FacialStyle > 0 && a.FacialStyle < _facial.Count)
             {
                 var fe = _facial[a.FacialStyle];
-                var mat = fe.CardTexture ? Make.HairTuft(a.FacialColor) : Make.Mat(a.FacialColor, 0.2f);
+                MeasureChest(rag, head);
+                _bald = IsBald(a.HairStyle);
+                Material mat;
+                if (fe.Mat != null) mat = fe.Mat(a.FacialColor, a.Skin);
+                else
+                {
+                    // Same shader as a scalp shell so beard and hair shade alike: mostly Lambert on
+                    // the geometric normal, a little anisotropic sheen down the comb direction.
+                    mat = Make.HairCap(a.FacialColor);
+                    mat.SetFloat("_NormalWeight", 0.7f);
+                    mat.SetFloat("_SpecStr", 0.12f);
+                }
                 rag.RegisterCosmeticMaterial(mat);
                 fe.Build(head, mat);
+                if (fe.Fringe != null)
+                {
+                    var tm = Make.HairTuft(a.FacialColor);
+                    rag.RegisterCosmeticMaterial(tm);
+                    fe.Fringe(head, tm);
+                }
             }
             // Accessory (index 0 = none -> nothing). Headgear is only worn when bald; if hair is
             // present, silently skip a headgear accessory (the UI also blocks equipping it).
@@ -411,78 +405,6 @@ namespace Trickshot
             EmitHeadStrip(head, mat, verts, norms, uvs, seg);
         }
 
-        // A field of small circles painted ON the head - stipple (Stubble's beard, Buzz's
-        // scalp). One merged mesh: every dot is a little 7-sided disc lying tangent to the
-        // head sphere a few mm proud of the skin, and the dots are laid out on a golden-angle
-        // sunflower over the spherical band so the spacing between them is even and none
-        // overlap: they read as a scatter of drawn-on circles with DAYLIGHT between them,
-        // not a solid cap.
-        //   phiTop..phiBot   band of latitudes to cover (rad; 0 = crown, ~pi = under-chin)
-        //   thetaHalf       half the azimuth span (rad; pi = the whole head). Theta 0 = +Z,
-        //                   the face, so a front wedge keeps it off the ears/nape.
-        //   count           dot count (the density knob; spacing = sqrt(bandArea/count))
-        //   dotR            dot radius in metres
-        static void StippleDots(Transform head, Material mat,
-                                float phiTop, float phiBot, float thetaHalf, int count, float dotR)
-        {
-            // Golden angle: consecutive dots land ~2.4 rad apart in azimuth, which stays spread
-            // out even after the modulo wrap - that spread is what makes the sunflower pattern.
-            const float GA = 2.399963f;
-            const int seg = 7;                                 // ring verts per dot (heptagon)
-
-            float cTop = Mathf.Cos(phiTop), cBot = Mathf.Cos(phiBot);
-            float thetaW = thetaHalf * 2f;
-            float aUnit = (cTop - cBot) * thetaW;               // band area on the unit sphere
-
-            var verts = new Vector3[count * (seg + 1)];
-            var norms = new Vector3[verts.Length];
-            var uvs = new Vector2[verts.Length];
-            var tris = new int[count * seg * 6];                // both windings per wedge
-            int v = 0, t = 0;
-            for (int i = 0; i < count; i++)
-            {
-                // Fraction of the band's AREA (not of phi), so the rows stay even where the
-                // latitudes get short near a pole; then a golden-angle azimuth.
-                float s = (i + 0.5f) / count;
-                float cphi = cTop - s * aUnit / thetaW;
-                float phi = Mathf.Acos(Mathf.Clamp(cphi, -1f, 1f));
-                float theta = Mathf.Repeat(i * GA, thetaW) - thetaHalf;
-                float sp = Mathf.Sin(phi);
-                var n = new Vector3(sp * Mathf.Sin(theta), cphi, sp * Mathf.Cos(theta)).normalized;
-
-                // Tangent basis at the dot, so the disc lies flat on the head.
-                Vector3 side = Vector3.Cross(n, Vector3.up);
-                if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(n, Vector3.forward);
-                side.Normalize();
-                Vector3 up2 = Vector3.Cross(side, n).normalized;
-
-                float rr = (HeadR + 0.003f) * _cosScale;
-                float rd = dotR * _cosScale;
-                int c0 = v;
-                verts[v] = n * rr;
-                norms[v] = n;
-                uvs[v] = new Vector2(0.5f, 0.5f);
-                v++;
-                for (int k = 0; k < seg; k++)
-                {
-                    float a = (k / (float)seg) * Mathf.PI * 2f;
-                    verts[v] = n * rr + (Mathf.Cos(a) * side + Mathf.Sin(a) * up2) * rd;
-                    norms[v] = n;
-                    uvs[v] = new Vector2(0.5f + Mathf.Cos(a) * 0.5f, 0.5f + Mathf.Sin(a) * 0.5f);
-                    v++;
-                }
-                // Double-sided fan (both windings over the same verts), same cull-convention
-                // insurance as the beard/crown meshes.
-                for (int k = 0; k < seg; k++)
-                {
-                    int a = c0 + 1 + k, b = c0 + 1 + (k + 1) % seg;
-                    tris[t++] = c0; tris[t++] = a; tris[t++] = b;
-                    tris[t++] = c0; tris[t++] = b; tris[t++] = a;
-                }
-            }
-            EmitHeadMesh(head, mat, verts, norms, uvs, tris);
-        }
-
         // Shared tail for the drawn-on GRID pieces: mesh + double-sided triangles + the
         // GeneratedMeshOwner so teardown frees the runtime mesh (same as BeardMesh).
         static void EmitHeadGrid(Transform head, Material mat,
@@ -534,289 +456,6 @@ namespace Trickshot
             go.AddComponent<MeshRenderer>().sharedMaterial = mat;
             go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
         }
-
-        // A curved polygon "bib" for facial hair, generated as a triangle grid that wraps the
-        // lower face and hangs a little under the chin. Coordinates are the head sphere surface
-        // pushed a few mm proud, so it reads as hair sitting ON the face rather than a helmet.
-        // Style is driven by the wrap/length/thickness params, NOT by a sphere radius:
-        //   thetaMax     half-angle (rad) the bib wraps around the front (bigger = reaches the
-        //                jaw sides), phiTop..phiBot the vertical band (rad; 0 = ear/cheek level,
-        //                negative = below, down under the chin),
-        //   drop         extra downward length at the bottom (metres) for voluminous styles,
-        //   bulge        extra outward thickness at the bottom (metres); ~0 = flush stubble,
-        //   widenBottom  how much of the wrap-angle the lowest ring keeps (1 = full width,
-        //                <1 tapers to a narrower chin).
-        // Collider-less (MeshFilter + MeshRenderer only), parented to the head at unit scale.
-        static void BeardMesh(Transform head, Material mat, float thetaMax, float phiTop,
-                              float phiBot, float drop, float bulge, float widenBottom = 0.7f)
-        {
-            const int cols = 10, rows = 5;
-            var verts = new Vector3[(cols + 1) * (rows + 1)];
-            var norms = new Vector3[verts.Length];
-            var uvs = new Vector2[verts.Length];
-            // Map the bib into ONE strand strip of the shared hair atlas so the HairTuft material
-            // shows real strand texture: u spans the strip's width across the bib, v runs root->tip
-            // top->bottom (atlas roots are at LOW v). A few U repeats so strands read fine, not one
-            // giant clump. (No-op visually when a flat material is used, e.g. Stubble.)
-            Vector2 strip = new Vector2(0.291f, 0.482f);   // one clump strip from HairSim.AtlasStripsU
-            const float uRepeats = 3f, vRoot = 0.10f, vTip = 0.92f;
-            for (int j = 0; j <= rows; j++)
-            {
-                float tv = j / (float)rows;                 // 0 top .. 1 bottom
-                float phi = Mathf.Lerp(phiTop, phiBot, tv);
-                float widen = Mathf.Lerp(1f, widenBottom, tv);
-                float cphi = Mathf.Cos(phi), sphi = Mathf.Sin(phi);
-                // Radius (and the downward hang) scale with head girth so beards track head size.
-                float rr = (HeadR + Mathf.Lerp(0.008f, 0.008f + bulge, tv)) * _cosScale;
-                for (int i = 0; i <= cols; i++)
-                {
-                    float tu = i / (float)cols;             // 0 left .. 1 right
-                    float theta = Mathf.Lerp(-thetaMax, thetaMax, tu) * widen;
-                    float x = rr * cphi * Mathf.Sin(theta);
-                    float y = rr * sphi - drop * _cosScale * tv * tv;   // quadratic hang so the top stays flush
-                    float z = rr * cphi * Mathf.Cos(theta);
-                    int idx = j * (cols + 1) + i;
-                    verts[idx] = new Vector3(x, y, z);
-                    norms[idx] = new Vector3(cphi * Mathf.Sin(theta), sphi, cphi * Mathf.Cos(theta)).normalized;
-                    float uu = Mathf.Repeat(tu * uRepeats, 1f);
-                    uvs[idx] = new Vector2(Mathf.Lerp(strip.x, strip.y, uu), Mathf.Lerp(vRoot, vTip, 1f - tv));
-                }
-            }
-            // Double-sided: emit each quad with both winding orders over the same verts. Whichever
-            // order Unity treats as front-facing renders (with the outward vertex normals we set);
-            // the reverse is back-face culled. Avoids depending on the cull convention (can't be
-            // playtested here) and never z-fights, since only one order survives the cull per view.
-            var tris = new int[cols * rows * 12];
-            int t = 0;
-            for (int j = 0; j < rows; j++)
-            for (int i = 0; i < cols; i++)
-            {
-                int a = j * (cols + 1) + i;
-                int b = a + 1;
-                int c = a + (cols + 1);
-                int d = c + 1;
-                tris[t++] = a; tris[t++] = c; tris[t++] = b;
-                tris[t++] = b; tris[t++] = c; tris[t++] = d;
-                tris[t++] = a; tris[t++] = b; tris[t++] = c;
-                tris[t++] = b; tris[t++] = d; tris[t++] = c;
-            }
-            var mesh = new Mesh();
-            mesh.vertices = verts;
-            mesh.normals = norms;
-            mesh.uv = uvs;
-            mesh.triangles = tris;
-            mesh.RecalculateBounds();
-
-            var go = new GameObject("cz");
-            go.transform.SetParent(head, false);
-            go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.identity;
-            go.transform.localScale = Vector3.one;
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
-            // Destroying the GameObject does NOT free a runtime-generated mesh (same as materials),
-            // and the customize preview rebuilds the body repeatedly, so track it for teardown.
-            go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
-        }
-
-        // A hair-coloured skin over the TOP of the head - the scalp base under the hair cards, so
-        // no bare head shows through the gaps. A dome of triangles wrapping the upper hemisphere at
-        // the real head radius (HeadR * girth) pushed a hair's breadth proud, so it hugs the head
-        // and scales with head size (unlike the old fixed floating sphere). Rings of latitude from
-        // the crown (phi = pi/2, the +Y pole) down to a lower band edge, sweeping the full circle.
-        static void CrownPatch(Transform head, Material mat)
-        {
-            const int rings = 5, seg = 16;
-            float rr = (HeadR + 0.006f) * _cosScale;    // just proud of the head surface, girth-scaled
-            const float phiTop = Mathf.PI * 0.5f;       // +Y pole (top of head)
-            const float phiBot = Mathf.PI * 0.5f - 1.05f; // ~down to just above ear level
-            // Symmetric front-to-back: the cap comes down the same amount over the brow as at the
-            // back (previously nudged back on z, which receded the front hairline).
-
-            int cols = seg;
-            var verts = new Vector3[(cols + 1) * (rings + 1)];
-            var norms = new Vector3[verts.Length];
-            var uvs = new Vector2[verts.Length];   // crown UVs (only sampled if it ever wears a textured mat)
-            for (int j = 0; j <= rings; j++)
-            {
-                float tv = j / (float)rings;                 // 0 top .. 1 bottom band
-                float phi = Mathf.Lerp(phiTop, phiBot, tv);
-                float cphi = Mathf.Cos(phi), sphi = Mathf.Sin(phi);
-                for (int i = 0; i <= cols; i++)
-                {
-                    float theta = Mathf.Lerp(-Mathf.PI, Mathf.PI, i / (float)cols);
-                    float x = rr * cphi * Mathf.Sin(theta);
-                    float y = rr * sphi;
-                    float z = rr * cphi * Mathf.Cos(theta);
-                    int idx = j * (cols + 1) + i;
-                    verts[idx] = new Vector3(x, y, z);
-                    // The hair shader reads the vertex normal as the strand TANGENT for its
-                    // anisotropic sheen, so point it along the MERIDIAN (crown -> down the head,
-                    // d(pos)/d(phi)) - the way hair flows - rather than radially out. Gives the cap
-                    // a hair-like highlight that runs down the head instead of a plastic dome.
-                    norms[idx] = new Vector3(-sphi * Mathf.Sin(theta), cphi, -sphi * Mathf.Cos(theta)).normalized;
-                    uvs[idx] = new Vector2(i / (float)cols, 1f - tv);
-                }
-            }
-            // Double-sided (emit both windings; the culled one is free) - same trick as BeardMesh,
-            // so we don't depend on the cull convention (can't be playtested here).
-            var tris = new int[cols * rings * 12];
-            int t = 0;
-            for (int j = 0; j < rings; j++)
-            for (int i = 0; i < cols; i++)
-            {
-                int a = j * (cols + 1) + i;
-                int b = a + 1;
-                int c = a + (cols + 1);
-                int d = c + 1;
-                tris[t++] = a; tris[t++] = c; tris[t++] = b;
-                tris[t++] = b; tris[t++] = c; tris[t++] = d;
-                tris[t++] = a; tris[t++] = b; tris[t++] = c;
-                tris[t++] = b; tris[t++] = d; tris[t++] = c;
-            }
-            var mesh = new Mesh();
-            mesh.vertices = verts;
-            mesh.normals = norms;
-            mesh.uv = uvs;
-            mesh.triangles = tris;
-            mesh.RecalculateBounds();
-
-            var go = new GameObject("cz");
-            go.transform.SetParent(head, false);
-            go.transform.localPosition = Vector3.zero;
-            go.transform.localRotation = Quaternion.identity;
-            go.transform.localScale = Vector3.one;
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
-            go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
-        }
-
-        // ---- hair catalog (index 0 = Bald) ----------------------------------
-        // Every non-bald style is a SOFT DYNAMIC HairSim (see HairSim.cs): a Verlet strand sim
-        // rendered as textured HAIR CARDS - flat quad ribbons UV-mapped to a shared grayscale hair
-        // atlas (Resources/Hair/HairAtlas.png), alpha-cutout so the strand detail comes from the
-        // texture. A style is pure DATA. Stiffness holds a shaped style up (mohawk) while low
-        // stiffness lets it fall and drape. Runs on every body that wears it.
-        //
-        // COST vs LOOK are decoupled: `strands` is the SIMULATED chain count (the only real cost),
-        // `fan` multiplies RENDERED cards per strand for free (verts only), `staticToHead` skips the
-        // sim for scalp caps. Coverage/fullness here comes mostly from high `fan`, not strand count.
-        // def.thickness is CARD WIDTH. Long styles use TopSidesBack (crown + sides + back, face
-        // clear) so hair sits ON TOP; a ponytail uses BackCluster (a tight gathered tie) + a
-        // straight-down flow so it reads as one tail hanging down.
-        static readonly List<HairEntry> _hair = new List<HairEntry>
-        {
-            new HairEntry { Name = "Bald", Group = HairGroup.Short, Bald = true },
-
-            // SHORT (STATIC scalp pieces - no sim) --------------------------------
-            // Buzz: the stubble treatment on the scalp - a field of small drawn-on circles
-            // with daylight between them, sunflower-scattered over just the TOP THIRD of the
-            // head's diameter (crown down to acos(1/3), well above ear level), denser than
-            // the beard. No cards and no crown cap: a solid cap would fill in the daylight
-            // and read as a painted helmet; the dots read as clipped stubble.
-            new HairEntry { Name = "Buzz", Group = HairGroup.Short, NoCards = true, Extra = (h,m) => {
-                StippleDots(h, m, phiTop: 0.03f, phiBot: Mathf.Acos(1f / 3f), thetaHalf: Mathf.PI, count: 900, dotR: 0.005f);
-            } },
-            // Crew Cut: a touch longer than buzz, slightly forward flat-top feel.
-            new HairEntry { Name = "Crew Cut", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 130, nodes = 3, length = 0.075f, fan = 4, staticToHead = true,
-                stiffness = 0.92f, flow = new Vector3(0f, 1f, 0.15f), curl = 0f, jitter = 0.2f, thickness = 0.05f } },
-            // Spiky: gelled spikes shooting straight UP, very stiff, thin points, high scatter.
-            new HairEntry { Name = "Spiky", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 95, nodes = 3, length = 0.17f, fan = 3, staticToHead = false,
-                stiffness = 0.92f, flow = new Vector3(0f, 1f, 0f), curl = 0f, jitter = 0.55f, thickness = 0.035f } },
-            // Fringe: a soft bang swept DOWN over the brow from a front hairline (FrontSweep root),
-            // low stiffness so it hangs on the forehead. Distinct forward drape, not a ring cap.
-            new HairEntry { Name = "Fringe", Group = HairGroup.Short, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.FrontSweep, strands = 70, nodes = 5, length = 0.19f, fan = 5, staticToHead = false,
-                stiffness = 0.3f, flow = new Vector3(0f, -0.75f, 0.6f), curl = 0.012f, jitter = 0.15f, thickness = 0.055f } },
-            // Mohawk: tall stiff midline crest (Strip), thin dense blades standing up.
-            new HairEntry { Name = "Mohawk", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Strip, strands = 34, nodes = 5, length = 0.26f, fan = 5, staticToHead = false,
-                stiffness = 0.88f, flow = new Vector3(0f, 1f, 0f), curl = 0.008f, jitter = 0.08f, thickness = 0.05f } },
-
-            // MEDIUM (fuller caps + some sway) -----------------------------------
-            // Messy: short, low stiffness, MAX scatter - tufts poke every direction, little curl.
-            new HairEntry { Name = "Messy", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
-                stiffness = 0.32f, flow = new Vector3(0f, 0.5f, 0f), curl = 0.02f, jitter = 0.7f, thickness = 0.05f } },
-            // Curly: TIGHT high-frequency curl on shorter strands, springy (mid stiffness so it
-            // holds a round bounce instead of draping), high jitter for a packed coily look.
-            new HairEntry { Name = "Curly", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 110, nodes = 6, length = 0.17f, fan = 4, staticToHead = false,
-                stiffness = 0.42f, flow = new Vector3(0f, 0.3f, 0f), curl = 0.085f, jitter = 0.5f, thickness = 0.05f } },
-            // Afro: big round halo - up-and-out flow, max jitter, medium curl, thick cards, high
-            // stiffness so it keeps the round dome rather than collapsing.
-            new HairEntry { Name = "Afro", Group = HairGroup.Medium, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 130, nodes = 4, length = 0.19f, fan = 5, staticToHead = false,
-                stiffness = 0.6f, flow = new Vector3(0f, 1f, 0f), curl = 0.055f, jitter = 0.7f, thickness = 0.08f } },
-
-            // LONG (cover the TOP + sides + back, face clear; drape) -------------
-            // Ponytail: one tight gathered tail hanging straight down the back, sleek (low curl/jitter).
-            new HairEntry { Name = "Ponytail", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.BackCluster, strands = 42, nodes = 11, length = 0.52f, fan = 4, staticToHead = false,
-                stiffness = 0.15f, flow = new Vector3(0f, -1f, -0.15f), curl = 0.01f, jitter = 0.05f, thickness = 0.05f } },
-            // Man Bun: no card strands - just a solid sphere bun high on the back of the crown
-            // (plus a thin tie), over the shared hair crown cap. Simplest and reads cleanly.
-            new HairEntry { Name = "Man Bun", Group = HairGroup.Long, NoCards = true, Extra = (h,m) => {
-                Ball(h, new Vector3(0f, 0.24f, -0.13f), new Vector3(0.20f, 0.20f, 0.20f), m);   // the bun
-                Ball(h, new Vector3(0f, 0.21f, -0.19f), new Vector3(0.07f, 0.07f, 0.07f), m);   // tie wrap
-            } },
-            // Shoulder Length: mid-length with body - between Long and Wavy, a bit of wave, slightly
-            // stiffer than Long so it keeps some shape at the shoulders.
-            new HairEntry { Name = "Shoulder Length", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 66, nodes = 10, length = 0.36f, fan = 5, staticToHead = false,
-                stiffness = 0.18f, flow = new Vector3(0f, -1f, -0.05f), curl = 0.03f, jitter = 0.14f, thickness = 0.065f } },
-            // Long: MANY fine floppy strands, thin cards, very low stiffness (drapes + sways freely),
-            // low jitter for a sleek curtain. The fine/soft opposite of chunky Dreads.
-            new HairEntry { Name = "Long", Group = HairGroup.Long, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.TopSidesBack, strands = 80, nodes = 12, length = 0.54f, fan = 6, staticToHead = false,
-                stiffness = 0.07f, flow = new Vector3(0f, -1f, -0.06f), curl = 0.018f, jitter = 0.1f, thickness = 0.055f } },
-        };
-
-        // ---- facial hair catalog (index 0 = Clean-Shaven) -------------------
-        static readonly List<FacialEntry> _facial = new List<FacialEntry>
-        {
-            new FacialEntry { Name = "Clean",     CardTexture = false, Build = (h,m) => { } },
-            new FacialEntry { Name = "Mustache",  Build = (h,m) =>
-                Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.14f, 0.03f, 0.05f), m) },
-            new FacialEntry { Name = "Handlebar", Build = (h,m) => {
-                Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.16f, 0.03f, 0.05f), m);
-                Blk(h, new Vector3(-0.09f, -0.07f, 0.17f), new Vector3(0.03f, 0.05f, 0.04f), m);
-                Blk(h, new Vector3(0.09f, -0.07f, 0.17f), new Vector3(0.03f, 0.05f, 0.04f), m); } },
-            // Goatee: narrow chin tuft (flush polygon wedge) under a small mustache. No sphere.
-            new FacialEntry { Name = "Goatee",    Build = (h,m) => {
-                Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.10f, 0.025f, 0.045f), m);
-                BeardMesh(h, m, thetaMax: 0.45f, phiTop: -0.55f, phiBot: -1.30f,
-                          drop: 0.025f, bulge: 0.012f, widenBottom: 0.55f); } },
-            // Stubble: dead-flush shell on chin + jaw (bulge/drop 0), no protrusion at all. Flat
-            // material (CardTexture=false) - it's a shadow, not strands.
-            new FacialEntry { Name = "Stubble",   CardTexture = false, Build = (h,m) =>
-                // A field of small drawn-on circles with daylight between them, wrapped around
-                // the FRONT of the head over just the BOTTOM QUARTER of its diameter (2pi/3
-                // down to near the bottom pole: jaw and under-chin only, off the cheeks).
-                StippleDots(h, m, phiTop: Mathf.PI * 2f / 3f, phiBot: 3.05f, thetaHalf: 1.25f, count: 130, dotR: 0.006f) },
-            // Short Beard: modest-volume polygon bib + mustache. Small hang, slight thickness.
-            new FacialEntry { Name = "Short Beard", Build = (h,m) => {
-                BeardMesh(h, m, thetaMax: 1.20f, phiTop: -0.40f, phiBot: -1.37f,
-                          drop: 0.035f, bulge: 0.022f, widenBottom: 0.75f);
-                Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.13f, 0.025f, 0.045f), m); } },
-            // Full Beard: fuller polygon bib (more hang + thickness, sits as low as Short Beard
-            // but starting higher on the cheeks).
-            new FacialEntry { Name = "Full Beard", Build = (h,m) => {
-                BeardMesh(h, m, thetaMax: 1.35f, phiTop: -0.32f, phiBot: -1.42f,
-                          drop: 0.075f, bulge: 0.042f, widenBottom: 0.85f);
-                Blk(h, new Vector3(0f, -0.05f, 0.18f), new Vector3(0.15f, 0.03f, 0.045f), m); } },
-            new FacialEntry { Name = "Sideburns", Build = (h,m) => {
-                Blk(h, new Vector3(-0.16f, -0.02f, 0.06f), new Vector3(0.035f, 0.14f, 0.08f), m);
-                Blk(h, new Vector3(0.16f, -0.02f, 0.06f), new Vector3(0.035f, 0.14f, 0.08f), m); } },
-            // Chinstrap: thin flush strap along the jaw (polygon band, no volume) + side connectors.
-            new FacialEntry { Name = "Chinstrap", Build = (h,m) => {
-                Blk(h, new Vector3(-0.15f, -0.04f, 0.05f), new Vector3(0.035f, 0.13f, 0.08f), m);
-                Blk(h, new Vector3(0.15f, -0.04f, 0.05f), new Vector3(0.035f, 0.13f, 0.08f), m);
-                BeardMesh(h, m, thetaMax: 1.30f, phiTop: -0.72f, phiBot: -1.22f,
-                          drop: 0f, bulge: 0f, widenBottom: 0.90f); } },
-        };
 
         // ---- accessory catalog (index 0 = None) -----------------------------
         static readonly List<AccessoryEntry> _accessories = new List<AccessoryEntry>

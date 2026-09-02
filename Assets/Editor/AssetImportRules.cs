@@ -19,7 +19,7 @@ namespace Trickshot
     /// </summary>
     public class AssetImportRules : AssetPostprocessor
     {
-        public override uint GetVersion() => 2;
+        public override uint GetVersion() => 3;
 
         void OnPreprocessTexture()
         {
@@ -37,6 +37,25 @@ namespace Trickshot
                 ti.wrapModeV         = TextureWrapMode.Clamp;    // latitude must not
                 ti.filterMode        = FilterMode.Bilinear;
                 ti.textureCompression = TextureImporterCompression.Compressed;
+                return;
+            }
+
+            // ---- hair atlases (alpha-cutout cards) ----
+            // Cards are clipped against these masks, and a plain mip chain averages the strand lines
+            // into a value BELOW the cutoff at distance, so far-off hair erodes to threads. Coverage-
+            // preserving mips keep the same fraction of texels above the reference at every level.
+            // The tileable stipple is a decal mask and wants Repeat; the two atlases must Clamp.
+            if (p.Contains("/Resources/Hair/"))
+            {
+                bool stipple = p.EndsWith("Stipple.png");
+                ti.textureType             = TextureImporterType.Default;
+                ti.maxTextureSize          = 2048;
+                ti.mipmapEnabled           = true;
+                ti.mipMapsPreserveCoverage = !stipple;
+                ti.alphaTestReferenceValue = 0.4f;
+                ti.wrapMode                = stipple ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+                ti.filterMode              = FilterMode.Bilinear;
+                ti.textureCompression      = TextureImporterCompression.CompressedHQ;
                 return;
             }
 

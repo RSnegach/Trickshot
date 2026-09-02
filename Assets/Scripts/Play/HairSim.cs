@@ -33,7 +33,20 @@ namespace Trickshot
         // How a style's strand roots are scattered over the scalp. Drives the silhouette far more
         // than length does: a Strip reads as a mohawk, a BackCluster as a ponytail/bun, etc.
         // TopSidesBack covers the crown + sides + back but leaves the FACE clear (long hair).
-        public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring, TopSidesBack, FrontSweep }
+        // NEW modes are appended at the END: (int)root feeds the per-instance RNG seed, so
+        // renumbering an old mode would re-scatter every existing style and the horse mane.
+        //   Hairline      - scattered inside the shared HairShape hairline, thinning to the edge
+        //   FrontHairline - a band just behind the front hairline (bangs that sweep down)
+        //   TieCluster    - a 2 cm disc about def.tieDir (a ponytail's tie)
+        //   Explicit      - def.roots / def.dirs supplied by the caller (crest cards on a fin)
+        public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring, TopSidesBack, FrontSweep,
+                               Hairline, FrontHairline, TieCluster, Explicit }
+
+        // Which strand atlas a style's cards sample. Long is Resources/Hair/HairAtlas.png (four
+        // full-height strands, the drape styles); Tuft is Resources/Hair/TuftAtlas.png (four
+        // tapered clumps converging to a point, for cards shorter than ~8 cm which otherwise map
+        // the whole long strip onto two quads and mip down to a solid rectangle).
+        public enum Atlas { Long, Tuft }
 
         // A hair style as data (no per-primitive authoring). AttachAppearance builds a HairSim from
         // one of these; the catalog in Cosmetics is just a list of these defs.
@@ -56,20 +69,47 @@ namespace Trickshot
             // simulated (no Verlet, no per-tick rebuild). Right for short scalp-hugging styles that
             // don't really move (buzz, crew, afro cap), so you can pile them on for free.
             public bool staticToHead;
+
+            // ---- shell-era additions (all zero/null = the original behaviour) ----
+            public Atlas atlas;                  // strip table + V range (Long = the drape atlas)
+            public int strips;                   // bitmask of allowed atlas strips (0 = all four)
+            public float rootRadius;             // >0: roots at this radius (metres, already scaled)
+            public System.Func<Vector3, float> rootRadiusAt;   // dir -> root radius; roots sit ON a shell
+            public float normalBlend;            // Slerp(flow, rootDir, x); 0 = the original 0.25
+            public float hugMax;                 // >0: no node may leave the head by more than this
+            public float bundle;                 // 0..1: pull nodes toward the strand-set centroid (a tail)
+            public float bundleRadius;           // tail cross-section radius the strands keep around that centroid (0 = 1.5 cm)
+            public Vector3 tieDir;               // TieCluster centre / Hairline density bias direction
+            public float frontBias;              // Hairline: 0..1 extra density toward tieDir's side
+            public Vector3 growthClampDir;       // if set: growth may not point toward it more than growthClampDot
+            public float growthClampDot;
+            public Vector3[] roots;              // Explicit: head-local root positions (already scaled)
+            public Vector3[] dirs;               // Explicit: per-root growth directions
         }
 
         // Vertical strips in Resources/Hair/HairAtlas.png (detected from the source art: 4 hair
         // clumps side by side, each a full-height strand strip). U bounds are normalized; a card is
         // UV'd to one of these. The atlas has ROOTS at the BOTTOM (low V) and TIPS at the TOP.
-        static readonly Vector2[] AtlasStripsU =
+        public static readonly Vector2[] AtlasStripsU =
         {
             new Vector2(0.021f, 0.240f),
             new Vector2(0.291f, 0.482f),
             new Vector2(0.536f, 0.724f),
             new Vector2(0.794f, 0.980f),
         };
-        const float AtlasVRoot = 0.10f;   // V at the strand root (bottom of the atlas strip)
-        const float AtlasVTip  = 0.92f;   // V at the strand tip (top of the atlas strip)
+        public const float AtlasVRoot = 0.10f;   // V at the strand root (bottom of the atlas strip)
+        public const float AtlasVTip  = 0.92f;   // V at the strand tip (top of the atlas strip)
+
+        // The TUFT atlas: four equal 256 px strips with 8 px margins, clump filling V 0.04..0.96.
+        public static readonly Vector2[] TuftStripsU =
+        {
+            new Vector2(0.008f, 0.242f),
+            new Vector2(0.258f, 0.492f),
+            new Vector2(0.508f, 0.742f),
+            new Vector2(0.758f, 0.992f),
+        };
+        public const float TuftVRoot = 0.04f;
+        public const float TuftVTip  = 0.96f;
 
         // Nominal head radius (matches Cosmetics.HeadR). The VISIBLE head is this * girth, so we
         // scale by the head's girth (set in Build) for root placement + collision; otherwise a
@@ -78,6 +118,8 @@ namespace Trickshot
         float HeadR = 0.19f;   // = HeadRBase * girth, resolved in Build
 
         Transform _head;
+        Vector3 _tieDir;
+        float _frontBias;
         int _perStrand;                 // nodes per strand
         int _strandCount;               // simulated strand count
         int _fan;                       // render cards per simulated strand (>=1); verts only, no sim
@@ -102,6 +144,9 @@ namespace Trickshot
         int[] _tris;                    // triangle indices (two tris per strand segment)
 
         float _stiffness;
+        float _hugMax;
+        float _bundle;
+        Vector2[] _bundleOff;           // per-strand offset from the bundle centroid (metres, in a frame ⟂ to the tail)
 
         // Deterministic per-instance RNG (Random.* is banned in some hosts; tiny LCG seeded from def).
         uint _rng;
@@ -127,7 +172,8 @@ namespace Trickshot
             // the scalp at any body size instead of being swallowed by a scaled-up head.
             var rag = head != null ? head.GetComponentInParent<ActiveRagdoll>() : null;
             HeadR = headRadius > 0f ? headRadius : HeadRBase * (rag != null ? rag.GirthScale : 1f);
-            _strandCount = Mathf.Max(1, def.strands);
+            int strandCount = def.root == RootMode.Explicit && def.roots != null ? def.roots.Length : def.strands;
+            _strandCount = Mathf.Max(1, strandCount);
             _perStrand = Mathf.Max(2, def.nodes);
             _fan = Mathf.Max(1, def.fan);
             _static = def.staticToHead;
@@ -167,17 +213,65 @@ namespace Trickshot
             _uvRootTip = new Vector2[vcount];
 
             Vector3 flow = def.flow.sqrMagnitude > 1e-4f ? def.flow.normalized : Vector3.down;
+            float normalBlend = def.normalBlend > 0f ? def.normalBlend : 0.25f;
+            _hugMax = def.hugMax;
+            _bundle = Mathf.Clamp01(def.bundle);
+            if (_bundle > 0f)
+            {
+                // A tail is a ROUND bundle, not a sheet: give every strand its own seat in the
+                // cross-section so the pull keeps the strands together without stacking them.
+                float br = def.bundleRadius > 0f ? def.bundleRadius : 0.015f;
+                _bundleOff = new Vector2[_strandCount];
+                for (int s = 0; s < _strandCount; s++)
+                {
+                    float ang = (s * 2.399963f);
+                    float rr = br * Mathf.Sqrt((s + 0.5f) / _strandCount);
+                    _bundleOff[s] = new Vector2(Mathf.Cos(ang) * rr, Mathf.Sin(ang) * rr);
+                }
+            }
+            // Atlas strip table for this style.
+            Vector2[] stripTable = def.atlas == Atlas.Tuft ? TuftStripsU : AtlasStripsU;
+            float vRoot = def.atlas == Atlas.Tuft ? TuftVRoot : AtlasVRoot;
+            float vTip  = def.atlas == Atlas.Tuft ? TuftVTip  : AtlasVTip;
+            var allowed = new System.Collections.Generic.List<int>(4);
+            for (int i = 0; i < 4; i++) if (def.strips == 0 || (def.strips & (1 << i)) != 0) allowed.Add(i);
+            _tieDir = def.tieDir.sqrMagnitude > 1e-6f ? def.tieDir.normalized : new Vector3(0f, 0.55f, -0.83f);
+            _frontBias = def.frontBias;
 
             var tris = new System.Collections.Generic.List<int>(_strandCount * _fan * (_perStrand - 1) * 6);
             for (int s = 0; s < _strandCount; s++)
             {
                 float t = _strandCount > 1 ? s / (float)(_strandCount - 1) : 0.5f;
-                Vector3 rootDir = RootDir(def.root, t);              // unit dir from head centre to the scalp root
-                Vector3 rootPos = rootDir * (HeadR + 0.01f);         // sit a touch proud of the scalp
-
-                Vector3 growth = Vector3.Slerp(flow, rootDir, 0.25f).normalized;
+                Vector3 rootDir, rootPos, growth;
+                if (def.root == RootMode.Explicit && def.roots != null)
+                {
+                    rootPos = def.roots[s];
+                    rootDir = rootPos.sqrMagnitude > 1e-8f ? rootPos.normalized : Vector3.up;
+                    Vector3 gd = def.dirs != null && s < def.dirs.Length ? def.dirs[s] : flow;
+                    growth = gd.sqrMagnitude > 1e-6f ? gd.normalized : flow;
+                }
+                else
+                {
+                    rootDir = RootDir(def.root, t);              // unit dir from head centre to the scalp root
+                    // Roots sit a touch proud of the scalp - or ON a shell, when the style has one:
+                    // the shell radius function is shared with the shell builder so nothing floats.
+                    float rr = def.rootRadiusAt != null ? def.rootRadiusAt(rootDir)
+                             : def.rootRadius > 0f ? def.rootRadius : HeadR + 0.01f;
+                    rootPos = rootDir * rr;
+                    // A tie cluster grows away from the TIE POINT, not from each root's own normal.
+                    Vector3 nrm = def.root == RootMode.TieCluster ? _tieDir : rootDir;
+                    growth = Vector3.Slerp(flow, nrm, normalBlend).normalized;
+                }
                 Vector3 tilt = new Vector3(RandSym(), RandSym(), RandSym()) * def.jitter;
                 growth = (growth + tilt).normalized;
+                // Optional clamp so no tuft points into the face (Messy): pull the growth away from
+                // the forbidden direction until its dot falls under the limit.
+                if (def.growthClampDir.sqrMagnitude > 1e-6f)
+                {
+                    Vector3 cd = def.growthClampDir.normalized;
+                    float d = Vector3.Dot(growth, cd);
+                    if (d > def.growthClampDot) growth = (growth - cd * (d - def.growthClampDot)).normalized;
+                }
 
                 Vector3 side = Vector3.Cross(growth, Vector3.up);
                 if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(growth, Vector3.forward);
@@ -194,11 +288,11 @@ namespace Trickshot
                     _restLocal[p] = local;
                     _rootNode[p] = (k == 0);
 
-                    float vv = Mathf.Lerp(AtlasVRoot, AtlasVTip, u);
+                    float vv = Mathf.Lerp(vRoot, vTip, u);
                     for (int f = 0; f < _fan; f++)
                     {
                         // Each fan copy gets its own atlas strip so the clump shows varied strands.
-                        Vector2 stripU = AtlasStripsU[(s + f) % AtlasStripsU.Length];
+                        Vector2 stripU = stripTable[allowed[(s + f) % allowed.Count]];
                         int vL = (p * _fan + f) * 2, vR = vL + 1;
                         _uvAtlas[vL] = new Vector2(stripU.x, vv);
                         _uvAtlas[vR] = new Vector2(stripU.y, vv);
@@ -302,6 +396,44 @@ namespace Trickshot
                     phi = Mathf.Lerp(0.15f, 0.7f, Rand01());
                     theta = Mathf.Lerp(-0.95f, 0.95f, t) + RandSym() * 0.12f;   // front wedge only
                     break;
+                case RootMode.Hairline:
+                {
+                    // Rejection-sample the scalp INSIDE the shared hairline (HairShape), uniform
+                    // over area, thinning to nothing over the last ~0.15 rad so the edge never
+                    // bristles; an optional bias favours the tie/front side. Bounded attempts.
+                    for (int attempt = 0; attempt < 24; attempt++)
+                    {
+                        float cphi = Mathf.Lerp(1f, Mathf.Cos(1.6f), Rand01());   // area-uniform in phi
+                        float ph = Mathf.Acos(cphi);
+                        float th = (Rand01() * 2f - 1f) * Mathf.PI;
+                        Vector3 d = HairShape.Dir(ph, th);
+                        float sdf = HairShape.HairlineSdf(d);
+                        if (sdf <= 0f) continue;
+                        float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(sdf / 0.15f));
+                        if (_frontBias > 0f)
+                            p *= Mathf.Lerp(1f, 0.35f + 0.65f * Mathf.Clamp01(Vector3.Dot(d, _tieDir)), _frontBias);
+                        if (Rand01() <= p) return d;
+                    }
+                    phi = Mathf.Lerp(0.05f, 0.6f, Rand01()); theta = Rand01() * Mathf.PI * 2f;   // fallback: crown
+                    break;
+                }
+                case RootMode.FrontHairline:
+                    // A narrow band just behind the front hairline for bangs.
+                    phi = Mathf.Lerp(0.42f, 0.58f, Rand01());
+                    theta = Mathf.Lerp(-0.85f, 0.85f, t) + RandSym() * 0.08f;
+                    break;
+                case RootMode.TieCluster:
+                {
+                    // A 2 cm disc about the tie direction.
+                    float maxAng = Mathf.Asin(Mathf.Clamp(0.02f / HeadR, 0f, 0.9f));
+                    float ang = maxAng * Mathf.Sqrt(Rand01());
+                    float az = Rand01() * Mathf.PI * 2f;
+                    Vector3 side = Vector3.Cross(_tieDir, Vector3.up);
+                    if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(_tieDir, Vector3.forward);
+                    side.Normalize();
+                    Vector3 up2 = Vector3.Cross(side, _tieDir);
+                    return (_tieDir * Mathf.Cos(ang) + (side * Mathf.Cos(az) + up2 * Mathf.Sin(az)) * Mathf.Sin(ang)).normalized;
+                }
                 default: // Crown: whole upper hemisphere, all around (general medium hair). phi
                     // reaches further down the sides (1.45) so a cap covers more of the head.
                     phi = Mathf.Lerp(0.03f, 1.45f, Rand01());
@@ -369,15 +501,49 @@ namespace Trickshot
                 }
             }
 
+            // 2b) Bundle (a gathered tail): pull every node toward the centroid of the same node
+            //     index across all strands, weight falling off toward the tips. After the length
+            //     constraints (so it does not fight them) and before collision, capped at 0.3/tick.
+            if (_bundle > 0f && _strandCount > 1)
+            {
+                for (int k = 1; k < _perStrand; k++)
+                {
+                    Vector3 c = Vector3.zero;
+                    for (int s = 0; s < _strandCount; s++) c += _pos[s * _perStrand + k];
+                    c /= _strandCount;
+                    float w = _bundle * (1f - k / (float)(_perStrand - 1)) * 0.3f;
+                    // Cross-section frame: perpendicular to the tail's local direction.
+                    Vector3 axis = Vector3.down;
+                    if (k > 0)
+                    {
+                        Vector3 cPrev = Vector3.zero;
+                        for (int s = 0; s < _strandCount; s++) cPrev += _pos[s * _perStrand + k - 1];
+                        cPrev /= _strandCount;
+                        Vector3 d = c - cPrev; if (d.sqrMagnitude > 1e-8f) axis = d.normalized;
+                    }
+                    Vector3 bx = Vector3.Cross(axis, Vector3.forward); if (bx.sqrMagnitude < 1e-6f) bx = Vector3.Cross(axis, Vector3.right);
+                    bx.Normalize(); Vector3 by = Vector3.Cross(axis, bx);
+                    for (int s = 0; s < _strandCount; s++)
+                    {
+                        int i = s * _perStrand + k;
+                        Vector3 target = c + bx * _bundleOff[s].x + by * _bundleOff[s].y;
+                        _pos[i] += (target - _pos[i]) * w;
+                    }
+                }
+            }
+
             // 3) Head-sphere collision: push any node that sank into the skull back to the surface.
             Vector3 centre = _head.position;
             float rad = HeadR + SimConfig.HairHeadPad;
+            float hugR = _hugMax > 0f ? HeadR + _hugMax : 0f;
             for (int i = 0; i < _pos.Length; i++)
             {
                 if (_rootNode[i]) continue;
                 Vector3 d = _pos[i] - centre;
                 float m = d.magnitude;
                 if (m < rad && m > 1e-4f) _pos[i] = centre + d * (rad / m);
+                // Hug clamp: a fringe must lie ON the forehead, not stand off it like an awning.
+                else if (hugR > 0f && m > hugR) _pos[i] = centre + d * (hugR / m);
             }
 
             // Build the ribbon verts HERE, against the head's PHYSICS pose (the transform is the

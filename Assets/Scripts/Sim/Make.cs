@@ -93,6 +93,48 @@ namespace Trickshot
             var m = new Material(s_Hair);
             m.SetColor("_Color", c);
             m.SetFloat("_Cutoff", 0f);                  // never clip -> fully opaque dome
+            // A shell fills mesh.tangents with its geometric normal; half Lambert on that gives the
+            // dome FORM shading (a cap lit by Kajiya tangents alone reads as a flat sheet).
+            m.SetFloat("_NormalWeight", 0.55f);
+            return m;
+        }
+
+        static Texture2D s_TuftAtlas;
+        /// <summary>Hair-card material for SHORT tufts: the HairCard shader on the TUFT atlas
+        /// (Resources/Hair/TuftAtlas.png - four tapered clumps that converge to a point, roots at
+        /// the bottom) with a slightly lower cutoff so the wispy tips survive. The Long atlas stays
+        /// on the long styles untouched.</summary>
+        public static Material HairTuftCards(Color c)
+        {
+            if (s_Hair == null) s_Hair = Resources.Load<Shader>("Shaders/HairCard");
+            if (s_TuftAtlas == null) s_TuftAtlas = Resources.Load<Texture2D>("Hair/TuftAtlas");
+            if (s_Hair == null) return Unlit(c);
+            var m = new Material(s_Hair);
+            m.SetColor("_Color", c);
+            m.SetFloat("_Cutoff", 0.35f);
+            if (s_TuftAtlas != null) { s_TuftAtlas.wrapMode = TextureWrapMode.Clamp; m.SetTexture("_MainTex", s_TuftAtlas); }
+            return m;
+        }
+
+        static Shader s_Decal;
+        static Texture2D s_Stipple;
+        /// <summary>Stipple mask for drawn-on scalp/stubble decals (Resources/Hair/Stipple.png,
+        /// tileable grayscale). A static singleton, never destroyed.</summary>
+        public static Texture2D Stipple
+        {
+            get { if (s_Stipple == null) s_Stipple = Resources.Load<Texture2D>("Hair/Stipple"); return s_Stipple; }
+        }
+        /// <summary>Alpha-blended decal material (Trickshot/HeadDecal): tint with alpha = opacity,
+        /// masked by a grayscale texture tiled `tile` times. Falls back to a flat lit material if the
+        /// shader is somehow absent.</summary>
+        public static Material Decal(Color tint, Texture2D mask, float tileU = 1f, float tileV = 1f)
+        {
+            if (s_Decal == null) s_Decal = Resources.Load<Shader>("Shaders/HeadDecal");
+            if (s_Decal == null) return Mat(new Color(tint.r, tint.g, tint.b, 1f), 0.1f);
+            var m = new Material(s_Decal);
+            m.SetColor("_Color", tint);
+            if (mask != null) { mask.wrapMode = TextureWrapMode.Repeat; m.SetTexture("_MainTex", mask); }
+            m.SetTextureScale("_MainTex", new Vector2(tileU, tileV));
             return m;
         }
 

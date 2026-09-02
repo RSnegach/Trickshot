@@ -136,7 +136,7 @@ namespace Trickshot
         // Rebind material slots by NAME. Anything unmatched keeps the model's own imported material,
         // which is deliberate: a grandstand carries slots like glass and road that a two-colour palette
         // has no opinion about, and Kenney's own colour for those is usually the right answer.
-        static void Recolor(GameObject go, Paint[] palette)
+        public static void Recolor(GameObject go, Paint[] palette)
         {
             if (palette == null || palette.Length == 0) return;
             MeshRenderer[] rends = go.GetComponentsInChildren<MeshRenderer>(true);
@@ -168,6 +168,9 @@ namespace Trickshot
         // that stays correct for a prefab whose parts hang off offset or rotated children: reading
         // mesh.bounds off the first MeshFilter would measure one part of a multi-part model and scale
         // everything else by the wrong factor.
+        /// <summary>Public wrapper for the bounds measurement below, for CosmeticMesh.</summary>
+        public static bool TryMeasure(string key, GameObject prefab, out Bounds b) => MeasuredBounds(key, prefab, out b);
+
         static bool MeasuredBounds(string key, GameObject prefab, out Bounds b)
         {
             if (_bounds.TryGetValue(key, out b)) return true;

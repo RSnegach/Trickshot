@@ -1,0 +1,3 @@
+TuftAtlas.png is composed from four clumps of 'Hair Alphas For Days' by OwlishMedia
+(https://opengameart.org/content/hair-alphas-for-days), licensed CC0 / public domain.
+Stipple.png is generated procedurally for this project.

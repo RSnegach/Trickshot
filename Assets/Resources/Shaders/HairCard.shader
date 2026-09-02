@@ -21,6 +21,14 @@ Shader "Trickshot/HairCard"
         _DiffWrap   ("Diffuse Wrap", Range(0,1)) = 0.6
         _RootDark   ("Root Darkening", Range(0,1)) = 0.35
         _Ambient    ("Ambient Boost", Range(0,2)) = 1.1
+        // SHELL controls, both 0 for the card styles so Long / Shoulder render as before.
+        // _NormalWeight blends a Lambert term on the mesh TANGENT semantic (which a scalp shell
+        // fills with its geometric normal) into the Kajiya diffuse, so a dome shades as a form
+        // instead of a sheet of parallel strands. _SolidToTip skips the alpha clip while uv2.x
+        // (root->tip) is below it, so a fringe panel or a mohawk fin stays solid at the root and
+        // feathers only at the tips.
+        _NormalWeight ("Normal Lambert Weight", Range(0,1)) = 0
+        _SolidToTip   ("Solid Until Root->Tip", Range(0,1)) = 0
     }
 
     SubShader
@@ -53,6 +61,8 @@ Shader "Trickshot/HairCard"
             float  _DiffWrap;
             float  _RootDark;
             float  _Ambient;
+            float  _NormalWeight;
+            float  _SolidToTip;
 
             struct appdata
             {
@@ -60,6 +70,7 @@ Shader "Trickshot/HairCard"
                 float3 normal : NORMAL;     // strand TANGENT (local), baked by HairSim
                 float2 uv     : TEXCOORD0;  // atlas UV (into a strip of _MainTex)
                 float2 uv2    : TEXCOORD1;  // uv2.x = root(0)->tip(1)
+                float4 tangent: TANGENT;    // GEOMETRIC normal for shells (unused by cards)
             };
 
             struct v2f
@@ -69,6 +80,7 @@ Shader "Trickshot/HairCard"
                 float3 tangentW : TEXCOORD1;
                 float3 viewW    : TEXCOORD2;
                 float  rootTip  : TEXCOORD3;
+                float3 geoNrmW  : TEXCOORD4;
             };
 
             v2f vert (appdata v)
@@ -80,6 +92,7 @@ Shader "Trickshot/HairCard"
                 float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.viewW = normalize(_WorldSpaceCameraPos - worldPos);
                 o.rootTip = v.uv2.x;
+                o.geoNrmW = normalize(UnityObjectToWorldDir(v.tangent.xyz));
                 return o;
             }
 
@@ -87,7 +100,7 @@ Shader "Trickshot/HairCard"
             {
                 // Grayscale atlas: use the red channel as opacity, clip the gaps between strands.
                 fixed opacity = tex2D(_MainTex, i.uv).r;
-                clip(opacity - _Cutoff);
+                if (i.rootTip >= _SolidToTip) clip(opacity - _Cutoff);
 
                 float3 t = normalize(i.tangentW);
                 float3 v = normalize(i.viewW);
@@ -97,6 +110,10 @@ Shader "Trickshot/HairCard"
                 float dotTL = dot(t, l);
                 float sinTL = sqrt(max(1.0 - dotTL*dotTL, 0.0));
                 float diff  = saturate((sinTL + _DiffWrap) / (1.0 + _DiffWrap));
+                // Shell form shading: wrapped Lambert on the geometric normal, blended in by weight.
+                float3 gn = normalize(i.geoNrmW);
+                float lam = saturate((dot(gn, l) + _DiffWrap) / (1.0 + _DiffWrap));
+                diff = lerp(diff, lam, _NormalWeight);
 
                 // One shifted anisotropic highlight.
                 float3 tS = normalize(t + _SpecShift * float3(0,1,0));
