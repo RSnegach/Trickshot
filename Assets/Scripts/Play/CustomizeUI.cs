@@ -897,11 +897,23 @@ namespace Trickshot
             return result;
         }
 
+        // Columns a swatch grid of width w holds at sw px plus gap, capped at maxCols when that is
+        // set. Shared with the callers so they can reserve the grid's height (SwatchRows) before
+        // laying out whatever sits under it.
+        static int SwatchCols(float w, float sw, float gap, int maxCols = 0)
+        {
+            int n = Mathf.Max(1, Mathf.FloorToInt((w + gap) / (sw + gap)));
+            return maxCols > 0 ? Mathf.Min(n, maxCols) : n;
+        }
+        static int SwatchRows(int count, float w, float sw, float gap, int maxCols = 0)
+            => Mathf.CeilToInt(count / (float)SwatchCols(w, sw, gap, maxCols));
+
         // A row/grid of preset colour swatches; returns the picked colour (else `current`).
-        Color SwatchRow(float x, float y, float w, Color current, Color[] cols, float sw = 30f, float gap = 6f)
+        Color SwatchRow(float x, float y, float w, Color current, Color[] cols, float sw = 30f, float gap = 6f,
+                        int maxCols = 0)
         {
             Color result = current;
-            int cols_n = Mathf.Max(1, Mathf.FloorToInt((w + gap) / (sw + gap)));
+            int cols_n = SwatchCols(w, sw, gap, maxCols);
             for (int i = 0; i < cols.Length; i++)
             {
                 float cx = x + (i % cols_n) * (sw + gap);
@@ -971,9 +983,15 @@ namespace Trickshot
                 var grp = new GUIStyle(GUI.skin.label)
                 { fontSize = 14, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } };
                 UITheme.Label(new Rect(lx, row, lw, 20f), SpeciesCosmetics.SkinGroupLabel(sp), grp); row += 24f;
+                // Eight to a row at 40 px: the lists are 12-16 long and ordered light to dark, so a
+                // fixed eight-wide grid reads as two even shade ladders rather than the ragged
+                // 10 + 6 the free-flowing width would give. Height is reserved from the count.
+                const float skinSw = 40f, skinGap = 8f;
+                const int skinCols = 8;
+                var skins = SpeciesCosmetics.SkinSwatches(sp);
                 PlayerProfile.Appearance.Skin = SwatchRow(lx, row, lw, PlayerProfile.Appearance.Skin,
-                                                         SpeciesCosmetics.SkinSwatches(sp), 34f, 8f);
-                row += 2 * (34f + 8f) + 12f;   // two rows of swatches
+                                                         skins, skinSw, skinGap, skinCols);
+                row += SwatchRows(skins.Length, lw, skinSw, skinGap, skinCols) * (skinSw + skinGap) + 12f;
                 UITheme.Label(new Rect(lx, row, lw, 20f), slot.ColorLabel, grp); row += 24f;
                 float skinWsz = Mathf.Min(lw, bottom - row - 34f, 150f);   // leave room for the bar under it
                 Color before = PlayerProfile.Appearance.Skin;
@@ -1018,10 +1036,20 @@ namespace Trickshot
 
             float wx = lx + gridW + 14f, wsz = Mathf.Min(150f, lw - gridW - 14f);
             UITheme.Label(new Rect(wx, row, wsz, 18f), slot.ColorLabel, st);
-            Color tint = WheelPick(new Rect(wx, row + 20f, wsz, wsz), SlotColor(slot.Kind));
+            // Preset swatches first, four to a row down the wheel column (33 px + 6 fills the
+            // 150 px exactly), then the wheel and its value bar under them. A swatch pick feeds the
+            // wheel and bar in the same frame, so the bar handle lands on the new colour at once
+            // rather than a frame late. The tallest list (16) puts the bar's bottom ~100 px above
+            // the Back / Next row, so nothing needs to scroll.
+            const float slotSw = 33f, slotGap = 6f;
+            var presets = SpeciesCosmetics.SlotSwatches(sp, slot.Kind);
+            float wy = row + 22f;
+            Color cur = SwatchRow(wx, wy, wsz, SlotColor(slot.Kind), presets, slotSw, slotGap);
+            wy += SwatchRows(presets.Length, wsz, slotSw, slotGap) * (slotSw + slotGap) + 6f;
+            Color tint = WheelPick(new Rect(wx, wy, wsz, wsz), cur);
             // The HSV wheel is fixed at full value so it can't reach dark shades; a value bar under
             // it goes white -> the picked hue -> black.
-            SetSlotColor(slot.Kind, ValueBar(new Rect(wx, row + 26f + wsz, wsz, 22f), tint));
+            SetSlotColor(slot.Kind, ValueBar(new Rect(wx, wy + wsz + 6f, wsz, 22f), tint));
         }
 
         // The only four places that know which PlayerAppearance field a SlotKind drives. Everything

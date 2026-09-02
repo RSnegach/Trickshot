@@ -438,9 +438,11 @@ namespace Trickshot
                 BeardAnnulus(h, m, -14f, 0.008f, 0.005f, 0.010f, 0.012f, false, out _, out _) },
             new FacialEntry { Name = "Full Beard", Build = (h, m) =>
             {
-                BeardAnnulus(h, m, -5f, 0.008f, 0.008f, 0.018f, 0.030f, true, out var edge, out var outw);
+                // Deep relief and a long under-chin loft: this beard stands well off the face and
+                // hangs, with a longer fringe of cards below it.
+                BeardAnnulus(h, m, -5f, 0.010f, 0.014f, 0.034f, 0.062f, true, out var edge, out var outw);
                 _fringeEdge = edge; _fringeOut = outw;
-            }, Fringe = (h, tm) => FringeCards(h, tm, _fringeEdge, _fringeOut, 0.05f, 0.03f, 26, new Vector3(0f, -1f, 0.3f), 0.22f) },
+            }, Fringe = (h, tm) => FringeCards(h, tm, _fringeEdge, _fringeOut, 0.11f, 0.035f, 36, new Vector3(0f, -1f, 0.25f), 0.2f) },
             new FacialEntry { Name = "Sideburns", Build = (h, m) =>
             {
                 float top = _bald ? 6f : 10f;

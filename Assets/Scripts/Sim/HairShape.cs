@@ -16,7 +16,8 @@ namespace Trickshot
         /// <summary>
         /// Hairline as a polar angle phi (radians down from the crown) per azimuth theta (0 = the
         /// face, +/-pi = the nape). Catmull-Rom through: forehead 0.85, temple notch 0.75 at +/-0.55,
-        /// sides 1.25 at +/-1.3, behind the ear 1.40 at +/-2.2, nape 1.55 at pi. Symmetric in theta.
+        /// sides 1.25 at +/-1.3, behind the ear 1.60 at +/-2.2, nape 1.88 at pi (well below ear
+        /// level, so every style covers the back of the head). Symmetric in theta.
         /// </summary>
         public static float HairlinePhi(float theta)
         {
@@ -34,7 +35,7 @@ namespace Trickshot
             return KnotP[KnotP.Length - 1];
         }
         static readonly float[] KnotT = { 0f, 0.55f, 1.3f, 2.2f, Mathf.PI };
-        static readonly float[] KnotP = { 0.85f, 0.75f, 1.25f, 1.40f, 1.55f };
+        static readonly float[] KnotP = { 0.85f, 0.75f, 1.25f, 1.60f, 1.88f };
 
         /// <summary>Polar angle and azimuth of a unit direction (phi 0 = crown, theta 0 = +Z face).</summary>
         public static void Polar(Vector3 dir, out float phi, out float theta)

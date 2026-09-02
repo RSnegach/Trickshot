@@ -326,31 +326,18 @@ namespace Trickshot
             Spectacles(h, Gold(), lens, Teardrop(0.098f, 0.088f, -20f), new Vector2(0.082f, 0.015f),
                        0.0025f, 6, 0.011f, 0.006f, 0.03f, 0.035f, new[] { 0.036f, 0.014f });
         }
+        // Visor Shades: the ORIGINAL block build, by request. A wraparound dark band with angled
+        // wrap edges, a frame trim above it and two arms.
         static void BuildVisorShades(Transform h, Material m)
         {
-            var lens = Lens(Color.Lerp(m.color, Color.black, 0.7f), 0.85f, 0.95f);
-            Vector2 Extents(float th)
-            {
-                float a = Mathf.Abs(th);
-                float edge = 1f - 0.45f * Smooth(60f, 75f, a);                 // converge over the outer 15 deg
-                float top = 0.052f * edge, bot = -0.012f * edge;
-                if (a < 6f) bot += 0.008f * (1f - a / 6f);                     // nose notch
-                return new Vector2(top, bot);
-            }
-            HeadBand(h, lens, 0.010f, -75f, 75f, Extents, 40);
-            // Trim along the top edge and temples to the ears.
-            var top = new Vector3[21];
-            for (int i = 0; i <= 20; i++) { float th = Mathf.Lerp(-75f, 75f, i / 20f); float y = Extents(th).x; float R = HeadR; float rr = Mathf.Sqrt(R * R - y * y); top[i] = new Vector3(rr * Mathf.Sin(th * Mathf.Deg2Rad), y, rr * Mathf.Cos(th * Mathf.Deg2Rad)).normalized; }
-            SweptTube(h, m, top, 0.012f, 0.0035f, 6);
-            for (int side = -1; side <= 1; side += 2)
-            {
-                Vector3 a = Dir(side * Mathf.Sin(75f * Mathf.Deg2Rad), 0.04f / HeadR, Mathf.Cos(75f * Mathf.Deg2Rad));
-                Vector3 b = Dir(side * Mathf.Sin(95f * Mathf.Deg2Rad), 0.04f / HeadR, Mathf.Cos(95f * Mathf.Deg2Rad));
-                var path = new List<Vector3>(PathDirs(a, b, 0f, 6));
-                for (int k = 1; k <= 4; k++) path.Add(Quaternion.AngleAxis((0.025f / HeadR) * k / 4f * Mathf.Rad2Deg, -Vector3.Cross(b, Vector3.up).normalized) * b);
-                SweptTube(h, m, path.ToArray(), 0.006f, 0.003f, 6);
-            }
+            LegacyBlk(h, new Vector3(0f, 0.02f, 0.19f), new Vector3(0.30f, 0.07f, 0.02f), Dark());
+            LegacyBlk(h, new Vector3(-0.17f, 0.02f, 0.12f), new Vector3(0.05f, 0.06f, 0.08f), new Vector3(0f, 35f, 0f), Dark());
+            LegacyBlk(h, new Vector3(0.17f, 0.02f, 0.12f), new Vector3(0.05f, 0.06f, 0.08f), new Vector3(0f, -35f, 0f), Dark());
+            LegacyBlk(h, new Vector3(0f, 0.06f, 0.185f), new Vector3(0.32f, 0.015f, 0.02f), m);
+            LegacyBlk(h, new Vector3(-0.16f, 0.03f, 0.06f), new Vector3(0.025f, 0.02f, 0.14f), m);
+            LegacyBlk(h, new Vector3(0.16f, 0.03f, 0.06f), new Vector3(0.025f, 0.02f, 0.14f), m);
         }
+
         static void BuildMonocle(Transform h, Material m)
         {
             Vector3 centre = Dir(0.08f, 0.02f, HeadR);
@@ -400,17 +387,38 @@ namespace Trickshot
             HeadBand(h, m, 0.004f, 52f, 308f, th => new Vector2(0.02f + 0.0175f + 0.006f, 0.02f - 0.0175f + 0.006f), 40);
             SurfBlk(h, Dark(), Dir(Mathf.Sin(250f * Mathf.Deg2Rad), 0.03f / HeadR, Mathf.Cos(250f * Mathf.Deg2Rad)), 0.006f, new Vector3(0.02f, 0.035f, 0.006f));
         }
+        // Reading Glasses: the ORIGINAL block build, by request. Half-height frames low on the nose,
+        // a low bridge, arms angling up to the ears.
         static void BuildReadingGlasses(Transform h, Material m)
         {
-            var frame = Own(Make.Mat(m.color, 0.6f));
-            var outline = RoundedPoly(new[] { new Vector2(-0.044f, -0.023f), new Vector2(0.044f, -0.023f), new Vector2(0.044f, 0.023f), new Vector2(-0.044f, 0.023f) },
-                                      new[] { 0.023f, 0.023f, 0.004f, 0.004f }, 6);
-            Spectacles(h, frame, Lens(new Color(0.85f, 0.92f, 1f), 0.22f, 0.9f), outline, new Vector2(0.072f, -0.020f),
-                       0.0025f, 8, 0.010f, 0.007f, 0.035f, 0.03f, new[] { -0.018f });
+            LegacyBlk(h, new Vector3(-0.07f, -0.01f, 0.19f), new Vector3(0.09f, 0.045f, 0.018f), m);
+            LegacyBlk(h, new Vector3(-0.07f, -0.01f, 0.196f), new Vector3(0.07f, 0.035f, 0.012f), Glass());
+            LegacyBlk(h, new Vector3(0.07f, -0.01f, 0.19f), new Vector3(0.09f, 0.045f, 0.018f), m);
+            LegacyBlk(h, new Vector3(0.07f, -0.01f, 0.196f), new Vector3(0.07f, 0.035f, 0.012f), Glass());
+            LegacyBlk(h, new Vector3(0f, -0.01f, 0.19f), new Vector3(0.04f, 0.015f, 0.015f), m);
+            LegacyBlk(h, new Vector3(-0.14f, 0f, 0.11f), new Vector3(0.02f, 0.018f, 0.15f), new Vector3(6f, 0f, 0f), m);
+            LegacyBlk(h, new Vector3(0.14f, 0f, 0.11f), new Vector3(0.02f, 0.018f, 0.15f), new Vector3(-6f, 0f, 0f), m);
         }
 
-        // ---- props and jewellery ------------------------------------------------------------
-        // Piece at a head-local pose (girth-1 metres) with the mesh scaled by _cosScale.
+        static void LegacyBall(Transform head, Vector3 localPos, Vector3 localScale, Material mat)
+        {
+            var go = Make.Sphere("cz", 1f, head.position, mat, head);
+            go.transform.localPosition = localPos * _cosScale;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = localScale * _cosScale;
+            var col = go.GetComponent<Collider>();
+            if (col != null) UnityEngine.Object.Destroy(col);
+        }
+        static void LegacyBlk(Transform head, Vector3 localPos, Vector3 localScale, Material mat)
+            => LegacyBlk(head, localPos, localScale, Vector3.zero, mat);
+        static void LegacyBlk(Transform head, Vector3 localPos, Vector3 localScale, Vector3 euler, Material mat)
+        {
+            var go = Make.Box("cz", Vector3.one, head.position, mat, head, collider: false);
+            go.transform.localPosition = localPos * _cosScale;
+            go.transform.localRotation = Quaternion.Euler(euler);
+            go.transform.localScale = localScale * _cosScale;
+        }
+
         static GameObject PieceAt(Transform head, Mesh mesh, Material mat, Vector3 pos, Quaternion rot, bool shadows = true)
         {
             MeshGen.Transform(mesh, pos * _cosScale, rot, Vector3.one * _cosScale);

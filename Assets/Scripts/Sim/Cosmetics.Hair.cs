@@ -322,152 +322,75 @@ namespace Trickshot
             Sim(head, tufts, m, HeadR * _cosScale, Quaternion.identity);
         }
 
-        static void BuildFringe(Transform head, HairMats m)
+        // ---- the original scalp cap, for the card styles the player preferred as they were ------
+        /// <summary>
+        /// A hair-coloured skin over the top of the head under a card style, so no bare scalp shows
+        /// between clumps. The one change from the original: its lower edge follows the shared
+        /// hairline (HairShape.HairlinePhi) instead of a fixed latitude, so it drops down the nape
+        /// like every other style. Normals are the meridian (strand tangent for the sheen), tangents
+        /// the geometric normal, and it is emitted double-sided.
+        /// </summary>
+        static void LegacyCrownPatch(Transform head, Material mat)
         {
-            HairShell(head, m.Cap, ShellBob);
-            // Bang panel over the forehead: solid at the root, feathered and scalloped at the brow.
-            Vector2 strip = HairSim.AtlasStripsU[2];
+            float rr = HeadR + 0.006f;
             Vector3 F(float u, float v)
             {
-                float theta = Mathf.Lerp(-0.85f, 0.85f, u);
-                float phi = Mathf.Lerp(0.50f, 1.15f, v) + 0.06f * Mathf.Sin(6f * u * Mathf.PI) * Smooth(0.7f, 1f, v);
-                Vector3 d = HairShape.Dir(phi, theta);
-                float rTop = HairShape.ShellRadius(HairShape.Dir(0.5f, theta), ShellBob, HeadR);
-                float rBot = HeadR + 0.007f + 0.003f * Smooth(0.66f, 1f, v);
-                return d * Mathf.Lerp(rTop, rBot, Mathf.SmoothStep(0f, 1f, v));
+                float theta = -Mathf.PI + u * Mathf.PI * 2f;
+                float phi = v * HairShape.HairlinePhi(theta);
+                return HairShape.Dir(phi, theta) * rr;
             }
-            var panel = MeshGen.Param(F, 24, 10, wrapU: false, wrapV: false, flip: true);
-            var pv = panel.vertices; var pg = panel.normals;
-            var pn = new Vector3[pv.Length]; var pt = new Vector4[pv.Length]; var puv = new Vector2[pv.Length]; var puv2 = new Vector2[pv.Length];
-            for (int idx = 0; idx < pv.Length; idx++)
+            var front = MeshGen.Param(F, 32, 8, wrapU: true, wrapV: false, flip: false);
+            var back = MeshGen.Param(F, 32, 8, wrapU: true, wrapV: false, flip: true);
+            var m = MeshGen.Combine(front, back);
+            var verts = m.vertices; var norms = new Vector3[verts.Length]; var tans = new Vector4[verts.Length];
+            for (int i = 0; i < verts.Length; i++)
             {
-                int i = idx % 25, j = idx / 25;
-                float u = i / 24f, v = j / 10f;
-                Vector3 dir = pv[idx].normalized;
-                Vector3 gn = pg[idx]; if (Vector3.Dot(gn, dir) < 0f) gn = -gn;
-                pt[idx] = new Vector4(gn.x, gn.y, gn.z, 1f);
+                Vector3 dir = verts[i].normalized;
                 HairShape.Polar(dir, out float phi, out float theta);
-                pn[idx] = new Vector3(Mathf.Cos(phi) * Mathf.Sin(theta), -Mathf.Sin(phi), Mathf.Cos(phi) * Mathf.Cos(theta)); // down the panel
-                puv[idx] = new Vector2(Mathf.Lerp(strip.x, strip.y, Mathf.Repeat(u * 3f, 1f)), Mathf.Lerp(HairSim.AtlasVRoot, HairSim.AtlasVTip, v));
-                puv2[idx] = new Vector2(v, 0f);
-                pv[idx] *= _cosScale;
+                norms[i] = new Vector3(Mathf.Cos(phi) * Mathf.Sin(theta), -Mathf.Sin(phi), Mathf.Cos(phi) * Mathf.Cos(theta));
+                tans[i] = new Vector4(dir.x, dir.y, dir.z, 1f);
+                verts[i] *= _cosScale;
             }
-            panel.vertices = pv; panel.normals = pn; panel.tangents = pt; panel.uv = puv; panel.uv2 = puv2; panel.RecalculateBounds();
-            Piece(head, panel, m.TuftWith(0.55f, 0.3f));
+            m.vertices = verts; m.normals = norms; m.tangents = tans; m.RecalculateBounds();
+            Piece(head, m, mat);
+        }
+
+        // Fringe: the ORIGINAL card style, by request. A soft bang swept down over the brow from a
+        // front hairline, low stiffness so it hangs on the forehead, over the scalp cap.
+        static void BuildFringe(Transform head, HairMats m)
+        {
+            LegacyCrownPatch(head, m.Cap);
             var def = new HairSim.HairDef
             {
-                root = HairSim.RootMode.FrontHairline, strands = 18, nodes = 5, length = 0.06f, fan = 1, staticToHead = false,
-                stiffness = 0.3f, flow = new Vector3(0f, -1f, 0.12f), curl = 0.008f, jitter = 0.12f, thickness = 0.02f,
-                atlas = HairSim.Atlas.Long, rootRadiusAt = ShellRootFn(ShellBob, 0.003f), normalBlend = 0.15f, hugMax = 0.03f,
+                root = HairSim.RootMode.FrontSweep, strands = 70, nodes = 5, length = 0.19f, fan = 5, staticToHead = false,
+                stiffness = 0.3f, flow = new Vector3(0f, -0.75f, 0.6f), curl = 0.012f, jitter = 0.15f, thickness = 0.055f,
             };
             Sim(head, def, m, HeadR * _cosScale, Quaternion.identity);
         }
 
+        // Mohawk: the ORIGINAL card style, by request. A tall stiff midline crest of thin dense
+        // blades standing up; no scalp cap, the sides are shaved by design.
         static void BuildMohawk(Transform head, HairMats m)
         {
-            // Stubble band either side of the crest.
-            var c = m.Color; c.a = 0.75f;
-            var band = MeshGen.Param((u, v) =>
+            var def = new HairSim.HairDef
             {
-                float a = Mathf.Lerp(-1.3f, 1.3f, u);
-                float beta = Mathf.Lerp(-0.34f, 0.34f, v);
-                Vector3 d = new Vector3(Mathf.Sin(beta), Mathf.Cos(beta) * Mathf.Cos(a), Mathf.Cos(beta) * Mathf.Sin(a));
-                return d * (HeadR + 0.002f) * _cosScale;
-            }, 26, 8, flip: false);
-            {
-                var bv = band.vertices; var bc = new Color32[bv.Length]; var bn = new Vector3[bv.Length];
-                for (int idx = 0; idx < bv.Length; idx++)
-                {
-                    int i = idx % 27, j = idx / 27; float u = i / 26f, v = j / 8f;
-                    float beta = Mathf.Abs(Mathf.Lerp(-0.34f, 0.34f, v));
-                    float alpha = 1f - Smooth(0.20f, 0.34f, beta);
-                    alpha *= Smooth(0f, 0.12f, u) * Smooth(0f, 0.12f, 1f - u);   // fade the ends
-                    bc[idx] = new Color32(255, 255, 255, (byte)(alpha * 255f));
-                    bn[idx] = bv[idx].normalized;
-                }
-                band.colors32 = bc; band.normals = bn;
-            }
-            Piece(head, band, m.Own(Make.Decal(c, Make.Stipple, 4f, 1f)), castShadows: false);
-
-            // The fin: a lofted triangular section along the sagittal arc with serrated teeth.
-            const int teeth = 12;
-            float Height(float a)
-            {
-                float k = Mathf.Clamp01(1f - (Mathf.Abs(a) / 1.15f) * (Mathf.Abs(a) / 1.15f));
-                float h = Mathf.Lerp(0.006f, 0.115f, Mathf.Pow(k, 0.6f));
-                float tri = Mathf.Abs(Mathf.Repeat((a + 1.15f) / 2.3f * teeth, 1f) * 2f - 1f);   // 1 at tooth tips, 0 between
-                return h - 0.010f * (1f - tri);
-            }
-            Vector2 stripFin = HairSim.AtlasStripsU[3];
-            var fin = MeshGen.Param((u, v) =>
-            {
-                float a = Mathf.Lerp(-1.15f, 1.15f, u);
-                Vector3 d = new Vector3(0f, Mathf.Cos(a), Mathf.Sin(a));
-                float h = Height(a);
-                // Triangle loop: left base -> apex -> right base -> (under) -> left base.
-                float x, y;
-                if (v < 1f / 3f) { float t = v * 3f; x = Mathf.Lerp(-0.024f, -0.002f, t); y = t * h; }
-                else if (v < 2f / 3f) { float t = (v - 1f / 3f) * 3f; x = Mathf.Lerp(0.002f, 0.024f, t); y = (1f - t) * h; }
-                else { float t = (v - 2f / 3f) * 3f; x = Mathf.Lerp(0.024f, -0.024f, t); y = -0.004f; }
-                return (d * (HeadR + 0.002f + y) + Vector3.right * x) * _cosScale;
-            }, 48, 12, wrapU: false, wrapV: true, flip: false);
-            {
-                var fv = fin.vertices; var fg = fin.normals;
-                var fn = new Vector3[fv.Length]; var ft = new Vector4[fv.Length]; var fuv = new Vector2[fv.Length]; var fuv2 = new Vector2[fv.Length];
-                for (int idx = 0; idx < fv.Length; idx++)
-                {
-                    int i = idx % 49, j = idx / 49;
-                    float u = i / 48f, v = j / 12f;
-                    float a = Mathf.Lerp(-1.15f, 1.15f, u);
-                    Vector3 d = new Vector3(0f, Mathf.Cos(a), Mathf.Sin(a));
-                    float h = Mathf.Max(Height(a), 1e-3f);
-                    float y = v < 1f / 3f ? v * 3f * h : v < 2f / 3f ? (1f - (v - 1f / 3f) * 3f) * h : 0f;
-                    float tip = Mathf.Clamp01(y / h);
-                    fn[idx] = d;                                   // strands run up the fin
-                    Vector3 gn = fg[idx]; ft[idx] = new Vector4(gn.x, gn.y, gn.z, 1f);
-                    fuv[idx] = new Vector2(Mathf.Lerp(stripFin.x, stripFin.y, Mathf.Repeat(u * 6f, 1f)), Mathf.Lerp(HairSim.AtlasVRoot, HairSim.AtlasVTip, tip));
-                    fuv2[idx] = new Vector2(tip, 0f);
-                }
-                fin.normals = fn; fin.tangents = ft; fin.uv = fuv; fin.uv2 = fuv2;
-            }
-            Piece(head, fin, m.TuftWith(0.82f, 0.4f));
-
-            // Crest cards rooted at the tooth tips, for wobble.
-            var roots = new Vector3[teeth]; var dirs = new Vector3[teeth];
-            for (int k = 0; k < teeth; k++)
-            {
-                float a = Mathf.Lerp(-1.0f, 1.0f, (k + 0.5f) / teeth);
-                Vector3 d = new Vector3(0f, Mathf.Cos(a), Mathf.Sin(a));
-                roots[k] = d * (HeadR + 0.002f + Height(a) - 0.012f) * _cosScale;
-                dirs[k] = Quaternion.AngleAxis(k % 2 == 0 ? 15f : -15f, new Vector3(0f, -Mathf.Sin(a), Mathf.Cos(a))) * d;
-            }
-            var crest = new HairSim.HairDef
-            {
-                root = HairSim.RootMode.Explicit, roots = roots, dirs = dirs, nodes = 5, length = 0.06f, fan = 1,
-                stiffness = 0.85f, flow = Vector3.up, jitter = 0.05f, thickness = 0.025f, atlas = HairSim.Atlas.Tuft, strips = 0b0100,
+                root = HairSim.RootMode.Strip, strands = 34, nodes = 5, length = 0.26f, fan = 5, staticToHead = false,
+                stiffness = 0.88f, flow = new Vector3(0f, 1f, 0f), curl = 0.008f, jitter = 0.08f, thickness = 0.05f,
             };
-            Sim(head, crest, m, HeadR * _cosScale, Quaternion.identity);
+            Sim(head, def, m, HeadR * _cosScale, Quaternion.identity);
         }
 
+        // Messy: the ORIGINAL card style, by request. Short, low stiffness, maximum scatter so
+        // tufts poke every direction, over the scalp cap.
         static void BuildMessy(Transform head, HairMats m)
         {
-            HairShell(head, m.Cap, ShellMessy);
-            var stat = new HairSim.HairDef
+            LegacyCrownPatch(head, m.Cap);
+            var def = new HairSim.HairDef
             {
-                root = HairSim.RootMode.Hairline, strands = 140, nodes = 4, length = 0.065f, fan = 1, staticToHead = true,
-                stiffness = 1f, flow = new Vector3(0f, 0.35f, 0f), curl = 0.015f, jitter = 0.5f, thickness = 0.03f,
-                atlas = HairSim.Atlas.Tuft, strips = 0b1010, rootRadiusAt = ShellRootFn(ShellMessy), normalBlend = 0.3f,
-                growthClampDir = Vector3.forward, growthClampDot = 0.3f,
+                root = HairSim.RootMode.Crown, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
+                stiffness = 0.32f, flow = new Vector3(0f, 0.5f, 0f), curl = 0.02f, jitter = 0.7f, thickness = 0.05f,
             };
-            Sim(head, stat, m, HeadR * _cosScale, Quaternion.identity);
-            var dyn = new HairSim.HairDef
-            {
-                root = HairSim.RootMode.Hairline, strands = 24, nodes = 5, length = 0.085f, fan = 1, staticToHead = false,
-                stiffness = 0.55f, flow = new Vector3(0f, 0.5f, 0f), curl = 0.01f, jitter = 0.6f, thickness = 0.025f,
-                atlas = HairSim.Atlas.Tuft, strips = 0b1010, rootRadiusAt = ShellRootFn(ShellMessy), normalBlend = 0.3f, hugMax = 0.035f,
-                growthClampDir = Vector3.forward, growthClampDot = 0.3f,
-            };
-            Sim(head, dyn, m, HeadR * _cosScale, Quaternion.identity);
+            Sim(head, def, m, HeadR * _cosScale, Quaternion.identity);
         }
 
         static void BuildCurly(Transform head, HairMats m)
@@ -483,10 +406,13 @@ namespace Trickshot
                 HairShape.Polar(dir, out float phi, out _);
                 float surf = HairShape.ShellRadius(dir, ShellCurly, HeadR);
                 Vector3 axis = Tilt(dir, new Vector3(rng.Sym(), rng.Sym(), rng.Sym()), rng.Range(25f, 40f));
-                float radius = rng.Range(0.009f, 0.012f);
-                float turns = phi > 1.2f ? 1f : rng.Range(1.25f, 1.75f);
+                // Below the crown the ringlets HANG: the helix axis leans toward gravity, so the sides
+                // and nape read as longer curls falling off the head rather than loops lying on it.
+                axis = Vector3.Slerp(axis, Vector3.down, 0.55f * Smooth(0.7f, 1.3f, phi)).normalized;
+                float radius = rng.Range(0.010f, 0.014f);
+                float turns = phi > 1.2f ? 1.6f : rng.Range(2.0f, 2.8f);   // longer ringlets
                 Vector3 centre = dir * (surf - 0.003f) - axis * 0.002f;
-                var path = MeshGen.Helix(centre, axis, radius, 0.009f, turns, 16, rng.Next() * 6.28f);
+                var path = MeshGen.Helix(centre, axis, radius, 0.011f, turns, 24, rng.Next() * 6.28f);
                 bool tube = i >= 110;
                 if (!tube) ribbons.Add(MeshGen.Ribbon(path, 0.009f, Vector3.zero, wavy, HairSim.AtlasVRoot, HairSim.AtlasVTip, 0.3f));
                 else tubes.Add(MeshGen.Tube(path, rng.Range(0.0035f, 0.004f), 6, false, true));
@@ -520,7 +446,7 @@ namespace Trickshot
             Piece(head, tie, m.Own(Make.Mat(new Color(0.12f, 0.10f, 0.10f), 0.3f)));
             var tail = new HairSim.HairDef
             {
-                root = HairSim.RootMode.TieCluster, tieDir = TieDir, strands = 30, nodes = 9, length = 0.32f, fan = 4, staticToHead = false,
+                root = HairSim.RootMode.TieCluster, tieDir = TieDir, strands = 30, nodes = 12, length = 0.50f, fan = 4, staticToHead = false,
                 stiffness = 0.15f, flow = new Vector3(0f, -1f, -0.1f), curl = 0.022f, jitter = 0.16f, thickness = 0.03f,
                 atlas = HairSim.Atlas.Long, rootRadiusAt = ShellRootFn(ShellSleekTie, 0.004f), bundle = 0.5f, bundleRadius = 0.018f, normalBlend = 0.25f,
             };
@@ -534,8 +460,8 @@ namespace Trickshot
             var rot = Quaternion.FromToRotation(Vector3.up, BunDir);
             var bun = MeshGen.Lathe(new[]
             {
-                new Vector2(0f, 0f), new Vector2(0.038f, 0f), new Vector2(0.056f, 0.012f), new Vector2(0.055f, 0.028f),
-                new Vector2(0.038f, 0.040f), new Vector2(0.015f, 0.038f), new Vector2(0f, 0.033f),
+                new Vector2(0f, 0f), new Vector2(0.051f, 0f), new Vector2(0.076f, 0.016f), new Vector2(0.074f, 0.037f),
+                new Vector2(0.051f, 0.053f), new Vector2(0.020f, 0.050f), new Vector2(0f, 0.044f),
             }, 28);
             // Circumferential comb: the sheen rings the knot.
             {
@@ -552,7 +478,7 @@ namespace Trickshot
             var coilParts = new List<Mesh>();
             for (int k = 0; k < 3; k++)
             {
-                var path = MeshGen.Helix(new Vector3(0f, 0.010f + k * 0.009f, 0f), Vector3.up, 0.055f - k * 0.005f, 0.007f, 1.5f, 24, k * 2.1f);
+                var path = MeshGen.Helix(new Vector3(0f, 0.013f + k * 0.012f, 0f), Vector3.up, 0.074f - k * 0.006f, 0.009f, 1.5f, 28, k * 2.1f);
                 coilParts.Add(MeshGen.Tube(path, 0.0025f, 6, true, true));
             }
             var coils = MeshGen.Combine(coilParts.ToArray());
@@ -560,7 +486,7 @@ namespace Trickshot
             var knot = MeshGen.Combine(bun, coils);
             MeshGen.Transform(knot, BunDir * baseR * _cosScale, rot, Vector3.one * _cosScale);
             Piece(head, knot, m.CapWith(0.6f));
-            var tie = MeshGen.Torus(0.038f, 0.004f, 28, 8);
+            var tie = MeshGen.Torus(0.051f, 0.005f, 32, 8);
             MeshGen.Transform(tie, BunDir * (baseR + 0.003f) * _cosScale, rot, Vector3.one * _cosScale);
             Piece(head, tie, m.Own(Make.Mat(new Color(0.12f, 0.10f, 0.10f), 0.3f)));
         }
