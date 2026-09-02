@@ -151,6 +151,28 @@ namespace Trickshot
         // Eight entries per species, matching the two-row layout the Skin sub-menu reserves.
         // The colour wheel below the swatches still allows anything, so these are shortcuts.
 
+        /// <summary>
+        /// The three slot colours a species starts with when the player switches TO it: a horse's mane
+        /// dark, its markings white and its tack brown; an elephant's tusks ivory and its tack red.
+        /// Humans keep whatever they had. Called from Species.ApplySelection on a change only.
+        /// </summary>
+        public static void SeedStyleColors(byte species, ref PlayerAppearance a)
+        {
+            switch (species)
+            {
+                case 1:
+                    a.HairColor = new Color(0.08f, 0.06f, 0.05f);
+                    a.FacialColor = new Color(0.95f, 0.94f, 0.90f);
+                    a.AccessoryColor = new Color(0.32f, 0.20f, 0.10f);
+                    break;
+                case 2:
+                    a.HairColor = new Color(0.46f, 0.46f, 0.48f);
+                    a.FacialColor = new Color(0.93f, 0.90f, 0.80f);
+                    a.AccessoryColor = new Color(0.70f, 0.12f, 0.10f);
+                    break;
+            }
+        }
+
         public static string SkinGroupLabel(byte species)
         {
             switch (species)

@@ -503,8 +503,8 @@ namespace Trickshot
                 // bone root sits at unit scale.
                 var toLocal = Quaternion.Inverse(Quaternion.Euler(_layout.Bones[pi].RestEuler));
 
-                var dims = ScaleDims(d.Kind, d.Dims);
-                var mat  = DecorMaterial(d.Tint, appearance, limbMat, tintMats);
+                var dims = d.GirthDims ? d.Dims * _gScale : ScaleDims(d.Kind, d.Dims);
+                var mat  = d.Hidden ? null : DecorMaterial(d.Tint, appearance, limbMat, tintMats);
 
                 // GirthOffset pieces scale on girth alone, so they hold a fixed fraction of a
                 // girth-scaled radius instead of drifting against it. See DecorSpec.GirthOffset.
@@ -530,7 +530,7 @@ namespace Trickshot
                             sc.radius = dims.y > 0f ? dims.y : dims.x;
                             col = sc;
                         }
-                        visual = Make.Sphere("v", dims.x * 2f, go.transform.position, mat, go.transform);
+                        visual = d.Hidden ? null : Make.Sphere("v", dims.x * 2f, go.transform.position, mat, go.transform);
                         break;
                     case ColliderKind.CapsuleY:
                         if (d.Solid)
@@ -541,7 +541,7 @@ namespace Trickshot
                             cc.height = dims.y;
                             col = cc;
                         }
-                        visual = Make.Capsule("v", dims.x, dims.y, go.transform.position, mat, go.transform);
+                        visual = d.Hidden ? null : Make.Capsule("v", dims.x, dims.y, go.transform.position, mat, go.transform);
                         break;
                     default: // Box
                         if (d.Solid)
@@ -550,14 +550,17 @@ namespace Trickshot
                             bc.size = dims;
                             col = bc;
                         }
-                        visual = Make.Box("v", dims, go.transform.position, mat, go.transform, collider: false);
+                        visual = d.Hidden ? null : Make.Box("v", dims, go.transform.position, mat, go.transform, collider: false);
                         break;
                 }
 
-                visual.transform.localPosition = Vector3.zero;
-                visual.transform.localRotation = Quaternion.identity;
-                var vcol = visual.GetComponent<Collider>();
-                if (vcol != null) Destroy(vcol);
+                if (visual != null)   // Hidden rows: collider only, Cosmetics draws the piece
+                {
+                    visual.transform.localPosition = Vector3.zero;
+                    visual.transform.localRotation = Quaternion.identity;
+                    var vcol = visual.GetComponent<Collider>();
+                    if (vcol != null) Destroy(vcol);
+                }
 
                 if (col != null)
                 {

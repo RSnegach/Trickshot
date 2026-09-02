@@ -368,6 +368,7 @@ namespace Trickshot
             // on Human rather than leaving the player selected on a row that is not drawn, which
             // would look like a dead screen. This is the single funnel, so the guard belongs here.
             if (!def.ModelReady) def = All[0];
+            byte prev = PlayerProfile.Appearance.SpeciesId;
             SelectedId = def.Id;
             PlayerProfile.Appearance.SpeciesId = def.Id;
 
@@ -383,6 +384,11 @@ namespace Trickshot
             PlayerProfile.Appearance.HairStyle   = ClampSlot(def, SlotKind.StyleA, PlayerProfile.Appearance.HairStyle);
             PlayerProfile.Appearance.FacialStyle = ClampSlot(def, SlotKind.StyleB, PlayerProfile.Appearance.FacialStyle);
             PlayerProfile.Appearance.Accessory   = ClampSlot(def, SlotKind.StyleC, PlayerProfile.Appearance.Accessory);
+
+            // Slot colours are not species-neutral: a fresh elephant would otherwise inherit a human's
+            // dark-brown hair colour as its tusk colour. Seeded only when the species actually changes,
+            // so re-picking the same species keeps what the player chose.
+            if (prev != def.Id) SpeciesCosmetics.SeedStyleColors(def.Id, ref PlayerProfile.Appearance);
 
             // Instinct nodes are species-gated; owned ones for another species would otherwise
             // keep paying into SkillTree.Mul while being invisible in the UI.

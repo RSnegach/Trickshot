@@ -20,13 +20,6 @@ namespace Trickshot
         // front of the face, +X is to the side. These are facing-independent (local to the head).
         const float HeadR = 0.19f;
 
-        // How far back a HORSE's hair anchor is tilted about X, degrees. A mane is the same hair
-        // catalog as a human's, so the only difference is which way "down" points: on a horse the
-        // strands have to fall along the CREST of the neck, not off the front of the face. The neck
-        // is decor "D_Neck" in BodyLayout, pitched by exactly this euler, so a style whose flow is
-        // (0,-1,0) drapes straight down the crest. KEEP THESE TWO NUMBERS EQUAL.
-        const float ManeTiltDeg = 38.9f;
-
         // A horse TAIL's dock radius, per unit of each body scale. HairSim roots every strand on a
         // SPHERE about its anchor's origin, so a tail hung on the PELVIS needs that box expressed as a
         // radius. The horse pelvis is a Box of (0.30g, 0.30h, 0.32g), i.e. half extents
@@ -118,6 +111,12 @@ namespace Trickshot
             // guard lower down says why. Every other species draws from its decor table only.
             bool human = a.SpeciesId == Species.HumanId;
             bool mane  = a.SpeciesId == Species.HorseId;
+            if (a.SpeciesId == Species.ElephantId)
+            {
+                // Ears, tusks and tack: shaped meshes over the table's Hidden colliders (Cosmetics.Elephant.cs).
+                _rag = rag; AttachElephantDecor(rag, a); _rag = null;
+                return;
+            }
             if (!human && !mane) return;
             var head = rag.Phys(Bone.Head);
             if (head == null) return;

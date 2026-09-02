@@ -94,6 +94,20 @@ namespace Trickshot
         public int GateMask;
 
         /// <summary>
+        /// Emit the collider only, no primitive visual. The piece is drawn by Cosmetics as a shaped
+        /// mesh over this collider (an elephant's ears and tusks), which keeps "the hitbox is the
+        /// table" true while the look is free to be better than a box.
+        /// </summary>
+        public bool Hidden;
+
+        /// <summary>
+        /// Scale Dims by GIRTH on every axis instead of the per-kind mix. With GirthOffset this makes
+        /// a piece hung on the girth-scaled skull sphere exactly scale invariant (a tusk chord: its
+        /// socket, radius and length all carry g). Not read by the inertia estimate.
+        /// </summary>
+        public bool GirthDims;
+
+        /// <summary>
         /// Scale this piece's Offset by GIRTH on every axis, instead of by the layout's usual mix.
         ///
         /// This exists because girth and height do not commute and a HEAD is a Sphere. ScaleDims gives
@@ -846,9 +860,9 @@ namespace Trickshot
                 // Two differences from the mane, both deliberate and both worth knowing before anyone
                 // tries to "finish" this by pointing the tail at the style picker.
                 //
-                // The anchor is UNROTATED. HairSim's BackCluster root mode already gathers its strands
-                // up-and-back at about 55 degrees off vertical, which is exactly where a dock sits, so
-                // unlike ManeTiltDeg there is no tilt constant here to keep equal to a decor euler.
+                // The anchor is UNROTATED: the tail roots on a dock stub the Cosmetics pass builds off
+                // the rump (HairSim Path root mode), so there is no tilt constant to keep equal to a
+                // decor euler.
                 //
                 // And the tail is NOT the player's picked style. A style IS its RootMode, and Crown,
                 // Ring, Strip and FrontSweep all scatter roots over the whole sphere or the FRONT of
@@ -967,211 +981,62 @@ namespace Trickshot
                   V(0f, -0.2161f, 0.508f), -110f, V(0.052f, 0.18f, 0f), true, DecorTint.Skin),
 
                 // ============================== EARS (StyleA) ==============================
-                // Plain / Notched / Wide / Torn. Thin vertical slabs standing off the sides of the
-                // skull. SOLID, because an ear that big has to stop a ball or it reads as broken, and
-                // index 0 is "Plain" rather than "None" for the same reason: an earless elephant looks
-                // like a bug, not a choice.
+                // Plain / Notched / Wide / Torn. The COLLIDERS are slabs standing off the sides of the
+                // skull, SOLID (an ear that big has to stop a ball or it reads as broken) and index 0
+                // is "Plain" rather than "None" (an earless elephant looks like a bug, not a choice).
                 //
                 // Solid AND gated is the one place that combination is allowed in either table, and it
-                // is safe only because of a rule every variant below obeys: offset x stays at +/-0.215
-                // and dims.x stays at 0.05, so the OUTER FACE sits at 0.24 girth on every option. The
-                // header surface therefore does not move between ear styles and the picker cannot
-                // change how wide the elephant captures the ball. Shapes differ by SUBTRACTION - a
-                // notch, a torn corner - never by pushing the outer face further out.
+                // is safe only because every variant obeys one rule: offset x stays at +/-0.215 and
+                // dims.x at 0.05, so the OUTER FACE sits at 0.24 girth on every option and the picker
+                // cannot change how wide the elephant captures the ball.
                 //
-                // A shape that removes material is built as TWO boxes with a gap, not one box with a
-                // bite taken out of it, because there is no CSG here. Both halves carry the same gate
-                // bit, so they appear and vanish together.
-
-                // PLAIN: one slab, the original ear.
-                D("D_EarPlainL", Bone.Head, ColliderKind.Box,
+                // The rows are HIDDEN: the visible ear is a hinged fan sheet that
+                // Cosmetics.AttachElephantDecor builds inside this box (Cosmetics.Elephant.cs), with
+                // the notch and the tear cut into its margin rather than built from two boxes with a
+                // gap. Plain, Notched and Torn share one collider pair; Wide has its own, bigger in the
+                // two axes that are safe to grow.
+                D("D_EarL", Bone.Head, ColliderKind.Box,
                   V(-0.215f, 0.02f, -0.075f), 0f, V(0.05f, 0.40f, 0.36f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(0)),
-                D("D_EarPlainR", Bone.Head, ColliderKind.Box,
+                  gate: SlotKind.StyleA, gateMask: Bit(0, 1, 3), hidden: true),
+                D("D_EarR", Bone.Head, ColliderKind.Box,
                   V(0.215f, 0.02f, -0.075f), 0f, V(0.05f, 0.40f, 0.36f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(0)),
-
-                // NOTCHED: a tall upper slab and a shorter, shallower lower one. The lower piece is
-                // 0.30 deep against the upper's 0.36 and sits 0.03 further forward, so the missing
-                // material is a wedge out of the REAR MIDDLE, which is where a real notch is.
-                D("D_EarNotchUL", Bone.Head, ColliderKind.Box,
-                  V(-0.215f, 0.115f, -0.075f), 0f, V(0.05f, 0.21f, 0.36f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(1)),
-                D("D_EarNotchUR", Bone.Head, ColliderKind.Box,
-                  V(0.215f, 0.115f, -0.075f), 0f, V(0.05f, 0.21f, 0.36f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(1)),
-                D("D_EarNotchLL", Bone.Head, ColliderKind.Box,
-                  V(-0.215f, -0.13f, -0.045f), 0f, V(0.05f, 0.16f, 0.30f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(1)),
-                D("D_EarNotchLR", Bone.Head, ColliderKind.Box,
-                  V(0.215f, -0.13f, -0.045f), 0f, V(0.05f, 0.16f, 0.30f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(1)),
-
-                // WIDE: bigger in the two axes that are safe to grow, 0.44 tall and 0.50 deep, and
-                // still 0.05 thick at x 0.215. It reads as the biggest ear of the four without moving
-                // the surface a ball can hit sideways.
+                  gate: SlotKind.StyleA, gateMask: Bit(0, 1, 3), hidden: true),
                 D("D_EarWideL", Bone.Head, ColliderKind.Box,
                   V(-0.215f, 0.02f, -0.085f), 0f, V(0.05f, 0.44f, 0.50f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(2)),
+                  gate: SlotKind.StyleA, gateMask: Bit(2), hidden: true),
                 D("D_EarWideR", Bone.Head, ColliderKind.Box,
                   V(0.215f, 0.02f, -0.085f), 0f, V(0.05f, 0.44f, 0.50f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(2)),
-
-                // TORN: a full-depth upper and a small forward-shifted lower stub, so the whole
-                // rear-bottom corner is missing. Ragged where Notched is merely nicked.
-                D("D_EarTornUL", Bone.Head, ColliderKind.Box,
-                  V(-0.215f, 0.075f, -0.075f), 0f, V(0.05f, 0.29f, 0.36f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(3)),
-                D("D_EarTornUR", Bone.Head, ColliderKind.Box,
-                  V(0.215f, 0.075f, -0.075f), 0f, V(0.05f, 0.29f, 0.36f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(3)),
-                D("D_EarTornLL", Bone.Head, ColliderKind.Box,
-                  V(-0.215f, -0.115f, -0.005f), 0f, V(0.05f, 0.09f, 0.22f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(3)),
-                D("D_EarTornLR", Bone.Head, ColliderKind.Box,
-                  V(0.215f, -0.115f, -0.005f), 0f, V(0.05f, 0.09f, 0.22f), true, DecorTint.StyleA,
-                  gate: SlotKind.StyleA, gateMask: Bit(3)),
+                  gate: SlotKind.StyleA, gateMask: Bit(2), hidden: true),
 
                 // ============================== TUSKS (StyleB) ==============================
-                // None / Short / Curved / Long / Banded. All ten rows are GIRTH-OFFSET and all of them
-                // emerge BELOW the trunk. Both of those are corrections to a first pass that was wrong
-                // at every build, so read the next two paragraphs before touching a number here.
+                // None / Short / Curved / Long / Banded. Each tusk is an ARC in the unit head frame
+                // (ElephantTuskArc: socket on the 0.23 skull sphere below and outside the trunk base,
+                // root tangent 20 deg nose-down yawed 12 deg outward, bending up) and a row is a
+                // straight CHORD of it: offset = chord midpoint, euler = chord direction, dims =
+                // (radius, chord length). Offset AND dims scale by girth (GirthOffset + GirthDims), so
+                // the collider tracks the ivory at every build instead of drifting on h/g; the rows are
+                // Hidden and Cosmetics.AttachElephantDecor sweeps the tapering tube along the same arc.
+                // Curved is two chords butted exactly at t 0.5. Every chord's sagitta is below its
+                // radius, so the visual stays inside its collider.
                 //
-                // WHY girthOff, and it is not a preference. A decor Off() offset scales (x*g, y*h, z*h)
-                // under LengthAlongHeight, but the skull is a SPHERE whose radius scales by g. So the
-                // socket moves on h while the surface it must sit on moves on g, and for the elephant
-                // r = h/g runs 0.532 to 1.459 across the two sliders, a 2.7x span. Measured on the old
-                // h-scaled offsets: at MAX weight / MIN height every one of the four tusk variants was
-                // entirely INSIDE the skull, so that build showed no tusks on any option, and the band
-                // was buried at all five slider corners. girthOff makes the offset, the tusk radius and
-                // the skull radius all carry g, so the attachment geometry is exactly scale invariant.
-                // The shared socket below has |offset| = 0.2300, i.e. it lies exactly ON the 0.23 skull
-                // sphere, which is what leaves the whole capsule outside the skull at every build.
-                //
-                // WHY the eulers turned DOWN, 72/68 to 96/100. The trunk descends forward at 35 deg
-                // from a base at y -0.115. A tusk rooted BELOW that base and sweeping UP at 18 deg
-                // drives straight into it, which is the interpenetration the old table had: lateral
-                // trunk clearance measured -0.042 to -0.085 on Short, Curved and Long at EVERY build.
-                // The tusks now start under the trunk and stay under it, and the hook comes from the
-                // Curved variant's tip segment instead of from the root angle.
-                //
-                // These stay SOLID, which BREAKS the rule the rest of both tables follows, and the
-                // reason is worth stating. Three arguments, in order of weight. (1) The tusks were
-                // already Solid before they were gated, so making them non-solid would be a regression
-                // dressed up as consistency. (2) A visible tusk that a ball passes clean through reads
-                // far worse than a reach that changes by a few centimetres. (3) The reach delta is
-                // small anyway: the elephant's front reach comes from the three-segment trunk, which is
-                // ungated anatomy and extends about 1.1 m past the skull, so a 0.30 tusk adds nothing
-                // to the forward extent. Option 0 (None) is the only real change, and it makes the
-                // elephant slightly narrower at the muzzle. Accepted.
-                //
-                // The BAND is the exception inside the exception: it is paint on a tusk, not tusk, so
-                // it is non-solid and Dark.
-
-                // SHORT: the shared socket, 6 deg nose-down, thin and 0.20 long.
-                D("D_TuskShortL", Bone.Head, ColliderKind.CapsuleY,
-                  V(-0.145f, -0.1596f, 0.080f), 96f, V(0.034f, 0.20f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(1), girthOff: true),
-                D("D_TuskShortR", Bone.Head, ColliderKind.CapsuleY,
-                  V(0.145f, -0.1596f, 0.080f), 96f, V(0.034f, 0.20f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(1), girthOff: true),
-
-                // CURVED: two segments, the tip hooking back UP at euler 62 to supply the sweep the
-                // root angle no longer does. Placed by OVERLAP 0.06 along the base axis, NOT butted
-                // onto the base's tip the way the trunk segments are, and that is forced rather than
-                // sloppy: a girth-scaled offset cannot express an h-scaled LENGTH. The base's half
-                // length carries h while the offset carries g, so a butt joint solved at one r gaps at
-                // every other r. Checked at all five slider corners: the base's front face reaches
-                // 0.048 to 0.131 while the tip's rear cap sits at -0.037 to 0.025, so the pair stays
-                // joined, and the tip protrudes 0.026 to 0.047 past the base at every build.
-                D("D_TuskCurveL", Bone.Head, ColliderKind.CapsuleY,
-                  V(-0.145f, -0.1596f, 0.080f), 96f, V(0.038f, 0.18f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(2), girthOff: true),
-                D("D_TuskCurveR", Bone.Head, ColliderKind.CapsuleY,
-                  V(0.145f, -0.1596f, 0.080f), 96f, V(0.038f, 0.18f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(2), girthOff: true),
-                D("D_TuskCurveTipL", Bone.Head, ColliderKind.CapsuleY,
-                  V(-0.145f, -0.1659f, 0.1397f), 62f, V(0.030f, 0.16f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(2), girthOff: true),
-                D("D_TuskCurveTipR", Bone.Head, ColliderKind.CapsuleY,
-                  V(0.145f, -0.1659f, 0.1397f), 62f, V(0.030f, 0.16f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(2), girthOff: true),
-
-                // LONG: shared by Long and Banded, which is the point of a MASK rather than an index.
-                // Banded is this exact tusk plus the ring below, so the two options cannot drift apart.
-                // Laid to euler 100, 10 deg nose-down, because 0.38 of tusk needs more trunk clearance
-                // than any other variant and it is the one that used to foul worst.
-                D("D_TuskLongL", Bone.Head, ColliderKind.CapsuleY,
-                  V(-0.145f, -0.1596f, 0.080f), 100f, V(0.042f, 0.38f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(3, 4), girthOff: true),
-                D("D_TuskLongR", Bone.Head, ColliderKind.CapsuleY,
-                  V(0.145f, -0.1596f, 0.080f), 100f, V(0.042f, 0.38f, 0f), true, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(3, 4), girthOff: true),
-
-                // BAND, a ring on the long tusk, sitting 0.075 FORWARD of the socket along the same
-                // euler-100 axis. Note what it is no longer solved from: the old row solved it from the
-                // tusk's lower END, which is inside the skull, so the ring was buried at every build.
-                // Forward of the socket instead gives |offset| = 0.2730 against a 0.23 skull, so it
-                // shows everywhere. The 0.075 must also land on the VISIBLE part of the tusk, which
-                // needs 0.075 <= 0.19r; the worst corner gives 0.101, so it clears.
-                //
-                // A BOX, not a capsule, and not by preference: at 0.07 long and 0.10 across, 2r/len
-                // would be 1.6 and Unity SILENTLY collapses a capsule to a sphere once 2r exceeds
-                // height. 0.10 against the tusk's 0.084 diameter is what makes the ring show.
-                D("D_TuskBandL", Bone.Head, ColliderKind.Box,
-                  V(-0.145f, -0.1726f, 0.1539f), 100f, V(0.10f, 0.07f, 0.10f), false, DecorTint.Dark,
-                  gate: SlotKind.StyleB, gateMask: Bit(4), girthOff: true),
-                D("D_TuskBandR", Bone.Head, ColliderKind.Box,
-                  V(0.145f, -0.1726f, 0.1539f), 100f, V(0.10f, 0.07f, 0.10f), false, DecorTint.Dark,
-                  gate: SlotKind.StyleB, gateMask: Bit(4), girthOff: true),
+                // These stay SOLID, which breaks the rule the rest of both tables follows: a visible
+                // tusk a ball passes clean through reads far worse than a reach that changes by a few
+                // centimetres with the picker, and the elephant's forward reach is the ungated trunk
+                // anyway. Banded is Long's chord (a MASK, so the two cannot drift apart) plus rings.
+                TuskRow("D_TuskShortL", -1, 1, 0f, 1f, 0.034f, Bit(1)),
+                TuskRow("D_TuskShortR",  1, 1, 0f, 1f, 0.034f, Bit(1)),
+                TuskRow("D_TuskCurveL", -1, 2, 0f, 0.5f, 0.038f, Bit(2)),
+                TuskRow("D_TuskCurveR",  1, 2, 0f, 0.5f, 0.038f, Bit(2)),
+                TuskRow("D_TuskCurveTipL", -1, 2, 0.5f, 1f, 0.030f, Bit(2)),
+                TuskRow("D_TuskCurveTipR",  1, 2, 0.5f, 1f, 0.030f, Bit(2)),
+                TuskRow("D_TuskLongL", -1, 3, 0f, 1f, 0.042f, Bit(3, 4)),
+                TuskRow("D_TuskLongR",  1, 3, 0f, 1f, 0.042f, Bit(3, 4)),
 
                 // ============================== TACK (StyleC) ==============================
-                // None / Head Cloth / Ankle Bands / Blanket. All NON-SOLID: cloth and webbing are not
-                // colliders, and gating a collider would let a cosmetic picker change how the animal
-                // captures the ball.
-
-                // HEAD CLOTH. A draped panel over the poll. girthOff because it hangs on the head
-                // SPHERE, whose radius scales by girth alone while a normal offset scales partly by
-                // height - see DecorSpec.GirthOffset. The 0.50 width against the skull's 0.46 girth
-                // diameter is what makes it read: it pierces the skull and shows as a flap at each
-                // temple, so one row does the work of two and the sides cannot end up mismatched.
-                D("D_TkCloth", Bone.Head, ColliderKind.Box,
-                  V(0f, 0.055f, -0.03f), 0f, V(0.50f, 0.22f, 0.34f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(1), girthOff: true),
-
-                // ANKLE BANDS, all four legs. Sized against each leg's own girth-scaled diameter so
-                // every band stands proud by the same margin: 0.30 against the forearm's 0.27, 0.28
-                // against the calf's 0.25. The front pair hangs off the FOREARM, a strike bone, but the
-                // band is non-solid so it never takes a contact and cannot turn a band touch into a
-                // kick.
-                D("D_TkBandFL", Bone.ForearmL, ColliderKind.Box,
-                  V(0f, -0.085f, 0f), 0f, V(0.30f, 0.07f, 0.30f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(2)),
-                D("D_TkBandFR", Bone.ForearmR, ColliderKind.Box,
-                  V(0f, -0.085f, 0f), 0f, V(0.30f, 0.07f, 0.30f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(2)),
-                D("D_TkBandHL", Bone.CalfL, ColliderKind.Box,
-                  V(0f, -0.135f, 0f), 0f, V(0.28f, 0.07f, 0.28f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(2)),
-                D("D_TkBandHR", Bone.CalfR, ColliderKind.Box,
-                  V(0f, -0.135f, 0f), 0f, V(0.28f, 0.07f, 0.28f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(2)),
-
-                // CEREMONIAL BLANKET. Same girth-scaled band trick as the horse's girth strap: a Box
-                // pitched 90 so its width and height both scale by GIRTH while only its thickness
-                // scales by height, which is what keeps it wrapped on the barrel at every girth.
-                //
-                // NOW GATED to TACK option 3, and NO LONGER SOLID, for the same two reasons D_Girth
-                // carries. Solid: a cloth should not be a collider, and gating one would make a
-                // cosmetic picker change capture width. The barrel underneath is flush and solid, so
-                // the only consequence is that a ball striking the blanket contacts the barrel about
-                // 0.01 m behind its visible surface. Gated: the blanket covers a vertical slice of the
-                // flank, which is exactly where the jersey art is painted (see Make.JerseyFaces.Flank),
-                // so leaving it always-on hid part of the kit on every elephant. Option 0 now reveals
-                // the full flank.
-                D("D_Blanket", Bone.Torso, ColliderKind.Box,
-                  V(0f, 0f, 0.02f), 90f, V(0.48f, 0.34f, 0.54f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(3)),
+                // None / Head Cloth / Ankle Bands / Blanket are no longer decor rows: cloth is not a
+                // collider, and the shapes (a cap on the skull with a frontlet, buckled rings on the
+                // legs, a lofted blanket with a girth strap) are built by Cosmetics.AttachElephantDecor
+                // on the real geometry. The option list and indices in SpeciesCosmetics are unchanged.
 
                 // FOOT PADS. The front pair hangs off the FOREARM, a strike bone, so a pad contact
                 // resolves to a kick. Wide and flat, like the real thing. All four are SLICK for the
@@ -1266,14 +1131,60 @@ namespace Trickshot
         static DecorSpec D(string name, Bone parent, ColliderKind kind, Vector3 offset,
                            float eulerX, Vector3 dims, bool solid, DecorTint tint,
                            bool slick = false, SlotKind gate = SlotKind.Skin, int gateMask = 0,
-                           bool girthOff = false)
+                           bool girthOff = false, bool hidden = false)
             => new DecorSpec
             {
                 Name = name, Parent = parent, Kind = kind,
                 Offset = offset, Euler = new Vector3(eulerX, 0f, 0f),
                 Dims = dims, Solid = solid, Tint = tint, Slick = slick,
-                Gate = gate, GateMask = gateMask, GirthOffset = girthOff,
+                Gate = gate, GateMask = gateMask, GirthOffset = girthOff, Hidden = hidden,
             };
+
+        // ---- elephant tusks: one arc, shared by the chord colliders here and the ivory in Cosmetics.Elephant.cs
+        /// <summary>Per tusk style: the arc's sweep, its length along the arc and the root radius, unit head frame.</summary>
+        public static void ElephantTuskSpec(int style, out float arcDeg, out float len, out float r0)
+        {
+            switch (style)
+            {
+                case 2:  arcDeg = 90f; len = 0.32f; r0 = 0.038f; break;   // Curved: a real hook
+                case 3:
+                case 4:  arcDeg = 35f; len = 0.40f; r0 = 0.042f; break;   // Long, Banded
+                default: arcDeg = 45f; len = 0.20f; r0 = 0.034f; break;   // Short
+            }
+        }
+
+        /// <summary>
+        /// A point and tangent on a tusk's arc at t (0 root, 1 tip), unit HEAD frame. The socket sits
+        /// on the 0.23 skull sphere below and outside the trunk base; the root tangent is 20 deg
+        /// nose-down and yawed 12 deg outward, and the arc bends UP from there, so the tip ends level
+        /// (Short), pointing up (Long) or hooked (Curved). Multiply by girth for a built body.
+        /// </summary>
+        public static void ElephantTuskArc(int side, int style, float t, out Vector3 p, out Vector3 tangent)
+        {
+            ElephantTuskSpec(style, out float arcDeg, out float len, out _);
+            float s = side < 0 ? -1f : 1f;
+            Vector3 socket = new Vector3(s * 0.145f, -0.1596f, 0.080f);
+            Vector3 d0 = Quaternion.Euler(0f, s * 12f, 0f) * (Quaternion.Euler(20f, 0f, 0f) * Vector3.forward);
+            Vector3 n = (Vector3.up - d0 * Vector3.Dot(Vector3.up, d0)).normalized;
+            float th = arcDeg * Mathf.Deg2Rad, rho = len / th, ph = th * t;
+            p = socket + rho * (d0 * Mathf.Sin(ph) + n * (1f - Mathf.Cos(ph)));
+            tangent = d0 * Mathf.Cos(ph) + n * Mathf.Sin(ph);
+        }
+
+        /// <summary>A Hidden, Solid, girth-scaled capsule along the chord of a tusk arc from t0 to t1.</summary>
+        static DecorSpec TuskRow(string name, int side, int style, float t0, float t1, float r, int mask)
+        {
+            ElephantTuskArc(side, style, t0, out var a, out _);
+            ElephantTuskArc(side, style, t1, out var b, out _);
+            Vector3 dir = (b - a).normalized;
+            return new DecorSpec
+            {
+                Name = name, Parent = Bone.Head, Kind = ColliderKind.CapsuleY,
+                Offset = (a + b) * 0.5f, Euler = Quaternion.FromToRotation(Vector3.up, dir).eulerAngles,
+                Dims = new Vector3(r, (b - a).magnitude + r * 0.5f, 0f), Solid = true, Tint = DecorTint.StyleB,
+                Gate = SlotKind.StyleB, GateMask = mask, GirthOffset = true, GirthDims = true, Hidden = true,
+            };
+        }
 
         /// <summary>
         /// A GateMask over option indices. Reads at the call site as the option numbers themselves,
