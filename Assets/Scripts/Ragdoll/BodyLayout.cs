@@ -768,6 +768,14 @@ namespace Trickshot
         /// front-top corner, where a real neck attaches. Header numbers (18 / 45) are unchanged: the
         /// nod is downward, so it cannot put the ball over the bar.
         /// </summary>
+        // The horse NECK, shared with Cosmetics.HorseCrest so the mane is rooted on the same capsule
+        // the body draws: offset from the skull, pitch (a positive X euler hangs the low end down
+        // and BACK), radius and full length. Change them here and the mane follows.
+        public static readonly Vector3 HorseNeckOff = new Vector3(0f, -0.155f, -0.125f);
+        public const float HorseNeckPitch = 38.9f;
+        public const float HorseNeckR = 0.115f;
+        public const float HorseNeckLen = 0.46f;
+
         static BodyLayoutDef Horse(BodyLayoutDef plan)
         {
             var d = Clone(plan);
@@ -810,7 +818,7 @@ namespace Trickshot
                 // exactly what a neck does from the head's point of view. It is SOLID, so the neck
                 // heads the ball, which is the read a player expects.
                 D("D_Neck",  Bone.Head, ColliderKind.CapsuleY,
-                  V(0f, -0.155f, -0.125f), 38.9f, V(0.115f, 0.46f, 0f), true, DecorTint.Skin),
+                  HorseNeckOff, HorseNeckPitch, V(HorseNeckR, HorseNeckLen, 0f), true, DecorTint.Skin),
 
                 // MUZZLE. A box laid along the body's +Z by its 90 euler, so it reads as a long jaw
                 // rather than a snout. SOLID: this is the horse's header surface, and the header aid
@@ -824,15 +832,10 @@ namespace Trickshot
                 D("D_EarR", Bone.Head, ColliderKind.CapsuleY,
                   V(0.075f, 0.145f, -0.03f), -10f, V(0.032f, 0.17f, 0f), true, DecorTint.Skin),
 
-                // NO MANE ROW, deliberately. The mane is real simulated HAIR now, built by
-                // Cosmetics.AttachAppearance from the same catalog, atlas and cards a human's hair
-                // uses, on a rotation-only HairSim anchor tilted by Cosmetics.ManeTiltDeg to match
-                // this neck's 38.9 pitch so the strands fall along the crest instead of off the face.
-                // KEEP THAT CONSTANT EQUAL TO D_Neck's EULER.
-                //
-                // A flat crest box here would draw underneath the cards and double the mane, so it is
-                // gone rather than gated. Hair style 0 is Bald, which reads as a roached mane, so the
-                // "index 0 draws nothing" convention survives the move.
+                // NO MANE ROW, deliberately. The mane is real simulated HAIR, built by
+                // Cosmetics.AttachMane from the horse's OWN mane catalog, rooted along the crest
+                // polyline Cosmetics.HorseCrest derives from the neck constants above. Mane index 0
+                // is Roached (a clipped brush), so every horse has a mane.
 
                 // NO TAIL ROW either, and for the same reason. The tail is simulated HAIR too, built
                 // by Cosmetics.AttachAppearance on a HairSim anchored to this Pelvis, from the same
@@ -854,31 +857,15 @@ namespace Trickshot
                 // follows the mane. A bald mane therefore still leaves a tail, which is the same call
                 // the elephant's ears made - a missing body part reads as a broken model, not a choice.
 
-                // SADDLE PAD (girth strap). A BAND, not a saddle: a Box pitched 90 so its 0.36 width
-                // and 0.48 height both scale by GIRTH while only its 0.12 thickness scales by height.
-                // That is what keeps it wrapped on the barrel at every girth. A piece placed by a
-                // height-scaled offset against a girth-scaled surface drifts off the body as the
-                // Weight slider moves, which is how the first version ended up floating.
-                //
-                // NOW GATED to TACK option 4, and NO LONGER SOLID. Two reasons, both load-bearing.
-                // Solid: gating a collider would let a cosmetic picker change how wide the horse
-                // captures the ball, and a cloth strap should not be a collider anyway. The barrel
-                // underneath is flush and solid, so the only consequence is that a ball striking the
-                // strap contacts the barrel about 0.01 m behind the strap's visible surface.
-                // Gated: this band covers a vertical slice of the flank, which is exactly where the
-                // jersey art is painted (see Make.JerseyFaces.Flank), so leaving it always-on hid part
-                // of the kit on every horse. Option 0 now reveals the full flank.
-                D("D_Girth", Bone.Torso, ColliderKind.Box,
-                  V(0f, 0f, 0.10f), 90f, V(0.36f, 0.12f, 0.48f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(4)),
+                // The saddle pad / girth is cosmetic now (Cosmetics.AttachHorseDecor, tack 4).
 
                 // FETLOCK SOCKS. Boxes, not capsules: at max girth a capsule this short would have
                 // 2r > height and Unity silently degrades it to a sphere. Slick too, because a leg
                 // swinging through its stride digs a sock's trailing corner in below the hoof.
                 D("D_SockFL", Bone.ForearmL, ColliderKind.Box,
-                  V(0f, -0.068f, 0f), 0f, V(0.21f, 0.20f, 0.21f), true, DecorTint.StyleB, slick: true),
+                  V(0f, -0.068f, 0f), 0f, V(0.21f, 0.20f, 0.21f), true, DecorTint.Skin, slick: true),
                 D("D_SockFR", Bone.ForearmR, ColliderKind.Box,
-                  V(0f, -0.068f, 0f), 0f, V(0.21f, 0.20f, 0.21f), true, DecorTint.StyleB, slick: true),
+                  V(0f, -0.068f, 0f), 0f, V(0.21f, 0.20f, 0.21f), true, DecorTint.Skin, slick: true),
 
                 // HOOVES. Front pair hangs off the FOREARM, which is a strike bone, so a hoof
                 // contact resolves to a proper kick through _decorOwner. They are also the widest
@@ -899,122 +886,10 @@ namespace Trickshot
                 D("D_HoofHR", Bone.FootR, ColliderKind.Box,
                   V(0f, 0.012f, 0f), 0f, V(0.135f, 0.125f, 0.16f), true, DecorTint.Dark, slick: true),
 
-                // ============================ MARKINGS (StyleB) ============================
-                // None / Star / Blaze / Snip / Stockings / Dappled. All NON-SOLID: a marking is paint,
-                // and gating a collider would make a colour picker change capture width.
-                //
-                // Two constructions are used, and which one applies is decided by what the marking
-                // sits on, not by taste:
-                //
-                //  - On the SKULL, a decal with girthOff. The skull is a Sphere of radius 0.15*girth,
-                //    so an offset of length 0.15 scaled the same way lands exactly on the surface at
-                //    every build and the plate straddles it half in, half out. Without girthOff the
-                //    same plate floats 5 cm clear of a lean horse and disappears inside a heavy one.
-                //  - On the MUZZLE, a SLEEVE: the identical offset and euler as D_Muzzle, with dims
-                //    that exceed it on the axes that should show and fall short on the axes that
-                //    should not. Every extent then carries the same scale factor as the muzzle's own,
-                //    so the marking cannot come unstuck no matter where the sliders sit. This is why
-                //    the numbers below are stated against the muzzle's 0.115 x 0.26 x 0.115.
-
-                // STAR: a forehead patch. Offset length is 0.15005, i.e. the skull radius, and the
-                // 0.030 thickness straddles it. The -21 euler lays the plate flat against the
-                // forehead normal (0, 0.358, 0.934) rather than standing it up off the curve.
-                D("D_MkStar", Bone.Head, ColliderKind.Box,
-                  V(0f, 0.054f, 0.140f), -21f, V(0.062f, 0.062f, 0.030f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(1), girthOff: true),
-
-                // BLAZE: a stripe the length of the face. A muzzle sleeve 0.145 deep against the
-                // muzzle's 0.115, so it stands 0.015 proud top and bottom at every girth, and 0.30
-                // long against 0.26, so it runs past the nose and buries its other end in the skull
-                // instead of stopping in mid air. Only 0.042 wide, which is what makes it a stripe:
-                // its side faces stay inside the muzzle and only the top shows.
-                D("D_MkBlaze", Bone.Head, ColliderKind.Box,
-                  V(0f, -0.045f, 0.20f), 90f, V(0.042f, 0.30f, 0.145f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(2)),
-
-                // SNIP: the same sleeve trick, but a short band at the nose tip only.
-                D("D_MkSnip", Bone.Head, ColliderKind.Box,
-                  V(0f, -0.045f, 0.295f), 90f, V(0.075f, 0.075f, 0.145f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(3)),
-
-                // STOCKINGS: a HIND pair. The FRONT socks (D_SockF*) are ungated, because they are
-                // fetlock GEOMETRY paying for a flush collider, not a marking. So this option reads as
-                // "all four legs socked" against the default "front only" - which is worth knowing
-                // before wondering why the front socks never disappear.
-                D("D_MkSockHL", Bone.CalfL, ColliderKind.Box,
-                  V(0f, -0.062f, 0f), 0f, V(0.18f, 0.19f, 0.18f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(4)),
-                D("D_MkSockHR", Bone.CalfR, ColliderKind.Box,
-                  V(0f, -0.062f, 0f), 0f, V(0.18f, 0.19f, 0.18f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(4)),
-
-                // DAPPLES: three dashes down the barrel. ONE box each, not one per side: 0.37 wide
-                // against the barrel's 0.34 means each box pierces clean through and shows on BOTH
-                // flanks, which halves the row count and guarantees the two sides match.
-                //
-                // Pitched 90 like the girth strap, and for the same reason. That pitch puts the
-                // height-scaled dim on the barrel's LENGTH (also height-scaled) and the girth-scaled
-                // dim on its DEPTH (also girth-scaled), so a dapple stays the same patch of flank as
-                // either slider moves. Unpitched it would stretch one way and shrink the other.
-                // The small vertical offsets only break up the row; they are height-scaled against a
-                // girth-scaled flank, but at 0.05 the drift never carries a patch off the barrel.
-                D("D_MkDap1", Bone.Torso, ColliderKind.Box,
-                  V(0f, 0.05f, -0.22f), 90f, V(0.37f, 0.16f, 0.15f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(5)),
-                D("D_MkDap2", Bone.Torso, ColliderKind.Box,
-                  V(0f, -0.04f, 0.02f), 90f, V(0.37f, 0.13f, 0.19f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(5)),
-                D("D_MkDap3", Bone.Torso, ColliderKind.Box,
-                  V(0f, 0.06f, 0.24f), 90f, V(0.37f, 0.15f, 0.13f), false, DecorTint.StyleB,
-                  gate: SlotKind.StyleB, gateMask: Bit(5)),
-
-                // ============================== TACK (StyleC) ==============================
-                // None / Bridle / Halter / Blinkers / Saddle Pad. All NON-SOLID.
-                //
-                // Why there are no long diagonal cheek straps: a straight 0.24 strap laid on a sphere
-                // of radius 0.15 stands 0.05 off it at the ends, which is a third of the head's radius
-                // and reads as floating hardware. Head tack therefore lives where the geometry can
-                // actually carry it - sleeves on the box muzzle, sleeves on the neck capsule, and one
-                // piercing box across the skull whose overhang IS the browband.
-
-                // NOSEBAND, thin. Bridle only. A muzzle sleeve: 0.162 deep against 0.115 stands proud
-                // top and bottom, 0.138 wide against 0.115 stands proud at both cheeks, and 0.048
-                // along the face makes it a band rather than a boot.
-                D("D_TkNose", Bone.Head, ColliderKind.Box,
-                  V(0f, -0.045f, 0.255f), 90f, V(0.138f, 0.048f, 0.162f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(1)),
-
-                // NOSEBAND, broad. Shared by Halter and Blinkers, which is the whole point of a MASK
-                // rather than an index: one spec, two options.
-                D("D_TkNoseW", Bone.Head, ColliderKind.Box,
-                  V(0f, -0.045f, 0.235f), 90f, V(0.138f, 0.10f, 0.162f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(2, 3)),
-
-                // BROWBAND. Shared by all three bridle options. 0.335 wide against a 0.30 skull
-                // diameter, both girth-scaled, so it pierces the head and shows as a strap end at each
-                // temple at every build. Buried on its other two axes by construction.
-                D("D_TkBrow", Bone.Head, ColliderKind.Box,
-                  V(0f, 0.02f, 0.02f), 0f, V(0.335f, 0.055f, 0.115f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(1, 2, 3), girthOff: true),
-
-                // THROATLATCH. A ring around the neck, placed 0.10 up the neck's own axis: the neck
-                // sits at (0, -0.155, -0.125) pitched 38.9, so one step along (0, 0.7784, 0.6280)
-                // lands here. Both offsets are height-scaled, so the ring holds its place on the neck
-                // as the sliders move. A BOX, not a capsule: at 0.11 long and 0.135 across, a capsule
-                // would have 2r > height and Unity would silently collapse it to a sphere.
-                D("D_TkThroat", Bone.Head, ColliderKind.Box,
-                  V(0f, -0.077f, -0.062f), 38.9f, V(0.27f, 0.11f, 0.27f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(1, 2)),
-
-                // BLINKER CUPS. Plates standing off the sides of the head beside the eyes. Their inner
-                // edge is inside the skull and their outer edge past it, so they are anchored and
-                // visible at once.
-                D("D_TkBlinkL", Bone.Head, ColliderKind.Box,
-                  V(-0.115f, 0.03f, 0.055f), 0f, V(0.055f, 0.13f, 0.115f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(3), girthOff: true),
-                D("D_TkBlinkR", Bone.Head, ColliderKind.Box,
-                  V(0.115f, 0.03f, 0.055f), 0f, V(0.055f, 0.13f, 0.115f), false, DecorTint.StyleC,
-                  gate: SlotKind.StyleC, gateMask: Bit(3), girthOff: true),
+                // MARKINGS (StyleB) and TACK (StyleC) are no longer decor rows. They are painted
+                // decals and lofted straps built by Cosmetics.AttachHorseDecor on the pieces above,
+                // which is what lets a blaze follow the muzzle and a noseband wrap it at every
+                // slider position. SpeciesCosmetics keeps the same option lists and indices.
             };
             return d;
         }

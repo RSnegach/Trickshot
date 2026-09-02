@@ -230,19 +230,19 @@ namespace Trickshot
                 yield return new Job { Id = $"human_acc_{i:00}_{Slug(n)}", App = a, Views = HumanHead };
             }
             // HORSE
-            for (int i = 0; i < Cosmetics.Hair.Count; i++)
+            for (int i = 0; i < SpeciesCosmetics.Count(1, SlotKind.StyleA); i++)
             {
                 var a = Base(1); a.HairStyle = i;
-                yield return new Job { Id = $"horse_mane_{i:00}_{Slug(Cosmetics.Hair[i].Name)}", App = a, Views = Quad };
+                yield return new Job { Id = $"horse_mane_{i:00}_{Slug(SpeciesCosmetics.Label(1, SlotKind.StyleA, i))}", App = a, Views = Quad };
             }
             for (int i = 1; i < SpeciesCosmetics.Count(1, SlotKind.StyleB); i++)
             {
-                var a = Base(1); a.FacialStyle = i; a.HairStyle = 2;
+                var a = Base(1); a.FacialStyle = i; a.HairStyle = 0;
                 yield return new Job { Id = $"horse_mark_{i:00}_{Slug(SpeciesCosmetics.Label(1, SlotKind.StyleB, i))}", App = a, Views = Quad };
             }
             for (int i = 1; i < SpeciesCosmetics.Count(1, SlotKind.StyleC); i++)
             {
-                var a = Base(1); a.Accessory = i; a.HairStyle = 2;
+                var a = Base(1); a.Accessory = i; a.HairStyle = 0;
                 yield return new Job { Id = $"horse_tack_{i:00}_{Slug(SpeciesCosmetics.Label(1, SlotKind.StyleC, i))}", App = a, Views = Quad };
             }
             // ELEPHANT

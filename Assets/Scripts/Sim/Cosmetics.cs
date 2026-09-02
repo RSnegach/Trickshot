@@ -137,22 +137,17 @@ namespace Trickshot
             // tapered tuft cards, generated geometry or a decal, see Cosmetics.Hair.cs). A HORSE
             // builds ONLY Def, as tilted cards on the neck crest: shells and geometry are human
             // anatomy and would land on the skull.
-            if (a.HairStyle > 0 && a.HairStyle < _hair.Count && !_hair[a.HairStyle].Bald)
+            if (mane)
+            {
+                // The horse has its own mane catalog rooted along the neck crest (Cosmetics.Horse.cs).
+                AttachMane(rag, a, head);
+            }
+            else if (a.HairStyle > 0 && a.HairStyle < _hair.Count && !_hair[a.HairStyle].Bald)
             {
                 var entry = _hair[a.HairStyle];
                 var mats = new HairMats(rag, a.HairColor);
-                if (human && entry.HumanOnlyDef)
-                {
-                    entry.Extra?.Invoke(head, mats);
-                }
-                else
-                {
-                    // ROTATION ONLY on the anchor, never a translation: HairSim treats its anchor's
-                    // ORIGIN as the head sphere's centre. Tilting turns every style's root scatter and
-                    // flow together, which is exactly the knob a mane needs.
-                    var tilt = mane ? Quaternion.Euler(ManeTiltDeg, 0f, 0f) : Quaternion.identity;
-                    Sim(head, entry.Def, mats, rag.HeadVisualRadius, tilt);
-                }
+                if (entry.HumanOnlyDef) entry.Extra?.Invoke(head, mats);
+                else Sim(head, entry.Def, mats, rag.HeadVisualRadius, Quaternion.identity);
             }
 
             // ---- HORSE TAIL ---------------------------------------------------------------------
@@ -192,13 +187,28 @@ namespace Trickshot
                     float dockR = Mathf.Min(TailDockPerHeight * rag.HeightScale,
                                             TailDockPerGirth * rag.GirthScale) + 0.01f;
 
+                    // THE DOCK: a coat-coloured stub standing up and back off the rump that the tail
+                    // hair roots on, so the tail visibly grows from something instead of from a
+                    // point on the box. Generated, collider-less like every cosmetic.
+                    float th = rag.HeightScale, tg = rag.GirthScale;
+                    Vector3 dockDir = new Vector3(0f, 0.30f, -0.954f).normalized;
+                    Vector3 dockBase = new Vector3(0f, 0.15f * th - 0.03f, -0.16f * tg + 0.01f);
+                    var dockMat = Make.Mat(a.Skin, 0.1f);
+                    rag.RegisterCosmeticMaterial(dockMat);
+                    var dockMesh = MeshGen.Lathe(new[] { new Vector2(0f, 0f), new Vector2(0.032f * tg, 0f), new Vector2(0.032f * tg, 0.11f * th), new Vector2(0.022f * tg, 0.14f * th), new Vector2(0f, 0.15f * th) }, 14);
+                    MeshGen.Transform(dockMesh, dockBase, Quaternion.FromToRotation(Vector3.up, dockDir));
+                    Piece(pelvis, dockMesh, dockMat);
+
                     var def = new HairSim.HairDef
                     {
-                        root         = HairSim.RootMode.BackCluster,
-                        strands      = 46,
-                        nodes        = 10,
+                        root         = HairSim.RootMode.Path,
+                        rootPath     = new[] { dockBase + dockDir * (0.10f * th) },
+                        rootNormals  = new[] { dockDir },
+                        rootSpread   = 0.03f * tg,
+                        strands      = 56,
+                        nodes        = 11,
                         length       = TailLen * rag.HeightScale,
-                        fan          = 5,
+                        fan          = 6,
                         staticToHead = false,     // a tail that cannot swing is a stick
                         // Deliberately floppy, so GRAVITY sets the hang and the gait swings it. flow is
                         // the styled REST direction the stiffness holds toward, not the final shape, so
@@ -207,13 +217,16 @@ namespace Trickshot
                         // of the hind legs, whose rear faces sit about 0.07 ahead of the dock.
                         stiffness    = 0.16f,
                         flow         = new Vector3(0f, -1f, -0.30f),
-                        curl         = 0.012f,
-                        jitter       = 0.10f,
+                        curl         = 0.03f,
+                        jitter       = 0.14f,
                         thickness    = 0.07f,     // a tail clump is thicker than a hair clump
                     };
                     go.AddComponent<HairSim>().Build(pelvis, def, tailMat, dockR);
                 }
             }
+
+            // Horse markings and tack: decals and straps on the built decor (Cosmetics.HorseDecor.cs).
+            if (mane) { _rag = rag; AttachHorseDecor(rag, a); _rag = null; }
 
             // Everything below is HUMAN-ONLY, and not by taste. On an animal, StyleB and StyleC are
             // MARKINGS and TACK: those indices address the species' own lists (SpeciesCosmetics) and

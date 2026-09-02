@@ -36,7 +36,7 @@ namespace Trickshot
         /// The visible cost, accepted: the MANE tab shows human style names ("L: Ponytail").
         /// </summary>
         static bool UsesHumanHair(byte species, SlotKind kind)
-            => kind == SlotKind.StyleA && (species == Species.HumanId || species == Species.HorseId);
+            => kind == SlotKind.StyleA && species == Species.HumanId;
 
         public static int Count(byte species, SlotKind kind)
         {
@@ -96,7 +96,8 @@ namespace Trickshot
         {
             switch (species)
             {
-                case 1: // Horse. StyleA (MANE) is human hair, handled by UsesHumanHair above.
+                case 1: // Horse
+                    if (kind == SlotKind.StyleA) return Cosmetics.ManeNames;
                     if (kind == SlotKind.StyleB) return _horseMarkings;
                     if (kind == SlotKind.StyleC) return _horseTack;
                     break;

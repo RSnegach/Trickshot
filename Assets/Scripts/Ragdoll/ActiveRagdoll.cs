@@ -469,10 +469,20 @@ namespace Trickshot
         /// keepers, crossers, menu actors and remote peers, so reading the global profile would dress
         /// every body on the pitch in the local player's choices.
         /// </summary>
+        // Every built decor piece by name with its SCALED dims, so a cosmetic pass can dress the
+        // real geometry (a noseband around the built muzzle box, a sleeve on the built neck).
+        readonly System.Collections.Generic.Dictionary<string, (Transform t, Vector3 dims)> _decorBuilt = new System.Collections.Generic.Dictionary<string, (Transform, Vector3)>();
+        public bool TryGetDecor(string name, out Transform t, out Vector3 scaledDims)
+        {
+            if (_decorBuilt.TryGetValue(name, out var e) && e.t != null) { t = e.t; scaledDims = e.dims; return true; }
+            t = null; scaledDims = Vector3.zero; return false;
+        }
+
         void AddDecor(PlayerAppearance? appearance, Material limbMat, Quaternion facing)
         {
             var decor = _layout.Decor;
             if (decor == null) return;
+            _decorBuilt.Clear();
 
             // One material per tint, not per piece: Make.Mat allocates, and the species preview
             // rebuilds this body on every drag frame.
@@ -503,6 +513,7 @@ namespace Trickshot
                         : Off(d.Offset.x, d.Offset.y, d.Offset.z);
 
                 var go = new GameObject(d.Name);
+                _decorBuilt[d.Name] = (go.transform, dims);
                 go.transform.SetParent(rb.transform, false);
                 go.transform.localPosition = toLocal * raw;
                 go.transform.localRotation = toLocal * Quaternion.Euler(d.Euler);

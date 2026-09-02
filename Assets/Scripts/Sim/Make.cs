@@ -74,6 +74,18 @@ namespace Trickshot
             return m;
         }
 
+        /// <summary>Standard material with a tiled grayscale texture UNDER a tint (leather straps, a
+        /// quilted pad): Standard multiplies _Color by _MainTex.</summary>
+        public static Material MatTexTint(Texture2D tex, Color tint, float smoothness = 0.1f)
+        {
+            var m = new Material(Standard);
+            m.color = new Color(tint.r, tint.g, tint.b, 1f);
+            m.mainTexture = tex;
+            m.SetFloat("_Glossiness", smoothness);
+            m.SetFloat("_Metallic", 0f);
+            return m;
+        }
+
         /// <summary>Standard material with a main texture (e.g. the painted jersey). Tint
         /// is white so the texture shows as painted.</summary>
         public static Material MatTex(Texture2D tex, float smoothness = 0.1f)
