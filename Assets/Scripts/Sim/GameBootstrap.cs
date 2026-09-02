@@ -78,13 +78,21 @@ namespace Trickshot
             Trickshot.Net.Multiplayer.HostConnectionLost -= OnHostConnectionLost;
             Trickshot.Net.Multiplayer.HostConnectionLost += OnHostConnectionLost;
 
-            ShowMainMenu();
+            // Black screen + studio mark first; the main menu (backdrop stadium, crowd, music) is
+            // built under it, so its cost is never a visible stutter. See StudioSplash.
+            var splashGo = new GameObject("StudioSplash");
+            splashGo.transform.SetParent(_root, false);
+            splashGo.AddComponent<StudioSplash>().Init(() => ShowMainMenu());
         }
 
         void OnDestroy()
         {
             Trickshot.Net.Multiplayer.HostConnectionLost -= OnHostConnectionLost;
         }
+
+        // Stats and achievements save on a worker thread (AtomicFileWriter); a save fired on the
+        // last frame must land before the process goes.
+        void OnApplicationQuit() => AtomicFileWriter.FlushAll();
 
         // The host is gone: drop whatever networked screen/match we were in and go back to the menu.
         // Multiplayer.End() has already run, so this is pure local cleanup.
@@ -221,9 +229,45 @@ namespace Trickshot
         {
             var go = new GameObject("HostSetupUI");
             go.AddComponent<HostSetupUI>().Init(
-                onCreated: () => { Destroy(go); ShowLobby(); },
+                onCreated: () => { Destroy(go); ShowHostStadium(lockedMode); },
                 onBack:    () => { Destroy(go); if (lockedMode.HasValue) ShowFriendliesSetup(); else ShowOtherModes(); },
                 lockedMode: lockedMode);
+        }
+
+        // Host, after Create: pick the stadium on the same screen single player uses, and - for a
+        // striker match - size the goal and set the AI keeper on the window beside it. Both are
+        // written into the session config on the way to the lobby, so every joiner inherits them.
+        // Back ends the just-created session and returns to the host setup.
+        void ShowHostStadium(GameMode? lockedMode)
+        {
+            var s = Trickshot.Net.Multiplayer.Session;
+            if (s == null) { ShowHostSetup(lockedMode); return; }
+            var mode = (GameMode)s.Config.mode;
+            bool goalPanel = mode == GameMode.Striker;
+            var cfg0 = s.Config;
+            float sw = cfg0.goalScale <= 0.01f ? 1f : cfg0.goalScale;
+            float sh = cfg0.goalScaleH <= 0.01f ? sw : cfg0.goalScaleH;
+
+            var go = new GameObject("StadiumSelectUI");
+            var ss = go.AddComponent<StadiumSelectUI>();
+            ss.Init(
+                onPicked: () =>
+                {
+                    var cfg = s.Config;
+                    cfg.stadium = (byte)StadiumStyle.SelectedIndex;
+                    if (goalPanel)
+                    {
+                        cfg.goalScale     = ss.GoalW / SimConfig.GoalWidthBase;
+                        cfg.goalScaleH    = ss.GoalH / SimConfig.GoalHeightBase;
+                        cfg.keeperAbility = SimConfig.AiLevelAbility[Mathf.Clamp(ss.KeeperLevel, 0, SimConfig.AiLevelAbility.Length - 1)];
+                    }
+                    s.SetConfig(cfg);
+                    Destroy(go); ShowLobby();
+                },
+                onBack: () => { Destroy(go); Trickshot.Net.Multiplayer.End(); ShowHostSetup(lockedMode); },
+                goalPanel: goalPanel,
+                goalW: SimConfig.GoalWidthBase * sw, goalH: SimConfig.GoalHeightBase * sh,
+                keeperLevel: SimConfig.NearestAiLevel(cfg0.keeperAbility));
         }
 
         void ShowSessionBrowser()
@@ -299,6 +343,12 @@ namespace Trickshot
             var cfg = s.Config;
             StadiumStyle.SelectedIndex = cfg.stadium;
             var mode = (GameMode)cfg.mode;
+            // Player pace in a networked match is the player's OWN - body build x Pace stat over the
+            // base speed - with no host knob (HostSetupUI keeps player speed fixed for balance). This
+            // static is only ever written by the single-player pre-match screens, so without this
+            // reset a networked match ran at whatever multiplier the last single-player Accuracy or
+            // Free Kick setup had left in it, on every peer independently.
+            SimConfig.StrikerMoveSpeed = SimConfig.StrikerMoveSpeedBase;
             if (mode == GameMode.Match)
             {
                 // cfg.perSide is an untrusted wire byte and this is a mutable static every later
@@ -329,22 +379,35 @@ namespace Trickshot
             else if (mode == GameMode.SetPieces)
             {
                 // Host-chosen goal size + AI keeper strength apply to everyone (mutable statics).
-                float scale = cfg.goalScale <= 0.01f ? 1f : cfg.goalScale;
-                SimConfig.GoalWidth  = 7.32f * scale;
-                SimConfig.GoalHeight = 2.44f * scale;
-                SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
+                ApplyConfigGoal(cfg);
             }
             else if (mode == GameMode.Accuracy)
             {
                 // Same dead-ball knobs as set pieces, plus the wall size + target count.
-                float scale = cfg.goalScale <= 0.01f ? 1f : cfg.goalScale;
-                SimConfig.GoalWidth  = 7.32f * scale;
-                SimConfig.GoalHeight = 2.44f * scale;
-                SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
+                ApplyConfigGoal(cfg);
                 SimConfig.WallCount = cfg.accWallCount;
                 SimConfig.AccuracyTargetCount = Mathf.Max(1, cfg.accTargets);
             }
+            else if (mode == GameMode.Striker)
+            {
+                // Goal size + AI keeper from the host's stadium/goal screen. This branch did not exist:
+                // a networked striker match played on whatever goal size and keeper each peer's OWN
+                // statics happened to hold from its last single-player pre-match, so the host and a
+                // client could disagree about the goal - the same desync the Match branch fixed.
+                ApplyConfigGoal(cfg);
+            }
             BuildMode(mode);
+        }
+
+        // Goal width/height + AI keeper from a match config, on every peer. goalScaleH is the newer
+        // field (a config without it - 0 - keeps the goal in proportion, as it always was).
+        static void ApplyConfigGoal(in Trickshot.Net.MatchConfig cfg)
+        {
+            float sw = cfg.goalScale <= 0.01f ? 1f : cfg.goalScale;
+            float sh = cfg.goalScaleH <= 0.01f ? sw : cfg.goalScaleH;
+            SimConfig.GoalWidth  = SimConfig.GoalWidthBase  * sw;
+            SimConfig.GoalHeight = SimConfig.GoalHeightBase * sh;
+            SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
         }
 
         // Mode -> pick stadium -> (customize your player, striker modes) -> pre-match -> play.
@@ -521,7 +584,11 @@ namespace Trickshot
             // Restart is single-player only: the net protocol has no match reset, so restarting
             // mid-session would strand every client.
             System.Action onRestart = Trickshot.Net.Multiplayer.IsActive ? (System.Action)null : () => RestartMatch(mode);
-            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, () => ReturnToMatchSetup(mode), GetInput(),
+            // The full-screen setup (tear down + reopen the pre-match screen) is SINGLE-PLAYER only:
+            // networked, ReturnToMatchSetup ends the session for everyone, and the host now has the
+            // in-pause Match Setup (goal size + keeper, applied live) for what it can change.
+            System.Action onFullSetup = Trickshot.Net.Multiplayer.IsActive ? (System.Action)null : () => ReturnToMatchSetup(mode);
+            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, onFullSetup, GetInput(),
                                                    onLeave, onRestart, mode);
 
             // Networked match: pump the transport every frame for the match's lifetime.
@@ -563,7 +630,7 @@ namespace Trickshot
             ballGo.GetComponent<Renderer>().sharedMaterial = Make.Mat(new Color(0.95f, 0.95f, 0.95f), 0.3f);
             ballGo.AddComponent<Rigidbody>();
             var ball = ballGo.AddComponent<BallController>();
-            if (arena.net != null) arena.net.SetBall(ball.transform, SimConfig.BallRadius);
+            Arena.BindBall(ball.transform, SimConfig.BallRadius);   // also re-bound on a goal rebuild
 
             var gameCam = camGo.AddComponent<GameCamera>();
 
@@ -690,7 +757,11 @@ namespace Trickshot
             // with every challenge mode via BuildAiKeeper (below) rather than a hand-inlined copy -
             // this used to duplicate that helper verbatim, which meant a future change made to one
             // could silently fail to apply to the other.
-            Goalkeeper keeper = BuildAiKeeper(root, ball, out _);
+            // ALWAYS built here, even at "None": the keeper's difficulty can be changed from the
+            // in-match setup, and a keeper that was never built cannot be turned on. At None he is
+            // inert on his line (Goalkeeper's ability-0 branch) - the same body a networked striker
+            // match always has in the seat.
+            Goalkeeper keeper = BuildAiKeeper(root, ball, out _, alwaysBuild: true);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, crosserRagdoll.Pelvis.transform, arena.goalCenter);
             ball.SetCamera(gameCam);   // auto ball-cam on a shot
@@ -787,11 +858,12 @@ namespace Trickshot
             crosser.Init(reticle, ball, launch, crosserRagdoll);
         }
 
-        // Builds an AI goalkeeper ragdoll (with gloves). Returns null if ability is ~0.
-        Goalkeeper BuildAiKeeper(Transform root, BallController ball, out ActiveRagdoll keeperRagdoll)
+        // Builds an AI goalkeeper ragdoll (with gloves). Returns null if ability is ~0, unless
+        // `alwaysBuild` (a mode whose keeper difficulty can change mid-match needs the body to exist).
+        Goalkeeper BuildAiKeeper(Transform root, BallController ball, out ActiveRagdoll keeperRagdoll, bool alwaysBuild = false)
         {
             keeperRagdoll = null;
-            if (SimConfig.KeeperAbility <= 0.001f) return null;
+            if (!alwaysBuild && SimConfig.KeeperAbility <= 0.001f) return null;
             var keeperGo = new GameObject("Goalkeeper");
             keeperGo.transform.SetParent(root, true);
             keeperRagdoll = keeperGo.AddComponent<ActiveRagdoll>();
@@ -1124,6 +1196,14 @@ namespace Trickshot
             Physics.defaultSolverVelocityIterations = 8;
             Time.fixedDeltaTime = 0.02f;
             Physics.defaultContactOffset = 0.005f;
+            // Catch-up cap. Unity's default (0.333 s) lets one slow frame be followed by up to 16
+            // physics steps in the next, each a full 22-ragdoll solve, which makes THAT frame slower
+            // still - the spiral behind "it suddenly went choppy and stayed choppy". Five steps per
+            // frame at most: past that the sim runs briefly slower than real time instead of
+            // snowballing, and a healthy machine never gets near it. Solver iterations are left at
+            // 20/8 on purpose: they are what keeps the joint chains stable under load, and lowering
+            // them changes how the bodies move.
+            Time.maximumDeltaTime = 0.1f;
         }
 
         Light MakeSun(Transform root)

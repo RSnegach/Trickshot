@@ -262,6 +262,7 @@ namespace Trickshot
 
             Rb.linearVelocity = v0;
             Rb.angularVelocity = new Vector3(spin, 0f, 0f);
+            ClearRollHold();   // an airborne delivery owns its own arc; nothing to hold friction off
             _curlAccel = curlAccel;
             _curlRemaining = timeOfFlight;
             _wiggleRemaining = 0f;   // a lob/cross never snakes; kill any leftover knuckle wiggle
@@ -269,6 +270,14 @@ namespace Trickshot
             LastShotType = ShotType.Normal;
             _trail.emitting = true;
             _trail.Clear();
+        }
+
+        /// <summary>Set (or replace) the in-flight curl on a ball already moving: a rolled cross is
+        /// played with KickTo, which clears any curl, and wants the same bend an airborne one gets.</summary>
+        public void SetCurl(Vector3 accel, float seconds)
+        {
+            _curlAccel = accel;
+            _curlRemaining = seconds;
         }
 
         // Spin flavour for a scripted set-piece launch (chosen by the taker's WASD hold).
@@ -606,11 +615,65 @@ namespace Trickshot
         //   - no live assist window: a guided shot is still in flight and owns its own velocity.
         // Kinematic guard because the MP client ball and a replay body are kinematic and must not be
         // written; the rest of FixedUpdate's timers still tick for them.
+        // ---- rolling-friction hold (a delivered ground ball reaches its target with pace) ----
+        // Where the ball was aimed, and the flat direction it set off in. While the ball is still
+        // SHORT of the plane through that point (normal = the launch direction), rolling resistance
+        // is suspended; once it crosses, friction resumes for the rest of the roll.
+        //
+        // A plane rather than a radius, because the ball can be nudged off line by the turf: a
+        // radius check around the spot can be missed entirely by a ball that passes a little wide,
+        // which would leave it frictionless forever. Crossing the plane cannot be missed.
+        bool _rollHoldActive;
+        Vector3 _rollHoldPoint;
+        Vector3 _rollHoldDir;     // flat, normalized
+        float _rollHoldTimeout;   // safety: never hold longer than this (see RollFrictionHeld)
+
+        /// <summary>
+        /// Suspend rolling friction until the ball passes `target`. Called by a delivery that solved
+        /// its own launch speed to land the ball on a spot (the crosser's Ground cross), so the roll
+        /// out to that spot keeps the pace it was struck with.
+        /// </summary>
+        public void HoldRollFrictionUntil(Vector3 target)
+        {
+            Vector3 flat = target - Rb.position; flat.y = 0f;
+            if (flat.sqrMagnitude < 1e-6f) { _rollHoldActive = false; return; }
+            _rollHoldActive = true;
+            _rollHoldPoint = target;
+            _rollHoldDir = flat.normalized;
+            // Bounded so a ball that never gets there (blocked, deflected, trapped against a body)
+            // cannot stay frictionless for the rest of the round. Generous: it only has to cover the
+            // distance it was aimed at, and any real contact clears the hold outright (see ClearRollHold).
+            _rollHoldTimeout = Time.time + 6f;
+        }
+
+        /// <summary>Drop the hold: the ball was struck / touched / reset, so the delivery is over.</summary>
+        void ClearRollHold() => _rollHoldActive = false;
+
+        // Is friction still suspended? True only while the ball is short of the target plane, has
+        // not timed out, and is still travelling roughly the way it was sent (a deflection that
+        // turns it around ends the delivery).
+        bool RollFrictionHeld()
+        {
+            if (!_rollHoldActive) return false;
+            if (Time.time > _rollHoldTimeout) { _rollHoldActive = false; return false; }
+            Vector3 toTarget = _rollHoldPoint - Rb.position; toTarget.y = 0f;
+            if (Vector3.Dot(toTarget, _rollHoldDir) <= 0f) { _rollHoldActive = false; return false; }  // past it
+            Vector3 v = Rb.linearVelocity; v.y = 0f;
+            if (Vector3.Dot(v, _rollHoldDir) <= 0f) { _rollHoldActive = false; return false; }         // turned back
+            return true;
+        }
+
         void ApplyRollingResistance()
         {
             if (Rb.isKinematic) return;
             if (_assistRemaining > 0f) return;
             if (Rb.position.y > SimConfig.VolleyMinBallHeight) return;
+
+            // A delivered ground ball is FRICTIONLESS until it reaches the spot it was aimed at, so
+            // it arrives with the pace it was struck instead of dying on the way. Past the line
+            // through that spot, normal rolling resistance takes over and it slows as any loose ball
+            // does. See HoldRollFrictionUntil.
+            if (RollFrictionHeld()) return;
 
             Vector3 v = Rb.linearVelocity;
             if (Mathf.Abs(v.y) > SimConfig.BallRollMaxVy) return;
@@ -731,6 +794,10 @@ namespace Trickshot
                                                     speed = c.relativeVelocity.magnitude };
             _touchNext = (_touchNext + 1) % _touchLog.Length;
 
+            // Somebody has played it: the delivery is over, so the ball goes back to being a normal
+            // loose ball with normal friction even if it never reached the spot it was aimed at.
+            ClearRollHold();
+
             // Ball hit a PLAYER body (any keeper/striker/footballer) -> 3D kick thud at the contact
             // point. One per contact (cooldown swallows the extra bones of a single touch). In MP the
             // client ball is kinematic so this only fires on host/SP; the host also broadcasts the
@@ -798,7 +865,12 @@ namespace Trickshot
             // plan (the left front leg is "P_ForearmL" just as the left foot is "P_FootL").
             string part = c.collider.transform.name;   // e.g. "P_Head", "P_FootR", "P_Torso"
             Bone? struck = ragdoll.BoneOf(c.collider.transform);
-            bool header = struck == Bone.Head;
+            // Adult mode: the erect appendage's hitbox (AnatomySim). BoneOf is null for it by design;
+            // it is classified as a HEADER-LIKE strike - the same goal-ward redirect with a pace
+            // floor - because the alternative branch is the scrappy body trap, and the whole point of
+            // the hitbox is that a goal can be scored off it. Only its callout differs (ShotType).
+            bool thirdLeg = ragdoll.Anatomy != null && ragdoll.Anatomy.IsHitbox(c.collider);
+            bool header = struck == Bone.Head || thirdLeg;
             if (!header && _assistCooldown > 0f) return;
             Vector3 v = Rb.linearVelocity;
 
@@ -821,7 +893,8 @@ namespace Trickshot
             bool camShouldCut = bicycleAttempt || facingDot < SimConfig.ShotCamFaceAwayDot;
 
             if (header)
-                LastShotType = striker.IsDiving ? ShotType.DivingHeader : ShotType.Header;
+                LastShotType = thirdLeg ? ShotType.ThirdLeg
+                             : striker.IsDiving ? ShotType.DivingHeader : ShotType.Header;
 
             // From here the striker is the human player, so all traits/skills apply.
             // Build trait * Shooting tree: heavier/taller + shot nodes hit harder.
@@ -1797,6 +1870,7 @@ namespace Trickshot
         {
             Rb.linearVelocity = velocity;
             Rb.angularVelocity = Vector3.zero;
+            ClearRollHold();   // a fresh strike; a caller that wants a hold arms it AFTER this
             _curlAccel = Vector3.zero;
             _curlRemaining = 0f;
             _wiggleRemaining = 0f;
@@ -1811,6 +1885,7 @@ namespace Trickshot
             transform.position = pos;
             Rb.linearVelocity = Vector3.zero;
             Rb.angularVelocity = Vector3.zero;
+            ClearRollHold();          // a re-placed ball is not mid-delivery
             _curlRemaining = 0f;
             _curlAccel = Vector3.zero;
             _wiggleRemaining = 0f;

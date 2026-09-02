@@ -63,5 +63,16 @@ namespace Trickshot
         // none. One-shot - the source returns a real id only on the frame a pick happens. The
         // host reads it to start that body's Celebration; networked via InputFrame.emoteId.
         int EmoteId { get; }
+
+        // Set up a cross (Enter) edge. A human CROSSER presses it to bring the ball to their feet
+        // and step into the crossing stance (CrosserControl). Networked via the cross frame bit;
+        // the edge is re-derived on the receiving side like every other button.
+        bool CrossPressed { get; }
+
+        // Adult mode: the appendage stands to attention while this is HELD (Striker writes it onto
+        // the body's AnatomySim; a body without one ignores it). Networked via the thirdLeg frame
+        // bit so the host stands a remote player's up, and streamed back out in BodyState.erect so
+        // every client's puppet shows it.
+        bool ThirdLegHeld { get; }
     }
 }

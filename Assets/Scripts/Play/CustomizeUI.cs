@@ -7,7 +7,8 @@ namespace Trickshot
     /// Player customization, shown after the stadium is picked and before the pre-match
     /// screen, for striker-based modes only. Four stages, Next/Back between them, with a
     /// live 3D model preview on the left:
-    ///   1. BODY   - height + weight sliders with a live trait readout, and footedness.
+    ///   1. BODY   - a height/weight grid (weight across, height up) with a live readout, and
+    ///               footedness; then the species' appearance sub-menus (skin, hair, ...).
     ///   2. SKILL  - spend a fixed point pool into a branching skill tree drawn as a
     ///               clickable node graph (six categories, capstone perks).
     ///   3. NAME   - name text + shirt number; baked into the jersey next stage.
@@ -92,9 +93,13 @@ namespace Trickshot
         // BACK (bottom) and FRONT (above), plus a small plain band on top the side faces
         // sample. Region layout constants live in JerseyDesigns (single source of truth,
         // shared with the torso UV mapping in Make.JerseyBox).
-        const int RegW = JerseyDesigns.W;          // 256, region width = atlas width
-        const int RegH = JerseyDesigns.RegionH;    // 256, region height
-        const int AtlasH = JerseyDesigns.AtlasH;   // 520, full atlas height
+        // TEXELS, not design pixels: the atlas is JerseyDesigns.Scale times finer than the 256-space
+        // the predrawn designs are authored in (see JerseyDesigns). Brush size is kept in design
+        // pixels on the slider and scaled up at stamp time, so the numbers the player sees are unchanged.
+        const int RegW = JerseyDesigns.AtlasW;        // 512, region width = atlas width
+        const int RegH = JerseyDesigns.AtlasRegionH;  // 512, region height
+        const int AtlasH = JerseyDesigns.AtlasH;      // 1032, full atlas height
+        const int TexScale = JerseyDesigns.Scale;     // texels per design pixel
         const int BackY0 = JerseyDesigns.BackY0;   // 0
         const int FrontY0 = JerseyDesigns.FrontY0; // 256
         const int PlainY0 = JerseyDesigns.PlainY0; // 512
@@ -205,11 +210,13 @@ namespace Trickshot
         void BakeIdentity(Color32[] buf)
         {
             string num = Mathf.Clamp(_number, 1, 99).ToString();
-            // Number: big glyphs centred in the lower-middle of the back.
-            DrawText(buf, BackY0, num, RegW / 2, (int)(RegH * 0.42f), 9, true);
+            // Number: big glyphs centred in the lower-middle of the back. Glyph scales are in
+            // design pixels (9 and 3 on the 256 space), scaled to texels so the finer atlas draws
+            // the same size lettering.
+            DrawText(buf, BackY0, num, RegW / 2, (int)(RegH * 0.42f), 9 * TexScale, true);
             // Name: small glyphs across the upper-middle of the back.
             string nm = string.IsNullOrWhiteSpace(_name) ? "" : _name.ToUpper();
-            if (nm.Length > 0) DrawText(buf, BackY0, nm, RegW / 2, (int)(RegH * 0.72f), 3, true);
+            if (nm.Length > 0) DrawText(buf, BackY0, nm, RegW / 2, (int)(RegH * 0.72f), 3 * TexScale, true);
         }
 
         // A hue/saturation color wheel (value fixed at 1); click to set the brush color.
@@ -296,7 +303,8 @@ namespace Trickshot
                     // top row (r=0) is highest in the region -> larger local y.
                     int bx = gx + c * scale;
                     int by = gy + (6 - r) * scale;
-                    if (outline) FillBlock(buf, regionY0, bx - 1, by - 1, scale + 2, scale + 2, edge);
+                    // Outline one DESIGN pixel wide (TexScale texels), so it reads the same at any atlas scale.
+                    if (outline) FillBlock(buf, regionY0, bx - TexScale, by - TexScale, scale + 2 * TexScale, scale + 2 * TexScale, edge);
                 }
             }
             // Second pass draws the ink so it sits over its own outline.
@@ -679,35 +687,96 @@ namespace Trickshot
             }
             else _adultMode = false;   // also keeps the Third Leg skill tab hidden for this species
 
-            // Axis label, unit, numeric format and range all come from the species (SpeciesAxis.Read),
-            // because a horse is measured at the withers and an elephant's mass is nowhere near the
-            // human band. Human reads "Height:  1.80 m" / "Weight:  75 kg" exactly as before.
-            UITheme.Label(new Rect(lx, row, lw, 20f), sp.Size.Read(_height), st); row += 24f;
-            _height = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _height, PlayerProfile.MinHeight, PlayerProfile.MaxHeight); row += 40f;
-
-            UITheme.Label(new Rect(lx, row, lw, 20f), sp.Mass.Read(_weight), st); row += 24f;
-            _weight = GUI.HorizontalSlider(new Rect(lx, row, lw, 20f), _weight, PlayerProfile.MinWeight, PlayerProfile.MaxWeight); row += 44f;
-
-            // Strong foot: two toggle buttons. The selected one is tinted bright green with
-            // a bold label + check; the other is dimmed so the choice is unmistakable.
-            UITheme.Label(new Rect(lx, row, lw, 20f), "Strong foot:", st); row += 24f;
-            float bw = (lw - 10f) * 0.5f;
-            if (FootButton(new Rect(lx, row, bw, 34f), "Left", _leftFooted))  _leftFooted = true;
-            if (FootButton(new Rect(lx + bw + 10f, row, bw, 34f), "Right", !_leftFooted)) _leftFooted = false;
-            row += 46f;
+            float bottom = y + ph - 60f;   // above the Back / Next buttons
 
             // Commit body working values so traits compute off them.
             PlayerProfile.Height = _height;
             PlayerProfile.Weight = _weight;
 
-            // Lower region: sub-index 0 (BODY) has nothing further of its own now - the sliders/
-            // foot buttons above already cover it - so only the selected appearance sub-menu draws
-            // anything down here, switched by the ‹ › arrows beside the title.
-            if (_bodySub != 0)
+            if (_bodySub == 0)
             {
-                var slot = SlotAt(_bodySub);
-                if (slot != null) SlotSubMenu(slot, lx, row, lw, y + ph - 60f);
+                // BODY: the height/weight grid, with the strong foot pinned to the bottom. Only this
+                // sub-menu carries them - the others are about appearance and use the whole panel.
+                const float footH = 24f + 34f;
+                BodyGrid(lx, row, lw, bottom - footH - 18f - row, sp);
+
+                // Strong foot: two toggle buttons. The selected one is tinted bright green with
+                // a bold label; the other is dimmed so the choice is unmistakable.
+                float fr = bottom - footH;
+                UITheme.Label(new Rect(lx, fr, lw, 20f), "Strong foot:", st); fr += 24f;
+                float bw = (lw - 10f) * 0.5f;
+                if (FootButton(new Rect(lx, fr, bw, 34f), "Left", _leftFooted))  _leftFooted = true;
+                if (FootButton(new Rect(lx + bw + 10f, fr, bw, 34f), "Right", !_leftFooted)) _leftFooted = false;
             }
+            else
+            {
+                // An appearance sub-menu, switched by the ‹ › arrows beside the title.
+                var slot = SlotAt(_bodySub);
+                if (slot != null) SlotSubMenu(slot, lx, row, lw, bottom);
+            }
+        }
+
+        // Height and weight as ONE picker, Pro Clubs style: weight runs left to right, height bottom
+        // to top; click or drag to put the marker where you want to be. Same species ranges the two
+        // sliders had (SpeciesAxis: a horse is measured at the withers, an elephant's mass is its
+        // own band), same readouts.
+        bool _gridDrag;
+        void BodyGrid(float lx, float row, float lw, float h, SpeciesDef sp)
+        {
+            var st = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = UITheme.Ink } };
+            var stR = new GUIStyle(st) { alignment = TextAnchor.MiddleRight };
+            UITheme.Label(new Rect(lx, row, lw * 0.5f, 20f), sp.Size.Read(_height), st);
+            UITheme.Label(new Rect(lx + lw * 0.5f, row, lw * 0.5f, 20f), sp.Mass.Read(_weight), stR);
+            row += 26f;
+
+            var g = new Rect(lx, row, lw, Mathf.Max(120f, h - 26f));
+            UITheme.Chip(g, new Color(0.05f, 0.06f, 0.09f, 0.82f), UITheme.Gold);
+
+            // Quarter grid lines.
+            var pc = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, 0.10f);
+            for (int i = 1; i < 4; i++)
+            {
+                GUI.DrawTexture(new Rect(g.x + g.width * i / 4f, g.y, 1f, g.height), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(g.x, g.y + g.height * i / 4f, g.width, 1f), Texture2D.whiteTexture);
+            }
+            GUI.color = pc;
+
+            // Corner captions: the bottom-left corner is both short and light.
+            var ax = new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Dim } };
+            var axR = new GUIStyle(ax) { alignment = TextAnchor.MiddleRight };
+            UITheme.Label(new Rect(g.x + 8f, g.y + 4f, 160f, 16f), "TALL", ax);
+            UITheme.Label(new Rect(g.x + 8f, g.yMax - 20f, 160f, 16f), "SHORT  /  LIGHT", ax);
+            UITheme.Label(new Rect(g.xMax - 168f, g.yMax - 20f, 160f, 16f), "HEAVY", axR);
+
+            // Input: click or drag anywhere in the grid. A drag that started inside keeps working
+            // past the edge (clamped), so the marker can be pushed right into a corner.
+            if (!ModalUp)
+            {
+                Event e = Event.current;
+                if (e.type == EventType.MouseDown && e.button == 0 && g.Contains(e.mousePosition)) _gridDrag = true;
+                else if (e.type == EventType.MouseUp && e.button == 0) _gridDrag = false;
+                if (_gridDrag && (e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && e.button == 0)
+                {
+                    float fx = Mathf.Clamp01((e.mousePosition.x - g.x) / g.width);
+                    float fy = Mathf.Clamp01((e.mousePosition.y - g.y) / g.height);
+                    _weight = Mathf.Lerp(PlayerProfile.MinWeight, PlayerProfile.MaxWeight, fx);
+                    _height = Mathf.Lerp(PlayerProfile.MinHeight, PlayerProfile.MaxHeight, 1f - fy);
+                    e.Use();
+                }
+            }
+
+            // Marker: crosshair to the axes + a gold dot.
+            float mx = g.x + Mathf.InverseLerp(PlayerProfile.MinWeight, PlayerProfile.MaxWeight, _weight) * g.width;
+            float my = g.y + (1f - Mathf.InverseLerp(PlayerProfile.MinHeight, PlayerProfile.MaxHeight, _height)) * g.height;
+            GUI.color = new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, 0.45f);
+            GUI.DrawTexture(new Rect(mx, g.y, 1f, g.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(g.x, my, g.width, 1f), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            GUI.DrawTexture(new Rect(mx - 7f, my - 7f, 14f, 14f), Texture2D.whiteTexture);
+            GUI.color = UITheme.Gold;
+            GUI.DrawTexture(new Rect(mx - 5f, my - 5f, 10f, 10f), Texture2D.whiteTexture);
+            GUI.color = pc;
         }
 
         // Sub-menu tab set: index 0 is the BODY trait readout, 1..N the current species' slots.
@@ -757,19 +826,32 @@ namespace Trickshot
         // hue at full brightness, right = black - so dragging left brightens/desaturates toward
         // white and dragging right darkens toward black. Returns the new colour (else `current`).
         Texture2D _valueBar;      // cached gradient (rebuilt when the hue changes)
+        float _skinBaseH = -1f, _skinBaseS = -1f;   // the skin bar's fixed hue/sat (see SlotSubMenu)
         float _valueBarHue = -1f, _valueBarSat = -1f;
+        // Flat PURE-white and PURE-black bands at the ends, ValueBarEnd of the bar each, so a drag
+        // to either edge lands on true white / true black without having to hit the last pixel.
+        const float ValueBarEnd = 0.14f;
         Color ValueBarSample(float h, float s, float t)
         {
+            if (t <= ValueBarEnd) return Color.white;
+            if (t >= 1f - ValueBarEnd) return Color.black;
+            float u = (t - ValueBarEnd) / (1f - 2f * ValueBarEnd);   // 0..1 across the gradient part
             Color hue = Color.HSVToRGB(h, s, 1f);
-            return t <= 0.5f ? Color.Lerp(Color.white, hue, t / 0.5f)
-                             : Color.Lerp(hue, Color.black, (t - 0.5f) / 0.5f);
+            return u <= 0.5f ? Color.Lerp(Color.white, hue, u / 0.5f)
+                             : Color.Lerp(hue, Color.black, (u - 0.5f) / 0.5f);
         }
-        Color ValueBar(Rect bar, Color current)
+        // hueOverride / satOverride >= 0 pin the gradient's hue and saturation instead of reading
+        // them off `current`. The SKIN bar needs that: a skin tone is low-saturation by nature, so
+        // the default "vivid hue mid-bar" would put a bright orange in the middle of a lightness
+        // slider, and reading the saturation back off the colour the bar itself just produced would
+        // ratchet it paler with every drag toward white.
+        Color ValueBar(Rect bar, Color current, float hueOverride = -1f, float satOverride = -1f)
         {
             Color.RGBToHSV(current, out float h, out float s, out _);
             // A near-grey current colour has no meaningful hue; keep a stable hue for the gradient.
-            if (s < 0.02f) h = _valueBarHue >= 0f ? _valueBarHue : 0f;
-            float satForBar = Mathf.Max(s, 0.85f);   // show a vivid hue mid-bar even if current is desaturated
+            if (hueOverride >= 0f) h = hueOverride;
+            else if (s < 0.02f) h = _valueBarHue >= 0f ? _valueBarHue : 0f;
+            float satForBar = satOverride >= 0f ? satOverride : Mathf.Max(s, 0.85f);   // vivid hue mid-bar even if current is desaturated
 
             // (Re)build the gradient texture when the hue/sat changes.
             if (_valueBar == null || !Mathf.Approximately(h, _valueBarHue) || !Mathf.Approximately(satForBar, _valueBarSat))
@@ -893,8 +975,19 @@ namespace Trickshot
                                                          SpeciesCosmetics.SkinSwatches(sp), 34f, 8f);
                 row += 2 * (34f + 8f) + 12f;   // two rows of swatches
                 UITheme.Label(new Rect(lx, row, lw, 20f), slot.ColorLabel, grp); row += 24f;
-                float skinWsz = Mathf.Min(lw, bottom - row, 150f);
+                float skinWsz = Mathf.Min(lw, bottom - row - 34f, 150f);   // leave room for the bar under it
+                Color before = PlayerProfile.Appearance.Skin;
                 PlayerProfile.Appearance.Skin = WheelPick(new Rect(lx, row, skinWsz, skinWsz), PlayerProfile.Appearance.Skin);
+                // The bar's hue/sat are the last SWATCH or WHEEL pick, not the current colour: the
+                // bar only sets lightness, and reading its own output back would ratchet.
+                if (_skinBaseH < 0f || !ApproxColor(PlayerProfile.Appearance.Skin, before))
+                {
+                    Color.RGBToHSV(PlayerProfile.Appearance.Skin, out float bh, out float bs, out _);
+                    _skinBaseH = bh; _skinBaseS = bs;
+                }
+                // White -> the picked tone -> black, wide pure ends. The "white to black" slider.
+                PlayerProfile.Appearance.Skin = ValueBar(new Rect(lx, row + skinWsz + 10f, skinWsz, 22f),
+                                                         PlayerProfile.Appearance.Skin, _skinBaseH, _skinBaseS);
                 return;
             }
 
@@ -1334,6 +1427,7 @@ namespace Trickshot
 
             // --- Canvas shows ONLY the active region of the atlas (front or back) ---
             var canvasRect = new Rect(lx, top, canvasSize, canvasSize);
+            FlushCanvas();   // any strokes since the last pass, uploaded once
             float v0 = CurRegionY0 / (float)AtlasH;
             var texCoords = new Rect(0f, v0, 1f, RegH / (float)AtlasH);
             GUI.DrawTextureWithTexCoords(canvasRect, _canvas, texCoords);
@@ -1573,8 +1667,8 @@ namespace Trickshot
         {
             if (!canvasRect.Contains(_lastMouse)) return;
             EnsureRing();
-            float pxPerTex = canvasSize / RegW;
-            float rPx = _brushSize * pxPerTex;
+            float pxPerDesign = canvasSize / JerseyDesigns.W;   // _brushSize is in design pixels
+            float rPx = _brushSize * pxPerDesign;
             var prev = GUI.color;
             GUI.color = _resizingBrush ? Color.white
                       : new Color(_brushColor.r, _brushColor.g, _brushColor.b, 0.95f);
@@ -1636,14 +1730,20 @@ namespace Trickshot
             // (HandleBrushResize runs after this, so we must not swallow button-2 here).
             if (e.type == EventType.MouseDown && e.button == 0 && inside)
             {
-                _undoPixels = (Color32[])_pixels.Clone();   // snapshot for undo
-                _painting = true;
-                PaintAt(canvasRect, e.mousePosition);
+                _undoPixels = (Color32[])_pixels.Clone();   // snapshot for undo AND the stroke's base
+                BeginStroke();
+                var p = ToTexel(canvasRect, e.mousePosition);
+                StrokeSegment(p, p);
+                _strokeLast = p;
                 e.Use();
             }
             else if (e.type == EventType.MouseDrag && e.button == 0 && _painting)
             {
-                if (inside) PaintAt(canvasRect, e.mousePosition);
+                // The stroke follows the mouse even once it leaves the canvas (the texels clamp), so
+                // a fast sweep out over the edge is a clean line to the edge, not a jump back in.
+                var p = ToTexel(canvasRect, e.mousePosition);
+                StrokeSegment(_strokeLast, p);
+                _strokeLast = p;
                 e.Use();
             }
             else if (e.type == EventType.MouseUp && e.button == 0)
@@ -1655,30 +1755,78 @@ namespace Trickshot
         // Atlas bottom row of the region currently being drawn (front or back).
         int CurRegionY0 => _drawSide == 1 ? BackY0 : FrontY0;
 
-        void PaintAt(Rect canvasRect, Vector2 mouse)
+        // ---- stroke engine ----
+        // A stroke is one press-drag-release. Its coverage is kept in a region-sized mask (0..1 per
+        // texel, the MAX any segment of the stroke reached) and every touched texel is composited as
+        //     base + (brush - base) * opacity * mask
+        // over the pre-stroke snapshot, so:
+        //   - consecutive segments overlapping at their joints never double up (max, not add), which
+        //     is what keeps a fast drag one smooth continuous line at any opacity;
+        //   - the edge of the mark is anti-aliased: mask falls off across one texel at the radius, so
+        //     the mark is a circle at any brush size instead of a stair-step.
+        bool _canvasDirty;          // _pixels changed; upload once per OnGUI (FlushCanvas), not per event
+        float[] _strokeMask;        // RegW * RegH, region-local
+        Vector2 _strokeLast;        // last point of the current stroke, region texel space (y up)
+
+        void BeginStroke()
         {
-            // Map GUI point (y-down) to REGION-LOCAL pixel (y-up), then into the active region.
+            _painting = true;
+            if (_strokeMask == null || _strokeMask.Length != RegW * RegH) _strokeMask = new float[RegW * RegH];
+            else System.Array.Clear(_strokeMask, 0, _strokeMask.Length);
+        }
+
+        // GUI point (y-down) -> region-local texel coordinates (y-up), CONTINUOUS (no rounding): the
+        // stroke is a real line between real points, and sub-texel positions are what the AA uses.
+        Vector2 ToTexel(Rect canvasRect, Vector2 mouse)
+        {
             float fx = (mouse.x - canvasRect.x) / canvasRect.width;
             float fy = 1f - (mouse.y - canvasRect.y) / canvasRect.height;
-            int cx = Mathf.RoundToInt(fx * (RegW - 1));
-            int cy = Mathf.RoundToInt(fy * (RegH - 1));   // local row within the region
-            int rad = Mathf.RoundToInt(_brushSize);
-            float a = _brushOpacity;
+            return new Vector2(fx * RegW, fy * RegH);
+        }
+
+        // Paint the capsule from a to b (radius = the brush) into the current stroke.
+        void StrokeSegment(Vector2 a, Vector2 b)
+        {
+            float rad = _brushSize * TexScale;   // the slider is in design pixels; stamp in texels
+            float pad = rad + 1.5f;
+            int minX = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(a.x, b.x) - pad), 0, RegW - 1);
+            int maxX = Mathf.Clamp(Mathf.CeilToInt (Mathf.Max(a.x, b.x) + pad), 0, RegW - 1);
+            int minY = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(a.y, b.y) - pad), 0, RegH - 1);
+            int maxY = Mathf.Clamp(Mathf.CeilToInt (Mathf.Max(a.y, b.y) + pad), 0, RegH - 1);
+
+            Vector2 ab = b - a;
+            float abLen2 = ab.sqrMagnitude;
+            float opacity = _brushOpacity;
             Color32 bc = _brushColor;
             int y0 = CurRegionY0;
 
-            int minX = Mathf.Max(0, cx - rad), maxX = Mathf.Min(RegW - 1, cx + rad);
-            int minY = Mathf.Max(0, cy - rad), maxY = Mathf.Min(RegH - 1, cy + rad);   // clamp to region
             for (int py = minY; py <= maxY; py++)
-            for (int px = minX; px <= maxX; px++)
             {
-                float dx = px - cx, dy = py - cy;
-                if (dx * dx + dy * dy > rad * rad) continue;
-                int idx = (y0 + py) * RegW + px;   // shift local row into the atlas region
-                Color32 dst = _pixels[idx];
-                // Alpha blend the brush color over the existing pixel.
-                _pixels[idx] = Color32.Lerp(dst, bc, a);
+                for (int px = minX; px <= maxX; px++)
+                {
+                    // Distance from this texel's centre to the segment.
+                    var p = new Vector2(px + 0.5f, py + 0.5f);
+                    float t = abLen2 > 1e-6f ? Mathf.Clamp01(Vector2.Dot(p - a, ab) / abLen2) : 0f;
+                    float d = (p - (a + ab * t)).magnitude;
+                    float cov = Mathf.Clamp01(rad + 0.5f - d);   // 1 inside, 0 outside, a one-texel ramp at the edge
+                    if (cov <= 0f) continue;
+                    int mi = py * RegW + px;
+                    if (cov <= _strokeMask[mi]) continue;         // already covered at least this well
+                    _strokeMask[mi] = cov;
+                    int idx = (y0 + py) * RegW + px;
+                    _pixels[idx] = Color32.Lerp(_undoPixels[idx], bc, opacity * cov);
+                }
             }
+            _canvasDirty = true;
+        }
+
+        // Upload the CPU buffer once per GUI pass if anything changed. A fast drag can deliver
+        // several segments in one frame; uploading a 2 MB texture per segment was most of the old
+        // painter's cost.
+        void FlushCanvas()
+        {
+            if (!_canvasDirty) return;
+            _canvasDirty = false;
             _canvas.SetPixels32(_pixels);
             _canvas.Apply();
         }

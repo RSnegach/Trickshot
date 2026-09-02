@@ -30,6 +30,8 @@ namespace Trickshot
         InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
         InputAction _closeControl;   // dribble close-control modifier
         InputAction _passGround, _passLofted, _passChip, _switchPlayer, _emote, _tackle;   // match
+        InputAction _cross;      // crosser: set up a cross (Enter)
+        InputAction _thirdLeg;   // adult mode: hold to stand the appendage to attention (MMB)
         InputAction _crossMap;   // striker mode: toggle the cross-targeting map (fixed M)
         InputAction _qcText;     // multiplayer: Tab opens the custom-quickchat text box (fixed)
         readonly InputAction[] _qcDigit = new InputAction[6];   // multiplayer: number keys 1-6 send a preset quickchat
@@ -72,6 +74,14 @@ namespace Trickshot
             _switchPlayer = Btn("Switch");
             _emote       = Btn("Emote");
             _tackle      = Btn("Tackle");
+            // Set up a cross (crosser role). Rebindable, defaulting to Enter; the numpad Enter is a
+            // fixed second binding so either key works without the player having to know which one
+            // the default names.
+            _cross       = Btn("Cross");
+            _cross.AddBinding("<Keyboard>/numpadEnter");
+            // Always built, so a rebind made while adult mode is on survives it being toggled; it is
+            // the BODY that gates the effect (no AnatomySim, nothing to stand up), not the input.
+            _thirdLeg    = Btn("ThirdLeg");
             // Striker-mode cross map: fixed to M (not in the rebind list).
             _crossMap    = _map.AddAction("CrossMap", InputActionType.Button, "<Keyboard>/m");
 
@@ -256,8 +266,13 @@ namespace Trickshot
         public bool EmotePressed => _emote != null && _emote.WasPressedThisFrame();
         // Tackle / slide challenge (C).
         public bool TacklePressed => _tackle != null && _tackle.WasPressedThisFrame();
+        // Set up a cross (Enter). Held is what goes on the wire; the edge is re-derived per tick.
+        public bool CrossPressed => _cross != null && _cross.WasPressedThisFrame();
+        public bool CrossHeld => _cross != null && _cross.IsPressed();
         // Striker cross-targeting map toggle (M).
         public bool CrossMapPressed => _crossMap != null && _crossMap.WasPressedThisFrame();
+        // Adult mode: appendage to attention while held.
+        public bool ThirdLegHeld => _thirdLeg != null && _thirdLeg.IsPressed();
 
         // Multiplayer quickchat. Tab opens the custom text box; digits 1-6 send a preset.
         public bool QuickChatTextPressed => _qcText != null && _qcText.WasPressedThisFrame();
@@ -287,6 +302,8 @@ namespace Trickshot
                 passGround = PassGroundHeld, passLofted = PassLoftedHeld, passChip = PassChipHeld,
                 tackle = TacklePressed,
                 reset = ResetPressed, closeControl = CloseControlHeld,
+                cross = CrossHeld,
+                thirdLeg = ThirdLegHeld,
                 emoteId = _pendingEmote,
             };
             _pendingEmote = 255;   // one-shot: consumed once it is sampled into a frame

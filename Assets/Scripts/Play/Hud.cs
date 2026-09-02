@@ -34,7 +34,7 @@ namespace Trickshot
 
         static GUIStyle _title, _statKey, _statVal, _clock, _flash, _flashSub, _bannerBig, _bannerSub,
                         _legend, _legendKey, _score, _teamName, _tag,
-                        _meterLbl, _overlayHdr, _overlayTip, _rowName, _rowVal;
+                        _meterLbl, _overlayHdr, _overlayTip, _rowName, _rowVal, _scoreDash, _clockSmall;
         static bool _ready;
 
         /// <summary>Virtual screen size inside a Begin/End block (use instead of Screen.*).</summary>
@@ -73,6 +73,8 @@ namespace Trickshot
             _overlayTip= new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Dim } };
             _rowName   = new GUIStyle { fontSize = 14, alignment = TextAnchor.MiddleLeft, normal = { textColor = Ink } };
             _rowVal    = new GUIStyle { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = Ink } };
+            _scoreDash = new GUIStyle(_score) { normal = { textColor = new Color(1f, 1f, 1f, 0.28f) } };
+            _clockSmall= new GUIStyle(_clock) { fontSize = 20 };
 
             // The big ones go on the real bold cut. Synthetic bold is a smear of the glyph against
             // itself, which is tolerable at 12 pt and mud at 72, and these are the numbers the eye
@@ -171,8 +173,7 @@ namespace Trickshot
             float half = mid.width * 0.5f;
             UITheme.Shadowed(new Rect(mid.x, mid.y, half - 5f, mid.height), homeScore.ToString(), _score, Ink, 0.7f, 2f);
             UITheme.Shadowed(new Rect(mid.x + half + 5f, mid.y, half - 5f, mid.height), awayScore.ToString(), _score, Ink, 0.7f, 2f);
-            UITheme.Label(new Rect(mid.x, mid.y, mid.width, mid.height), "-",
-                      new GUIStyle(_score) { normal = { textColor = new Color(1f, 1f, 1f, 0.28f) } });
+            UITheme.Label(new Rect(mid.x, mid.y, mid.width, mid.height), "-", _scoreDash);
 
             float below = r.yMax + 4f;
 
@@ -190,7 +191,7 @@ namespace Trickshot
                     UITheme.Glow(new Rect(cr.x - 10f, cr.y - 8f, cr.width + 20f, cr.height + 16f),
                                  new Color(1f, 0.28f, 0.24f, 0.10f + 0.14f * pulse));
                 }
-                var cs = new GUIStyle(_clock) { fontSize = 20 };
+                var cs = _clockSmall;
                 UITheme.Shadowed(cr, $"{t / 60:0}:{t % 60:00}", cs, hot ? UITheme.Red : Ink, 0.7f, 1.5f);
                 below = cr.yMax + 4f;
             }

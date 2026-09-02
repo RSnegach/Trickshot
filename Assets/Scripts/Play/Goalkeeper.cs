@@ -174,6 +174,50 @@ namespace Trickshot
             _facing = Quaternion.LookRotation(new Vector3(0f, 0f, _out), Vector3.up);
             if (_ragdoll != null) _ragdoll.FacingRotation = _facing;
             _hands.Init(ball, ragdoll);
+            // His spot: where the mode built him (feet on the turf). Where he returns from a park.
+            if (_ragdoll != null && _ragdoll.Pelvis != null)
+            { _home = _ragdoll.Pelvis.position; _home.y = 0f; }
+            else _home = _goal + new Vector3(0f, 0f, _out * SimConfig.KeeperLineOffset);
+        }
+
+        // ---- parking (difficulty None) ----
+        bool _parked;
+        Vector3 _home;
+        Renderer[] _renderers;
+
+        /// <summary>True while difficulty is None and he is hidden off the pitch.</summary>
+        public bool Parked => _parked;
+
+        void Park()
+        {
+            _parked = true;
+            _hands.Drop();
+            _armed = false;
+            _state = State.Guard;
+            // Far off the pitch, still on the turf plane, then frozen: kinematic bones neither fall
+            // nor wobble, and out there nothing can touch him or be touched by him.
+            _ragdoll.ResetTo(_home + new Vector3(80f, 0f, 0f), _facing);
+            _ragdoll.BecomeDisplayBody();
+            SetVisible(_ragdoll, false);
+        }
+
+        void Unpark()
+        {
+            _parked = false;
+            SetVisible(_ragdoll, true);
+            _ragdoll.BecomeLiveBody();
+            ResetTo(_home);
+        }
+
+        /// <summary>
+        /// Show or hide a keeper body (every renderer under it, hair included). Also used by a
+        /// networked CLIENT for its keeper puppet, which has no Goalkeeper of its own but must hide
+        /// when the host's difficulty is None.
+        /// </summary>
+        public static void SetVisible(ActiveRagdoll rag, bool on)
+        {
+            if (rag == null) return;
+            foreach (var r in rag.GetComponentsInChildren<Renderer>(true)) r.enabled = on;
         }
 
         public void Tick()
@@ -205,19 +249,17 @@ namespace Trickshot
             float ability = Mathf.Clamp01(SimConfig.KeeperAbility);
             _ability = ability;
 
-            // X6. Ability 0 is "None" on the picker and has to mean NO KEEPER. The BODY is built by
-            // the mode - GameBootstrap.BuildAiKeeper already skips it at <= 0.001 for the drills,
-            // GameBootstrap's match keepers are built unconditionally - so only the mode can
-            // genuinely remove him (see the contract notes at the bottom of this file). What CAN be
-            // done here is stop him being a free extra defender: no tracking, no commit, no claim.
-            // A statue on the line is still wrong, which is exactly why the request exists.
+            // Ability 0 is "None" on the picker and has to mean NO KEEPER - but the body has to
+            // exist, because the difficulty can be raised again mid-match (the in-match setup) and
+            // a keeper who was never built cannot be turned on. So at None he is PARKED: invisible,
+            // kinematic, well off the pitch, touching nothing; above None he comes back to his spot
+            // on the line, live, as if he had always been there.
             if (ability <= 0.001f)
             {
-                _ragdoll.MoveInput = Vector3.zero;
-                _ragdoll.FacingRotation = _facing;
-                _ragdoll.SetPose(KeeperPose.Ready, 8f);
+                if (!_parked) Park();
                 return;
             }
+            if (_parked) Unpark();
 
             Vector3 bpos = _ball.transform.position;
             Vector3 me = _ragdoll.Pelvis.position;
@@ -716,6 +758,10 @@ namespace Trickshot
 
         public void ResetTo(Vector3 basePos)
         {
+            // A parked keeper stays parked (the drill's per-round reset must not stand him back on
+            // the line at None); the spot is kept as his home for when he comes back.
+            _home = basePos; _home.y = 0f;
+            if (_parked) return;
             _hands.Drop();
             _state = State.Guard;
             _diveCooldown = 0f;

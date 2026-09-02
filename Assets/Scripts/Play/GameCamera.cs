@@ -12,6 +12,7 @@ namespace Trickshot
     ///
     ///  Broadcast (replays): a diagonal vantage across the penalty area that frames
     ///  everyone and tracks the ball, used for the slow-motion replay after contact.
+    ///  The viewer can take it over: the mouse orbits the focus and the wheel zooms.
     ///
     /// One component owns the Camera and the slow-motion timeScale so nothing fights
     /// over the transform.
@@ -25,7 +26,11 @@ namespace Trickshot
 
         Transform _followTarget;
         System.Func<Vector2> _lookSource;   // mouse delta provider
+        System.Func<float> _scrollSource;   // mouse wheel provider (replay zoom); optional
         System.Func<Quaternion> _facingSource;  // keeper facing provider
+        // Broadcast (replay) orbit, owned by the viewer once they touch the mouse or wheel.
+        float _bcYaw, _bcPitch, _bcDist, _bcDistTarget;
+        bool _bcUser;                       // false: the automatic vantage is still driving
         // While an overlay owns the cursor (e.g. the cross-targeting map), freeze camera LOOK so
         // moving the mouse to click the map doesn't spin the view. Position smoothing still settles.
         public bool FreezeLook;
@@ -52,21 +57,26 @@ namespace Trickshot
             _followTarget = striker;
         }
 
-        /// <summary>Set the orbit target and the mouse-delta source for camera control.</summary>
-        public void SetFollow(Transform target, System.Func<Vector2> lookSource)
+        /// <summary>Set the orbit target and the mouse-delta source for camera control. The
+        /// optional wheel source is what zooms a replay (Broadcast) - modes without one keep a
+        /// fixed-distance replay.</summary>
+        public void SetFollow(Transform target, System.Func<Vector2> lookSource, System.Func<float> scrollSource = null)
         {
             _followTarget = target;
             _lookSource = lookSource;
+            if (scrollSource != null) _scrollSource = scrollSource;
             _mode = Mode.Follow;
         }
 
         /// <summary>Keeper camera: sits behind the keeper looking in his facing
         /// direction (out toward the pitch), with a slight clamped mouse look.</summary>
-        public void SetKeeperFollow(Transform target, System.Func<Quaternion> facingSource, System.Func<Vector2> lookSource)
+        public void SetKeeperFollow(Transform target, System.Func<Quaternion> facingSource, System.Func<Vector2> lookSource,
+                                    System.Func<float> scrollSource = null)
         {
             _followTarget = target;
             _facingSource = facingSource;
             _lookSource = lookSource;
+            if (scrollSource != null) _scrollSource = scrollSource;
             _keeperLookYaw = 0f;
             _keeperLookPitch = 0f;
             _mode = Mode.KeeperFollow;
@@ -78,7 +88,12 @@ namespace Trickshot
         /// turns his body to it, so the body and the camera stay in lock-step.</summary>
         public float KeeperLookYaw => _keeperLookYaw;
 
-        public void SetMode(Mode m) => _mode = m;
+        public void SetMode(Mode m)
+        {
+            // A fresh replay starts on the automatic vantage; the viewer takes over from there.
+            if (m == Mode.Broadcast && _mode != Mode.Broadcast) _bcUser = false;
+            _mode = m;
+        }
         public void TriggerSlowMo(float seconds) => _slowmoTimer = Mathf.Max(_slowmoTimer, seconds);
         public bool SlowMoActive => _slowmoTimer > 0f;
 
@@ -247,6 +262,13 @@ namespace Trickshot
         // future Match broadcast camera doesn't inherit numbers tuned for a wider pitch.
         const float BroadcastRegulationHalfWidth = 34f;
 
+        // The replay camera is an ORBIT about the auto-framed focus, expressed as yaw / pitch /
+        // distance. Untouched, those three are re-derived from the automatic vantage every frame,
+        // so a replay nobody touches looks exactly as it always did. The first mouse move or wheel
+        // notch hands them to the viewer - from wherever the camera already is, so there is no snap
+        // in either direction - and from then on the mouse orbits and the wheel zooms while the
+        // focus keeps tracking the action. Every machine runs this against its own mouse, so
+        // everyone watching a networked replay looks around it independently.
         void BroadcastUpdate()
         {
             float dt = Time.unscaledDeltaTime;
@@ -256,16 +278,54 @@ namespace Trickshot
 
             Vector3 focus = Vector3.Lerp(GroupCenter(), ballPos, 0.5f);
             float spread = Vector3.Distance(ballPos, strikerPos);
-            float dist = Mathf.Clamp(12f + spread * 0.6f, 14f, 30f) * pitchScale;
-            float height = Mathf.Clamp(9f + spread * 0.35f, 9f, 18f) * pitchScale;
 
-            Vector3 dir = new Vector3(0.85f, 0f, -0.5f).normalized;
-            Vector3 desired = focus + new Vector3(dir.x * dist, height, dir.z * dist);
-            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.35f, Mathf.Infinity, dt);
+            Vector2 look = (_lookSource != null && !FreezeLook) ? _lookSource() : Vector2.zero;
+            float scroll = (_scrollSource != null && !FreezeLook) ? _scrollSource() : 0f;
+            bool wheel = Mathf.Abs(scroll) > SimConfig.ScrollDeadzone;
+            bool input = look.sqrMagnitude > 1e-6f || wheel;
+
+            if (!_bcUser)
+            {
+                // The automatic vantage, as an orbit. The camera sits at focus + rot * (0,0,-dist),
+                // so the offset's unit vector o gives pitch = asin(o.y) and yaw = atan2(-o.x, -o.z).
+                float dist = Mathf.Clamp(12f + spread * 0.6f, 14f, 30f) * pitchScale;
+                float height = Mathf.Clamp(9f + spread * 0.35f, 9f, 18f) * pitchScale;
+                Vector3 dir = new Vector3(0.85f, 0f, -0.5f).normalized;
+                Vector3 off = new Vector3(dir.x * dist, height, dir.z * dist);
+                _bcDist = _bcDistTarget = off.magnitude;
+                Vector3 o = off / _bcDist;
+                _bcYaw = Mathf.Atan2(-o.x, -o.z) * Mathf.Rad2Deg;
+                _bcPitch = Mathf.Asin(Mathf.Clamp(o.y, -1f, 1f)) * Mathf.Rad2Deg;
+                if (input) _bcUser = true;
+            }
+            if (_bcUser)
+            {
+                // Same feel as the follow camera: same yaw/pitch speeds, pitch clamped so it can
+                // neither dip under the turf nor flip over the top.
+                _bcYaw += look.x * SimConfig.CamYawSpeed;
+                _bcPitch = Mathf.Clamp(_bcPitch - look.y * SimConfig.CamPitchSpeed,
+                                       SimConfig.ReplayCamPitchMin, SimConfig.ReplayCamPitchMax);
+                // Zoom is per NOTCH by sign, not by the raw value (Windows reports ~120 a notch,
+                // other platforms 1), and eased so a flick of the wheel glides rather than steps.
+                if (wheel)
+                    _bcDistTarget *= Mathf.Pow(SimConfig.ReplayCamZoomPerNotch, Mathf.Sign(scroll));
+                _bcDistTarget = Mathf.Clamp(_bcDistTarget, SimConfig.ReplayCamDistMin * pitchScale,
+                                            SimConfig.ReplayCamDistMax * pitchScale);
+                _bcDist = Mathf.Lerp(_bcDist, _bcDistTarget, 1f - Mathf.Exp(-SimConfig.ReplayCamZoomEase * dt));
+            }
+
+            Quaternion rot = Quaternion.Euler(_bcPitch, _bcYaw, 0f);
+            Vector3 desired = focus + rot * new Vector3(0f, 0f, -_bcDist);
+            if (desired.y < 0.6f) desired.y = 0.6f;
+            // Under the viewer's hand the glide has to be short or the orbit lags the mouse; the
+            // untouched vantage keeps its slow broadcast drift.
+            float glide = _bcUser ? 0.08f : 0.35f;
+            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, glide, Mathf.Infinity, dt);
 
             Vector3 lookAt = Vector3.Lerp(focus, ballPos, 0.55f) + Vector3.up * 1.2f;
             Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
-            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-6f * dt));
+            float turn = _bcUser ? 16f : 6f;
+            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-turn * dt));
             _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(46f), 1f - Mathf.Exp(-5f * dt));
         }
 

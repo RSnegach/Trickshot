@@ -34,6 +34,13 @@ namespace Trickshot
         System.Action _onLeave;    // client-only: leave a net match without ending it for others
         OptionsMenu _options;
         bool _optionsOpen;
+        // Match Setup as an in-panel overlay (like Options) instead of a teardown + full-screen
+        // rebuild: the live-tunable settings apply to the running match immediately, so there is no
+        // reason to leave it. The full-screen flow is still reachable from inside, for the settings
+        // that genuinely need a rebuild (goal size, Match team pickers). See PauseMatchSetup.
+        PauseMatchSetup _setup;
+        bool _setupOpen;
+        GameMode? _mode;
         float _savedTimeScale = 1f;
         string _modeLabel;
 
@@ -49,6 +56,9 @@ namespace Trickshot
             public string ConfirmTitle, ConfirmBody;   // non-null -> route through the confirm card
         }
         readonly List<Entry> _entries = new List<Entry>();
+        int _entriesFrame = -1;   // frame the entries were last built (Update + every OnGUI pass ask)
+        // Styles are cached: the pause menu draws over a networked match that keeps running.
+        static GUIStyle _btnSt, _confirmTitleSt, _confirmBtnSt;
         int _sel;
 
         // Pending destructive action awaiting confirmation (null when not confirming).
@@ -64,6 +74,13 @@ namespace Trickshot
             _onLeave = onLeave;
             _onRestart = onRestart;
             if (input != null) _options = new OptionsMenu(input);
+            _mode = mode;
+            // Only build the inline panel for a mode that actually has live-tunable settings; a mode
+            // with none (Match: every picker needs a rebuild) keeps the old full-screen entry alone.
+            // Never for a networked CLIENT: the match's settings are the host's. (The full-screen
+            // fallback below is hidden for a client too - it ends the session.)
+            if (mode.HasValue && PauseMatchSetup.HasLiveSettings(mode.Value) && !Trickshot.Net.Multiplayer.IsClient)
+                _setup = new PauseMatchSetup(mode.Value);
             _modeLabel = mode.HasValue ? ModeName(mode.Value) : null;
             Paused = false;
         }
@@ -97,7 +114,7 @@ namespace Trickshot
                 // on Escape too, and must not ALSO open the pause menu on that same press.
                 if (GameManager.CrossMapEscapeOwned) return;
 
-                // Back out one level at a time: confirm card -> options -> buttons -> unpause.
+                // Back out one level at a time: confirm card -> options/setup -> buttons -> unpause.
                 if (_confirmAct != null) { ClearConfirm(); return; }
                 if (_optionsOpen)
                 {
@@ -106,13 +123,14 @@ namespace Trickshot
                     _optionsOpen = false;
                     return;
                 }
+                if (_setupOpen) { _setupOpen = false; return; }
                 if (Paused) Resume(); else Pause();
                 return;
             }
 
             // Keyboard navigation. Polled here rather than off IMGUI key events so it works
             // regardless of GUI focus; the Input System is unaffected by timeScale = 0.
-            if (!Paused || _optionsOpen) return;
+            if (!Paused || _optionsOpen || _setupOpen) return;
 
             bool up = kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame;
             bool down = kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame;
@@ -145,6 +163,7 @@ namespace Trickshot
             Time.timeScale = 0f;
             GameInput.CaptureCursor(false);
             _sel = 0;
+            _setupOpen = false;   // always open on the buttons, not on a panel left up last time
             ClearConfirm();
         }
 
@@ -181,6 +200,10 @@ namespace Trickshot
 
         void BuildEntries()
         {
+            // Once per frame at most: Update and each of the several OnGUI passes all call this, and
+            // every build allocates a closure per entry.
+            if (_entriesFrame == Time.frameCount) return;
+            _entriesFrame = Time.frameCount;
             _entries.Clear();
 
             _entries.Add(new Entry { Label = "Resume", Act = Resume });
@@ -191,7 +214,13 @@ namespace Trickshot
             if (_onRestart != null)
                 _entries.Add(new Entry { Label = "Restart Match", Act = () => { Unfreeze(); _onRestart?.Invoke(); } });
 
-            if (_onMatchSetup != null)
+            // Match Setup opens INSIDE the pause menu when this mode has anything that can be
+            // re-tuned live (no unfreeze, no teardown - the match is still sitting there paused
+            // behind it). Modes with nothing live-tunable keep the old behaviour: unfreeze, tear
+            // down, and reopen the full pre-match screen.
+            if (_setup != null)
+                _entries.Add(new Entry { Label = "Match Setup", Act = () => _setupOpen = true });
+            else if (_onMatchSetup != null && !Trickshot.Net.Multiplayer.IsClient)
                 _entries.Add(new Entry { Label = "Match Setup", Act = () => { Unfreeze(); _onMatchSetup?.Invoke(); } });
 
             if (_options != null)
@@ -243,6 +272,17 @@ namespace Trickshot
                 return;
             }
 
+            // Match Setup overlay, same deal: it owns the pause screen while open. "Full Setup..."
+            // hands off to the old teardown+rebuild flow for the settings that can't apply live.
+            if (_setupOpen && _setup != null)
+            {
+                _setup.Draw(() => _setupOpen = false,
+                            _onMatchSetup == null ? null
+                                : () => { Unfreeze(); _onMatchSetup?.Invoke(); });
+                MenuScale.End();
+                return;
+            }
+
             float sw = MenuScale.Width, sh = MenuScale.Height;
             BuildEntries();
 
@@ -262,7 +302,7 @@ namespace Trickshot
 
             if (_confirmAct != null) { DrawConfirm(sw, sh); MenuScale.End(); return; }
 
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
+            var btn = _btnSt ??= new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
             var e = Event.current;
 
             for (int i = 0; i < rows; i++)
@@ -318,7 +358,7 @@ namespace Trickshot
             var r = new Rect(sw * 0.5f - w * 0.5f, sh * 0.5f - h * 0.5f, w, h);
             UITheme.Panel(r, UITheme.Red);
 
-            var t = new GUIStyle(GUI.skin.label)
+            var t = _confirmTitleSt ??= new GUIStyle(GUI.skin.label)
             { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             UITheme.Shadowed(new Rect(r.x, r.y + 22f, r.width, 38f), _confirmTitle, t, UITheme.Ink, 0.7f, 2f);
             UITheme.Hint(new Rect(r.x + 20f, r.y + 66f, r.width - 40f, 24f), _confirmBody);
@@ -327,7 +367,7 @@ namespace Trickshot
             float by = r.yMax - bh - 24f;
             var cancel = new Rect(r.center.x - bw - 8f, by, bw, bh);
             var ok = new Rect(r.center.x + 8f, by, bw, bh);
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
+            var btn = _confirmBtnSt ??= new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
 
             var e = Event.current;
             if (cancel.Contains(e.mousePosition)) _confirmYes = false;

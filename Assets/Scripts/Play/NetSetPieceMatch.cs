@@ -182,11 +182,11 @@ namespace Trickshot
                     // and turns his body to it, so body + camera stay in lock-step.
                     _cam.SetKeeperFollow(me.ragdoll.Pelvis.transform,
                                          () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
-                                         () => _input.Look);
+                                         () => _input.Look, () => _input.Scroll);
                 }
                 else
                 {
-                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
+                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll);
                     _camTarget = me.ragdoll.Pelvis.transform;   // FollowActiveShooter tracks this
                     if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
                 }
@@ -207,10 +207,11 @@ namespace Trickshot
 
             // Replay recorder over local bodies + ball.
             var tracked = new List<Transform> { _ball.transform };
+            var drivers = new List<MonoBehaviour>();
             for (int i = 0; i < _bodies.Length; i++)
-                if (_bodies[i] != null) tracked.AddRange(_bodies[i].ragdoll.BoneTransforms);
+                if (_bodies[i] != null) ReplaySystem.TrackBody(tracked, drivers, _bodies[i].ragdoll);
             _replay = gameObject.AddComponent<ReplaySystem>();
-            _replay.Setup(tracked, null, SimConfig.ReplayWindow);
+            _replay.Setup(tracked, drivers, SimConfig.ReplayWindow);
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
             _s.JerseyUpdated += OnJerseyUpdated;
@@ -690,7 +691,7 @@ namespace Trickshot
             var target = body.ragdoll.Pelvis.transform;
             if (target == _camTarget) return;   // already watching them
             _camTarget = target;
-            _cam.SetFollow(target, () => _input.Look);
+            _cam.SetFollow(target, () => _input.Look, () => _input.Scroll);
         }
 
         Transform _camTarget;   // whose pelvis the camera is currently orbiting
@@ -715,7 +716,7 @@ namespace Trickshot
                 var b = _bodies[i];
                 if (b == null) continue;
                 bool remote = i != _localSlot;
-                if (remote && b.netInput != null) b.netInput.Feed(_s.InputForSlot(i));
+                if (remote && b.netInput != null) b.netInput.Feed(_s.ConsumeInputForSlot(i));
                 if (b.ai != null) b.ai.Tick();
                 if (b.keeper != null) b.keeper.Tick();
             }
@@ -786,8 +787,13 @@ namespace Trickshot
                     System.Func<Vector3> aim = nsrc != null
                         ? () => SetPieceTaker.LookAimPoint(_ballSpot, nsrc.LookYaw, nsrc.LookPitch, SimConfig.AttackGoalCenter.z)
                         : () => SetPieceTaker.LookAimPoint(_ballSpot, _cam.Yaw, _cam.Pitch, SimConfig.AttackGoalCenter.z);
+                    // A remote shooter's footedness now comes off the wire (it used to fall back to
+                    // the HOST'S foot, so every remote free kick was animated on the wrong leg for
+                    // a left-footer). The local shooter keeps the -1 = own-profile default.
+                    int footed = (_activeShooter == _localSlot) ? -1 : (_s.LeftFootedForSlot(_activeShooter) ? 1 : 0);
                     _taker.Begin(src, b.ragdoll, _ball, _ballSpot, SimConfig.AttackGoalCenter,
-                                 displayOnly: false, combinedOverride: combined, aimPoint: aim);
+                                 displayOnly: false, combinedOverride: combined, aimPoint: aim,
+                                 leftFootedOverride: footed);
                     _takerArmed = true;
                 }
                 _taker.Tick();
@@ -996,6 +1002,8 @@ namespace Trickshot
                 if (!FindBody(bSnap, i, out var sb)) sb = sa;
                 Vector3 pos = Vector3.Lerp(sa.pos, sb.pos, f);
                 float yaw = Mathf.LerpAngle(sa.yaw, sb.yaw, f);
+                // Adult mode: the puppet's appendage follows the host's flag (AnatomySim eases it).
+                if (body.ragdoll.Anatomy != null) body.ragdoll.Anatomy.Erect = sb.erect;
                 float speed = 0f;
                 if (body.hasLastInterp) { Vector3 d = pos - body.lastInterpPos; d.y = 0f; speed = d.magnitude / Mathf.Max(1e-4f, Time.deltaTime); }
                 body.lastInterpPos = pos; body.hasLastInterp = true;
@@ -1043,6 +1051,7 @@ namespace Trickshot
             if (b.ragdoll == null) return AnimState.Idle;
             if (b.keeper != null && b.keeper.IsCommitting) return AnimState.Dive;
             if (b.ai != null && b.ai.WasDivingSave) return AnimState.Dive;
+            if (b.striker != null && (b.striker.IsDiving || b.striker.IsTumbling)) return AnimState.Down;   // prone
             if (b.striker != null && !b.ragdoll.IsGrounded) return AnimState.Jump;
             if (b.ragdoll.MoveInput.sqrMagnitude > 0.6f) return AnimState.Run;
             return AnimState.Idle;
@@ -1058,7 +1067,8 @@ namespace Trickshot
                 Vector3 p = b.ragdoll.Pelvis.position; p.y = 0f;
                 list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
                                          down = false, emoteId = 255, anim = (byte)AnimStateOf(b),
-                                         lastInputTick = _s.InputTickForSlot(i) });
+                                         lastInputTick = _s.InputTickForSlot(i),
+                                         erect = b.ragdoll.Anatomy != null && b.ragdoll.Anatomy.Erect });
             }
             _s.BroadcastSnapshot(new Snapshot
             {

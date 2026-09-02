@@ -53,6 +53,14 @@ namespace Trickshot
 
         public bool JustServed { get; private set; }
 
+        /// <summary>
+        /// Show / hide the landing telegraph directly. The auto-serve loop drives the reticle itself;
+        /// a HUMAN in the crossing stance drives it from his live aim while he charges, through this,
+        /// so both crossers put the same marker on the turf.
+        /// </summary>
+        public void ShowTelegraph(Vector3 point) { if (_reticle != null) _reticle.Show(point); }
+        public void HideTelegraph() { if (_reticle != null) _reticle.Hide(); }
+
         // When true (default), the crosser auto-serves on the ServeInterval loop. Set false so
         // it stays idle until ServeNow() is called (a human crosser, or a striker's called
         // pass). The cosmetic swing + perfect launch are shared by both paths.
@@ -67,10 +75,16 @@ namespace Trickshot
         // crosser) rather than the fixed launch point. Set with Cosmetic=false.
         public bool ServeFromFeet;
 
-        // AI/auto crosser delivery: false (default) = a LOFTED cross through the air; true = a
-        // fast, flat GROUND cross. Toggled from the cross map's Crosser tab. Only affects the
+        // AI/auto crosser delivery, chosen from the cross map's Crosser tab. Only affects the
         // auto/aimed serve (PickServe); the human crosser chooses per-serve via tap/hold.
-        public bool GroundCross;
+        public enum DeliveryType
+        {
+            Lofted,  // a proper arcing cross through the air (the old "Air" default)
+            Low,     // fast, flat, low ball - still airborne but barely leaves the ground
+            Ground,  // struck flat along the turf: never airborne, rolls to the target and
+                     // decelerates under normal rolling resistance (BallController.ApplyRollingResistance)
+        }
+        public DeliveryType Delivery = DeliveryType.Lofted;
 
         public void Init(AimReticle reticle, BallController ball, Transform launchPoint, ActiveRagdoll ragdoll)
         {
@@ -310,23 +324,59 @@ namespace Trickshot
             // Landing spot: the delivery override (aim spot / corner target) or the default
             // cross target. No curl (predictable practice).
             Vector3 target = TargetOverride ?? SimConfig.ServeTarget;
-            if (GroundCross)
+            if (Delivery == DeliveryType.Ground)
             {
-                // GROUND: a fast, flat, low ball - land at ball height. Distance-scaled time keeps
-                // it quick+flat whether the target is near or across the box.
+                // GROUND: never airborne - struck flat along the turf. Launch() gives this a
+                // straight KickTo velocity instead of a ballistic LaunchTo solve, so _pendingTime
+                // is unused for this delivery; still land the target at ball height for consistency.
+                target.y = SimConfig.BallRadius;
+                _pendingTarget = target;
+                _pendingTime = 0f;
+            }
+            else if (Delivery == DeliveryType.Low)
+            {
+                // LOW (formerly "Ground"): a fast, flat, low ball - land at ball height. Distance-
+                // scaled time keeps it quick+flat whether the target is near or across the box.
                 target.y = SimConfig.BallRadius;
                 _pendingTarget = target;
                 _pendingTime = CrossFlightTime(Origin, target, ground: true);
             }
             else
             {
-                // AIR (default): a lofted cross. Distance-scaled time gives a consistent launch angle
-                // so it arcs naturally at ANY range and still drops onto the target.
+                // LOFTED (default): a proper arcing cross. Distance-scaled time gives a consistent
+                // launch angle so it arcs naturally at ANY range and still drops onto the target.
                 _pendingTarget = target;
                 _pendingTime = CrossFlightTime(Origin, target, ground: false);
             }
             _pendingCurl = Vector3.zero;
             _pendingSpin = 0f;
+        }
+
+        // Flat launch speed (m/s) for a Ground delivery.
+        //
+        // The ball rolls FRICTIONLESS out to the target (BallController.HoldRollFrictionUntil) and only
+        // starts slowing once it is past the spot, so this is no longer a "reach the spot and stop"
+        // solve - it is the pace the pass is played at, and the ball arrives still carrying it. That
+        // is the point of the hold: a ground ball into the box should get there like a pass, not
+        // trickle in dying.
+        //
+        // Distance still scales it, gently (sqrt), so a ball across the box is firmer than one played
+        // five metres - a flat speed would make the long one crawl and the short one a bullet - but
+        // the arrival no longer depends on getting that number right, only the feel of it does.
+        //
+        // BallSpeedMul is applied for the same reason LaunchTo applies it: the "Shot speed" slider has
+        // to mean something on every delivery type, and this is the one that never goes through
+        // LaunchTo. Here it straightforwardly scales the pace.
+        static float GroundRollSpeed(Vector3 origin, Vector3 target)
+        {
+            Vector3 d = target - origin; d.y = 0f;
+            float dist = d.magnitude;
+            float v0 = SimConfig.CrossGroundPace * Mathf.Sqrt(Mathf.Max(dist, 0.01f));
+            v0 *= Mathf.Max(0.1f, SimConfig.BallSpeedMul);
+            // The upper bound stays just under BallRollSpeed: above it ApplyRollingResistance ignores
+            // the ball entirely, so a faster ground ball would never slow down even after the hold
+            // expires. Keeping it under that line means the hold is what decides when friction starts.
+            return Mathf.Clamp(v0, SimConfig.CrossGroundMinSpeed, SimConfig.BallRollSpeed - 0.01f);
         }
 
         // Time of flight scaled by the horizontal origin->target distance so the launch ANGLE is
@@ -357,8 +407,36 @@ namespace Trickshot
 
         void Launch()
         {
-            _ball.ResetTo(Origin);
-            _ball.LaunchTo(_pendingTarget, _pendingTime, _pendingCurl, _pendingSpin);
+            if (Delivery == DeliveryType.Ground)
+            {
+                // Straight flat KickTo, not a ballistic solve: the ball never leaves the turf, so
+                // normal rolling resistance (not LaunchTo's parabola) is what brings it to the target.
+                //
+                // Started ON THE TURF rather than at Origin's launch height (0.4 m). That height is
+                // right for a struck cross but wrong here twice over: the ball would arc down and
+                // bounce instead of rolling, and rolling resistance is gated on y <= VolleyMinBall
+                // Height (0.25), so it would coast undamped through the drop and overshoot the spot
+                // GroundRollSpeed solved for. Only the height is changed - it still leaves from the
+                // crosser's own launch point in x/z.
+                Vector3 from = Origin; from.y = SimConfig.BallRadius;
+                _ball.ResetTo(from);
+                Vector3 flat = _pendingTarget - from; flat.y = 0f;
+                Vector3 dir = flat.sqrMagnitude > 1e-6f ? flat.normalized : Vector3.forward;
+                float speed = GroundRollSpeed(from, _pendingTarget);
+                _ball.KickTo(dir * speed);
+                // Frictionless until it reaches the spot the reticle is showing, so it arrives with
+                // the pace it was played at instead of dying on the way. AFTER KickTo, which clears
+                // any previous hold. Past the target it slows like any loose ball.
+                _ball.HoldRollFrictionUntil(_pendingTarget);
+                // KickTo zeroes the spin, which would slide the ball along the turf like a puck.
+                // Same rolling-spin visual a dribble touch uses (Dribble.RollSpin).
+                _ball.Rb.angularVelocity = Vector3.Cross(Vector3.up, dir) * (speed * SimConfig.DribbleSpinScale);
+            }
+            else
+            {
+                _ball.ResetTo(Origin);
+                _ball.LaunchTo(_pendingTarget, _pendingTime, _pendingCurl, _pendingSpin);
+            }
             if (_reticle != null) _reticle.Hide();
             // Contact: the clock is at 1 and free-runs from here through the follow-through, and the
             // strike lifts him off the plant leg. A mobile human crosser is skipped - its Striker owns

@@ -21,13 +21,24 @@ namespace Trickshot
     // each add one BuildNationsBatchN(list) method, so they can be generated independently.
     public static partial class JerseyDesigns
     {
-        // Atlas layout. Single source of truth for the paint code.
-        public const int W       = 256;   // atlas width (also each region's width)
-        public const int RegionH = 256;   // each region is 256 tall
-        public const int AtlasH  = 520;   // total atlas height
-        public const int BackY0  = 0;     // BACK region occupies rows [0, 256)
-        public const int FrontY0 = 256;   // FRONT region occupies rows [256, 512)
-        public const int PlainY0 = 512;   // PLAIN band rows [512, 520) - never touched
+        // DESIGN space: every predrawn design is authored on a 256x256 region and stays that way -
+        // the batch files mix W/RegionH-relative and literal coordinates freely, so this space is
+        // fixed. The ATLAS the paint code and the body actually use is Scale times finer (below);
+        // RegionSetter maps each design pixel onto a Scale x Scale block of texels.
+        public const int W       = 256;   // design-space region width
+        public const int RegionH = 256;   // design-space region height
+
+        // Atlas layout (TEXELS). Single source of truth for the paint code, the UV mapping and the
+        // wire. Doubled from the design space so a brush stroke is a smooth circle rather than a
+        // stair-step - at 256 across, one texel was ~1.5 screen pixels on the canvas.
+        public const int Scale        = 2;
+        public const int AtlasW       = W * Scale;                     // 512, also each region's width
+        public const int AtlasRegionH = RegionH * Scale;               // 512, each region's height
+        public const int PlainBand    = 8;                             // solid base-colour rows for the side faces
+        public const int AtlasH       = AtlasRegionH * 2 + PlainBand;  // 1032
+        public const int BackY0       = 0;                             // BACK region rows  [0, 512)
+        public const int FrontY0      = AtlasRegionH;                  // FRONT region rows [512, 1024)
+        public const int PlainY0      = AtlasRegionH * 2;              // PLAIN band rows   [1024, 1032) - never touched
 
         static List<Design> _all;
         static readonly Dictionary<string, Texture2D> _thumbs = new Dictionary<string, Texture2D>();
@@ -55,7 +66,7 @@ namespace Trickshot
             if (_thumbs.TryGetValue(d.Name, out var cached) && cached != null)
                 return cached;
 
-            var buf = new Color32[W * AtlasH];
+            var buf = new Color32[AtlasW * AtlasH];
             var grey = new Color32(128, 128, 128, 255);
             for (int i = 0; i < buf.Length; i++) buf[i] = grey;
             if (d.Apply != null) d.Apply(buf);
@@ -65,11 +76,11 @@ namespace Trickshot
             var px = new Color32[size * size];
             for (int ty = 0; ty < size; ty++)
             {
-                int sy = ty * RegionH / size;            // 0..255
+                int sy = ty * AtlasRegionH / size;       // 0..AtlasRegionH-1
                 for (int tx = 0; tx < size; tx++)
                 {
-                    int sx = tx * W / size;              // 0..255
-                    int src = (FrontY0 + sy) * W + sx;
+                    int sx = tx * AtlasW / size;         // 0..AtlasW-1
+                    int src = (FrontY0 + sy) * AtlasW + sx;
                     if (src < 0 || src >= buf.Length) continue;
                     px[ty * size + tx] = buf[src];
                 }
@@ -159,15 +170,25 @@ namespace Trickshot
             };
         }
 
-        // A bounds-checked per-pixel setter in LOCAL region coords (0..255, y up).
+        // A bounds-checked per-pixel setter in LOCAL DESIGN coords (0..255, y up). Each design
+        // pixel lands on a Scale x Scale block of atlas texels, so every design renders on the
+        // finer atlas exactly as it was authored.
         static Action<int, int, Color32> RegionSetter(Color32[] buf, int regionY0)
         {
             return (x, y, c) =>
             {
                 if (x < 0 || x >= W || y < 0 || y >= RegionH) return;
-                int idx = (regionY0 + y) * W + x;
-                if (idx < 0 || idx >= buf.Length) return;
-                buf[idx] = c;
+                int bx = x * Scale, by = regionY0 + y * Scale;
+                for (int dy = 0; dy < Scale; dy++)
+                {
+                    int row = (by + dy) * AtlasW + bx;
+                    for (int dx = 0; dx < Scale; dx++)
+                    {
+                        int idx = row + dx;
+                        if (idx < 0 || idx >= buf.Length) continue;
+                        buf[idx] = c;
+                    }
+                }
             };
         }
 

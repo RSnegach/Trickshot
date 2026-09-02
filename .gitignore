@@ -56,3 +56,6 @@ graphify-out/cache/
 # Verification screenshots taken by tooling; not project assets.
 /[Aa]ssets/[Ss]creenshots/
 /[Aa]ssets/[Ss]creenshots.meta
+
+# Local AI-tool config (machine-specific paths)
+.cline/

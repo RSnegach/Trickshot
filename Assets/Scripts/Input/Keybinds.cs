@@ -34,7 +34,18 @@ namespace Trickshot
             ("Emote",      "Emote wheel"),
             ("BallCam",    "Ball cam toggle"),
             ("Reset",      "Reset / restart"),
+            ("Cross",      "Set up a cross (crosser)"),
+            ("ThirdLeg",   "Third leg (adult mode)"),
         };
+
+        // Binds that only mean anything with adult mode on. The options list hides them otherwise
+        // (see OptionsMenu.DrawKeybindings); the action itself is always built and bound.
+        public static bool AdultOnly(string action) => action == "ThirdLeg";
+
+        /// <summary>Control-band chunk for the third-leg bind ("   MMB third leg"), or "" when adult
+        /// mode is off so the legends stay as they were. The leading spaces are the band's group gap.</summary>
+        public static string ThirdLegHint(bool adult)
+            => adult ? "   " + Display(Path("ThirdLeg")) + " third leg" : "";
 
         static readonly Dictionary<string, string> Defaults = new Dictionary<string, string>
         {
@@ -55,6 +66,8 @@ namespace Trickshot
             { "Emote",      "<Keyboard>/b" },
             { "BallCam",    "<Keyboard>/v" },
             { "Reset",      "<Keyboard>/r" },
+            { "Cross",      "<Keyboard>/enter" },
+            { "ThirdLeg",   "<Mouse>/middleButton" },
         };
 
         const string PrefPrefix = "trickshot.bind.";

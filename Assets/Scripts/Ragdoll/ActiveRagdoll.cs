@@ -82,6 +82,7 @@ namespace Trickshot
         public bool BalanceEnabled = true;
         public bool LocomotionEnabled = true; // when false, no velocity steering (impulses carry freely)
         public float DriveScale = 1f;        // 0..1 global motor strength multiplier
+        float _lastDriveScale = float.NaN;   // DriveScale the joints were last configured with (see FixedUpdate)
         public bool IsGrounded { get; private set; }
         // When BalanceEnabled is false but this is set, the pelvis is actively driven
         // toward this orientation (used to lay the keeper out horizontal in a dive).
@@ -124,6 +125,38 @@ namespace Trickshot
             return null;
         }
         public IReadOnlyList<Collider> OwnColliders => _ownColliders;
+
+        /// <summary>
+        /// The adult-mode appendage built on this body by Cosmetics.AttachAdult, or null. The Striker
+        /// drives its Erect flag from the ThirdLeg bind and BallController asks it whether a struck
+        /// collider is its hitbox; both go through here rather than a GetComponentInChildren walk.
+        /// </summary>
+        public AnatomySim Anatomy { get; set; }
+
+        /// <summary>
+        /// Adopt a collider built AFTER the body (the adult-mode hitbox) as one of this body's own,
+        /// so IsOwn answers true for it and the ground probe skips it. Deliberately NOT given a
+        /// BoneOf entry: the ball resolves it through AnatomySim.IsHitbox instead. Self-collision
+        /// ignores are a separate call (<see cref="IgnoreOwnCollisionsWith"/>) because PhysX refuses
+        /// IgnoreCollision on a disabled collider and forgets the pair when one is disabled, and this
+        /// hitbox spends most of its life disabled.
+        /// </summary>
+        public void RegisterExtraCollider(Collider c)
+        {
+            if (c != null && !_ownColliders.Contains(c)) _ownColliders.Add(c);
+        }
+
+        /// <summary>Ignore collisions between `c` and every other enabled own collider. Call each
+        /// time `c` is (re)enabled - the ignore state does not survive it being disabled.</summary>
+        public void IgnoreOwnCollisionsWith(Collider c)
+        {
+            if (c == null || !c.enabled) return;
+            for (int i = 0; i < _ownColliders.Count; i++)
+            {
+                var o = _ownColliders[i];
+                if (o != null && o != c && o.enabled) Physics.IgnoreCollision(c, o, true);
+            }
+        }
 
         // Swap the TORSO's jersey material at runtime (only the Torso part wears the jersey; the
         // visual mesh keeps its jersey UVs, so a material swap re-skins the kit without touching
@@ -747,6 +780,7 @@ namespace Trickshot
             j.secondaryAxis = Vector3.up;    // local Y
 
             ApplyDrive(j, 1f, _driveMul[(int)child]);
+            _lastDriveScale = float.NaN;   // a new joint: FixedUpdate rewrites every drive next step
 
             _joint[(int)child] = j;
             // The child's rotation RELATIVE TO ITS PARENT at build time.
@@ -823,12 +857,18 @@ namespace Trickshot
                 _target[i].localRotation = _targetRestLocal[i] * Quaternion.Euler(e);
             }
 
-            // 2) Drive each joint's target rotation to match its target bone.
+            // 2) Drive each joint's target rotation to match its target bone. The drive itself
+            // (spring / damper / max force) only ever changes with DriveScale, and writing a joint's
+            // slerpDrive is a native joint reconfiguration - 13 per body per physics step, 264 in a
+            // full match - so it is written only when the scale actually moved. The target rotation
+            // is the real per-step work and is always written.
+            bool driveDirty = DriveScale != _lastDriveScale;
+            if (driveDirty) _lastDriveScale = DriveScale;
             for (int i = 0; i < (int)Bone.Count; i++)
             {
                 var j = _joint[i];
                 if (j == null) continue;
-                ApplyDrive(j, DriveScale, _driveMul[i]);
+                if (driveDirty) ApplyDrive(j, DriveScale, _driveMul[i]);
                 Quaternion targetLocal = _target[i].localRotation; // relative to parent target
                 j.SetTargetRotationLocal(targetLocal, _jointStartLocal[i]);
             }
@@ -1371,6 +1411,19 @@ namespace Trickshot
 
         /// <summary>Scale the horizontal (x/z) velocity of every bone, leaving vertical
         /// intact. Used to bleed off carried run momentum at jump time.</summary>
+        /// <summary>Scale only the VERTICAL velocity of every bone (0 = kill the fall/rise). The
+        /// header-hold landing dive uses it: launching from touchdown with the drop still in the
+        /// bones would net most of the pop away.</summary>
+        public void ScaleVerticalVelocity(float factor)
+        {
+            for (int i = 0; i < (int)Bone.Count; i++)
+            {
+                if (_rb[i] == null) continue;
+                Vector3 v = _rb[i].linearVelocity;
+                _rb[i].linearVelocity = new Vector3(v.x, v.y * factor, v.z);
+            }
+        }
+
         public void ScaleHorizontalVelocity(float factor)
         {
             for (int i = 0; i < (int)Bone.Count; i++)
@@ -1457,6 +1510,27 @@ namespace Trickshot
             if (Pelvis != null) Pelvis.constraints = RigidbodyConstraints.None;
             for (int i = 0; i < (int)Bone.Count; i++)
                 if (_rb[i] != null) _rb[i].isKinematic = true;
+        }
+
+        /// <summary>
+        /// The inverse of BecomeDisplayBody: a puppet becomes a simulated, self-driven body again.
+        /// Needed when a seat changes hands mid-match - a client whose crosser puppet is suddenly
+        /// its OWN predicted body must get its physics back, or it stands there kinematic and
+        /// unmovable. Safe on a body that was never a puppet.
+        /// </summary>
+        public void BecomeLiveBody()
+        {
+            for (int i = 0; i < (int)Bone.Count; i++)
+                if (_rb[i] != null)
+                {
+                    _rb[i].isKinematic = false;
+                    _rb[i].linearVelocity = Vector3.zero;
+                    _rb[i].angularVelocity = Vector3.zero;
+                }
+            BalanceEnabled = true;
+            LocomotionEnabled = true;
+            UprightLock = true;
+            BodyOrientTarget = null;
         }
 
         public void DisplaySnap(Vector3 basePos, Quaternion facing)
@@ -1583,6 +1657,15 @@ namespace Trickshot
                     over[(int)Bone.Torso]  = new Vector3(12f, 0f, 0f);
                     over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, -45f);    // left arm OUT to counter-balance
                     over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, 25f);
+                    break;
+                case AnimState.KickL:
+                    // The mirror: left-leg swing, right arm out. Z flips sign across the body's
+                    // midline (a LEFT limb's OUT is -Z, a RIGHT limb's is +Z - see Jump above).
+                    over[(int)Bone.ThighL] = new Vector3(-70f, 0f, 0f);
+                    over[(int)Bone.CalfL]  = new Vector3(20f, 0f, 0f);
+                    over[(int)Bone.Torso]  = new Vector3(12f, 0f, 0f);
+                    over[(int)Bone.UpperArmR] = new Vector3(0f, 0f, 45f);     // right arm OUT to counter-balance
+                    over[(int)Bone.UpperArmL] = new Vector3(0f, 0f, -25f);
                     break;
                 case AnimState.Dive:
                     // Laid-out flat (keeper dive): whole body rolled ~horizontal, arms reaching.

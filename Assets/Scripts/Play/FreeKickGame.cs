@@ -360,7 +360,10 @@ namespace Trickshot
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawPowerMeter();
-            if (_mapOpen) DrawPlacementMap();
+            // !Paused as well as _mapOpen: only Update is pause-gated, so an already-open map kept
+            // drawing real clickable controls under the pause menu (IMGUI has no occlusion and the
+            // pause scrim eats no events).
+            if (_mapOpen && !PauseMenu.Paused) DrawPlacementMap();
             Hud.End();
         }
 

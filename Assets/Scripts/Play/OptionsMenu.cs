@@ -25,6 +25,7 @@ namespace Trickshot
         int _qcPickingSlot;                 // 0 = not picking; 1-6 = choosing a phrase for that key
         Vector2 _qcScroll;                  // scroll pos of the 25-phrase picker
         Vector2 _resScroll;                 // scroll pos of the resolution list
+        bool _gfxOpen;                      // the Graphics tier dropdown is unfolded
 
         public bool IsRebinding => _listening != null;
 
@@ -94,7 +95,10 @@ namespace Trickshot
             var keyLbl = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Dim } };
             var bindBtn = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
 
-            var actions = Keybinds.Actions;
+            // Adult-only binds are listed only while adult mode is on (the bind still exists and
+            // still works underneath; it just has nothing to act on without the appendage).
+            bool adult = PlayerProfile.Appearance.Adult;
+            var actions = System.Array.FindAll(Keybinds.Actions, a => adult || !Keybinds.AdultOnly(a.action));
             float lx = x + 24f, colW = (w - 48f - 16f) * 0.5f;
             float rowH = 30f, gap = 4f;
             // Two columns, split evenly however many bindings exist.
@@ -313,8 +317,41 @@ namespace Trickshot
             if (UITheme.Button(new Rect(fx, y3, 110f, 28f), DisplaySettings.VSync ? "On" : "Off", btn))
                 DisplaySettings.VSync = !DisplaySettings.VSync;
 
+            // ---- graphics tier (dropdown) ----
+            float y3b = y3 + 34f;
+            UITheme.Label(new Rect(lx, y3b, 120f, 28f), "Graphics", lbl);
+            var gfxBtn = new Rect(fx, y3b, 200f, 28f);
+            var tiers = DisplaySettings.TierNames;
+            if (UITheme.Button(gfxBtn, tiers[(int)DisplaySettings.Graphics] + (_gfxOpen ? "  ▴" : "  ▾"), btn))
+                _gfxOpen = !_gfxOpen;
+            if (_gfxOpen)
+            {
+                // The unfolded list is drawn HERE, before the rows it would cover, because IMGUI
+                // hands a click to the first control drawn under it - and those rows are simply
+                // not drawn while it is open. Pick a tier, or click anywhere else, to fold it.
+                const float rowH = 28f;
+                var menu = new Rect(gfxBtn.x, gfxBtn.yMax + 2f, gfxBtn.width, rowH * tiers.Length + 8f);
+                UITheme.Panel(menu, UITheme.Gold);
+                for (int i = 0; i < tiers.Length; i++)
+                {
+                    bool on = i == (int)DisplaySettings.Graphics;
+                    var prevBg = GUI.backgroundColor;
+                    if (on) GUI.backgroundColor = sel;
+                    if (UITheme.Button(new Rect(menu.x + 4f, menu.y + 4f + i * rowH, menu.width - 8f, rowH - 2f), tiers[i], btn))
+                    { DisplaySettings.Graphics = (DisplaySettings.GraphicsTier)i; _gfxOpen = false; }
+                    GUI.backgroundColor = prevBg;
+                }
+                var ev = Event.current;
+                if (ev.type == EventType.MouseDown && !menu.Contains(ev.mousePosition) && !gfxBtn.Contains(ev.mousePosition))
+                    _gfxOpen = false;
+                var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
+                UITheme.Label(new Rect(lx, menu.yMax + 8f, cw, 40f),
+                    "Your own frame rate only. In multiplayer, the host's setting is the one that affects everyone.", tip);
+                return;
+            }
+
             // ---- UI scale (multiplies the automatic fit) ----
-            float y4 = y3 + 34f;
+            float y4 = y3b + 34f;
             UITheme.Label(new Rect(lx, y4, 120f, 28f), "UI Scale", lbl);
             float uiCur = DisplaySettings.UiScale;
             float uiNext = GUI.HorizontalSlider(new Rect(fx, y4 + 11f, fw - 74f, 20f), uiCur,

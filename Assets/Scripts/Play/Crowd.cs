@@ -86,7 +86,9 @@ namespace Trickshot
             if (style.NoStands) { _built = true; return; }
             _jerseyColors = (style.Jerseys != null && style.Jerseys.Length > 0) ? style.Jerseys : DefaultJerseys;
             _sideHome = (style.SideHomeJersey != null && style.SideHomeJersey.Length >= 4) ? style.SideHomeJersey : DefaultSideHome;
-            int maxFans = Mathf.Max(1, style.MaxFans);
+            // The low graphics tiers thin the bowl (DisplaySettings.CrowdScale): fewer fans, spread
+            // evenly by the same stride, never an empty stand.
+            int maxFans = Mathf.Max(1, Mathf.RoundToInt(style.MaxFans * DisplaySettings.CrowdScale));
             EnsureMaterials();
 
             // Pass 1: count seats so we can pick an even skip stride for the fan cap.
@@ -113,6 +115,13 @@ namespace Trickshot
 
             _count = w;
             _built = true;
+
+            // Fans cast no shadows. Every fan is four primitives, so a full bowl was ~16,000 shadow
+            // casters drawn again into each of Ultra's four cascades - for shadows that fall on
+            // the terrace behind them, 20-80 m from the camera, under soft filtering: invisible.
+            // They still RECEIVE the roof's shadow, which is the one that reads.
+            foreach (var r in GetComponentsInChildren<Renderer>())
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             // Fans never move, so STATIC-BATCH the whole crowd: Unity merges the thousands
             // of same-material fan meshes into a few combined draws. This is the single

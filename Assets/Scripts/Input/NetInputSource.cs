@@ -66,6 +66,12 @@ namespace Trickshot
         public bool PassChipPressed  => _cur.passChip && !_prev.passChip;
         public bool PassChipReleased => !_cur.passChip && _prev.passChip;
 
+        // Set-up-a-cross edge from the cross bit (same rising-edge scheme as jump).
+        public bool CrossPressed => _cur.cross && !_prev.cross;
+
+        // Adult mode: held state straight off the wire (no edge needed).
+        public bool ThirdLegHeld => _cur.thirdLeg;
+
         /// <summary>
         /// Did a NEW frame arrive for this slot? The host calls Feed with NetSession.InputForSlot every
         /// tick whether or not the client sent anything, and the session keeps only the newest frame, so

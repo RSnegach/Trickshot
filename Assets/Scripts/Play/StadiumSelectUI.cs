@@ -12,10 +12,22 @@ namespace Trickshot
         System.Action _onPicked;
         System.Action _onBack;
 
-        public void Init(System.Action onPicked, System.Action onBack)
+        // Optional goal window beside the list (a networked striker HOST): goal size + AI keeper,
+        // read back by the caller when a stadium is picked.
+        bool _goalPanel;
+        readonly GoalEditor _goal = new GoalEditor();
+        public float GoalW, GoalH;
+        public int KeeperLevel;
+
+        public void Init(System.Action onPicked, System.Action onBack,
+                         bool goalPanel = false, float goalW = 0f, float goalH = 0f, int keeperLevel = 2)
         {
             _onPicked = onPicked;
             _onBack = onBack;
+            _goalPanel = goalPanel;
+            GoalW = goalW > 0f ? goalW : SimConfig.GoalWidthBase;
+            GoalH = goalH > 0f ? goalH : SimConfig.GoalHeightBase;
+            KeeperLevel = keeperLevel;
             GameInput.CaptureCursor(false);
         }
 
@@ -32,11 +44,14 @@ namespace Trickshot
             int shown = 0;
             for (int i = 0; i < all.Length; i++) if (all[i].Pickable) shown++;
             float panelH = 150f + (shown + 1) * (rowH + gap);
-            float x = MenuScale.Width * 0.5f - panelW * 0.5f;
+            // With the goal window beside it, the pair is centred rather than the list alone.
+            float side = _goalPanel ? GoalEditor.PanelW + 16f : 0f;
+            float x = MenuScale.Width * 0.5f - (panelW + side) * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
 
-            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, panelW + 260f);
+            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, panelW + side + 260f);
             UITheme.Panel(new Rect(x, y, panelW, panelH), UITheme.Gold);
+            if (_goalPanel) _goal.Draw(new Rect(x + panelW + 16f, y, GoalEditor.PanelW, GoalEditor.PanelH), ref GoalW, ref GoalH, ref KeeperLevel);
 
             UITheme.Title(new Rect(x, y + 14f, panelW, 44f), "SELECT STADIUM", 34);
 

@@ -120,6 +120,13 @@ namespace Trickshot.Net
         // evaluates a remote player's pass off this instead of substituting a neutral constant, so
         // "passes behave according to stats" is true for a client and not just for whoever is hosting.
         readonly byte[] _slotPassMask = new byte[MaxSlots];
+        // Each slot's FOOTEDNESS (host-side, from the trailing flags on Hello / UpdateLoadout). The
+        // host animates and launches every human's kick, so it - and only it - needs to know which
+        // foot a remote player actually kicks with; before this it used its own.
+        readonly bool[] _slotLeftFooted = new bool[MaxSlots];
+        /// <summary>Does this slot's player kick with the left foot? Host-side truth.</summary>
+        public bool LeftFootedForSlot(int slot)
+            => slot >= 0 && slot < MaxSlots && _slotLeftFooted[slot];
         // Per-slot painted-jersey PNG (too big for the roster row, so it rides a chunked side
         // channel keyed by slot). Null = that slot has no custom jersey (falls back to team kit).
         // The decoded Texture2D is cached lazily in _slotJerseyTex on first JerseyForSlot() use.
@@ -128,10 +135,11 @@ namespace Trickshot.Net
         // In-flight jersey reassembly buffers, keyed by slot (a slot only transfers one at a time).
         readonly Dictionary<int, JerseyRx> _jerseyRx = new Dictionary<int, JerseyRx>();
         const int JerseyChunkBytes = 1000;   // payload bytes per chunk (under the ~1.2KB UDP MTU)
-        // Hard ceiling on a networked jersey. The atlas is 256x520 RGBA = ~520 KB RAW and PNG
-        // compresses well below that, so 2 MB is generous; anything claiming more is a corrupt or
-        // hostile packet and is dropped rather than allocated (see OnJerseyChunk).
-        const uint MaxJerseyBytes = 2u * 1024u * 1024u;
+        // Hard ceiling on a networked jersey. The atlas is 512x1032 RGBA = ~2.1 MB RAW; a painted
+        // kit's PNG compresses to a small fraction of that (flat regions + strokes), so 3 MB is
+        // generous; anything claiming more is a corrupt or hostile packet and is dropped rather
+        // than allocated (see OnJerseyChunk).
+        const uint MaxJerseyBytes = 3u * 1024u * 1024u;
         class JerseyRx { public byte[] buf; public uint total; public int have; public bool[] got; }
         readonly bool[] _slotReady = new bool[MaxSlots];
         // Host-only: per-slot AI enable. A non-human slot with _slotAi[i] true is an AI
@@ -177,6 +185,111 @@ namespace Trickshot.Net
         // a live match can swap that body's torso material.
         public event Action<int> JerseyUpdated;
 
+        // ---- shared AI-crosser setup (striker mode's cross map) ----
+        /// <summary>
+        /// The AI crosser panel as every peer currently understands it. Any player may edit it (the
+        /// panel is open to all while no human holds the crosser slot); an edit goes to the host as
+        /// a request, and the host's relay of it is what every peer - including the editor - adopts,
+        /// so there is exactly one order of events and no peer can be showing values nobody else has.
+        ///
+        /// Only the host ACTS on this (it alone simulates the crosser); the others hold it so the
+        /// panel shows the truth.
+        /// </summary>
+        public CrosserSetupMsg CrosserSetup { get; private set; } = DefaultCrosserSetup();
+        /// <summary>Raised on every peer when the crosser setup changes, so an open panel redraws.</summary>
+        public event Action CrosserSetupChanged;
+
+        /// <summary>The AI crosser's display name, never blank (falls back to "Clanker").</summary>
+        public string CrosserAiName
+            => string.IsNullOrWhiteSpace(CrosserSetup.aiName) ? DefaultCrosserName : CrosserSetup.aiName;
+
+        public const string DefaultCrosserName = "Clanker";
+        public const int MaxCrosserNameLength = 16;
+
+        static CrosserSetupMsg DefaultCrosserSetup() => new CrosserSetupMsg
+        {
+            targetX = SimConfig.ServeTarget.x,  targetZ = SimConfig.ServeTarget.z,
+            spotX   = SimConfig.CrosserStart.x, spotZ   = SimConfig.CrosserStart.z,
+            delivery = 0, ballSpeed = 1f, crossInterval = 1f, aiName = DefaultCrosserName,
+        };
+
+        /// <summary>
+        /// Ask for the crosser panel to change. On the host this applies and broadcasts immediately;
+        /// on a client it goes to the host, which decides and relays back. Either way the caller does
+        /// NOT write its own copy - it waits for the authoritative relay (see CrosserSetup).
+        /// </summary>
+        public void RequestCrosserSetup(in CrosserSetupMsg c)
+        {
+            if (Transport == null || !Active) { ApplyCrosserSetup(c); return; }   // single-player safety
+            // The host's own edits go through the same permission filter as everyone else's - its UI
+            // enforces the rules too, but the session is where they are defined.
+            if (IsHost) AcceptCrosserSetup(Transport.LocalPeer, c);
+            else Transport.Send(Transport.HostPeer, NetCodec.CrosserSetup(c), NetChannel.Reliable);
+        }
+
+        /// <summary>
+        /// Host, at match start: install the whole panel as-is, no permission filter. This is how
+        /// the host's remembered single-player setup (including where the crosser stands) becomes
+        /// the session's starting truth; after this, every change goes through AcceptCrosserSetup.
+        /// </summary>
+        public void SeedCrosserSetup(in CrosserSetupMsg c) { if (IsHost) ApplyCrosserSetupAuthoritative(c); }
+
+        // Host: take from `c` only what `from` may set, on top of the current truth, then relay.
+        //
+        // AI crossing:    anyone may place it (spot), aim it (target) and set how it serves
+        //                 (delivery, speed, interval) - it is where their own crosses come from
+        //                 and arrive.
+        // Human crossing: the ONLY editable thing is that human's own spot, and only he may.
+        // The AI's name is never authored by a request (RenameCrosserAi, host only).
+        void AcceptCrosserSetup(PeerId from, in CrosserSetupMsg c)
+        {
+            var cur = CrosserSetup;
+            var owner = _slotOwner[CrosserSlot];
+            if (owner.IsValid)
+            {
+                if (!from.Equals(owner)) return;
+                cur.spotX = c.spotX; cur.spotZ = c.spotZ;
+            }
+            else
+            {
+                cur.spotX = c.spotX; cur.spotZ = c.spotZ;
+                cur.targetX = c.targetX; cur.targetZ = c.targetZ;
+                cur.delivery = c.delivery;
+                cur.ballSpeed = c.ballSpeed; cur.crossInterval = c.crossInterval;
+            }
+            ApplyCrosserSetupAuthoritative(cur);
+        }
+
+        // Host: sanitise, store, tell everyone.
+        void ApplyCrosserSetupAuthoritative(CrosserSetupMsg c)
+        {
+            // Clamp the numbers a peer could have sent anything for. The sliders' own ranges, and a
+            // name length, because this is an untrusted wire string that ends up drawn every frame.
+            c.ballSpeed     = Mathf.Clamp(c.ballSpeed, 0.5f, 2f);
+            c.crossInterval = Mathf.Clamp(c.crossInterval, 0.4f, 2f);
+            if (c.delivery > 2) c.delivery = 0;
+            c.aiName = SanitizeCrosserName(c.aiName);
+            ApplyCrosserSetup(c);
+            if (Transport != null && Active) Transport.SendToAll(NetCodec.CrosserSetup(c), NetChannel.Reliable);
+        }
+
+        void ApplyCrosserSetup(in CrosserSetupMsg c)
+        {
+            CrosserSetup = c;
+            CrosserSetupChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// A crosser name safe to store and draw: censored (it is player-authored text shown to
+        /// everyone, exactly like quickchat), length-capped, and never blank.
+        /// </summary>
+        public static string SanitizeCrosserName(string raw)
+        {
+            string s = ChatCensor.Clean(raw ?? "").Trim();
+            if (s.Length > MaxCrosserNameLength) s = s.Substring(0, MaxCrosserNameLength);
+            return string.IsNullOrWhiteSpace(s) ? DefaultCrosserName : s;
+        }
+
         public NetSession(INetTransport transport)
         {
             Transport = transport;
@@ -209,6 +322,7 @@ namespace Trickshot.Net
             _slotName[1] = PlayerProfile.PlayerName;
             _slotAppearance[1] = PlayerProfile.Appearance;   // host's own look
             _slotJerseyPng[1] = PlayerProfile.JerseyPng;     // host's painted kit (local, no transfer)
+            _slotLeftFooted[1] = PlayerProfile.LeftFooted;
             RebuildRoster();
         }
 
@@ -309,7 +423,10 @@ namespace Trickshot.Net
                                 NetCodec.Loadout(PlayerProfile.Appearance, SkillTree.PackPassing()),
                                 NetChannel.Reliable);
             if (IsHost && LocalSlot >= 0 && LocalSlot < MaxSlots)
+            {
                 _slotPassMask[LocalSlot] = SkillTree.PackPassing();
+                _slotLeftFooted[LocalSlot] = PlayerProfile.LeftFooted;
+            }
             PushLocalJersey();
         }
 
@@ -338,7 +455,7 @@ namespace Trickshot.Net
         {
             uint total = (uint)((png.Length + JerseyChunkBytes - 1) / JerseyChunkBytes);
             for (uint i = 0; i < total; i++)
-                Transport.Send(to, JerseyChunkAt(slot, i, total, png), NetChannel.Reliable);
+                Transport.Send(to, JerseyChunkAt(slot, i, total, png), NetChannel.ReliableBulk);
         }
 
         // Host: broadcast a slot's jersey chunks to all peers (SendToAll already skips the host).
@@ -347,7 +464,7 @@ namespace Trickshot.Net
         {
             uint total = (uint)((png.Length + JerseyChunkBytes - 1) / JerseyChunkBytes);
             for (uint i = 0; i < total; i++)
-                Transport.SendToAll(JerseyChunkAt(slot, i, total, png), NetChannel.Reliable);
+                Transport.SendToAll(JerseyChunkAt(slot, i, total, png), NetChannel.ReliableBulk);
         }
 
         // Build the i-th jersey chunk message for a PNG.
@@ -382,6 +499,83 @@ namespace Trickshot.Net
             if (_slotOwner[slot].IsValid) return;   // human-held: leave it
             _slotAi[slot] = on;
             PushRoster();
+        }
+
+        // ---- host-only crosser assignment (the cross map's dropdown) ----
+
+        /// <summary>
+        /// Every human currently holding a slot, as (slot, name), for the host's crosser dropdown.
+        /// Host-side, off the authoritative owner table rather than the published roster, because
+        /// this decides who gets MOVED and must not act on a stale row.
+        /// </summary>
+        public List<(int slot, string name)> HumanSlots()
+        {
+            var list = new List<(int, string)>();
+            if (!IsHost) return list;
+            for (int i = 0; i < MaxSlots; i++)
+                if (_slotOwner[i].IsValid) list.Add((i, _slotName[i] ?? "PLAYER"));
+            return list;
+        }
+
+        /// <summary>Which slot the human crosser holds, or -1 when the AI has it.</summary>
+        public int HumanCrosserSlot => _slotOwner[CrosserSlot].IsValid ? CrosserSlot : -1;
+
+        /// <summary>
+        /// Host: put the human in `slot` into the crosser seat, in the lobby or mid-match. Reuses
+        /// the same move ApplySlotRequest performs for a self-claim, so the name/appearance/jersey/
+        /// build/input-tick handling is one implementation rather than a second copy that could
+        /// drift from it. Whoever was crossing is seated as a shooter first (ClearCrosser); if that
+        /// is not possible nothing changes.
+        ///
+        /// Mid-match, every peer's match driver follows the moves through RosterChanged: the mover's
+        /// old body goes, a body for the new seat comes, and the camera of whoever moved re-targets
+        /// (NetStrikerMatch.OnRosterChanged).
+        /// </summary>
+        public void AssignCrosser(int slot)
+        {
+            if (!IsHost || slot < 0 || slot >= MaxSlots) return;
+            if (slot == CrosserSlot) return;                  // already there
+            if (!_slotOwner[slot].IsValid) return;             // not a human
+            if (_slotOwner[CrosserSlot].IsValid && !ClearCrosser()) return;   // vacate first, or the move is refused
+            ApplySlotRequest(_slotOwner[slot], CrosserSlot);
+        }
+
+        /// <summary>
+        /// Host: hand the crosser seat to the AI. The human sitting there is seated as a SHOOTER (the
+        /// lowest free shooter slot, the keeper as a last resort), so they stay in the match and just
+        /// stop crossing - mid-match that makes them a regular striker with a fresh body. Refused
+        /// (false, nothing changed) only when there is no seat at all to move them to: stranding a
+        /// player slot-less mid-match is worse than leaving the crosser as is.
+        /// </summary>
+        public bool ClearCrosser()
+        {
+            if (!IsHost) return false;
+            var peer = _slotOwner[CrosserSlot];
+            if (peer.IsValid)
+            {
+                int dest = -1;
+                for (int s = 1; s < CrosserSlot; s++)
+                    if (!_slotOwner[s].IsValid && SlotAllowed(s)) { dest = s; break; }
+                if (dest < 0 && !_slotOwner[0].IsValid && SlotAllowed(0)) dest = 0;   // keeper as a last seat
+                if (dest < 0) return false;
+                // AI on BEFORE the move, so the single roster push ApplySlotRequest makes already
+                // shows the AI in the seat rather than an "Open" seat for one push.
+                _slotAi[CrosserSlot] = true;
+                ApplySlotRequest(peer, dest);
+                return true;
+            }
+            _slotAi[CrosserSlot] = true;   // the AI takes the seat back
+            PushRoster();
+            return true;
+        }
+
+        /// <summary>Host: rename the AI crosser. Sanitised + relayed like any other panel change.</summary>
+        public void RenameCrosserAi(string name)
+        {
+            if (!IsHost) return;
+            var c = CrosserSetup;
+            c.aiName = SanitizeCrosserName(name);
+            ApplyCrosserSetupAuthoritative(c);
         }
 
         // The current roster row for a slot (authoritative on host + client), or a default
@@ -530,16 +724,74 @@ namespace Trickshot.Net
         public bool SlotIsHuman(int slot) => slot >= 0 && slot < MaxSlots && _slotOwner[slot].IsValid;
         public bool SlotIsLocal(int slot) => slot == LocalSlot;
         public InputFrame InputForSlot(int slot) => _slotInput[slot];
+
+        // ---- redundant input + sticky presses (see NetCodec.InputBundle) ----
+        // A client sends every rendered frame and the host applies one frame per physics tick: at
+        // 144 fps a tap that lasted one frame was overwritten before the host ever looked at it,
+        // and a dropped packet lost it outright. Now every frame the host has NOT seen before has
+        // its press bits OR-ed into a sticky set for the slot, and ConsumeInputForSlot hands the
+        // driver the newest frame with those bits folded in, then clears the set - so a tap is
+        // always seen as held for at least one tick, whatever the frame-rate ratio or the loss.
+        struct Sticky
+        {
+            public bool any, jump, legL, legR, passGround, passLofted, tackle, reset, passChip, cross;
+            public bool hasEmote; public byte emoteId;
+            public void Or(in InputFrame f)
+            {
+                any = true;
+                jump |= f.jump; legL |= f.legL; legR |= f.legR; passGround |= f.passGround;
+                passLofted |= f.passLofted; tackle |= f.tackle; reset |= f.reset;
+                passChip |= f.passChip; cross |= f.cross;
+                if (f.emoteId != 255) { hasEmote = true; emoteId = f.emoteId; }
+            }
+        }
+        readonly Sticky[] _slotSticky = new Sticky[MaxSlots];
+        readonly bool[] _slotHasInput = new bool[MaxSlots];
+
+        /// <summary>Host: the newest frame for a slot with every press seen since the last consume
+        /// folded in. The mode driver feeds this to the slot's NetInputSource once per tick.</summary>
+        public InputFrame ConsumeInputForSlot(int slot)
+        {
+            var f = _slotInput[slot];
+            ref var s = ref _slotSticky[slot];
+            if (s.any)
+            {
+                f.jump |= s.jump; f.legL |= s.legL; f.legR |= s.legR; f.passGround |= s.passGround;
+                f.passLofted |= s.passLofted; f.tackle |= s.tackle; f.reset |= s.reset;
+                f.passChip |= s.passChip; f.cross |= s.cross;
+                if (f.emoteId == 255 && s.hasEmote) f.emoteId = s.emoteId;
+                s = default;
+            }
+            return f;
+        }
         // Highest input tick the host has applied for a slot (host-side). Streamed per body so a
         // client can reconcile its predicted local body against the state produced by that input.
         public uint InputTickForSlot(int slot) => (slot >= 0 && slot < MaxSlots) ? _slotInputTick[slot] : 0u;
 
         // ---- host: gather inputs + broadcast state ----
         // The host sets its own input each tick; clients' arrive over the wire.
+        // A client's last few frames go out together (NetCodec.InputBundle), newest last, so one
+        // lost packet no longer loses the tap that was in it. The history restarts whenever the
+        // tick goes backwards - a new match driver counts from 0 - so a stale high tick from the
+        // previous match can never ride along and outrank the new frames on the host.
+        public const int InputRedundancy = 3;
+        readonly InputFrame[] _localHist = new InputFrame[InputRedundancy];
+        int _localHistN;
+
         public void SetLocalInput(in InputFrame f)
         {
             if (LocalSlot >= 0) _slotInput[LocalSlot] = f;
-            if (!IsHost && Active) Transport.Send(Transport.HostPeer, NetCodec.Input(f), NetChannel.Unreliable);
+            if (!IsHost && Active)
+            {
+                if (_localHistN > 0 && f.tick < _localHist[_localHistN - 1].tick) _localHistN = 0;
+                if (_localHistN == InputRedundancy)
+                {
+                    for (int i = 1; i < InputRedundancy; i++) _localHist[i - 1] = _localHist[i];
+                    _localHistN--;
+                }
+                _localHist[_localHistN++] = f;
+                Transport.Send(Transport.HostPeer, NetCodec.InputBundle(_localHist, _localHistN), NetChannel.Unreliable);
+            }
         }
 
         public void BroadcastSnapshot(in Snapshot s)
@@ -787,7 +1039,10 @@ namespace Trickshot.Net
                         // 0 is not a valid version, so it is refused with a version message rather
                         // than throwing out of RouteMessage and being silently dropped.
                         byte hv = r.More ? r.U8() : (byte)0;
+                        byte hflags = r.More ? r.U8() : (byte)0;
                         GrantSlot(from, hn, ha, hv);
+                        // Footedness rides after the version, so record it once the slot exists.
+                        { int hs = SlotOf(from); if (hs >= 0) _slotLeftFooted[hs] = (hflags & NetCodec.FlagLeftFooted) != 0; }
                     }
                     break;
                 case MsgType.ReadyToggle: // host: a client set its ready state
@@ -803,10 +1058,12 @@ namespace Trickshot.Net
                         // its loadout from that handler), so the grown message really does cross the
                         // version boundary and an older sender must still parse.
                         byte mask = r.More ? r.U8() : (byte)0;
+                        byte lflags = r.More ? r.U8() : (byte)0;
                         int s = SlotOf(from);
                         if (s >= 0)
                         {
                             _slotAppearance[s] = la;
+                            _slotLeftFooted[s] = (lflags & NetCodec.FlagLeftFooted) != 0;
                             // Reject an UNREACHABLE claim outright rather than trimming it: a mask with
                             // a broken prerequisite chain could not have been bought, so it is a
                             // modified client and gets the uninvested floor, not its best-effort build.
@@ -827,6 +1084,16 @@ namespace Trickshot.Net
                 case MsgType.CastJerseyVote: // host: a client cast (or cleared) a jersey vote
                     if (IsHost) ApplyJerseyVote(from, r.U8());
                     break;
+                case MsgType.CrosserSetup:  // client -> host request; host -> clients the truth
+                {
+                    var cs = NetCodec.ReadCrosserSetup(r);
+                    // Host: a request. Who may set what is decided in AcceptCrosserSetup.
+                    if (IsHost) AcceptCrosserSetup(from, cs);
+                    // Client: adopt it, but only from the HOST. This type can't go in IsHostOnly
+                    // (clients legitimately SEND it as a request), so the direction check lives here.
+                    else if (from.Equals(Transport.HostPeer)) ApplyCrosserSetup(cs);
+                    break;
+                }
                 case MsgType.RosterSync:  // client: full roster + config from host
                     NetCodec.ReadRoster(r, out var cfg, out var slots);
                     Config = cfg; Roster = slots;
@@ -845,20 +1112,24 @@ namespace Trickshot.Net
                 case MsgType.ReplayEnd:   // client: host ended the replay
                     ReplayEnded?.Invoke();
                     break;
-                case MsgType.PlayerInput: // host: store the client's input into its slot
+                case MsgType.PlayerInput: // host: the client's last few frames, oldest first
                     if (IsHost)
                     {
                         int slot = SlotOf(from);
-                        if (slot >= 0)
+                        int n = r.U8();
+                        for (int i = 0; i < n; i++)
                         {
-                            var f = NetCodec.ReadInput(r);
-                            // Drop a reordered/stale frame so a late-arriving older input can't
-                            // overwrite a newer one already applied for this slot.
-                            if (f.tick >= _slotInputTick[slot])
-                            {
-                                _slotInput[slot] = f;
-                                _slotInputTick[slot] = f.tick;
-                            }
+                            var f = NetCodec.ReadInput(r);   // always read: the bundle must be consumed
+                            if (slot < 0) continue;
+                            // Only a tick NEWER than anything seen counts. That drops a reordered
+                            // stale packet (an older input can't overwrite a newer one) AND the
+                            // redundant copies of frames already received, so a press is never
+                            // OR-ed into the sticky set twice.
+                            if (_slotHasInput[slot] && f.tick <= _slotInputTick[slot]) continue;
+                            _slotSticky[slot].Or(f);
+                            _slotInput[slot] = f;
+                            _slotInputTick[slot] = f.tick;
+                            _slotHasInput[slot] = true;
                         }
                     }
                     break;
@@ -963,6 +1234,8 @@ namespace Trickshot.Net
             if (slot < 0 || slot >= MaxSlots) return;
             _slotInput[slot] = default;
             _slotInputTick[slot] = 0;
+            _slotHasInput[slot] = false;
+            _slotSticky[slot] = default;
         }
 
         /// <summary>
@@ -1035,6 +1308,7 @@ namespace Trickshot.Net
                 _slotOwner[slot] = PeerId.None; _slotName[slot] = null; _slotReady[slot] = false;
                 _slotJerseyPng[slot] = null; _slotJerseyTex[slot] = null; _jerseyRx.Remove(slot);   // drop their kit
                 _nominated[slot] = false; _voteOf[slot] = 255;   // a dropped peer's candidacy/vote dies with them
+                _slotLeftFooted[slot] = false;
                 ResetSlotInput(slot);
             }
             _peerIdentity.Remove(p.Value);
@@ -1183,10 +1457,15 @@ namespace Trickshot.Net
             PlayerAppearance appr = cur >= 0 ? _slotAppearance[cur]
                                              : (known ? ident.appr : PlayerProfile.Appearance);
             byte[] jersey = cur >= 0 ? _slotJerseyPng[cur] : null;   // move the kit with the player
+            // The BUILD moves too. Passing was left behind on a re-pick (a player who changed role
+            // in the lobby crossed with the uninvested floor from then on), and footedness is new.
+            byte passMask = cur >= 0 ? _slotPassMask[cur] : (byte)0;
+            bool footed = cur >= 0 && _slotLeftFooted[cur];
             if (cur >= 0)
             {
                 _slotOwner[cur] = PeerId.None; _slotName[cur] = null; _slotReady[cur] = false;
                 _slotJerseyPng[cur] = null; _slotJerseyTex[cur] = null;
+                _slotPassMask[cur] = 0; _slotLeftFooted[cur] = false;
                 // A jersey nomination/vote is a per-TEAM candidacy, not a possession that follows
                 // the player - moving shirts (even within the same team) means re-submit/re-vote.
                 _nominated[cur] = false; _voteOf[cur] = 255;
@@ -1196,6 +1475,7 @@ namespace Trickshot.Net
             _slotName[target] = string.IsNullOrEmpty(name) ? "PLAYER" : name;
             _slotAppearance[target] = appr;   // move the player's look with them
             _slotJerseyPng[target] = jersey; _slotJerseyTex[target] = null;
+            _slotPassMask[target] = passMask; _slotLeftFooted[target] = footed;
             _slotReady[target] = false;
             _nominated[target] = false; _voteOf[target] = 255;   // defensive: clear any stale prior occupant's state
             // ...and the slot they moved INTO must not keep the previous occupant's tick, or the
@@ -1294,7 +1574,11 @@ namespace Trickshot.Net
                 bool ai = !human && _slotAi[i];  // a non-human slot the host left AI-on
                 string name;
                 if (human) name = _slotName[i] ?? "PLAYER";
-                else if (ai) name = "Clanker " + (++clanker);
+                // The AI CROSSER is a named character the host can rename (the cross map's pencil),
+                // so it carries that name rather than a positional "Clanker N". It still consumes a
+                // number so the other AI slots keep the numbering they had.
+                else if (ai && i == CrosserSlot) { ++clanker; name = CrosserAiName; }
+                else if (ai) name = DefaultCrosserName + " " + (++clanker);
                 else name = "Open";              // unfilled, AI toggled off
                 // Humans carry their synced look; AI/open slots get default appearance.
                 var appr = human ? _slotAppearance[i] : PlayerAppearance.Default;

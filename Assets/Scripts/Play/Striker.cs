@@ -25,7 +25,10 @@ namespace Trickshot
         // arming), so a third state is excluded from all of them for free - and because ForceRecover
         // and Knockdown.Fell already key off _mode/IsBusy, so every existing bail-out path recovers
         // it with no new call sites. A separate bool would have needed each one taught about it.
-        enum Trick { None, Dive, SlideLimp }
+        // Tumble is the landing of a body that comes down tipped over (a bicycle kick, a scrolled
+        // flip): down on the back or front, limp, then up - see StartTumble. Same reasoning as
+        // SlideLimp for being a mode rather than a bool.
+        enum Trick { None, Dive, SlideLimp, Tumble }
 
         IStrikerInput _input;
         ActiveRagdoll _ragdoll;
@@ -45,6 +48,8 @@ namespace Trickshot
         Trick _mode = Trick.None;
         // True while a diving header is in progress (for the DIVING HEADER goal callout).
         public bool IsDiving => _mode == Trick.Dive;
+        // Down after landing tipped over (a missed bicycle, a flip). The host streams it as Down.
+        public bool IsTumbling => _mode == Trick.Tumble;
 
         // One-shot, armed at dive launch and consumed by the match sim the first time this
         // dive fells an opponent, so a single dive cannot mow down a line of players. Never needs
@@ -107,7 +112,18 @@ namespace Trickshot
         float _gaitWeight;     // 0..1 fade of the run pose; NEVER a phase reset (that popped)
         readonly Vector3[] _gaitScratch = new Vector3[(int)Bone.Count];
         float _airborneLock;   // grace after a normal jump before upright re-locks
+        // The mouse wheel is only read between a JUMP and the LANDING that follows it. A free-
+        // spinning wheel (an unlatched scroll ring) keeps reporting scroll for a second or more
+        // after a flick. On the ground that read nothing - but the ground probe flickers while a
+        // landed body settles, and every not-grounded frame of that settle took the still-spinning
+        // wheel as a fresh air-pitch: upright lock off, whole-body spin on, then grounded again and
+        // reset - the wobble in a circle after a bicycle kick. Armed by NormalJump; dropped on the
+        // first grounded frame AFTER the probe has read airborne (not on the takeoff frames, where it
+        // still reads the turf he is leaving), and by every trick start/end and recovery.
+        bool _wheelArmed;
+        bool _leftGround;      // has the probe read airborne since the last jump?
         float _proneTimer;     // while >0 (counting down on the ground), stay in the trick
+        float _tumbleTime;     // seconds since a tumble began (ManageTumble's landing grace + hard cap)
         float _airPitchTarget; // wheel-driven target lean (deg) about the right axis; clamped to +/-90 (or uncapped for Acrobat full flips)
         // Acrobat full-flip: an UNWRAPPED accumulated lean angle so the body can chase a target
         // past +/-180 and actually loop all the way around (a plain SignedAngle/DeltaAngle wraps,
@@ -128,6 +144,11 @@ namespace Trickshot
         float _runLockT;    // 1 = run fully held at _runYaw, 0 = fully following the camera
         bool _runLocked;
         bool _sliding;         // riding out a sliding challenge (LMB+RMB pushed forward)
+        // LMB+RMB were both held while AIRBORNE (the header pose) and have not been let go since.
+        // Resolved on the first grounded frame - see ResolveHeaderLanding - and cleared by any
+        // release. Without it, a header hold carried through touchdown left both legs at full raise
+        // (the grounded branch of ApplyLegRaises) while the run carried on: seated in mid-air.
+        bool _airHold;
         float _slideTimer;     // seconds left committed to the slide
         float _slideRecover;   // lockout after getting up, so he cannot chain slides
         float _lmbDownT, _rmbDownT;
@@ -280,6 +301,15 @@ namespace Trickshot
                 _ragdoll.FacingRotation = Quaternion.Euler(0f, _facingYaw, 0f);
             }
 
+            // --- adult mode: appendage to attention while the ThirdLeg bind is held ---
+            // Written every tick, so a release (or a dropped remote frame pinning the bit) always
+            // reaches the body; the sim itself eases and gates the hitbox (AnatomySim).
+            var anatomy = _ragdoll.Anatomy;
+            if (anatomy != null) anatomy.Erect = _input.ThirdLegHeld;
+
+            // --- header hold carried through touchdown (forward = high dive, else sit) ---
+            ResolveHeaderLanding(grounded);
+
             // --- sit gesture (LMB+RMB together, grounded only) ---
             UpdateSit(grounded);
 
@@ -326,6 +356,7 @@ namespace Trickshot
             // not. The upright re-lock at the bottom of Tick is one of the gated ones, which is what
             // stops him being pinned upright the instant the limp starts.
             else if (_mode == Trick.SlideLimp) ManageSlideLimp();
+            else if (_mode == Trick.Tumble) ManageTumble(grounded);
             else AirPitchControl(grounded);   // mouse-wheel body pitch while airborne
 
             // Re-lock upright only in normal state, grounded, past the jump grace. (Not
@@ -380,9 +411,26 @@ namespace Trickshot
                 // Landed: a bicycle connects in the air, so drop the latch immediately -
                 // otherwise a stale window would mislabel the next grounded normal kick.
                 _bicycleTimer = 0f;
-                // Stop the spin and hand orientation back to balance/upright lock.
+                // And the wheel with it, once this is a real landing (see _wheelArmed).
+                if (_leftGround) { _wheelArmed = false; _leftGround = false; }
                 if (_airPitchTarget != 0f || !_ragdoll.BalanceEnabled)
                 {
+                    // TIPPED OVER when the floor comes up - past TumbleUpness from upright, which
+                    // is any real bicycle or a flip scrolled to horizontal - he goes DOWN, back or
+                    // front first, and gets up (StartTumble). "grounded" here is the pelvis probe,
+                    // which reads turf up to a metre before he touches it, so snapping upright on
+                    // it (what this did for every landing) had a horizontal body pop to its feet in
+                    // mid-air and never hit the ground. Acrobat keeps that: it chases a full
+                    // rotation and lands on its feet by design, and that behaviour stays as it is.
+                    bool acrobatic = PlayerProfile.PerkAcrobat;
+                    float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
+                    if (!acrobatic && upness < SimConfig.TumbleUpness)
+                    {
+                        StartTumble();
+                        return;
+                    }
+                    // On his feet (or near enough): stop the spin and hand orientation back to
+                    // balance/upright lock.
                     ResetFlipState();
                     _ragdoll.StopBodySpin();
                     _ragdoll.BalanceEnabled = true;
@@ -392,6 +440,7 @@ namespace Trickshot
             }
 
             // Free the whole body to tumble (upright lock/balance off).
+            _leftGround = true;
             _ragdoll.UprightLock = false;
             _ragdoll.BalanceEnabled = false;
             _ragdoll.BodyOrientTarget = null;
@@ -407,7 +456,7 @@ namespace Trickshot
             // the way around into full forward/backward flips.
             bool acrobat = PlayerProfile.PerkAcrobat;
             float targetLimit = acrobat ? SimConfig.AcrobatFlipLimit : SimConfig.AirPitchLimit;
-            float scroll = _input.Scroll;
+            float scroll = _wheelArmed ? _input.Scroll : 0f;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
                 _airPitchTarget = Mathf.Clamp(_airPitchTarget + Mathf.Sign(scroll) * SimConfig.AirPitchStep,
                                               -targetLimit, targetLimit);
@@ -438,6 +487,8 @@ namespace Trickshot
         void NormalJump()
         {
             _spaceHeld = 0f;               // consumed -> next hold must re-accumulate
+            _wheelArmed = true;            // the wheel is live from here until he lands
+            _leftGround = false;
             _ragdoll.UprightLock = false;
             // Standing jumps go full height; jumps taken on the move are lower, and
             // sprinting jumps lower still (momentum trades against pop).
@@ -792,11 +843,15 @@ namespace Trickshot
         // and belly-flops when he lands. Pelvis yaw+roll are pinned and pitch is driven
         // face-down (DiveYawLock) so he is belly-first the whole way; locomotion off so
         // the launch isn't steered/arrested.
-        void StartDive()
+        // `high`: the header-hold landing dive (HeaderDiveUpVel/ForwardVel) instead of the Space
+        // dive's low, long launch. Same lifecycle either way - ManageDive, the prone clock, EndTrick.
+        void StartDive(bool high = false)
         {
             _mode = Trick.Dive;
             _spaceHeld = 0f;
             _diveAir = 0f;
+            _airHold = false;
+            _wheelArmed = false;   // a dive never reads the wheel, and it ends on the ground
             DiveHitPending = true;   // this dive may still fell one opponent
             _proneTimer = Mathf.Max(SimConfig.DiveProneMinTime,
                                     SimConfig.DiveProneTime * PlayerProfile.RecoveryTimeMul);
@@ -814,9 +869,45 @@ namespace Trickshot
             // run-speed + launch (which sent him flying). Then a modest up + forward
             // launch; gravity arcs him into the flop.
             _ragdoll.ScaleHorizontalVelocity(0f);
+            // The landing dive launches off touchdown with the fall still in the bones: kill that
+            // too, or the drop nets most of the pop away and "high" comes out as a belly-flop.
+            if (high) _ragdoll.ScaleVerticalVelocity(0f);
             Vector3 fwd = _ragdoll.FacingRotation * Vector3.forward;
-            _ragdoll.AddVelocityToAll(Vector3.up * SimConfig.DiveUpVel
-                                      + fwd * SimConfig.DiveForwardVel);
+            float up  = high ? SimConfig.HeaderDiveUpVel      : SimConfig.DiveUpVel;
+            float fwv = high ? SimConfig.HeaderDiveForwardVel : SimConfig.DiveForwardVel;
+            _ragdoll.AddVelocityToAll(Vector3.up * up + fwd * fwv);
+        }
+
+        // --------------------------------------------------- header hold through touchdown
+        // Airborne, LMB+RMB together is the header pose (ApplyLegRaises). If the player is STILL
+        // holding both when the ground comes up, the hold is resolved here rather than falling
+        // through to the grounded raise branch, which cocked both legs at full lift under a run
+        // that carried on - the "sitting in mid-air" look. Two outcomes, keyed the way the grounded
+        // gesture is (SimConfig.BothButtonMoveDeadzone):
+        //   - pushing FORWARD: he lays out into a HIGH diving header off the landing and has to
+        //     recover from the deck like any dive (StartDive(high: true));
+        //   - anything else (still, pulled back, strafing): he goes straight down into the sit,
+        //     exactly as if he had pressed both while standing idle (BeginSit).
+        // The hold must be CARRIED from the air: a fresh press on the ground is still UpdateSit's
+        // (press-edge sit or slide), and letting either button go in the air clears it, so a
+        // header you released before landing does nothing on touchdown.
+        void ResolveHeaderLanding(bool grounded)
+        {
+            bool bothHeld = _input.LeftLegHeld && _input.RightLegHeld;
+            if (!bothHeld) { _airHold = false; return; }
+            bool free = _mode == Trick.None && !_sitting && !_sliding;
+            if (!free) return;
+            if (!grounded) { _airHold = true; return; }
+            if (!_airHold) return;
+
+            _airHold = false;
+            // Coming down TIPPED (a scrolled flip with both buttons down) is AirPitchControl's
+            // tumble, which runs later this same tick; a sit started here first would leave him
+            // seated AND tumbling, with the sit's height pin under a limp body.
+            float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
+            if (upness < SimConfig.TumbleUpness) return;
+            if (_input.Move.y > SimConfig.BothButtonMoveDeadzone) StartDive(high: true);
+            else BeginSit();
         }
 
         void ManageDive(bool grounded)
@@ -841,6 +932,8 @@ namespace Trickshot
         {
             _mode = Trick.None;
             _spaceHeld = 0f;
+            _wheelArmed = false;   // every trick ends on the deck: nothing to pitch until the next jump
+            _leftGround = false;
             ResetFlipState();
             _ragdoll.DiveYawLock = false;
             _ragdoll.DriveScale = 1f;      // stiffen back up
@@ -912,17 +1005,65 @@ namespace Trickshot
             if ((_proneTimer -= Time.deltaTime) <= 0f) EndTrick();
         }
 
+        // --------------------------------------------------- tumble: landed tipped over
+        // A body that comes down to the turf tipped past TumbleUpness - a bicycle kick, a flip
+        // scrolled to horizontal - goes DOWN, back or front first, and gets up the way a diving
+        // header does: limp, upright/balance/locomotion off, one countdown, EndTrick restores. The
+        // same mechanism as the dive and the slide's limp for the same reason those share it: every
+        // recovery path already knows it (ForceRecover, Knockdown.Fell via IsBusy).
+        //
+        // Nothing here moves a bone by hand. The fall is the physics - continuous collision on every
+        // bone against the turf slab, FloorRescue as the last-resort backstop - and the carry servo
+        // and upright lock that put a body INTO the ground before are both off until EndTrick, when
+        // the servo lifts him off a floor it has actually seen (_floorValid). So this cannot drive
+        // him through the turf, the goal or anything else.
+        void StartTumble()
+        {
+            _mode = Trick.Tumble;
+            _tumbleTime = 0f;
+            _spaceHeld = 0f;
+            _bicycleTimer = 0f;
+            _wheelArmed = false;
+            _leftGround = false;
+            ResetFlipState();
+            _proneTimer = Mathf.Max(SimConfig.DiveProneMinTime,
+                                    SimConfig.TumbleProneTime * PlayerProfile.RecoveryTimeMul);
+            _ragdoll.UprightLock = false;
+            _ragdoll.BalanceEnabled = false;
+            _ragdoll.LocomotionEnabled = false;
+            _ragdoll.BodyOrientTarget = null;
+            _ragdoll.DriveScale = SimConfig.TumbleDriveScale;
+            // The spin he arrived with is kept (no StopBodySpin): the fall carries it, as a real one
+            // would. Raises and the header fold are dropped so a stale one cannot pop back in when
+            // he stands.
+            _legRaiseL = 0f; _legRaiseR = 0f; _headerBend = 0f;
+            _ragdoll.SetPose(RagdollPose.Stand, SimConfig.SitPoseSpeed);
+        }
+
+        void ManageTumble(bool grounded)
+        {
+            _tumbleTime += Time.deltaTime;
+            // The prone clock runs once he has had time to actually land (the probe reads grounded
+            // with the pelvis still a metre up); the hard cap covers a body that never settles.
+            bool landed = grounded && _tumbleTime > 0.25f;
+            if ((landed && (_proneTimer -= Time.deltaTime) <= 0f) || _tumbleTime > SimConfig.TumbleMaxTime)
+                EndTrick();
+        }
+
         // --------------------------------------------------- sit down
         // LMB+RMB pressed TOGETHER while standing puts him on his backside. Four conditions keep
         // it from stealing an ordinary strike:
         //   - it fires on the SECOND button's PRESS EDGE with the other side's edge still inside
         //     SitWindow, so press-one, swing, press-other stays two normal leg raises;
-        //   - neither leg may already be raised past SitRaiseMax (that is a committed strike);
+        //   - no shot is being CHARGED (a boot held with the ball in range is a committed strike).
+        //     This used to test the cosmetic leg raise against SitRaiseMax instead, and at
+        //     LegRaiseEase 8/s a bare raise crossed 0.5 in 62 ms - so unless both buttons landed
+        //     inside 62 ms the sit was refused, which is why it was near-impossible to do on purpose;
         //   - GROUNDED only. Airborne both-down is the header and is left exactly as it was;
-        //   - PULLED BACK on the move stick. The same combo pushed FORWARD is a sliding challenge
-        //     instead, so the stick is the discriminator and the two are mutually exclusive by
-        //     intent rather than by how fast he happened to be running (which is what SitMaxSpeed
-        //     used to arbitrate, and why neither outcome was reachable deliberately).
+        //   - NO MOVEMENT held on the stick (pulled back also counts). The same combo pushed
+        //     FORWARD is a sliding challenge instead, so the stick is the discriminator and the two
+        //     are mutually exclusive by intent rather than by how fast he happened to be running
+        //     (which is what SitMaxSpeed used to arbitrate, and why neither was reachable deliberately).
         //
         // The hips are dropped through EmoteHeightOffset, which is the shipped lever for this: a
         // non-zero value hands the whole-body carry servo off and PD-drives the pelvis to its
@@ -974,7 +1115,7 @@ namespace Trickshot
             if (!_sitting)
             {
                 bool together = (lEdge || rEdge) && _lmbDownT > 0f && _rmbDownT > 0f;
-                bool uncommitted = _legRaiseL < SimConfig.SitRaiseMax && _legRaiseR < SimConfig.SitRaiseMax;
+                bool uncommitted = !_shotArmedL && !_shotArmedR;   // not charging a shot (see above)
                 bool armed = together && bothHeld && uncommitted && grounded
                              && _mode == Trick.None && !_input.JumpHeld;
 
@@ -1020,16 +1161,10 @@ namespace Trickshot
                     _ragdoll.EmoteHeightOffset = -_sitDrop;
                     return;
                 }
-                // BACKWARD -> sit.
-                if (armed && push < -SimConfig.BothButtonMoveDeadzone)
-                {
-                    _sitting = true;
-                    _lmbDownT = 0f; _rmbDownT = 0f;
-                    _ragdoll.MoveInput = Vector3.zero;
-                    _ragdoll.UprightLock = false;     // let the pelvis tilt so the butt reaches the turf
-                    _ragdoll.BalanceEnabled = false;   // balance PD drives toward upright (pitch=0), fighting the sit
-                    _ragdoll.SetPose(RagdollPose.Sit, SimConfig.SitPoseSpeed);
-                }
+                // NO MOVEMENT (a still stick, or pulled back) -> sit. Strafing is neither.
+                if (armed && push <= SimConfig.BothButtonMoveDeadzone
+                    && Mathf.Abs(_input.Move.x) <= SimConfig.BothButtonMoveDeadzone)
+                    BeginSit();
             }
             else if (!bothHeld || _input.JumpPressed || !grounded)
             {
@@ -1048,6 +1183,19 @@ namespace Trickshot
 
             // Reaching exactly 0 is what hands the carry servo back and lifts him to stand height.
             _ragdoll.EmoteHeightOffset = -_sitDrop;
+        }
+
+        // Down on his backside. Shared by the standing gesture (UpdateSit) and the header hold
+        // carried through touchdown (ResolveHeaderLanding), so both sits are the same sit.
+        void BeginSit()
+        {
+            _sitting = true;
+            _airHold = false;
+            _lmbDownT = 0f; _rmbDownT = 0f;
+            _ragdoll.MoveInput = Vector3.zero;
+            _ragdoll.UprightLock = false;     // let the pelvis tilt so the butt reaches the turf
+            _ragdoll.BalanceEnabled = false;   // balance PD drives toward upright (pitch=0), fighting the sit
+            _ragdoll.SetPose(RagdollPose.Sit, SimConfig.SitPoseSpeed);
         }
 
         void StandUp()
@@ -1073,6 +1221,9 @@ namespace Trickshot
             _rmbTimer = 0f;
             _sitting = false;
             _sliding = false;
+            _airHold = false;
+            _wheelArmed = false;
+            _leftGround = false;
             _slideTimer = 0f;
             _slideRecover = 0f;
             _runLocked = false;

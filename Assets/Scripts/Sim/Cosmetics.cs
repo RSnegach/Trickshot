@@ -262,8 +262,9 @@ namespace Trickshot
             }
         }
 
-        // Adult-mode appendage: a collider-less Verlet pendulum under the pelvis (skin/coat-tinted,
-        // build-scaled). Purely cosmetic; it pushes out of player bodies but never the ball.
+        // Adult-mode appendage: a Verlet pendulum under the pelvis (skin/coat-tinted, build-scaled).
+        // Hanging, it is collider-less and pushes out of player bodies but never the ball; held to
+        // attention (the ThirdLeg bind) it goes rigid and carries a hitbox the ball can be struck with.
         //
         // Gated on the SPECIES capability rather than an id list, so it follows AllowsAdult exactly
         // like the toggle, the age prompt, the Third Leg tab and the networked dims already do.
@@ -281,8 +282,10 @@ namespace Trickshot
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
             go.transform.localScale = Vector3.one;
-            go.AddComponent<AnatomySim>().Build(rag, pelvis, a.Skin, def.AdultScale, def.AdultGrowth,
-                                                a.MemberLen, a.MemberGirth, a.BallSize);
+            var sim = go.AddComponent<AnatomySim>();
+            sim.Build(rag, pelvis, a.Skin, def.AdultScale, def.AdultGrowth,
+                      a.MemberLen, a.MemberGirth, a.BallSize);
+            rag.Anatomy = sim;   // the Striker and the ball reach it through the body
         }
 
         // ---- collider-less piece helpers ------------------------------------

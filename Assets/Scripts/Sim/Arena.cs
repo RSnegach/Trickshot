@@ -16,6 +16,39 @@ namespace Trickshot
             public FlexNet net;   // wire the ball into this after the ball is created
         }
 
+        // The live single-goal arena, so the goal can be REBUILT in place when its size changes
+        // mid-match (GoalSetup.Apply). Everything else about the goal is read off SimConfig every
+        // frame; the frame, net and backstops are the one part that is baked at build time.
+        static Transform s_goalRoot;
+        static Refs s_refs;
+        static Transform s_ball; static float s_ballRadius;
+        // Materials built once and kept: a rebuild that made fresh ones would leak the old set
+        // (destroying a GameObject does not free its materials).
+        static Material s_frameMat, s_netMat;
+        static PhysicsMaterial s_woodwork, s_netPhys;
+
+        /// <summary>Wire the ball into the net (and remember it for rebuilds).</summary>
+        public static void BindBall(Transform ball, float radius)
+        {
+            s_ball = ball; s_ballRadius = radius;
+            if (s_refs.net != null) s_refs.net.SetBall(ball, radius);
+        }
+
+        /// <summary>
+        /// Tear the goal's frame/net/backstops down and build them again at the CURRENT
+        /// SimConfig.GoalWidth/GoalHeight, under the same goal-root transform so every reference to
+        /// the goal centre stays valid. No-op when no single-goal arena is live (Match mode builds
+        /// its own two goals; a torn-down match leaves nothing here).
+        /// </summary>
+        public static void RebuildGoal()
+        {
+            if (s_goalRoot == null) return;
+            for (int i = s_goalRoot.childCount - 1; i >= 0; i--)
+                Object.Destroy(s_goalRoot.GetChild(i).gameObject);
+            BuildGoal(s_goalRoot, ref s_refs);
+            if (s_ball != null && s_refs.net != null) s_refs.net.SetBall(s_ball, s_ballRadius);
+        }
+
         // boundaryWalls: when false, the side/back invisible walls are skipped (open field of
         // play). Striker mode passes false so the pitch is open; the net backstops still stop
         // shots that actually go in the goal mouth.
@@ -24,7 +57,6 @@ namespace Trickshot
             var refs = new Refs();
 
             var line  = Make.Glow(new Color(0.9f, 0.9f, 0.9f));
-            var post  = Make.Mat(Color.white, 0.2f);
             var wall  = Make.Mat(new Color(0.3f, 0.3f, 0.34f, 1f), 0.05f);
 
             // NOTE: the ground plane and pitch line markings are built by PitchBuilder now
@@ -33,59 +65,11 @@ namespace Trickshot
             // white flickering streaks). Arena now only builds the goal, net, backstops,
             // and boundary walls.
 
-            // Goal
+            // Goal. Built by BuildGoal so it can be rebuilt in place later (RebuildGoal).
             var goalRoot = Make.Empty("Goal", SimConfig.GoalCenter, root).transform;
             refs.goalCenter = goalRoot;
-            float gw = SimConfig.GoalWidth, gh = SimConfig.GoalHeight, gd = SimConfig.GoalDepth;
-            float postR = 0.07f;
-            var frameMat = Make.Mat(Color.white, 0.3f);
-            // Bouncy physics for the round frame -> fun deflections off woodwork.
-            var woodwork = Make.PhysMat("Post", 0.75f, 0.3f, 0.3f);
-
-            // Cylindrical uprights (along Y) and crossbar (along X) for round bounces.
-            Make.Cylinder("PostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-            Make.Cylinder("PostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-            Make.Cylinder("Bar", postR, gw + postR * 2f, SimConfig.GoalCenter + new Vector3(0f, gh, 0f), 0, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-            // Back frame (visual depth), also cylindrical.
-            Make.Cylinder("BackPostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-            Make.Cylinder("BackPostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-            Make.Cylinder("RailL", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-            Make.Cylinder("RailR", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
-
-            // (Goal-line marking is drawn by PitchBuilder as part of the full pitch.)
-
-            // See-through flexible net wrapping back + sides + top, rendered as net
-            // strings (line grid) with an unlit material so it never shades to black.
-            var netMat = Make.Unlit(new Color(0.92f, 0.92f, 0.98f, 1f));
-            var netGo = new GameObject("FlexNet");
-            netGo.transform.SetParent(goalRoot, false);
-            netGo.transform.position = SimConfig.GoalCenter;   // goal-local origin at the line centre
-            netGo.transform.rotation = Quaternion.identity;
-            netGo.AddComponent<MeshFilter>();
-            netGo.AddComponent<MeshRenderer>();
-            var flex = netGo.AddComponent<FlexNet>();
-            flex.Build(gw, gh, gd, SimConfig.NetCols, SimConfig.NetRows, netMat);
-            refs.net = flex;
-
-            // Invisible backstops (the net mesh is visual only) so shots that go IN the
-            // mouth stop in the goal: back, both sides, and top of the goal box.
-            // Minimum bounce-combine so the net kills the rebound (otherwise the ball's
-            // own 0.55 bounce wins the Maximum combine and it springs back). The ball
-            // then deadens into the net and rolls down instead of pinging off.
-            var netPhys = Make.PhysMat("Net", 0f, 0.95f, 0.95f, PhysicsMaterialCombine.Minimum);
-            MakeInvisibleSolid(goalRoot, new Vector3(gw, gh, 0.06f), SimConfig.GoalCenter + new Vector3(0f, gh * 0.5f, gd), netPhys);
-            MakeInvisibleSolid(goalRoot, new Vector3(0.06f, gh, gd), SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, gd * 0.5f), netPhys);
-            MakeInvisibleSolid(goalRoot, new Vector3(0.06f, gh, gd), SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, gd * 0.5f), netPhys);
-            MakeInvisibleSolid(goalRoot, new Vector3(gw, 0.06f, gd), SimConfig.GoalCenter + new Vector3(0f, gh, gd * 0.5f), netPhys);
-
-            // Goal trigger: a thin slab spanning the mouth just inside the line.
-            var trigger = Make.Box("GoalTrigger", new Vector3(gw, gh, 0.3f),
-                                    SimConfig.GoalCenter + new Vector3(0f, gh * 0.5f, 0.2f), null, goalRoot, collider: true);
-            var tcol = trigger.GetComponent<Collider>();
-            tcol.isTrigger = true;
-            var mr = trigger.GetComponent<Renderer>();
-            if (mr != null) Object.Destroy(mr); // invisible
-            refs.goal = trigger.AddComponent<Goal>();
+            BuildGoal(goalRoot, ref refs);
+            s_goalRoot = goalRoot; s_refs = refs; s_ball = null;
 
             // Side + back-of-player boundary walls only. The GOAL END (+Z) is left OPEN
             // so wide / high / long shots sail out of bounds behind the goal and land
@@ -102,6 +86,64 @@ namespace Trickshot
             }
 
             return refs;
+        }
+
+        // The goal itself - frame, net, backstops, trigger - at the current SimConfig size, under
+        // `goalRoot` (whose position is the goal centre). Called at build and by RebuildGoal.
+        static void BuildGoal(Transform goalRoot, ref Refs refs)
+        {
+            float gw = SimConfig.GoalWidth, gh = SimConfig.GoalHeight, gd = SimConfig.GoalDepth;
+            float postR = 0.07f;
+            if (s_frameMat == null) s_frameMat = Make.Mat(Color.white, 0.3f);
+            // Bouncy physics for the round frame -> fun deflections off woodwork.
+            if (s_woodwork == null) s_woodwork = Make.PhysMat("Post", 0.75f, 0.3f, 0.3f);
+            var frameMat = s_frameMat; var woodwork = s_woodwork;
+
+            // Cylindrical uprights (along Y) and crossbar (along X) for round bounces.
+            Make.Cylinder("PostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("PostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, 0f), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("Bar", postR, gw + postR * 2f, SimConfig.GoalCenter + new Vector3(0f, gh, 0f), 0, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            // Back frame (visual depth), also cylindrical.
+            Make.Cylinder("BackPostL", postR, gh, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("BackPostR", postR, gh, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, gd), 1, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("RailL", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+            Make.Cylinder("RailR", postR * 0.7f, gd, SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh, gd * 0.5f), 2, frameMat, goalRoot, woodwork).AddComponent<GoalFrame>();
+
+            // (Goal-line marking is drawn by PitchBuilder as part of the full pitch.)
+
+            // See-through flexible net wrapping back + sides + top, rendered as net
+            // strings (line grid) with an unlit material so it never shades to black.
+            if (s_netMat == null) s_netMat = Make.Unlit(new Color(0.92f, 0.92f, 0.98f, 1f));
+            var netGo = new GameObject("FlexNet");
+            netGo.transform.SetParent(goalRoot, false);
+            netGo.transform.position = SimConfig.GoalCenter;   // goal-local origin at the line centre
+            netGo.transform.rotation = Quaternion.identity;
+            netGo.AddComponent<MeshFilter>();
+            netGo.AddComponent<MeshRenderer>();
+            var flex = netGo.AddComponent<FlexNet>();
+            flex.Build(gw, gh, gd, SimConfig.NetCols, SimConfig.NetRows, s_netMat);
+            refs.net = flex;
+
+            // Invisible backstops (the net mesh is visual only) so shots that go IN the
+            // mouth stop in the goal: back, both sides, and top of the goal box.
+            // Minimum bounce-combine so the net kills the rebound (otherwise the ball's
+            // own 0.55 bounce wins the Maximum combine and it springs back). The ball
+            // then deadens into the net and rolls down instead of pinging off.
+            if (s_netPhys == null) s_netPhys = Make.PhysMat("Net", 0f, 0.95f, 0.95f, PhysicsMaterialCombine.Minimum);
+            var netPhys = s_netPhys;
+            MakeInvisibleSolid(goalRoot, new Vector3(gw, gh, 0.06f), SimConfig.GoalCenter + new Vector3(0f, gh * 0.5f, gd), netPhys);
+            MakeInvisibleSolid(goalRoot, new Vector3(0.06f, gh, gd), SimConfig.GoalCenter + new Vector3(-gw * 0.5f, gh * 0.5f, gd * 0.5f), netPhys);
+            MakeInvisibleSolid(goalRoot, new Vector3(0.06f, gh, gd), SimConfig.GoalCenter + new Vector3(gw * 0.5f, gh * 0.5f, gd * 0.5f), netPhys);
+            MakeInvisibleSolid(goalRoot, new Vector3(gw, 0.06f, gd), SimConfig.GoalCenter + new Vector3(0f, gh, gd * 0.5f), netPhys);
+
+            // Goal trigger: a thin slab spanning the mouth just inside the line.
+            var trigger = Make.Box("GoalTrigger", new Vector3(gw, gh, 0.3f),
+                                    SimConfig.GoalCenter + new Vector3(0f, gh * 0.5f, 0.2f), null, goalRoot, collider: true);
+            var tcol = trigger.GetComponent<Collider>();
+            tcol.isTrigger = true;
+            var mr = trigger.GetComponent<Renderer>();
+            if (mr != null) Object.Destroy(mr); // invisible
+            refs.goal = trigger.AddComponent<Goal>();
         }
 
         static void Line(Transform root, Material m, Vector3 pos, Vector3 size)

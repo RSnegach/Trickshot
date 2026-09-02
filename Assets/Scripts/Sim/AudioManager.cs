@@ -129,7 +129,12 @@ namespace Trickshot
             return c;
         }
 
-        float Chan(Channel c) => _vol[(int)c] * _vol[(int)Channel.Master];
+        // Music ceiling. The tracks are mastered hot against the crowd and sfx beds: 45% of the
+        // old full slider was the level that sat right, so that IS the new 100%. The slider still
+        // spans 0..100 and the saved pref is untouched; only the output is scaled, so every slider
+        // position is now 45% of what it used to produce.
+        const float MusicGain = 0.45f;
+        float Chan(Channel c) => _vol[(int)c] * _vol[(int)Channel.Master] * (c == Channel.Music ? MusicGain : 1f);
 
         // Crowd REACTIONS (cheer / applause / boos) are crowd sounds, so they play at the crowd
         // volume - the same level as the ambient bed and the livelies by default, not the louder
@@ -139,19 +144,28 @@ namespace Trickshot
         float CrowdReactionVol() => Chan(Channel.Crowd) * CrowdReactionGain;
 
         // ===================================================================== menu music
-        // Idempotent: calling while it's already playing this clip is a no-op, so navigating
-        // between menus never restarts the track. BuildMode stops it; TearDownMatch resumes it.
+        // PLAYLIST-driven now (see Playlist): PlayMenuMusic starts whatever the cursor is on,
+        // and Update rolls to the next song when one ends. Still idempotent - navigating
+        // between menus never restarts the track. BuildMode stops it; TearDownMatch resumes.
+        bool _menuMusicOn;
+
         public void PlayMenuMusic()
         {
-            var clip = Clip("menu_music");
+            var clip = Playlist.Current.Song;
             if (clip == null) return;
-            if (_music.isPlaying && _music.clip == clip) return;
+            if (_menuMusicOn && _music.isPlaying && _music.clip == clip) return;
+            _music.loop = false;              // the PLAYLIST loops, not the clip (Update advances)
             _music.clip = clip;
             _music.volume = Chan(Channel.Music);
             _music.Play();
+            _menuMusicOn = true;
         }
 
-        public void StopMenuMusic() => _music.Stop();
+        public void StopMenuMusic()
+        {
+            _menuMusicOn = false;
+            _music.Stop();
+        }
 
         // ===================================================================== match beds
         GameMode _mode;
@@ -240,6 +254,21 @@ namespace Trickshot
             {
                 _fadeOld.volume -= Chan(Channel.Crowd) * Time.unscaledDeltaTime / 0.6f;
                 if (_fadeOld.volume <= 0.001f) { _fadeOld.Stop(); _fadeOld = null; }
+            }
+
+            // PLAYLIST advance: when a menu-music track finishes, roll to the next song (a
+            // one-track playlist restarts it). Runs OUTSIDE the match guard - menu music is
+            // exactly the thing that plays while no match is active.
+            if (_menuMusicOn && _music != null && !_music.isPlaying)
+            {
+                var next = Playlist.Next();
+                if (next.Song != null)
+                {
+                    _music.clip = next.Song;
+                    _music.volume = Chan(Channel.Music);
+                    _music.Play();
+                }
+                else _menuMusicOn = false;
             }
 
             if (!_matchActive || PauseMenu.Paused) return;
@@ -437,6 +466,51 @@ namespace Trickshot
             // Refresh the actively-playing lively (the fading one keeps ramping down in Update).
             var cur = _lively[_livelyCur];
             if (cur != null && cur.isPlaying && cur != _fadeOld) cur.volume = Chan(Channel.Crowd);
+        }
+
+        // ===================================================================== now-playing pill
+        // A small black pill at the top-left of the screen whenever menu music is playing:
+        // [note] Title - Author, read straight off the playlist's current track. It lives HERE
+        // rather than in any menu screen because the music is the one thing that survives
+        // every screen change: one banner, shown everywhere the menu music is, gone during a
+        // match. GUI.depth = -100: lower depths draw ON TOP (Unity docs), so a screen's
+        // full-screen scrim - drawn at the default depth 0 - can never swallow the pill.
+        static GUIStyle _npStyle;
+
+        void OnGUI()
+        {
+            if (!_menuMusicOn || _music == null || !_music.isPlaying) return;
+            GUI.depth = -100;
+
+            var track = Playlist.Current;
+            string label = track.Title + " - " + track.Author;
+
+            MenuScale.Begin();
+
+            _npStyle ??= new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleLeft };
+            _npStyle.normal.textColor = UITheme.Ink;
+            float tw = _npStyle.CalcSize(new GUIContent(label)).x;
+
+            const float px = 14f, py = 12f, h = 26f;
+            const float pad = 10f, noteW = 18f;
+            var r = new Rect(px, py, pad + noteW + pad * 0.5f + tw + pad, h);
+            UITheme.Chip(r, new Color(0f, 0f, 0f, 0.74f));           // the pill
+            float noteCx = px + pad + noteW * 0.5f;
+            DrawMusicNote(noteCx, py + h * 0.5f);
+            float textX = px + pad + noteW + pad * 0.5f;
+            UITheme.Label(new Rect(textX, py, r.xMax - textX - 2f, h), label, _npStyle);
+
+            MenuScale.End();
+        }
+
+        // A tiny eighth note drawn from primitives, not a glyph: Barlow Condensed doesn't carry
+        // a music-note character, so the font would draw a placeholder box. Same primitive
+        // fidelity bar as the flags and the cosmetics: head + stem + a little flag.
+        static void DrawMusicNote(float cx, float cy)
+        {
+            UITheme.Dot(cx - 3f, cy + 4f, UITheme.Ink, 3f);                        // the head
+            UITheme.Fill(new Rect(cx + 0.5f, cy - 6f, 1.6f, 14f), UITheme.Ink);    // the stem
+            UITheme.Fill(new Rect(cx + 2.1f, cy - 6f, 4f, 1.6f), UITheme.Ink);     // the flag
         }
     }
 }

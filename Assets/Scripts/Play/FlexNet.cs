@@ -186,12 +186,17 @@ namespace Trickshot
                     _pos[i] = _rest[i] + off.normalized * SimConfig.NetMaxStretch;
             }
 
-            _mesh.vertices = _pos;
-            _mesh.RecalculateBounds();
+            _meshDirty = true;   // uploaded once per rendered frame in LateUpdate
         }
+
+        bool _meshDirty;
 
         void LateUpdate()
         {
+            // The sheet's verts go to the GPU here, not in FixedUpdate: under physics catch-up the
+            // sim runs several steps per frame and only the last one is ever drawn.
+            if (_meshDirty) { _meshDirty = false; _mesh.vertices = _pos; _mesh.RecalculateBounds(); }
+
             // Hide the net only when the keeper camera is angled into the LOWEST 25% of
             // its look range (mouse pushed down / low angle), where the mesh clutters the
             // view; render it the other 75% of the time.

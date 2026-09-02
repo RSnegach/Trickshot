@@ -135,24 +135,14 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// Eager save, same convention Keybinds/QuickChat already use for their PlayerPrefs
-        /// writes: every Record* call below saves immediately rather than batching. Nothing here
-        /// fires faster than about once a second, and the file is small, so a rewrite per event
-        /// costs nothing. Written to a temp file first and swapped in - a crash mid-write only
-        /// corrupts the temp file, never the real one, so lifetime stats can't be wiped by a kill
-        /// at the wrong instant.
+        /// Eager save: every Record* call below saves at once rather than batching, so nothing is
+        /// lost to a crash. The serialisation is main-thread and cheap (a few KB of JSON); the disk
+        /// write is NOT - it lands mid-play (every cross, save, goal and kick) and a synchronous
+        /// temp-file-and-swap was a visible hitch each time. AtomicFileWriter does the write on a
+        /// worker thread, keeps the temp-then-swap so a crash mid-write never corrupts the real
+        /// file, coalesces a burst into one write, and is flushed at quit.
         /// </summary>
-        public static void Save()
-        {
-            string tmp = FilePath + ".tmp";
-            try
-            {
-                File.WriteAllText(tmp, JsonUtility.ToJson(Data, true));
-                if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
-                else File.Move(tmp, FilePath);
-            }
-            catch (Exception e) { Debug.LogWarning("CareerStats: failed to save. " + e.Message); }
-        }
+        public static void Save() => AtomicFileWriter.Write(FilePath, JsonUtility.ToJson(Data, true), "CareerStats");
 
         /// <summary>Wipes every lifetime stat back to zero (both SP and MP). Callers must confirm
         /// with the player first - this is the "Reset All Stats" button's target, gated behind an

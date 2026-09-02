@@ -11,7 +11,10 @@ namespace Trickshot.Net
     /// Channels: reliable (lobby/assignment/score events - must arrive, ordered) and
     /// unreliable (per-tick input + snapshots - newest wins, drops are fine).
     /// </summary>
-    public enum NetChannel { Reliable = 0, Unreliable = 1 }
+    // ReliableBulk is a SECOND ordered stream (jersey PNGs) with its own sequence space, so a
+    // 400-packet jersey burst that loses a chunk stalls only other jersey chunks, never the
+    // gameplay messages on Reliable (goal callouts, roster, cross-map edits) queued behind it.
+    public enum NetChannel { Reliable = 0, Unreliable = 1, ReliableBulk = 2 }
 
     // A peer is identified by an opaque ulong (a Steam ID once wired; a small int under the
     // loopback transport). 0 is reserved for "invalid/none".

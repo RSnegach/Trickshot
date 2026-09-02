@@ -236,11 +236,11 @@ namespace Trickshot
             Vector3[] norms = mesh.normals;
             var uv = new Vector2[verts.Length];
 
-            // Atlas V ranges (normalized) for each stacked region of the 256x520 atlas.
+            // Atlas V ranges (normalized) for each stacked region of the atlas (AtlasW x AtlasH texels).
             float atlasH = JerseyDesigns.AtlasH;
             float backV0 = JerseyDesigns.BackY0 / atlasH;                       // 0
-            float frontV0 = JerseyDesigns.FrontY0 / atlasH;                     // 256/520
-            float regV = JerseyDesigns.RegionH / atlasH;                        // 256/520
+            float frontV0 = JerseyDesigns.FrontY0 / atlasH;                     // 512/1032
+            float regV = JerseyDesigns.AtlasRegionH / atlasH;                   // 512/1032
             // A single texel dead-centre of the plain band -> solid base colour on side faces.
             var plainUV = new Vector2(0.5f, (JerseyDesigns.PlainY0 + 4f) / atlasH);
 

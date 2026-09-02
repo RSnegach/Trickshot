@@ -23,6 +23,24 @@ asymmetric/short-session modes and a progression layer, not just the main match 
 - **Steam achievements.** Standard hooks once Steamworks is wired (see `MULTIPLAYER.md` Steam
   section) — milestone streaks, clean sheets, goals scored, etc.
 
+- **Adult-mode "Touch Tips" achievement ladder.** Unlocks when your erect third leg (the ThirdLeg
+  bind, `AnatomySim` hitbox) touches another player's: **Touch Tips** the first time, **Serial Tip
+  Toucher** at 10, **Tip Terrorizer** at 100. Needs a member-vs-member contact detector (both
+  hitboxes are compound colliders on the pelvis bodies, so an OnCollision on either side can see
+  the other's `AnatomySim.IsHitbox`), a lifetime counter on `CareerStats`, and three
+  `Achievements.All` entries in the existing StatThreshold shape. Not scoped beyond this — just an
+  idea, not being built yet.
+
+- **Sniper role (with a buried in-game reference).** Somewhere in the game there should be a
+  buried, easter-egg reference to a sniper role. The role itself: random people can request to join
+  (or just join public lobbies) that advertise they are looking for a sniper. The sniper sits
+  somewhere around the stadium with a functional sniper rifle and shoots at players and the ball
+  over the course of a match or kickabout to impact it somehow (knockdowns, deflections - the
+  effect is undecided). Lobby-side it is a join-request / "looking for sniper" flag on the lobby
+  (see `MULTIPLAYER.md` for what the lobby advertises today); play-side it is a new seat with its
+  own camera and input, not one of the existing roles. To be fleshed out later — just an idea, not
+  being built yet.
+
 - **Career stats, Rocket League-style.** Persistent per-player stats across sessions/modes
   (goals, save %, streak PBs, matches played) rather than only a single match's scoreboard.
   Implies some form of save-file or account-tied persistence that doesn't exist yet.
@@ -107,6 +125,64 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   support this — today's positional AI wasn't designed with formation-aware roles beyond what
   3-4-a-side already asks of it. Not scoped beyond this — just an idea, not being built yet.
 
+- **Trickshot Studio: cinematic replays + a scene builder + a social feed (potential headline
+  feature).** The pitch: players recreate real goals — from history or from last weekend — as
+  playable scenes with customizable characters, render them cinematically, post them, and the
+  community votes and follows the best creators. Nobody has shipped this in a game format; if it
+  lands it is a reason to open the game that has nothing to do with winning a match. Three pillars,
+  each buildable on something that already exists:
+
+  - **Cinematic replay mode.** Today's `ReplaySystem` is a rolling ring of raw bone/ball poses
+    sampled every FixedUpdate and written straight back onto the transforms in slow-mo, with the
+    camera switched to `GameCamera.Mode.Broadcast`. Studio needs that made first-class: save a clip
+    (not just the last few seconds of a match), scrub it, and author camera moves over it — a
+    small set of shot types (broadcast, ball-cam, orbit, dolly, player-follow, drone) with keyframed
+    cuts and speed ramps, plus a free camera. Replays must be POSE recordings, not input
+    recordings: the active ragdoll is PhysX and not deterministic across machines, so "replay the
+    inputs" would drift; poses are what plays back identically everywhere. Cost is size — a bone set
+    at 50 Hz is tens of KB per second raw, so clips want quantized poses + delta compression (the
+    `BodyState` snapshot already quantizes for the wire; same idea, denser).
+  - **Scene builder.** Place characters around the pitch (the existing `PlayerAppearance` /
+    `Cosmetics` / `SkillTree` body builder and the jersey painter are the character customizer
+    already — real kits of real teams are user-painted jerseys), give each one a timeline of
+    ACTIONS with a time and a target — run to X, receive, pass to Y (ground/lofted/chip), dribble
+    along a path, shoot at a spot, header, dive, celebrate — and chain them so one body's action
+    triggers the next's ("when the pass arrives, B shoots"). The natural render path is the
+    networked PUPPET path, not the live physics: `ActiveRagdoll.DisplayAnim`/`DisplayEmote` (the
+    canned `AnimState` set + `Celebration` emotes) on kinematic bodies, and the ball flown by
+    `BallController.LaunchTo`/`KickTo`, which already solve a ball onto a target point at a chosen
+    time. That makes a scene deterministic, fast to preview, and the same on every machine — the
+    exact property a shareable, votable artefact needs. Physics-driven "acting" (a real ragdoll
+    header) can come later as an opt-in per action. Authoring is a timeline UI: scrub, drop
+    actions, drag their times, snap chains; the goal-line/kick-off/set-piece furniture from the
+    match modes gives the scene its context. Import a real goal's shape by tracing it: place the
+    players where they were in the footage, then set the times.
+  - **Social layer.** Posts (a scene = its script + a rendered clip + the camera track), user
+    pages, follow, upvote/downvote, a feed (following / hot / new / by competition or week), and
+    search with filters (team, competition, season, scorer, "recreation of <real goal>", tags,
+    creator). The incentive loop is votes + follows; the side-by-side view is the killer feature
+    for voting: the creator links the real goal (a public video URL, embedded or opened alongside —
+    the game never hosts copyrighted footage) and voters watch the recreation next to it. Scenes
+    should be posted as SCRIPTS (small, remixable, rendered on the viewer's machine with their own
+    quality settings) with a rendered clip as the thumbnail/preview; "remix this scene" is free
+    content. Two paths for the backend: (a) **Steam Workshop** gives upload, subscriptions, vote up/
+    down, tags, search, creator pages and moderation for free once Steam is wired (`MULTIPLAYER.md`
+    Steam section) — the cheapest way to prove the loop; (b) a **first-party service** (posts,
+    users, feed ranking, comments, reports) is needed for anything Workshop cannot do — a proper
+    feed algorithm, cross-platform, comments threads, and the side-by-side view — and it is the same
+    unresolved persistence/account question the Career Stats and Zoo ideas hit (see Open questions).
+    A staged plan: Workshop first, first-party later, with the scene format versioned from day one
+    so nothing posted early is orphaned.
+
+  Open points to flesh out: the scene file format (versioned, forward-compatible, small); the
+  action vocabulary and how far it leans on the AI's own skills (`Footballer` brains could "act"
+  a role between authored keyframes); rendering clips to video in-engine (a frame recorder +
+  encoder, or offer OBS/Steam's own capture and only host scripts); moderation and takedowns
+  (user-painted jerseys and player likenesses are UGC); whether votes need Steam identity or an
+  account; and how much of the studio should be usable from a replay of the player's OWN goal
+  ("save this, make it cinematic, post it") since that is the on-ramp that needs zero authoring.
+  Not scoped beyond this — just an idea, not being built yet, but the one with the biggest upside.
+
 ## Open questions (not answered yet)
 
 - Where does progression/stats persistence live — local save file, or does it need an account
@@ -119,3 +195,7 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   (`NetSession`, direct-IP/Tailscale, Steam P2P stub) — those assume you already know who you're
   playing with. A real matchmaking queue is new infrastructure, not covered by anything in
   `MULTIPLAYER.md` today.
+- Trickshot Studio's social layer (posts, feed, votes, follows, search) is the first idea that
+  needs a real user-content service rather than a save file or Steam stats. Steam Workshop covers
+  the first version; anything beyond it is the same account/backend decision as above, so the two
+  should be decided together.

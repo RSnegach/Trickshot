@@ -34,6 +34,8 @@ namespace Trickshot
         Transform _launchPoint;
 
         bool _resolved;        // has the current served ball's outcome been called out yet
+        bool _goalCounted;      // ...and has this served ball already been called a GOAL? (see
+                               // TrackOutcome: a goal must still count after a miss/save callout)
         readonly SaveWatch _save = new SaveWatch();   // shared SAVE / EPIC SAVE / MISS verdict
 
         int _goals, _trickGoals, _attempts, _saves;
@@ -42,24 +44,17 @@ namespace Trickshot
 
         float _goalLineZ;
 
-        // Cross-targeting map (M): while open, aiming is frozen and clicks place where the
-        // crosser delivers AND where the (AI) crosser stands. _crossEdit: 0 = target, 1 = crosser.
-        bool _crossMapOpen;
-        Vector3 _crossTarget = SimConfig.ServeTarget;
-        Vector3 _crosserSpot = SimConfig.CrosserStart;
-        int _crossEdit;
+        // Cross-targeting map (M): while open, aiming is frozen and clicks place where the crosser
+        // delivers AND where the (AI) crosser stands, plus the delivery type and the two serve
+        // sliders. The SETTINGS live in CrossMap.Session (shared with the networked striker driver,
+        // and persistent across a rebuild the way the pre-match sliders they replaced were); only
+        // whether the panel is up is per-match state.
+        bool _crossOpen;
 
-        // PauseMenu owns Escape globally and reacts to it in its OWN Update, independent of this
-        // one - so Escape closing the map here and PauseMenu opening on the very same press is a
-        // real race, not a hypothetical (Update order between the two is unspecified). Same fix as
-        // QuickChatFeed.EscapeOwned: a static flag PauseMenu checks to skip its own action, true
-        // while the map is open AND for one extra frame after close, so PauseMenu still skips even
-        // if its Update happens to run right after the frame this one closed the map.
-        static bool s_crossMapOpenStatic;
-        static int s_crossMapClosedFrame = -10;
-        public static bool CrossMapEscapeOwned
-            => s_crossMapOpenStatic || (Time.frameCount - s_crossMapClosedFrame) <= 1;
-        bool _crossGround;   // Crosser tab: false = lofted air cross (default), true = ground cross
+        // Escape ownership while the map is up now lives on CrossMap, because the networked striker
+        // driver opens the same panel and PauseMenu has to skip its Escape for EITHER of them.
+        // Kept as an alias so PauseMenu's existing call site reads the same as before.
+        public static bool CrossMapEscapeOwned => CrossMap.EscapeOwned;
 
         // Post-goal broadcast replay. Records a rolling window; on a goal it freezes play
         // and plays the last few seconds in slow motion (LMB skips). Then serving resumes.
@@ -82,8 +77,8 @@ namespace Trickshot
             _launchPoint = launchPoint;
             _goalLineZ = SimConfig.GoalCenter.z;
 
-            // Camera follows the pelvis and is driven by mouse movement.
-            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
+            // Camera follows the pelvis and is driven by mouse movement; the wheel zooms replays.
+            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll);
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
             _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
 
@@ -94,45 +89,29 @@ namespace Trickshot
             // flight. Nobody asked for that; the origin stays the cross map's business. What this buys
             // is _plantHome (which arms the drift snap-back) and a real _plantFacing instead of
             // identity, so his first swing no longer turns him to face world +Z.
-            _crosser.TargetOverride = _crossTarget;
-            _crosser.GroundCross = _crossGround;
-            _crosser.PlantAt(_crosserSpot);
+            // Seed the world from the cross panel, which now OWNS shot speed + cross interval (they
+            // moved off the pre-match screen). Applied before the first Arm so the opening serve
+            // already uses this panel's cadence rather than whatever a previously played mode left
+            // in the statics.
+            CrossMap.Apply(CrossMap.Session, _crosser);
+            _crosser.PlantAt(CrossMap.Session.spot);
             _crosser.Arm(SimConfig.ServeFirstDelay);
             _resolved = true;   // no live ball yet
 
             SetupReplay();
         }
 
-        // Build the replay recorder over the ball + striker + keeper bones. GameManager
-        // pauses its own control while a replay plays, so no external drivers are needed.
+        // Build the replay recorder over the ball + striker + keeper bodies. GameManager pauses
+        // its own control while a replay plays; the only drivers are the bodies' own cosmetic sims
+        // that ReplaySystem.TrackBody asks to pause.
         void SetupReplay()
         {
             var tracked = new List<Transform> { _ball.transform };
-            if (_strikerRagdoll != null) tracked.AddRange(_strikerRagdoll.BoneTransforms);
-            if (_keeper != null)
-            {
-                var kr = _keeper.Body;
-                if (kr != null) tracked.AddRange(kr.BoneTransforms);
-            }
+            var drivers = new List<MonoBehaviour>();
+            ReplaySystem.TrackBody(tracked, drivers, _strikerRagdoll);
+            if (_keeper != null) ReplaySystem.TrackBody(tracked, drivers, _keeper.Body);
             _replay = gameObject.AddComponent<ReplaySystem>();
-            _replay.Setup(tracked, null, SimConfig.ReplayWindow);
-        }
-
-        // Striker calls the AI crosser for a pass to his feet: low (driven) or high (chipped).
-        // Scatter scales inversely with the player's passing accuracy (like a match pass),
-        // so a low-passing striker gets a looser ball. A full hold isn't needed here (a call is
-        // a single press), so power is nominal.
-        void CallForCross(bool lofted)
-        {
-            Vector3 target = _strikerRagdoll.Pelvis.position; target.y = SimConfig.BallRadius;
-            float acc = Mathf.Clamp01((PlayerProfile.PassAccuracyMul - 1f) / 0.85f);
-            if (PlayerProfile.PerkMaestro) acc = 1f;
-            float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
-            _crosser.ServeNow(target, lofted, 0.5f, scatter);
-            // _attempts is NOT bumped here - ServeNow only arms the windup, and the completion
-            // block below (both _crosser.Tick() sites) already counts every actual launch,
-            // manual or auto. Counting it here too double-counted every manual call-for-cross.
-            _resolved = false; _save.Arm();
+            _replay.Setup(tracked, drivers, SimConfig.ReplayWindow);
         }
 
         void Update()
@@ -164,13 +143,13 @@ namespace Trickshot
             // is frozen) so you can click the map without steering, and the cursor is freed.
             // Escape also closes it (never opens it) - a second way out for a mouse-only reflex,
             // matching every other overlay in the game (options, quickchat, pause itself).
-            if (_input.CrossMapPressed) SetCrossMapOpen(!_crossMapOpen);
-            else if (_crossMapOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (_input.CrossMapPressed) SetCrossMapOpen(!_crossOpen);
+            else if (_crossOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 SetCrossMapOpen(false);
-            if (_crossMapOpen)
+            if (_crossOpen)
             {
                 if (_keeper != null) _keeper.Tick();
-                if (_crosser.Tick()) { _attempts++; _resolved = false; _save.Arm(); CareerStats.RecordStrikerCross(); }
+                if (_crosser.Tick()) { _attempts++; _resolved = false; _goalCounted = false; _save.Arm(); CareerStats.RecordStrikerCross(); }
                 TrackOutcome();
                 if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
                 return;   // skip striker control + ball-cam toggle while the map is up
@@ -178,13 +157,14 @@ namespace Trickshot
 
             if (_input.BallCamPressed) _cam.ToggleBallCam();
 
-            // Call for a pass from the AI crosser: Q = low (driven), E = high (chipped),
-            // delivered to the striker's feet with passing-accuracy scatter. Only when the
-            // crosser is idle (not mid-serve) so calls don't stack.
-            if (_crosser.ReadyToServe)
+            // Q cycles how the AI crosser delivers - Ground / Low / High - the very setting the
+            // cross map's Crosser tab shows, so the next ball's shape can be changed without
+            // opening the map. (This replaced the old Q/E call-for-pass.)
+            if (_input.PassLoftedPressed)
             {
-                if (_input.PassGroundPressed) { CallForCross(lofted: false); }
-                else if (_input.PassLoftedPressed) { CallForCross(lofted: true); }
+                CrossMap.Session.delivery = CrossMap.NextDelivery(CrossMap.Session.delivery);
+                CrossMap.Apply(CrossMap.Session, _crosser);
+                Flash("CROSS: " + CrossMap.DeliveryName(CrossMap.Session.delivery));
             }
 
             _striker.Tick();
@@ -197,6 +177,7 @@ namespace Trickshot
             {
                 _attempts++;
                 _resolved = false;
+                _goalCounted = false;
                 _save.Arm();
                 CareerStats.RecordStrikerCross();
             }
@@ -209,13 +190,26 @@ namespace Trickshot
         }
 
         // Non-blocking outcome watcher: flags a goal/miss/save once per served ball for
-        // the callout, without gating serves or freezing for a replay.
+        // the callout, without gating serves or freezing for a replay. A GOAL is special-
+        // cased to still count after the miss/save callout already fired (see below).
         void TrackOutcome()
         {
-            if (_resolved) return;
             Vector3 c = _ball.transform.position;
 
-            if (BallFullyInGoal(c)) { OnGoal(_ball.LastShotWasTrick); return; }
+            // A goal counts ANY time the whole ball is in the net, even after this serve's
+            // miss/save callout already went up. Those callouts are deliberately early and
+            // non-blocking: a cross that sails wide resolves MISS while the ball is still
+            // chaseable, and a keeper parry that settles resolves SAVE with the ball live at
+            // his feet - and the striker's next action on the SAME ball (running down the
+            // wide cross, smashing the rebound) is a real shot that can go in. The old
+            // _resolved gate swallowed exactly those goals: move the cross target/crosser on
+            // the map so deliveries stop arriving at the default box spot, and every rebound
+            // goal silently stopped counting - no banner, no replay. _goalCounted keeps the
+            // once-per-serve rule intact (a ball sitting in the net can't re-count while the
+            // replay hold queues).
+            if (!_goalCounted && BallFullyInGoal(c)) { OnGoal(_ball.LastShotWasTrick); return; }
+
+            if (_resolved) return;   // this served ball's miss/save callout already happened
 
             // Keeper contact, from the ball's touch log (never proximity).
             _save.Poll(_ball, _keeper != null ? _keeper.Body : null,
@@ -254,6 +248,7 @@ namespace Trickshot
         void OnGoal(bool trick)
         {
             _resolved = true;
+            _goalCounted = true;
             _goals++;
             if (trick) _trickGoals++;
             CareerStats.RecordStrikerGoal(trick);
@@ -326,9 +321,10 @@ namespace Trickshot
             // R resets the striker and keeper, so put the crosser back too: the snap-back tolerates
             // CrosserPlantDrift (0.6 m) of wander and a reset should clear that as well. PlantAt, so a
             // player who HAS placed him with the cross map keeps their chosen launch origin.
-            _crosser.PlantAt(_crosserSpot);
-            _crosser.Arm(SimConfig.ServeFirstDelay);
+            _crosser.PlantAt(CrossMap.Session.spot);
+            _crosser.Arm(SimConfig.ServeFirstDelay);   // Arm also ResetTo's the ball to the launch origin
             _resolved = true;
+            _goalCounted = false;
         }
 
         void Flash(string s) { _flash = s; _flashTime = 1.6f; }
@@ -337,16 +333,14 @@ namespace Trickshot
         // the chosen landing spot to the crosser so subsequent crosses go there.
         void SetCrossMapOpen(bool open)
         {
-            _crossMapOpen = open;
-            s_crossMapOpenStatic = open;
-            if (!open) s_crossMapClosedFrame = Time.frameCount;
+            _crossOpen = open;
+            CrossMap.NoteOpenState(open);
             GameInput.CaptureCursor(!open);
             if (_cam != null) _cam.FreezeLook = open;   // hold the view still while placing on the map
             if (!open)
             {
-                _crosser.TargetOverride = _crossTarget;   // apply the picked landing spot
-                _crosser.GroundCross = _crossGround;      // apply the Air/Ground delivery choice
-                _crosser.SetOrigin(_crosserSpot);         // relocate the (AI) crosser to the placed spot
+                CrossMap.Apply(CrossMap.Session, _crosser);     // target + delivery + the two serve sliders
+                _crosser.SetOrigin(CrossMap.Session.spot);      // relocate the (AI) crosser to the placed spot
             }
         }
 
@@ -364,41 +358,21 @@ namespace Trickshot
             Hud.Stat(ref p, "Conversion", conversion + "%");
             Hud.Stat(ref p, "Keeper saves", _saves.ToString());
 
-            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   V ball cam   M cross map   R reset");
+            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   Q cross type   V ball cam   M cross map   R reset"
+                       + Keybinds.ThirdLegHint(PlayerProfile.Appearance.Adult));
             Hud.Flash(_flash, _flashTime / 1.6f);
 
-            // Cross-targeting overlay.
-            if (_crossMapOpen)
+            // Cross-targeting overlay. Shared with the networked striker driver so both behave
+            // identically; a moved crosser spot re-plants him (and claims the launch origin).
+            // The !Paused gate matters even though the Escape interlock stops the pause menu opening
+            // over an open map: Escape is not the only way in (a lost window focus, a future pause
+            // path), and these are real clickable controls that IMGUI would let a click reach
+            // straight through the pause scrim.
+            if (_crossOpen && !PauseMenu.Paused)
             {
-                Hud.Scrim(0.45f);
-
-                float w = 380f, h = 300f;
-                var mapRect = new Rect(Hud.W * 0.5f - w * 0.5f, Hud.H * 0.5f - h * 0.5f, w, h);
-
-                // Target / Crosser edit toggle.
-                if (Hud.Seg(new Rect(mapRect.x, mapRect.y - 30f, w * 0.5f - 4f, 24f), "Target", _crossEdit == 0)) _crossEdit = 0;
-                if (Hud.Seg(new Rect(mapRect.x + w * 0.5f + 4f, mapRect.y - 30f, w * 0.5f - 4f, 24f), "Crosser", _crossEdit == 1)) _crossEdit = 1;
-
-                // Crosser tab: an Air/Ground delivery toggle (default Air = lofted). Sits just
-                // below the map so it doesn't overlap the segment row.
-                if (_crossEdit == 1)
-                {
-                    string label = "Delivery:  " + (_crossGround ? "GROUND" : "AIR (lofted)");
-                    if (Hud.Seg(new Rect(mapRect.x, mapRect.yMax + 30f, w, 24f), label, !_crossGround))
-                        _crossGround = !_crossGround;
-                    _crosser.GroundCross = _crossGround;
-                }
-
-                if (CrossMap.Draw(mapRect, ref _crossTarget, ref _crosserSpot, interactive: true, editing: _crossEdit))
-                {
-                    _crosser.TargetOverride = _crossTarget;   // live-apply target on each click
-                    _crosser.GroundCross = _crossGround;      // keep delivery mode in sync
-                    _crosser.SetOrigin(_crosserSpot);         // live-apply crosser position (faces the target)
-                }
-                Hud.OverlayLabel(mapRect,
-                                 _crossEdit == 1 ? "PLACE THE CROSSER" : "WHERE SHOULD CROSSES LAND?",
-                                 "Click to place the " + (_crossEdit == 1 ? "crosser" : "target") + ".  M or Esc to close.",
-                                 60f);
+                // Single-player: one player, everything editable, no crosser picker.
+                var r = CrossMap.DrawOverlay(ref CrossMap.Session, _crosser, CrossMap.Perms.SinglePlayer);
+                if (r.spotMoved) _crosser.SetOrigin(CrossMap.Session.spot);   // faces the target too
             }
 
             Hud.End();

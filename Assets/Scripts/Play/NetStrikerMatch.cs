@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;   // Keyboard, for the cross map's Escape-also-closes
 using Trickshot.Net;
 
 namespace Trickshot
@@ -56,6 +57,13 @@ namespace Trickshot
         AimReticle _reticle;
         Transform _launch;
         NetSession _s;
+        // For bodies spawned MID-MATCH (a seat changing hands): what Configure was given.
+        Camera _rawCam;
+        Material _torso, _limb, _glove;
+        Transform _spawnRoot;
+        // Where the human crosser was last placed from the panel (host), so a relay that did not
+        // move the spot does not re-plant him.
+        Vector3 _lastPlacedSpot;
 
         readonly Body[] _bodies = new Body[NetSession.MaxSlots];
         int _localSlot;
@@ -66,7 +74,27 @@ namespace Trickshot
         float _goalLineZ;
 
 
-        // Cross-targeting map (crosser role only): where the human crosser's deliveries land.
+        // Cross-targeting map (M). The exact panel single-player uses (CrossMap.DrawOverlay), so the
+        // two cannot drift apart - only the permissions differ.
+        //
+        // OPEN TO EVERYONE, and everyone may EDIT while the crosser is an AI: an edit is a request to
+        // the host (NetSession.RequestCrosserSetup), the host validates and relays it, and every peer
+        // - the editor included - adopts the relay. That single ordering is why two players dragging
+        // the same slider cannot end up disagreeing. Only the host actually SIMULATES the crosser, so
+        // only the host writes the values into SimConfig/Crosser.
+        //
+        // When a HUMAN holds the crosser seat the panel goes read-only for everyone (they aim their
+        // own deliveries), except the host's crosser dropdown, which is how the seat is handed back.
+        bool _crossOpen;   // panel up? (the SETTINGS are the replicated NetSession.CrosserSetup)
+        bool CrossMapAvailable => _s != null && _crosser != null;
+        // Pending local edit, coalesced so a slider DRAG is a few packets rather than one per frame
+        // (this rides the reliable channel). Flushed by PublishCrossEditIfDue.
+        bool _crossDirty;
+        float _crossNextPublish;
+        const float CrossPublishInterval = 0.1f;
+        // A crosser reassignment picked on the panel, applied from Update (see DrawCrossOverlay).
+        // -2 = none, -1 = the AI, >= 0 = that slot's human.
+        int _pendingAssign = -2;
 
         bool _localIsCrosser;
         bool _localIsKeeper;
@@ -90,6 +118,7 @@ namespace Trickshot
         {
             _input = input; _cam = gameCam; _ball = ball; _crosser = crosser; _reticle = reticle; _launch = launch;
             _goal = goal;
+            _rawCam = cam; _torso = torso; _limb = limb; _glove = glove; _spawnRoot = root;
             _ball.NoCarry = true;   // striker mode has no carry: a dead touch is pushed clear of his feet
             _s = Multiplayer.Session;
             _localSlot = Mathf.Clamp(_s.LocalSlot, 0, NetSession.MaxSlots - 1);
@@ -105,55 +134,78 @@ namespace Trickshot
             foreach (var slot in _s.Roster)
                 SpawnBody(slot.slot, torso, limb, glove, root);
 
-            // Camera follows the LOCAL body; local striker turns to camera yaw.
-            var me = _bodies[_localSlot];
-            _localIsCrosser = me != null && me.isCrosser;
-            _localIsKeeper = me != null && me.isKeeper;
-            if (me != null && me.ragdoll != null && me.ragdoll.Pelvis != null)
-            {
-                // Single-player's own Striker builder passes the real crosser + goal into the same
-                // slots (GameBootstrap.BuildStrikerMode) so the Broadcast/replay camera's
-                // GroupCenter can widen its framing to include them after a shot; this was passing
-                // null for both despite already holding a live _crosser reference, giving every
-                // networked single-goal match a visibly tighter post-shot framing than its
-                // single-player twin.
-                Transform crosserT = _crosser != null && _crosser.Ragdoll != null && _crosser.Ragdoll.Pelvis != null
-                                    ? _crosser.Ragdoll.Pelvis.transform : null;
-                _cam.Init(cam, ball.transform, me.ragdoll.Pelvis.transform, crosserT, _goal);
-                if (_localIsKeeper)
-                {
-                    // Human keeper: identical to single-player goalkeeper mode. The camera pans
-                    // in a cone from a FIXED forward base; the keeper reads that same cone yaw
-                    // (KeeperLookYaw) and turns his body to it, so body + camera stay in lock-step.
-                    _cam.SetKeeperFollow(me.ragdoll.Pelvis.transform,
-                                         () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
-                                         () => _input.Look);
-                }
-                else
-                {
-                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
-                    if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
-                    // A local human crosser aims with the SAME camera yaw his Striker turns to, so
-                    // CrosserControl's solve never disagrees with which way his body is facing.
-                    if (me.crosserCtl != null) me.crosserCtl.SetCameraYaw(() => _cam.Yaw);
-                }
-            }
+            // Camera + role flags follow the LOCAL body (and re-follow it if my seat changes).
+            AttachCamera();
 
-            if (_s.IsHost) { _crosser.Arm(SimConfig.ServeFirstDelay); _ball.ResetTo(_launch.position); }
+            // The crosser panel is replicated (NetSession.CrosserSetup). The HOST seeds the session
+            // from whatever this machine had dialled in - carrying a single-player setup into the
+            // match it hosts - and that publish is what every client adopts. A client instead takes
+            // the session's value, because the host's is the one that counts.
+            if (_s.IsHost) _s.SeedCrosserSetup(CrossMap.ToWire(CrossMap.Session, _s.CrosserAiName));
+            else CrossMap.FromWire(ref CrossMap.Session, _s.CrosserSetup);
+            _lastPlacedSpot = CrossMap.Session.spot;
+            _s.CrosserSetupChanged += OnCrosserSetupChanged;
+
+            // Seed the world from the cross panel before the first serve: it owns shot speed + cross
+            // interval now that they are off the pre-match screen. Host only - it is the only peer
+            // that serves, and the only one whose copy is read.
+            if (_s.IsHost) { CrossMap.Apply(CrossMap.Session, _crosser); _crosser.Arm(SimConfig.ServeFirstDelay); _ball.ResetTo(_launch.position); }
 
             // Per-machine replay over this peer's local bodies + ball. Each machine plays
             // back what IT recorded (host = true physics, clients = their interpolated view).
             var tracked = new List<Transform> { _ball.transform };
+            var drivers = new List<MonoBehaviour>();
             for (int i = 0; i < _bodies.Length; i++)
-                if (_bodies[i] != null) tracked.AddRange(_bodies[i].ragdoll.BoneTransforms);
+                if (_bodies[i] != null) ReplaySystem.TrackBody(tracked, drivers, _bodies[i].ragdoll);
             _replay = gameObject.AddComponent<ReplaySystem>();
-            _replay.Setup(tracked, null, SimConfig.ReplayWindow);
+            _replay.Setup(tracked, drivers, SimConfig.ReplayWindow);
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
             _s.JerseyUpdated += OnJerseyUpdated;
             _s.RosterChanged += OnRosterChanged;
 
+            SyncKeeperVisibility();   // a None keeper is hidden from the first frame on a client too
             LockCursor();
+        }
+
+        // Point the camera at MY body and refresh the role flags the HUD + input routing read. Called
+        // at build and again whenever my seat changes mid-match (the host reassigning the crosser).
+        // GameCamera.Init only re-targets - it keeps the yaw/pitch the player was looking with - so a
+        // player who stops crossing keeps their view and simply finds it on their new body.
+        void AttachCamera()
+        {
+            var me = _bodies[_localSlot];
+            _localIsCrosser = me != null && me.isCrosser;
+            _localIsKeeper = me != null && me.isKeeper;
+            if (me == null || me.ragdoll == null || me.ragdoll.Pelvis == null) return;
+
+            // Single-player's own Striker builder passes the real crosser + goal into the same
+            // slots (GameBootstrap.BuildStrikerMode) so the Broadcast/replay camera's
+            // GroupCenter can widen its framing to include them after a shot; this was passing
+            // null for both despite already holding a live _crosser reference, giving every
+            // networked single-goal match a visibly tighter post-shot framing than its
+            // single-player twin.
+            Transform crosserT = _crosser != null && _crosser.Ragdoll != null && _crosser.Ragdoll.Pelvis != null
+                                ? _crosser.Ragdoll.Pelvis.transform : null;
+            _cam.Init(_rawCam, _ball.transform, me.ragdoll.Pelvis.transform, crosserT, _goal);
+            if (_localIsKeeper)
+            {
+                // Human keeper: identical to single-player goalkeeper mode. The camera pans
+                // in a cone from a FIXED forward base; the keeper reads that same cone yaw
+                // (KeeperLookYaw) and turns his body to it, so body + camera stay in lock-step.
+                _cam.SetKeeperFollow(me.ragdoll.Pelvis.transform,
+                                     () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
+                                     () => _input.Look, () => _input.Scroll);
+            }
+            else
+            {
+                _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll);
+                if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
+                // A local human crosser aims with the SAME camera yaw his Striker turns to, so
+                // CrosserControl's solve never disagrees with which way his body is facing.
+                // Pitch too: looking up floats the cross.
+                if (me.crosserCtl != null) me.crosserCtl.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
+            }
         }
 
         void SpawnBody(int slot, Material torso, Material limb, Material glove, Transform root)
@@ -292,115 +344,221 @@ namespace Trickshot
                 b.targetYaw = ragdoll.FacingRotation.eulerAngles.y;
             }
 
-            if (!hostSim)
-            {
-                if (isLocal)
-                {
-                    // Client-predicted local crosser: the same Striker + CrosserControl wiring the
-                    // HOST branch below gives ITS OWN local human crosser, minus the host-only ball-
-                    // physics housekeeping (IgnoreBody, CrosserBubble) - the client's ball isn't
-                    // authoritatively simulated here, it only renders the host's. Before this fix the
-                    // comment above was the entire branch: a client who claimed the crosser slot got
-                    // a role and a camera follow (Configure's me.striker/me.crosserCtl null checks
-                    // swallowed the rest in silence), but nothing ever read their WASD or LMB/RMB - the
-                    // lobby claim worked, actually playing the role never did.
-                    _crosser.Cosmetic = false;
-                    _crosser.ServeFromFeet = true;
-                    ragdoll.LocomotionEnabled = true;
-                    var striker = ragdoll.gameObject.AddComponent<Striker>();
-                    b.striker = striker;
-                    striker.Init(_input, ragdoll);
-                    striker.ShootingEnabled = false;
-                    var cc = _crosser.gameObject.AddComponent<CrosserControl>();
-                    cc.Init(_input, _crosser);
-                    b.crosserCtl = cc;
-                }
-                else if (ragdoll != null) ragdoll.BecomeDisplayBody();   // remote crosser puppet
-            }
-            else if (human)
-            {
-                _crosser.AutoServe = false;                              // human decides deliveries
-                _crosser.Cosmetic = false;                               // a Striker owns pose + movement
-                _crosser.ServeFromFeet = true;                           // launch from where they stand
-                // A HUMAN crosser strikes off his own feet and moves freely, so the AI-only ball
-                // shield + protective bubble must NOT apply. Clear them in case this slot was AI before.
-                _ball.IgnoreBody(ragdoll, false);
-                var strayBubble = _crosser.GetComponent<CrosserBubble>();
-                if (strayBubble != null) Destroy(strayBubble);
-                // The crosser was planted at Init (locomotion off); un-plant it so the Striker
-                // can move it like a shooter.
-                ragdoll.LocomotionEnabled = true;
-                // Move freely like a shooter: drive the crosser ragdoll with a Striker.
-                var striker = ragdoll.gameObject.AddComponent<Striker>();
-                b.striker = striker;
-                IStrikerInput src = isLocal ? (IStrikerInput)_input : (b.netInput = new NetInputSource());
-                striker.Init(src, ragdoll);
-                // CrosserControl owns LMB/RMB for a delivery (aim + footedness charge); the crosser's
-                // own Striker must not ALSO read them as a shot attempt on the same body.
-                striker.ShootingEnabled = false;
-                if (!isLocal)
-                {
-                    // A remote human crosser AIMS with his own camera, off the wire - same source his
-                    // Striker's facing already uses (see SpawnBody's non-crosser twin of this).
-                    striker.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f,
-                                         () => b.netInput != null ? b.netInput.LookPitch : 0f);
-                }
-                var cc = _crosser.gameObject.AddComponent<CrosserControl>();
-                cc.Init(src, _crosser);
-                if (!isLocal) cc.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f);
-                b.crosserCtl = cc;
-            }
-            else
-            {
-                // AI auto-serve loop (planted). Fully restore the planted state in case a human
-                // previously held this slot and left it mobile (Striker-driven, locomotion on):
-                // re-plant the ragdoll, drop any Striker, and re-arm the serve loop so it feeds
-                // balls consistently instead of standing idle.
-                var stray = ragdoll != null ? ragdoll.GetComponent<Striker>() : null;
-                if (stray != null) Destroy(stray);
-                var strayCc = _crosser.GetComponent<CrosserControl>();
-                if (strayCc != null) Destroy(strayCc);
-                _crosser.Cosmetic = true;
-                _crosser.ServeFromFeet = false;
-                _crosser.AutoServe = true;
-                if (ragdoll != null)
-                {
-                    ragdoll.UprightLock = true;
-                    ragdoll.LocomotionEnabled = false;
-                    ragdoll.MoveInput = Vector3.zero;
-                    // Plant through the Crosser so the spot + facing are RECORDED, not just applied
-                    // once: this inline ResetTo left _plantHome null, so the drift backstop was dead
-                    // and every contact hop walked him ~0.6 m off the wing toward the shooters with
-                    // nothing pulling him back. PlantAt (not SetOrigin) keeps Origin at the fixed
-                    // _launch point, which is what the ball resets to on the wire. It also faces him
-                    // at the delivery target rather than the goal centre, which is where he kicks.
-                    _crosser.PlantAt(SimConfig.CrosserStart);
-                    // AI/planted server: the ball must never touch his body, and no other player may
-                    // crowd him. Ignore ball<->crosser collisions and wrap him in a protective bubble
-                    // (ejects other players, lets the ball pass). Host-side only (physics runs here).
-                    _ball.IgnoreBody(ragdoll, true);
-                    if (_crosser.GetComponent<CrosserBubble>() == null)
-                        _crosser.gameObject.AddComponent<CrosserBubble>().Init(ragdoll);
-                }
-                _crosser.Arm(SimConfig.ServeFirstDelay);                  // start the serve countdown now
-            }
+            if (human) FitHumanCrosser(b, slot, isLocal, hostSim);
+            else if (hostSim) RestoreAiCrosser(ragdoll);
+            else if (ragdoll != null) ragdoll.BecomeDisplayBody();   // client: the AI crosser is a puppet
 
             _bodies[slot] = b;
+        }
+
+        /// <summary>
+        /// Wire the shared crosser body for a HUMAN in the seat - at match build, or when the host
+        /// hands the seat over mid-match (AdoptHumanCrosser). One implementation for both, and for
+        /// every peer: the host drives the real Striker + CrosserControl off the device or the wire;
+        /// a client's own crosser is predicted with a DISPLAY-ONLY stance (meter, run-up, swing -
+        /// the ball stays the host's, streamed); anyone else's crosser is a puppet.
+        /// </summary>
+        void FitHumanCrosser(Body b, int slot, bool isLocal, bool hostSim)
+        {
+            var ragdoll = b.ragdoll;
+            b.wasHuman = true; b.ai = null;
+            // Idle, not just AutoServe off: a serve the AI had already telegraphed would otherwise
+            // still fire from the new human's feet a moment later. Idle cancels it and drops the
+            // reticle.
+            _crosser.Idle();                                         // a human decides deliveries
+            _crosser.Cosmetic = false;                               // a Striker owns pose + movement
+            _crosser.ServeFromFeet = true;                           // launch from where they stand
+            if (ragdoll == null) return;
+
+            if (!hostSim && !isLocal) { ragdoll.BecomeDisplayBody(); return; }   // remote crosser puppet
+
+            // A LIVE body from here: the host's real one, or the client's own predicted one. Mid-
+            // match this body may have been a kinematic puppet a moment ago (a client that just
+            // became the crosser), so give it its physics back before anything drives it.
+            ragdoll.BecomeLiveBody();
+            ragdoll.LocomotionEnabled = true;                        // un-plant: he walks like a shooter
+
+            if (hostSim)
+            {
+                // A HUMAN crosser strikes off his own feet and moves freely, so the AI-only ball
+                // shield + protective bubble must NOT apply. Off, not destroyed: the stance turns the
+                // bubble back on while he is set (CrosserControl), and the AI re-inits it if it
+                // takes the seat back.
+                _ball.IgnoreBody(ragdoll, false);
+                var bub = _crosser.GetComponent<CrosserBubble>();
+                if (bub != null) bub.enabled = false;
+            }
+
+            // Movement: a Striker off the device (local) or the wire (remote, host only). The
+            // crosser's own Striker must not ALSO read LMB/RMB as a shot - those are the cross.
+            var striker = ragdoll.GetComponent<Striker>();
+            if (striker == null) striker = ragdoll.gameObject.AddComponent<Striker>();
+            b.striker = striker;
+            IStrikerInput src;
+            if (isLocal) src = _input;
+            else { if (b.netInput == null) b.netInput = new NetInputSource(); src = b.netInput; }
+            striker.Init(src, ragdoll);
+            striker.ControlEnabled = true;
+            striker.ShootingEnabled = false;
+            if (!isLocal)
+            {
+                // A remote human crosser AIMS with his own camera, off the wire - same source his
+                // Striker's facing already uses (see SpawnBody's non-crosser twin of this).
+                striker.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f,
+                                     () => b.netInput != null ? b.netInput.LookPitch : 0f);
+            }
+
+            // The kick is THEIRS: a remote player's footedness comes off the wire
+            // (NetSession.LeftFootedForSlot) and their passing off their synced loadout - not the
+            // host's own profile, which is what every remote kick used to be animated and
+            // scattered with.
+            bool footed = isLocal ? PlayerProfile.LeftFooted : _s.LeftFootedForSlot(slot);
+            float acc; bool maestro;
+            if (isLocal) { acc = LocalPassAcc(); maestro = PlayerProfile.PerkMaestro; }
+            else
+            {
+                _s.PassStatsForSlot(slot, out _, out float accMul, out maestro);
+                acc = Mathf.Clamp01((accMul - 1f) / 0.85f);
+            }
+            var cc = _crosser.GetComponent<CrosserControl>();
+            if (cc == null) cc = _crosser.gameObject.AddComponent<CrosserControl>();
+            cc.Init(src, _crosser, _ball, ragdoll, striker, displayOnly: !hostSim,
+                    leftFooted: footed, passAcc01: acc, maestro: maestro);
+            if (!isLocal) cc.SetCameraYaw(() => b.netInput != null ? b.netInput.LookYaw : 0f,
+                                          () => b.netInput != null ? b.netInput.LookPitch : 0f);
+            // (A LOCAL crosser's camera sources are wired by AttachCamera.)
+            b.crosserCtl = cc;
+        }
+
+        /// <summary>
+        /// Put the crosser back to the AI auto-serve loop (planted, cosmetic swing, panel applied).
+        /// Shared by the two ways that happens - spawning into an AI crosser slot, and a human
+        /// crosser leaving/being replaced mid-match - because the leave path used to only flip
+        /// AutoServe back on, leaving the body mobile and Striker-driven with the panel unapplied.
+        /// </summary>
+        void RestoreAiCrosser(ActiveRagdoll ragdoll)
+        {
+            if (_crosser == null) return;
+            // Fully restore the planted state in case a human previously held this slot and left it
+            // mobile (Striker-driven, locomotion on): re-plant the ragdoll, drop any Striker, and
+            // re-arm the serve loop so it feeds balls consistently instead of standing idle.
+            // IMMEDIATE, not deferred. A reassignment can hand the seat from one human to another
+            // inside one frame (two roster pushes back to back): the AI takes it here, then
+            // FitHumanCrosser re-fits it for the newcomer. With a deferred Destroy that re-fit would
+            // GetComponent the DYING Striker/CrosserControl, wire the new player to it, and lose him
+            // at end of frame. Teardown first so the stance leaves nothing behind on the body.
+            var strayCc = _crosser.GetComponent<CrosserControl>();
+            if (strayCc != null) { strayCc.Teardown(); DestroyImmediate(strayCc); }
+            var stray = ragdoll != null ? ragdoll.GetComponent<Striker>() : null;
+            if (stray != null) DestroyImmediate(stray);
+            _crosser.Cosmetic = true;
+            _crosser.ServeFromFeet = false;
+            _crosser.AutoServe = true;
+            // Re-apply the panel BEFORE planting: reverting the slot to AI is exactly when the
+            // target/delivery/cadence have to come back (a human crosser ignored all of them),
+            // and PlantAt faces him at TargetOverride, so the target has to be current first.
+            CrossMap.Apply(CrossMap.Session, _crosser);
+            if (ragdoll != null)
+            {
+                ragdoll.UprightLock = true;
+                ragdoll.LocomotionEnabled = false;
+                ragdoll.MoveInput = Vector3.zero;
+                // Plant through the Crosser so the spot + facing are RECORDED, not just applied
+                // once: an inline ResetTo leaves _plantHome null, so the drift backstop is dead
+                // and every contact hop walks him ~0.6 m off the wing toward the shooters with
+                // nothing pulling him back. PlantAt (not SetOrigin) keeps Origin at the fixed
+                // _launch point, which is what the ball resets to on the wire. It also faces him
+                // at the delivery target rather than the goal centre, which is where he kicks.
+                // The cross panel's placed spot, not the fixed default: a host who moved him on
+                // the map and then had a human take and drop the crosser slot would otherwise
+                // find him snapped back to the wing with the panel still showing where he was
+                // meant to be.
+                _crosser.PlantAt(CrossMap.Session.spot);
+                // AI/planted server: the ball must never touch his body, and no other player may
+                // crowd him. Ignore ball<->crosser collisions and wrap him in a protective bubble
+                // (ejects other players, lets the ball pass). Host-side only (physics runs here).
+                if (_s != null && _s.IsHost)
+                {
+                    _ball.IgnoreBody(ragdoll, true);
+                    // Get-or-add and (re)Init + enable, not add-if-absent: a human crosser's stance
+                    // leaves its bubble on this same object DISABLED (CrosserControl.ExitStance), and
+                    // an add-if-absent would find it and leave the AI with a bubble that is off.
+                    var bub = _crosser.GetComponent<CrosserBubble>();
+                    if (bub == null) bub = _crosser.gameObject.AddComponent<CrosserBubble>();
+                    bub.Init(ragdoll);
+                    bub.enabled = true;
+                }
+            }
+            _crosser.Arm(SimConfig.ServeFirstDelay);                  // start the serve countdown now
+            // On a CLIENT the AI crosser is a puppet of the host's snapshots. This body may have just
+            // been this client's own predicted crosser (they were moved to a shooter seat), which
+            // is a live physics body - make it a puppet, or the snapshots and the physics fight.
+            if (_s != null && !_s.IsHost && ragdoll != null) ragdoll.BecomeDisplayBody();
         }
 
         // A player left mid-match: the roster row for their slot is no longer human. Despawn that
         // body so it doesn't freeze as a statue for everyone. A keeper slot swaps to an AI keeper
         // (play must continue with someone in goal); shooter/crosser bodies just disappear. Runs on
         // host + client (both hold a body per slot); the host also stops driving/broadcasting it.
+        // The authoritative crosser panel changed (someone edited it, or the host renamed the AI).
+        // Adopt it into the panel every peer draws, and - on the host, the only peer that serves -
+        // push it at the live crosser so the very next cross uses it.
+        void OnCrosserSetupChanged()
+        {
+            // Not while THIS peer has an edit in flight: the relay we are about to adopt may be the
+            // echo of an older packet of our own, and writing it back over a slider the player is
+            // still dragging makes the control visibly fight the hand holding it. Our own pending
+            // edit is newer by definition, and it publishes a moment later anyway.
+            if (!_crossDirty) CrossMap.FromWire(ref CrossMap.Session, _s.CrosserSetup);
+            if (!_s.IsHost || _crosser == null) return;
+
+            // A HUMAN crosser moved his own spot (the only thing he can set): put him there, facing
+            // the goal - unless he is mid-stance, where a teleport would tear the kick apart. Only
+            // when the spot actually changed, so a relay about anything else does not re-plant him.
+            var cb = _bodies[NetSession.CrosserSlot];
+            if (cb != null && cb.wasHuman)
+            {
+                Vector3 spot = CrossMap.Session.spot; spot.y = 0f;
+                bool moved = (spot - _lastPlacedSpot).sqrMagnitude > 0.01f;
+                bool free = cb.crosserCtl == null || !cb.crosserCtl.InStance;
+                if (moved && free && cb.ragdoll != null)
+                {
+                    Vector3 toGoal = SimConfig.GoalCenter - spot; toGoal.y = 0f;
+                    var facing = toGoal.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(toGoal.normalized, Vector3.up)
+                                                             : cb.ragdoll.FacingRotation;
+                    cb.ragdoll.ResetTo(spot, facing);
+                    _lastPlacedSpot = spot;
+                }
+                return;
+            }
+
+            CrossMap.Apply(CrossMap.Session, _crosser);
+            // Re-plant the AI server on its spot (a human crosser walks; handled above).
+            if (_crosser.AutoServe) _crosser.SetOrigin(CrossMap.Session.spot);
+            _lastPlacedSpot = CrossMap.Session.spot;
+        }
+
+        // The roster changed: someone left, or the host moved a player between seats (the crosser
+        // dropdown). Runs on host + client alike; every peer keeps a body per seat.
         void OnRosterChanged()
         {
+            // The match config rides the same push. The host's in-match setup can resize the goal /
+            // re-set the AI keeper mid-match: take it here so every client's goal matches the host's.
+            ApplyConfigGoal();
+
+            // 1. Did MY seat move? Take it now, so the spawns below know which body is mine.
+            int mySlot = _s.LocalSlot;
+            bool localMoved = mySlot >= 0 && mySlot < NetSession.MaxSlots && mySlot != _localSlot;
+            if (localMoved) _localSlot = mySlot;
+            bool localRebuilt = false;
+
+            // 2. Humans who LEFT a seat (left the match, or were moved to another seat).
             for (int i = 0; i < _bodies.Length; i++)
             {
                 var b = _bodies[i];
                 if (b == null || !b.wasHuman) continue;      // only human-spawned bodies react to a leave
                 if (_s.RosterSlot(i).human) continue;         // still human: nothing changed
 
-                // This human left mid-match.
                 if (i == 0)
                 {
                     // Keeper: swap to an AI keeper in place so the goal stays covered.
@@ -415,13 +573,70 @@ namespace Trickshot
                 if (b.isCrosser)
                 {
                     b.striker = null; b.netInput = null; b.crosserCtl = null; b.wasHuman = false;
-                    if (_crosser != null) { _crosser.AutoServe = true; }
+                    RestoreAiCrosser(b.ragdoll);
                     continue;
                 }
                 // Shooter: remove the body (no shooter AI in striker mode).
                 if (b.ragdoll != null) Destroy(b.ragdoll.gameObject);
                 _bodies[i] = null;
             }
+
+            // 3. Humans who ARRIVED in a seat mid-match (the other half of a move). The crosser seat
+            //    re-fits its shared body for the newcomer; any other seat gets a fresh body, on top
+            //    of whatever AI was sitting there.
+            var roster = _s.Roster;
+            for (int r = 0; r < roster.Length; r++)
+            {
+                if (!roster[r].human) continue;
+                int i = roster[r].slot;
+                if (i < 0 || i >= _bodies.Length) continue;
+                var b = _bodies[i];
+                if (b != null && b.wasHuman) continue;        // already a human's body: nothing to do
+                if (i == NetSession.CrosserSlot)
+                {
+                    if (b != null) FitHumanCrosser(b, i, i == _localSlot, _s.IsHost);
+                }
+                else
+                {
+                    if (b != null && b.ragdoll != null) Destroy(b.ragdoll.gameObject);   // e.g. the AI keeper
+                    _bodies[i] = null;
+                    SpawnBody(i, _torso, _limb, _glove, _spawnRoot);
+                }
+                if (i == _localSlot) localRebuilt = true;
+            }
+
+            // 4. Whoever moved keeps their view: the camera re-targets to my (new) body, and the
+            //    role flags the HUD + input routing read follow it.
+            if (localMoved || localRebuilt) AttachCamera();
+
+            SyncKeeperVisibility();
+        }
+
+        // A CLIENT'S keeper puppet has no Goalkeeper to park itself: hide it when the host's AI
+        // keeper is at None (the host's real keeper is parked off the pitch, so the puppet would be
+        // standing 80 m away for anyone who looked), show it again above None. A HUMAN keeper is
+        // never hidden, and the host's own body is handled by its Goalkeeper.
+        void SyncKeeperVisibility()
+        {
+            if (_s == null || _s.IsHost) return;
+            var kb = _bodies[0];
+            if (kb == null || kb.ragdoll == null || kb.wasHuman) return;
+            Goalkeeper.SetVisible(kb.ragdoll, SimConfig.KeeperAbility > 0.001f);
+        }
+
+        // Goal size + AI keeper from the synced config. Only when the goal actually changed size does
+        // it get rebuilt (Arena.RebuildGoal); on the host that is already done by GoalSetup.Apply, so
+        // the push it makes lands here as a no-op.
+        void ApplyConfigGoal()
+        {
+            var cfg = _s.Config;
+            float sw = cfg.goalScale <= 0.01f ? 1f : cfg.goalScale;
+            float sh = cfg.goalScaleH <= 0.01f ? sw : cfg.goalScaleH;
+            float w = SimConfig.GoalWidthBase * sw, h = SimConfig.GoalHeightBase * sh;
+            SimConfig.KeeperAbility = Mathf.Clamp01(cfg.keeperAbility);
+            if (Mathf.Approximately(w, SimConfig.GoalWidth) && Mathf.Approximately(h, SimConfig.GoalHeight)) return;
+            SimConfig.GoalWidth = w; SimConfig.GoalHeight = h;
+            Arena.RebuildGoal();
         }
 
         // A slot's networked jersey finished arriving after its body was built: swap the torso kit
@@ -491,6 +706,115 @@ namespace Trickshot
         {
             _wheelOpen = open;
             GameInput.CaptureCursor(!open);
+        }
+
+        // Cross map open/close. Mirrors GameManager.SetCrossMapOpen: free the cursor while placing,
+        // hold the view still, and on close settle the crosser.
+        void SetCrossMapOpen(bool open)
+        {
+            _crossOpen = open;
+            CrossMap.NoteOpenState(open);   // so PauseMenu skips the Escape that closed this
+            GameInput.CaptureCursor(!open);
+            if (_cam != null) _cam.FreezeLook = open;
+            if (!open)
+            {
+                PublishCrossEditIfDue(force: true);   // the last slider position must not be swallowed
+                CrossMap.CancelTransientUI();   // drop a half-open dropdown / half-typed rename
+                // HOST ONLY, and only for the AI server: it is the only peer that simulates the
+                // crosser, and SetOrigin would yank a human crosser off his own feet.
+                if (_s != null && _s.IsHost && _crosser != null && _crosser.AutoServe)
+                {
+                    CrossMap.Apply(CrossMap.Session, _crosser);
+                    _crosser.SetOrigin(CrossMap.Session.spot);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draw the shared cross panel with this peer's permissions, then carry out whatever it
+        /// asked for. Every change goes through the session (RequestCrosserSetup) rather than being
+        /// applied locally, so the host's relay is the single point at which any peer - the editor
+        /// included - adopts a new value.
+        /// </summary>
+        void DrawCrossOverlay()
+        {
+            bool humanCrosser = _s.RosterSlot(NetSession.CrosserSlot).human;
+            bool isCrosser = humanCrosser && _localSlot == NetSession.CrosserSlot;
+            var meBody = _bodies[_localSlot];
+            bool inStance = isCrosser && meBody?.crosserCtl != null && meBody.crosserCtl.InStance;
+            var candidates = _s.IsHost ? CrosserCandidates() : null;
+            var perms = new CrossMap.Perms
+            {
+                // AI crossing: everyone may place it, aim it and set how it serves - it is where
+                // their own crosses come from and arrive. Human crossing: only that human may move
+                // his own spot (and not mid-stance), and the AI's controls are not shown at all.
+                canEditTarget = !humanCrosser,
+                canEditSpot = humanCrosser ? (isCrosser && !inStance) : true,
+                aiControls = !humanCrosser,
+                isHost = _s.IsHost,
+                networked = true,
+                humanCrosser = humanCrosser,
+                isCrosser = isCrosser,
+                // Live whenever it has something to offer: another human, or the AI while a human
+                // crosses. A host alone can still hand the seat to the AI and go play as a striker.
+                dropdownEnabled = _s.IsHost && (humanCrosser || (candidates != null && candidates.Count > 0)),
+                crosserName = humanCrosser ? _s.RosterSlot(NetSession.CrosserSlot).name : _s.CrosserAiName,
+                aiName = _s.CrosserAiName,
+                candidates = candidates,
+            };
+
+            var res = CrossMap.DrawOverlay(ref CrossMap.Session, _crosser, perms);
+
+            // An edit is a REQUEST. Note we do not write our own copy here: the host's relay comes
+            // back through OnCrosserSetupChanged and that is what everyone (including us) adopts.
+            //
+            // COALESCED, because a slider drag reports an edit on every frame it moves and this rides
+            // the RELIABLE channel (resent until acked) - publishing per frame would put a hundred
+            // ordered packets on the wire for one drag. Mark it dirty here and let the throttle in
+            // Update send at most one per PublishInterval, plus a final one when the drag ends.
+            if (res.edited) _crossDirty = true;
+            // res.spotMoved is deliberately NOT acted on directly - the re-plant happens in
+            // OnCrosserSetupChanged once the authoritative value lands, so every peer moves him at
+            // the same point in the sequence rather than the editor moving him early.
+
+            if (res.rename != null) _s.RenameCrosserAi(res.rename);
+            // A reassignment is DEFERRED to Update. This runs inside OnGUI, and on the host the
+            // session applies the move synchronously - roster push, RosterChanged, bodies destroyed
+            // and built, the camera re-targeted - none of which belongs inside an IMGUI event pass.
+            if (res.assignCrosser != -2) _pendingAssign = res.assignCrosser;
+        }
+
+        /// <summary>
+        /// Send a pending cross-panel edit, at most one per CrossPublishInterval. `force` bypasses
+        /// the throttle for the end of an interaction (the panel closing), so the last position of a
+        /// slider is never the one that got swallowed by the timer.
+        /// </summary>
+        void PublishCrossEditIfDue(bool force = false)
+        {
+            if (!_crossDirty || _s == null) return;
+            if (!force && Time.unscaledTime < _crossNextPublish) return;
+            _crossDirty = false;
+            _crossNextPublish = Time.unscaledTime + CrossPublishInterval;
+            _s.RequestCrosserSetup(CrossMap.ToWire(CrossMap.Session, _s.CrosserAiName));
+        }
+
+        // The local player's passing accuracy, 0..1, the same reading the match's pass model makes
+        // (PassAccuracyMul 1..1.85 -> 0..1), so a human cross scatters like a pass does.
+        static float LocalPassAcc() => Mathf.Clamp01((PlayerProfile.PassAccuracyMul - 1f) / 0.85f);
+
+        // Humans the host could hand the crosser seat to: everyone holding a slot - the host
+        // included - except whoever is already crossing. Mid-match too: the session moves the
+        // player and OnRosterChanged rebuilds the bodies + camera around the move.
+        //
+        // NONE while the host is the only human: the one name would be the host's own, and a crosser
+        // with nobody in the box to cross to is not a choice worth offering. The AI is not on this
+        // list (it is the dropdown's own first row), so a lone host can still hand the seat to it.
+        List<(int slot, string name)> CrosserCandidates()
+        {
+            if (_s.PlayerCount <= 1) return new List<(int, string)>();
+            var all = _s.HumanSlots();
+            all.RemoveAll(h => h.slot == NetSession.CrosserSlot);
+            return all;
         }
 
         // A clickable radial emote menu (B). Clicking a slice records the pick on the input
@@ -580,11 +904,46 @@ namespace Trickshot
                 return;
             }
 
+            // Cross-targeting map (M). Open to everyone; what a given peer may DO with it is decided
+            // per-control when it is drawn (DrawCrossOverlay). Same toggle and same Escape-also-
+            // closes behaviour single-player has. While it is up the local striker doesn't tick and
+            // the cursor is freed, so clicks hit the panel instead of steering - the sim keeps
+            // running underneath either way, because a networked match never stops for one player.
+            //
+            // It does NOT close itself when a human takes the crosser seat: the panel goes read-only
+            // and says who is crossing, which is more use than vanishing mid-look, and it is how the
+            // host reaches the dropdown to take the seat back.
+            //
+            // The rename field owns the keyboard while it is up: M is a letter someone may want in
+            // a name, and Escape should back out of the FIELD rather than the whole panel.
+            bool renaming = CrossMap.Renaming;
+            if (renaming)
+            {
+                if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                    CrossMap.CancelRename();
+            }
+            else if (CrossMapAvailable && _input.CrossMapPressed) SetCrossMapOpen(!_crossOpen);
+            else if (_crossOpen && (!CrossMapAvailable
+                     || (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)))
+                SetCrossMapOpen(false);
+
             // R: with an AI crosser, multiplayer re-serves the shared ball to the crosser
             // (host-authoritative; no player reset). A HUMAN crosser instead refills a ball at
             // their own feet if one isn't already there (handled host-side in HostUpdate, so a
             // remote crosser's R works too). (Single-player R still fully resets via GameManager.)
             if (_input.ResetPressed && _s.IsHost && _crosser.AutoServe) { _goalHold = 0f; _crosser.Arm(0.4f); _ball.ResetTo(_launch.position); }
+
+            // Q cycles how the AI crosser delivers - Ground / Low / High - for everyone: it is the
+            // cross map's own setting, published exactly as an edit on the map is (a request the
+            // host relays). Only while the AI crosses; a human crosser shapes his own.
+            // (This replaced the old Q/E call-for-pass.)
+            if (_input.PassLoftedPressed && !_crossOpen && !_s.RosterSlot(NetSession.CrosserSlot).human)
+            {
+                CrossMap.Session.delivery = CrossMap.NextDelivery(CrossMap.Session.delivery);
+                Flash("CROSS: " + CrossMap.DeliveryName(CrossMap.Session.delivery));
+                _crossDirty = true;
+                PublishCrossEditIfDue(force: true);
+            }
 
             // Emote wheel (B): any local body that can emote (has a Celebration). Toggling frees
             // the cursor so the radial menu is clickable.
@@ -605,49 +964,31 @@ namespace Trickshot
                 int eid = _input.EmoteId;
                 if (eid >= 0 && eid != 255) me.celeb.Play((Celebration.Emote)eid);
             }
-            // Tick my controller unless I'm emoting (so movement doesn't fight the pose).
-            if (me != null && me.striker != null && (me.celeb == null || !me.celeb.Playing)) me.striker.Tick();
+            // Tick my controller unless I'm emoting (so movement doesn't fight the pose) or the
+            // cross map is up (the cursor is freed for it, so a click must place a marker rather
+            // than swing a leg - same suspension single-player applies).
+            if (me != null && me.striker != null && !_crossOpen
+                && (me.celeb == null || !me.celeb.Playing)) me.striker.Tick();
+            // A CLIENT that is the crosser runs its own display-only stance (the host ticks the real
+            // one in HostUpdate, for the local host crosser and every remote one alike).
+            if (!_s.IsHost && me != null && me.crosserCtl != null && !_crossOpen) me.crosserCtl.Tick();
+
+            // Flush a coalesced cross-panel edit (see PublishCrossEditIfDue). In Update, not OnGUI,
+            // so it runs once a frame rather than once per IMGUI event pass.
+            PublishCrossEditIfDue();
+
+            // A crosser reassignment picked on the panel (host only; the session refuses the rest).
+            if (_pendingAssign != -2)
+            {
+                int pick = _pendingAssign; _pendingAssign = -2;
+                if (pick == -1) _s.ClearCrosser();
+                else _s.AssignCrosser(pick);
+            }
 
             if (_s.IsHost) HostUpdate();
             else ClientUpdate();
 
             if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
-        }
-
-        // Host: a shooter pressed Q/E without the ball -> AI crosser serves a low/high ball to
-        // that shooter's feet, scattered by that player's passing accuracy. First caller this
-        // frame wins (the crosser serves one ball). Remote slots' pass edges come from their
-        // NetInputSource (fed just above in HostUpdate); the local host reads its own device.
-        void HostCheckCallForPass()
-        {
-            for (int i = 0; i < _bodies.Length; i++)
-            {
-                var b = _bodies[i];
-                if (b == null || b.isKeeper || b.isCrosser || b.ragdoll == null || b.ragdoll.Pelvis == null) continue;
-                IStrikerInput src = (i == _localSlot) ? (IStrikerInput)_input : b.netInput;
-                if (src == null) continue;
-                bool low = src.PassGroundPressed, high = src.PassLoftedPressed;
-                if (!low && !high) continue;
-                Vector3 target = b.ragdoll.Pelvis.position; target.y = SimConfig.BallRadius;
-                float acc = Mathf.Clamp01((PlayerProfile.PassAccuracyMul - 1f) / 0.85f);
-                if (PlayerProfile.PerkMaestro) acc = 1f;
-                float scatter = SimConfig.PassScatterMaxDeg * (1f - acc);
-                _crosser.ServeNow(target, high, 0.5f, scatter);
-                return;   // one serve per frame
-            }
-        }
-
-        // Host: a human crosser pressed R. Drop a fresh ball at their feet, but ONLY if the current
-        // ball has been served away (it isn't already resting on/near them) - so tapping R when a
-        // ball is already spawned does nothing. Host-authoritative: the client's R arrives via the
-        // wire (its NetInputSource), and the resulting ball position streams back in the snapshot.
-        void HostRefillCrosserBall(Body b)
-        {
-            if (b == null || b.ragdoll == null || b.ragdoll.Pelvis == null) return;
-            Vector3 feet = b.ragdoll.Pelvis.position; feet.y = SimConfig.BallRadius;
-            Vector3 ballFlat = _ball.transform.position; ballFlat.y = feet.y;
-            if (Vector3.Distance(ballFlat, feet) < SimConfig.CrosserRefillDist) return;   // one already there
-            _ball.ResetTo(feet);
         }
 
         void HostUpdate()
@@ -673,7 +1014,7 @@ namespace Trickshot
                 if (b == null) continue;
                 bool remote = i != _localSlot;
                 // Remote human slots: refresh their input adapter from the wire first.
-                if (remote && b.netInput != null) b.netInput.Feed(_s.InputForSlot(i));
+                if (remote && b.netInput != null) b.netInput.Feed(_s.ConsumeInputForSlot(i));
                 // Emote: start a REMOTE body's celebration from its wire input (the local body's
                 // emote is started in Update from the device, before SampleFrame consumes it).
                 // Runs on the real ragdoll so the pose + phase can be streamed to every client.
@@ -694,20 +1035,14 @@ namespace Trickshot
                 if (remote && b.striker != null && !emoting) b.striker.Tick();
                 if (b.ai != null) b.ai.Tick();
                 if (b.keeper != null && !emoting && !localWheel) b.keeper.Tick();
-                if (b.crosserCtl != null)
-                {
+                // (The host's OWN crosser is not ticked while its cross map is up: the cursor is
+                // freed for the map, so a click there must not start a charge underneath it - the
+                // same suspension its Striker gets in Update.)
+                // (R on a human crosser is handled INSIDE CrosserControl now - it sets the stance up
+                // exactly as Enter does, ball to the feet included - so the old R-refill is gone.)
+                if (b.crosserCtl != null && !(!remote && _crossOpen))
                     b.crosserCtl.Tick();
-                    // Human crosser presses R to drop a fresh ball at their feet, but only if the
-                    // current ball has been served away (isn't already sitting on them). Uses this
-                    // body's own input (local device or remote wire), so any human crosser can refill.
-                    IStrikerInput csrc = (i == _localSlot) ? (IStrikerInput)_input : b.netInput;
-                    if (csrc != null && csrc.ResetPressed) HostRefillCrosserBall(b);
-                }
             }
-
-            // Call-for-pass: when the crosser is AI (no human in the crosser slot), any human
-            // shooter pressing Q/E asks for a low/high ball to their feet. Host-authoritative.
-            if (_crosser.AutoServe && _crosser.ReadyToServe) HostCheckCallForPass();
 
             // Crosser + ball + goal detection (authoritative). A goal starts the LIVE hold above.
             _crosser.Tick();
@@ -783,6 +1118,8 @@ namespace Trickshot
                 // Emote id/phase from the newest of the two samples (an emote is a discrete event,
                 // not a value to blend); phase advances with f for a smooth dance. An active emote
                 // overrides the locomotion anim state.
+                // Adult mode: the puppet's appendage follows the host's flag (AnatomySim eases it).
+                if (body.ragdoll.Anatomy != null) body.ragdoll.Anatomy.Erect = sb.erect;
                 byte emoteId = sb.emoteId != 255 ? sb.emoteId : sa.emoteId;
                 if (emoteId != 255)
                 {
@@ -824,6 +1161,13 @@ namespace Trickshot
             if (me == null || me.ragdoll == null || me.ragdoll.Pelvis == null) return;
             if (me.celeb != null && me.celeb.Playing) return;
             if (me.striker != null && (me.striker.IsBusy || !me.ragdoll.IsGrounded)) return;
+            // Not through a crossing stance. Entering it steps the body back onto its run-up, which
+            // is past ReconcileSnap; the client does that on its own Enter and the host a few ticks
+            // later on the wire, so for those ticks the host's snapshot still says "where you were
+            // standing" and this would snap the body back there, then forward again. The taker runs
+            // the same run-up on both peers from the same input, so the divergence is small and is
+            // corrected the moment the stance ends and this resumes.
+            if (me.crosserCtl != null && me.crosserCtl.InStance) return;
             if (!_s.HasSnapshot) return;
             if (!FindBody(_s.LatestSnapshot, _localSlot, out var auth)) return;
 
@@ -855,9 +1199,13 @@ namespace Trickshot
             if (b.ragdoll == null) return AnimState.Idle;
             if (b.keeper != null && b.keeper.IsCommitting) return AnimState.Dive;
             if (b.ai != null && b.ai.WasDivingSave) return AnimState.Dive;
+            // A human crosser mid-kick: the swing on the leg he actually kicks with, so every other
+            // screen shows a left-footer swinging his left leg. The run-in before it is a Run.
+            if (b.crosserCtl != null && b.crosserCtl.Swinging)
+                return b.crosserCtl.LeftFooted ? AnimState.KickL : AnimState.Kick;
             if (b.striker != null)
             {
-                if (b.striker.IsDiving) return AnimState.Down;   // diving header -> prone layout
+                if (b.striker.IsDiving || b.striker.IsTumbling) return AnimState.Down;   // prone: diving header, or down off a flip
                 if (!b.ragdoll.IsGrounded) return AnimState.Jump;
             }
             else if (!b.ragdoll.IsGrounded) return AnimState.Jump;
@@ -885,7 +1233,8 @@ namespace Trickshot
                 }
                 list.Add(new BodyState { slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
                                          down = false, emoteId = eid, emotePhase = eph, anim = (byte)AnimStateOf(b),
-                                         lastInputTick = _s.InputTickForSlot(i) });
+                                         lastInputTick = _s.InputTickForSlot(i),
+                                         erect = b.ragdoll.Anatomy != null && b.ragdoll.Anatomy.Erect });
             }
             var snap = new Snapshot
             {
@@ -967,7 +1316,8 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.PostHit -= OnPostHit; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; }
+            if (_s != null) { _s.MatchEvent -= OnMatchEvent; _s.BallKicked -= OnBallKicked; _s.PostHit -= OnPostHit; _s.ReplayStarted -= OnReplayStarted; _s.ReplayEnded -= OnReplayEnded; _s.JerseyUpdated -= OnJerseyUpdated; _s.RosterChanged -= OnRosterChanged; _s.CrosserSetupChanged -= OnCrosserSetupChanged; }
+            CrossMap.CancelTransientUI();   // never come back onto a half-typed rename
             if (_ball != null && _ball.Rb != null) _ball.Rb.isKinematic = false;
         }
 
@@ -983,25 +1333,36 @@ namespace Trickshot
             Hud.Stat(ref p, "Goals", _goals.ToString());
             Hud.Stat(ref p, "You are", youAre);
             Hud.Legend(_localIsCrosser
-                ? "WASD move   Look to aim   Hold LMB/RMB to charge, release to cross   R new ball   V ball cam"
+                ? (meBody?.crosserCtl != null && meBody.crosserCtl.InStance
+                    ? "Mouse aim   HOLD LMB/RMB power, release to cross   A/D curl   W drive (full = along the ground)   S float"
+                    : "WASD move   LMB/RMB legs   ENTER set up a cross   R new ball   V ball cam")
                 : (youAre == "Keeper"
                     ? "WASD move   Mouse aim   LMB/RMB dive/save   Space jump   E/Q throw   V ball cam"
-                    : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q/E call low/high   V ball cam   R reset"));
+                    : "WASD move   Mouse aim   LMB/RMB legs   Space jump   Q cross type   V ball cam   R reset"
+                      + (CrossMapAvailable ? "   M cross map" : "")
+                      + Keybinds.ThirdLegHint(PlayerProfile.Appearance.Adult)));
             Hud.Flash(_flash, _flashTime / 1.6f);
 
-            // Emote wheel overlay (B).
-            if (_wheelOpen) DrawEmoteWheel();
+            // Emote wheel overlay (B). Gated on Paused as well as _wheelOpen: only Update is
+            // pause-gated, so an already-open wheel kept drawing REAL buttons under the pause menu
+            // and they stayed clickable through it (IMGUI has no occlusion; the pause scrim is a
+            // plain DrawTexture and eats no events).
+            if (_wheelOpen && !PauseMenu.Paused) DrawEmoteWheel();
+
+            // Cross-targeting overlay. Same panel as single-player; only the permissions differ.
+            if (_crossOpen && !PauseMenu.Paused) DrawCrossOverlay();
 
             // Quickchat feed + custom-text box (multiplayer).
             if (_qcFeed != null) _qcFeed.Draw();
 
-            // Human crosser's charge bar - same widget the shot mechanic uses, reused verbatim:
-            // CrosserControl.Charge01/Holding are the same shape as Striker.ShotCharge01/
-            // WantsChargedShot. No "in range" state for a cross - he can always attempt one.
+            // Human crosser's power meter - the free kick's own widget, because it IS the free
+            // kick's meter (CrosserControl runs a SetPieceTaker). Drawn on the host's local crosser
+            // and on a client crosser alike: the client runs the stance display-only, so its meter
+            // is real even though its ball is not.
             if (_localIsCrosser)
             {
                 var meCtl = _bodies[_localSlot]?.crosserCtl;
-                if (meCtl != null && meCtl.Holding) Hud.ShotBar(meCtl.Charge01, true, true);
+                if (meCtl != null && meCtl.IsCharging) Hud.Meter(meCtl.Meter, "POWER  (release to cross)");
             }
 
             Hud.End();

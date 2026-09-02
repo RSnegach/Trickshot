@@ -84,19 +84,10 @@ namespace Trickshot
             _unlocked.ids ??= new List<string>();
         }
 
-        // Same atomic temp-file-then-swap save CareerStats.cs uses - a crash mid-write only
-        // corrupts the temp file, never the real one.
-        static void Save()
-        {
-            string tmp = FilePath + ".tmp";
-            try
-            {
-                File.WriteAllText(tmp, JsonUtility.ToJson(Unlocked, true));
-                if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
-                else File.Move(tmp, FilePath);
-            }
-            catch (Exception e) { Debug.LogWarning("Achievements: failed to save. " + e.Message); }
-        }
+        // Same atomic temp-file-then-swap save CareerStats.cs uses (a crash mid-write only
+        // corrupts the temp file, never the real one), on the same worker thread - an unlock lands
+        // mid-play, right after the stats save that triggered it.
+        static void Save() => AtomicFileWriter.Write(FilePath, JsonUtility.ToJson(Unlocked, true), "Achievements");
 
         public static bool IsUnlocked(string id) => Unlocked.ids.Contains(id);
 

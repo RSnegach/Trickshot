@@ -39,7 +39,14 @@ namespace Trickshot.Net
     /// </summary>
     public class DirectIpTransport : INetTransport
     {
-        const byte FrameUnreliable = 0, FrameReliable = 1, FrameAck = 2, FramePing = 3;
+        // 4 and 5 are the discovery probe / reply (LobbyProbe) and are filtered before the switch
+        // in HandlePacket - a reply is dropped on its first byte alone - so the bulk stream's kinds
+        // skip them.
+        const byte FrameUnreliable = 0, FrameReliable = 1, FrameAck = 2, FramePing = 3,
+                   FrameReliableBulk = 6, FrameAckBulk = 7;
+        // Send windows (ReliableChannel): packets in flight before the rest queue. Control messages
+        // are small and rare; the bulk stream carries jerseys, ~400 x 1 KB, paced by its acks.
+        const int ControlWindow = 64, BulkWindow = 32;
         const float KeepaliveInterval = 1.0f;   // ping cadence
         const float PeerTimeout = 5.0f;          // no packet this long -> peer is gone
         // How long the receive thread is allowed to sit blocked before it comes back around to
@@ -83,6 +90,12 @@ namespace Trickshot.Net
         readonly Dictionary<ulong, PeerId> _peerByEp = new Dictionary<ulong, PeerId>();     // ep-handle -> peer
         readonly Dictionary<ulong, IPEndPoint> _epByPeer = new Dictionary<ulong, IPEndPoint>(); // peer.Value -> ep
         readonly Dictionary<ulong, ReliableChannel> _relByPeer = new Dictionary<ulong, ReliableChannel>();
+        readonly Dictionary<ulong, ReliableChannel> _bulkByPeer = new Dictionary<ulong, ReliableChannel>();
+        // Reused scratch, all main-thread: framed unreliable packets (UdpClient.Send copies, so the
+        // buffer never has to outlive the call), released/resent packet lists, SendToAll's targets.
+        byte[] _txScratch = new byte[2048];
+        readonly List<byte[]> _txList = new List<byte[]>();
+        readonly List<ulong> _targets = new List<ulong>();
         readonly Dictionary<ulong, float> _lastRecv = new Dictionary<ulong, float>();       // peer.Value -> time
         readonly Dictionary<ulong, float> _lastPing = new Dictionary<ulong, float>();       // peer.Value -> time
 
@@ -200,31 +213,43 @@ namespace Trickshot.Net
         void SendTo(PeerId to, byte[] data, NetChannel channel)
         {
             if (!_running || !_epByPeer.TryGetValue(to.Value, out var ep)) return;
-            if (channel == NetChannel.Reliable)
+            if (channel == NetChannel.Unreliable)
             {
-                var rel = ChannelFor(to.Value);
-                uint seq = rel.NextSeq();
-                byte[] packet = FrameReliablePacket(seq, data);
-                rel.Track(seq, packet, _now);
-                RawSend(packet, ep);
+                // Framed into the reused scratch buffer: no allocation per input frame or snapshot.
+                int n = 1 + (data?.Length ?? 0);
+                if (_txScratch.Length < n) _txScratch = new byte[Mathf.NextPowerOfTwo(n)];
+                _txScratch[0] = FrameUnreliable;
+                if (data != null) Buffer.BlockCopy(data, 0, _txScratch, 1, data.Length);
+                RawSend(_txScratch, n, ep);
+                return;
             }
-            else
-            {
-                RawSend(FrameUnreliablePacket(data), ep);
-            }
+            // Reliable / ReliableBulk: two independent ordered streams, each with its own sequence
+            // space, window and ack kind (see NetChannel). A packet past the window is queued in the
+            // channel and comes out of Ack() as the peer catches up.
+            bool bulk = channel == NetChannel.ReliableBulk;
+            var rel = bulk ? BulkFor(to.Value) : ChannelFor(to.Value);
+            uint seq = rel.NextSeq();
+            byte[] packet = FrameReliablePacket(bulk ? FrameReliableBulk : FrameReliable, seq, data);
+            if (rel.Track(seq, packet, _now)) RawSend(packet, ep);
         }
 
         public void SendToAll(byte[] data, NetChannel channel)
         {
-            // Snapshot the peer list (handlers below may mutate it) and skip ourselves.
-            var targets = new List<ulong>(_epByPeer.Keys);
-            foreach (var pv in targets)
+            // Snapshot the peer list (a reused list; handlers may mutate the map) and skip ourselves.
+            _targets.Clear();
+            _targets.AddRange(_epByPeer.Keys);
+            for (int i = 0; i < _targets.Count; i++)
+            {
+                ulong pv = _targets[i];
                 if (pv != LocalPeer.Value) SendTo(new PeerId(pv), data, channel);
+            }
         }
 
-        void RawSend(byte[] packet, IPEndPoint ep)
+        void RawSend(byte[] packet, IPEndPoint ep) => RawSend(packet, packet.Length, ep);
+
+        void RawSend(byte[] buf, int len, IPEndPoint ep)
         {
-            try { if (_running) _udp.Send(packet, packet.Length, ep); }
+            try { if (_running) _udp.Send(buf, len, ep); }
             catch (Exception e) { Debug.LogWarning("DirectIpTransport send failed: " + e.Message); }
         }
 
@@ -250,12 +275,9 @@ namespace Trickshot.Net
             while (_inbox.TryDequeue(out var pkt))
                 HandlePacket(pkt.from, pkt.data);
 
-            // 2) Resend unacked reliable packets whose timer elapsed.
-            foreach (var kv in _relByPeer)
-            {
-                if (!_epByPeer.TryGetValue(kv.Key, out var ep)) continue;
-                foreach (var packet in kv.Value.DueResends(_now)) RawSend(packet, ep);
-            }
+            // 2) Resend unacked reliable packets whose timer elapsed, on both streams.
+            ResendDue(_relByPeer);
+            ResendDue(_bulkByPeer);
 
             // 3) Keepalive pings (~1 Hz) to every known peer.
             SendKeepalives();
@@ -311,23 +333,32 @@ namespace Trickshot.Net
                     break;
 
                 case FrameReliable:
+                case FrameReliableBulk:
                 {
                     if (data.Length < 5) break;
+                    bool bulk = kind == FrameReliableBulk;
                     uint seq = ReadU32(data, 1);
-                    var rel = ChannelFor(peer.Value);
+                    var rel = bulk ? BulkFor(peer.Value) : ChannelFor(peer.Value);
                     byte[] payload = Slice(data, 5);
                     foreach (var ready in rel.Receive(seq, payload))
                         MessageReceived?.Invoke(peer, ready);
                     // Ack whatever we've now delivered in order (releases the sender's resends).
-                    if (_epByPeer.TryGetValue(peer.Value, out var ep)) RawSend(FrameAckPacket(rel.CumAck), ep);
+                    if (_epByPeer.TryGetValue(peer.Value, out var ep))
+                        RawSend(FrameAckPacket(bulk ? FrameAckBulk : FrameAck, rel.CumAck), ep);
                     break;
                 }
 
                 case FrameAck:
+                case FrameAckBulk:
                 {
                     if (data.Length < 5) break;
                     uint cumAck = ReadU32(data, 1);
-                    ChannelFor(peer.Value).Ack(cumAck);
+                    var rel = kind == FrameAckBulk ? BulkFor(peer.Value) : ChannelFor(peer.Value);
+                    // The ack frees window: whatever was queued behind it goes out now.
+                    _txList.Clear();
+                    rel.Ack(cumAck, _txList, _now);
+                    if (_txList.Count > 0 && _epByPeer.TryGetValue(peer.Value, out var ep))
+                        for (int i = 0; i < _txList.Count; i++) RawSend(_txList[i], ep);
                     break;
                 }
             }
@@ -380,6 +411,7 @@ namespace Trickshot.Net
             // was silently dropped, leaving the joiner stuck at "Connecting..." while the host showed
             // a ghost occupant.
             _relByPeer.Remove(peer.Value);
+            _bulkByPeer.Remove(peer.Value);
         }
 
         void DropPeer(ulong pv)
@@ -391,6 +423,7 @@ namespace Trickshot.Net
             }
             _epByPeer.Remove(pv);
             _relByPeer.Remove(pv);
+            _bulkByPeer.Remove(pv);
             _lastRecv.Remove(pv);
             _lastPing.Remove(pv);
         }
@@ -399,10 +432,31 @@ namespace Trickshot.Net
         {
             if (!_relByPeer.TryGetValue(peerValue, out var rel))
             {
-                rel = new ReliableChannel();
+                rel = new ReliableChannel(ControlWindow);
                 _relByPeer[peerValue] = rel;
             }
             return rel;
+        }
+
+        ReliableChannel BulkFor(ulong peerValue)
+        {
+            if (!_bulkByPeer.TryGetValue(peerValue, out var rel))
+            {
+                rel = new ReliableChannel(BulkWindow);
+                _bulkByPeer[peerValue] = rel;
+            }
+            return rel;
+        }
+
+        void ResendDue(Dictionary<ulong, ReliableChannel> map)
+        {
+            foreach (var kv in map)
+            {
+                if (!_epByPeer.TryGetValue(kv.Key, out var ep)) continue;
+                _txList.Clear();
+                kv.Value.DueResends(_now, _txList);
+                for (int i = 0; i < _txList.Count; i++) RawSend(_txList[i], ep);
+            }
         }
 
         // ---- discovery ----
@@ -434,25 +488,20 @@ namespace Trickshot.Net
         }
 
         // ---- framing helpers ----
-        static byte[] FrameUnreliablePacket(byte[] payload)
-        {
-            var buf = new byte[1 + (payload?.Length ?? 0)];
-            buf[0] = FrameUnreliable;
-            if (payload != null) Buffer.BlockCopy(payload, 0, buf, 1, payload.Length);
-            return buf;
-        }
-        static byte[] FrameReliablePacket(uint seq, byte[] payload)
+        // `kind` is FrameReliable or FrameReliableBulk (and FrameAck / FrameAckBulk for the ack):
+        // the same framing for both streams, told apart by the first byte.
+        static byte[] FrameReliablePacket(byte kind, uint seq, byte[] payload)
         {
             var buf = new byte[5 + (payload?.Length ?? 0)];
-            buf[0] = FrameReliable;
+            buf[0] = kind;
             WriteU32(buf, 1, seq);
             if (payload != null) Buffer.BlockCopy(payload, 0, buf, 5, payload.Length);
             return buf;
         }
-        static byte[] FrameAckPacket(uint cumAck)
+        static byte[] FrameAckPacket(byte kind, uint cumAck)
         {
             var buf = new byte[5];
-            buf[0] = FrameAck;
+            buf[0] = kind;
             WriteU32(buf, 1, cumAck);
             return buf;
         }

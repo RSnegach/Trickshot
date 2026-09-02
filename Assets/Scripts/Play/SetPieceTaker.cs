@@ -77,6 +77,60 @@ namespace Trickshot
         public bool JustStruck { get; private set; }             // true only on the launch frame
         public bool Done => _state == State.Idle;
         public bool HasCharged => _charged;                      // player has begun holding Space this attempt
+        /// <summary>Playing the kick itself: planted beside the ball and swinging, or following
+        /// through. What a networked puppet should show as a kick (not the run-in, which is a run).</summary>
+        public bool Swinging => (_state == State.Runup && _plantTime > 0f) || _state == State.Struck;
+        /// <summary>Which foot this attempt kicks with (resolved at Begin).</summary>
+        public bool LeftFooted => _leftFooted;
+
+        // ---- the two hooks a CROSS needs, so it can be this same taker instead of a second one ----
+        // Which button charges. A free kick charges on Space (Jump); the crosser charges on LMB/RMB,
+        // the same buttons that raise a leg when he is roaming - in the stance they are the kick.
+        bool _chargeWithLegs;
+        bool ChargeHeld => _chargeWithLegs ? (_input.LeftLegHeld || _input.RightLegHeld) : _input.JumpHeld;
+
+        // How the meter runs. A free kick ping-pongs it at SetPieceMeterRate and botches a hold at the
+        // top; a cross fills it ONCE at its own rate (slower for a better passer, so the power is
+        // easier to pick) and then holds it at max, un-botched, until the button comes up.
+        float _meterRate = -1f;    // <= 0: SetPieceMeterRate
+        bool _meterHold;           // fill once and sit at 1, no ping-pong, no overcharge
+
+        // TWO spin axes at once instead of one dominant direction. A free kick reads WASD as a single
+        // spin (D beats W on a diagonal). A cross wants A/D (curl) and W/S (pitch) STACKED - hold W
+        // and D together for a low bending ball - so each axis charges on its own. Only the curl axis
+        // has the free kick's over-hold botch; the pitch axis is a control, not a gamble, and a player
+        // holding W to the top for a ground ball must not be punished for getting there.
+        bool _dualAxis;
+        float _curlAxis;      // signed -1..1 (+ = D / right), charges while held, resets on a side change
+        float _pitchAxis;     // signed -1..1 (+ = W, - = S)
+        float _committedCurl, _committedPitch;
+        /// <summary>Live signed charges while charging (dual-axis mode), for a flight preview.</summary>
+        public float CurlAxis => _curlAxis;
+        public float PitchAxis => _pitchAxis;
+
+        /// <summary>
+        /// Everything the player committed at release, handed to a custom launch. A free kick launches
+        /// itself (LaunchSetPiece at the goal); a cross wants the same meter, spin, botch and frozen
+        /// aim but a different flight (a ballistic drop onto a spot in the box), so it supplies the
+        /// launch and this is what it gets.
+        /// </summary>
+        public struct Commit
+        {
+            public float power;         // 0..1 meter at release
+            public BallController.SetPieceSpin spin;
+            public float spinCharge;    // 0..1 how long the spin key was held (capped)
+            public float botch;         // 0..1 worst of overcharge / spin over-hold, accuracy-widened
+            public float overcharge;    // 0..1 power-bar overcharge alone
+            public float combined;      // the accuracy-ish stat the botch windows were widened by
+            public Vector3? aim;        // the aim delegate's value, frozen at release
+            public Vector3 ballSpot;
+            public bool leftFooted;
+            // Dual-axis mode only (else 0): the two stacked charges, signed. curl + = D (right),
+            // pitch + = W. `spin`/`spinCharge` above then describe the curl axis for compatibility.
+            public float curl;
+            public float pitch;
+        }
+        System.Action<Commit> _launch;   // null = the built-in LaunchSetPiece
 
         // Arm a fresh attempt: the ball is on `ballSpot`, the striker ragdoll is placed behind it
         // (facing the goal) by the driver's re-arm. `input` is the taker's input source (local
@@ -86,19 +140,32 @@ namespace Trickshot
         // PlayerProfile (single-player and the local shooter).
         // `leftFootedOverride`: -1 = use the local PlayerProfile (single player and the local
         // shooter), 0 = right footed, 1 = left footed. Same -1-means-local idiom as combinedOverride.
+        // `chargeWithLegs`: charge on LMB/RMB instead of Space (the crosser). `launch`: replace the
+        // built-in goal-bound LaunchSetPiece with the caller's own flight, fed the committed values.
+        // `dualAxisSpin`: A/D and W/S charge as two stacked axes (Commit.curl / .pitch) instead of
+        // one dominant spin. `meterRate` (> 0) replaces SetPieceMeterRate; `meterHoldAtMax` fills
+        // the meter once and parks it at 1 with no overcharge botch.
         public void Begin(IStrikerInput input, ActiveRagdoll ragdoll, BallController ball,
                           Vector3 ballSpot, Vector3 goalCenter, bool displayOnly = false,
                           float combinedOverride = -1f, System.Func<Vector3> aimPoint = null,
-                          int leftFootedOverride = -1)
+                          int leftFootedOverride = -1,
+                          bool chargeWithLegs = false, System.Action<Commit> launch = null,
+                          bool dualAxisSpin = false, float meterRate = -1f, bool meterHoldAtMax = false)
         {
             _input = input; _ragdoll = ragdoll; _ball = ball;
             _ballSpot = ballSpot; _goalCenter = goalCenter;
             _displayOnly = displayOnly;
             _combinedOverride = combinedOverride;
             _aimPoint = aimPoint;
+            _chargeWithLegs = chargeWithLegs;
+            _launch = launch;
+            _dualAxis = dualAxisSpin;
+            _meterRate = meterRate;
+            _meterHold = meterHoldAtMax;
             _state = State.Charging;
             _meter = 0f; _meterDir = 1f; _pegTime = 0f;
             _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
+            _curlAxis = 0f; _pitchAxis = 0f; _committedCurl = 0f; _committedPitch = 0f;
             _spin = BallController.SetPieceSpin.None;
             _leftFooted = leftFootedOverride < 0 ? KickSwing.LocalFoot : leftFootedOverride == 1;
             _hopGrace = 0f;
@@ -109,7 +176,7 @@ namespace Trickshot
             // menu/confirm that opened this mode, or the input map enabling mid-press), require a
             // genuine release before charging can begin. Otherwise the first attempt's very first
             // Tick reads Space held, latches _charged, and commits with no real release.
-            _awaitingRelease = input != null && input.JumpHeld;
+            _awaitingRelease = input != null && ChargeHeld;
             _committedAim = null;
             JustStruck = false;
             // The taker OWNS the ball for the whole attempt, so the shooter's body must not be able
@@ -208,29 +275,41 @@ namespace Trickshot
             // normally. (The host's AFK watchdog still fires if a human truly never engages.)
             if (_awaitingRelease)
             {
-                if (!_input.JumpHeld) _awaitingRelease = false;
+                if (!ChargeHeld) _awaitingRelease = false;
                 return;
             }
 
-            // Oscillate the power meter while Space is held; release commits. We only commit once
-            // the player has ACTUALLY begun charging (held Space at least once) so an attempt that
-            // starts with Space up does not instantly fire on frame one.
-            if (_input.JumpHeld)
+            // Oscillate the power meter while the charge button is held (Space, or LMB/RMB for a
+            // cross); release commits. We only commit once the player has ACTUALLY begun charging
+            // (held it at least once) so an attempt that starts with it up does not fire on frame one.
+            if (ChargeHeld)
             {
                 _charged = true;
                 _releaseTime = 0f;   // still held: a phantom 1-frame drop can't accrue enough to commit
                 _spaceHeldTime += Time.deltaTime;   // total hold this attempt (gates a genuine charge)
-                _meter += _meterDir * SimConfig.SetPieceMeterRate * Time.deltaTime;
-                if (_meter >= 1f) { _meter = 1f; _meterDir = -1f; }
-                else if (_meter <= 0f) { _meter = 0f; _meterDir = 1f; }
+                float rate = _meterRate > 0f ? _meterRate : SimConfig.SetPieceMeterRate;
+                if (_meterHold)
+                {
+                    // Fill once and sit at the top. No overcharge: the top is where a full-power
+                    // cross is held until the player is ready, not a window to get out of.
+                    _meter = Mathf.Min(1f, _meter + rate * Time.deltaTime);
+                }
+                else
+                {
+                    _meter += _meterDir * rate * Time.deltaTime;
+                    if (_meter >= 1f) { _meter = 1f; _meterDir = -1f; }
+                    else if (_meter <= 0f) { _meter = 0f; _meterDir = 1f; }
 
-                // Overcharge: pegged at the very top too long -> botch. Accuracy widens the window.
-                bool pegged = _meter > 0.97f;
-                _pegTime = pegged ? _pegTime + Time.deltaTime : 0f;
+                    // Overcharge: pegged at the very top too long -> botch. Accuracy widens the window.
+                    bool pegged = _meter > 0.97f;
+                    _pegTime = pegged ? _pegTime + Time.deltaTime : 0f;
+                }
+
+                Vector2 mv = _input.Move;
+                if (_dualAxis) { TickDualAxis(mv); return; }
 
                 // WASD spin charge (silent). Move.x sign -> curve L/R, Move.y sign -> topspin/knuckle.
                 // A dominant axis wins so a diagonal does not fight itself.
-                Vector2 mv = _input.Move;
                 BallController.SetPieceSpin heldSpin = BallController.SetPieceSpin.None;
                 if (Mathf.Abs(mv.x) > Mathf.Abs(mv.y))
                 {
@@ -271,6 +350,7 @@ namespace Trickshot
                 _charged = false;
                 _meter = 0f; _meterDir = 1f; _pegTime = 0f;
                 _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
+                _curlAxis = 0f; _pitchAxis = 0f;
                 _spin = BallController.SetPieceSpin.None;
                 _spaceHeldTime = 0f; _releaseTime = 0f;
                 return;
@@ -290,6 +370,8 @@ namespace Trickshot
             _committedPowerStat = PowerStat();
             _committedSpin = _spin;
             _committedSpinCharge = _spinCharge;
+            _committedCurl = _curlAxis;
+            _committedPitch = _pitchAxis;
 
             // Freeze the aim ray at release (the camera can move during the runup).
             _committedAim = _aimPoint != null ? (Vector3?)_aimPoint() : null;
@@ -309,6 +391,34 @@ namespace Trickshot
             _phaseTime = 0f;
             _gaitPhase = 0f;
             SetColliders(false);   // body cannot knock the ball during the runup/flight
+        }
+
+        // The two stacked axes, each charging on its own while its key is held and keeping its charge
+        // when the key comes up (the free kick keeps a released spin too). A side change on an axis
+        // starts that axis over. The curl axis over-holds into the botch timer exactly as a single
+        // spin does; `_spin`/`_spinCharge` mirror it so the commit reads the same to a caller that
+        // only looks at those.
+        void TickDualAxis(Vector2 mv)
+        {
+            float dt = Time.deltaTime * SimConfig.SetPieceSpinChargeRate;
+            if (Mathf.Abs(mv.x) > 0.3f)
+            {
+                float s = Mathf.Sign(mv.x);
+                if (_curlAxis != 0f && Mathf.Sign(_curlAxis) != s) { _curlAxis = 0f; _spinOverTime = 0f; }
+                float mag = Mathf.Abs(_curlAxis) + dt;
+                if (mag >= 1f) { mag = 1f; _spinOverTime += Time.deltaTime; }
+                _curlAxis = s * mag;
+            }
+            if (Mathf.Abs(mv.y) > 0.3f)
+            {
+                float s = Mathf.Sign(mv.y);
+                if (_pitchAxis != 0f && Mathf.Sign(_pitchAxis) != s) _pitchAxis = 0f;
+                _pitchAxis = s * Mathf.Min(1f, Mathf.Abs(_pitchAxis) + dt);
+            }
+            _spinCharge = Mathf.Abs(_curlAxis);
+            _spin = _curlAxis > 0f ? BallController.SetPieceSpin.CurveRight
+                  : _curlAxis < 0f ? BallController.SetPieceSpin.CurveLeft
+                  : BallController.SetPieceSpin.None;
         }
 
         // Aesthetic run-in toward the ball (Footballer.Drive/RunGait style), then a brief swing, then
@@ -350,11 +460,28 @@ namespace Trickshot
                     // the host owns the launch and the client ball is kinematic (snapshot-driven).
                     if (!_displayOnly)
                     {
-                        _ball.ResetTo(_ballSpot);
-                        _ball.LaunchSetPiece(_committedPower, _committedSpin, _committedSpinCharge,
-                                             _committedBotch, _committedCombined, _goalCenter,
-                                             _committedOvercharge, _committedPowerStat,
-                                             _committedAim);
+                        if (_launch != null)
+                        {
+                            // A caller-supplied flight (the cross). It gets the ball where it is
+                            // and everything the player committed; how it flies is its business.
+                            _ball.ResetTo(_ballSpot);
+                            _launch(new Commit
+                            {
+                                power = _committedPower, spin = _committedSpin, spinCharge = _committedSpinCharge,
+                                botch = _committedBotch, overcharge = _committedOvercharge,
+                                combined = _committedCombined, aim = _committedAim,
+                                ballSpot = _ballSpot, leftFooted = _leftFooted,
+                                curl = _committedCurl, pitch = _committedPitch,
+                            });
+                        }
+                        else
+                        {
+                            _ball.ResetTo(_ballSpot);
+                            _ball.LaunchSetPiece(_committedPower, _committedSpin, _committedSpinCharge,
+                                                 _committedBotch, _committedCombined, _goalCenter,
+                                                 _committedOvercharge, _committedPowerStat,
+                                                 _committedAim);
+                        }
                     }
                     // The strike lifts him off the plant leg, toward goal. Fired even when display
                     // only: it is the animation, not the shot, and a predicting client must show the

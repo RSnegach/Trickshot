@@ -27,10 +27,10 @@ namespace Trickshot
         // Set-pieces host settings (goal size %, keeper ability). Ball/player speed intentionally
         // NOT exposed - kept fixed so multiplayer stays balanced.
         int _goalPct = 100;        // 80 / 100 / 125
-        // AI keeper strength, if no human takes the gloves. One of KeeperPcts; 50 = Normal.
-        // Worth noting that 50 was NOT one of the old 0/30/60/90 steps, so this picker used to open
-        // with no button lit at all - the five named steps include it, so it now shows Normal.
-        int _keeperPct = 50;
+        // AI keeper strength, if no human takes the gloves. One of KeeperPcts (the SimConfig ladder
+        // x100); 30 = Normal. The default has to be ON the ladder or the picker opens with no button
+        // lit, which is exactly what an older 50 did.
+        int _keeperPct = 30;   // Normal (see KeeperPcts)
         // Host-placed free-kick spot + wall (world x/z). Lazily defaulted the first frame the
         // Set Pieces map is shown (centre spot at FreeKickDistance, wall at WallDistance toward
         // goal). _fkEdit selects which marker a map click moves: 0 = ball, 1 = wall.
@@ -77,7 +77,7 @@ namespace Trickshot
             MenuScale.Begin();
             // Accuracy adds four extra option rows (wall / targets / turn format / turn amount).
             // A locked single mode skips the picker row entirely (one option is not a choice).
-            float w = 480f, panelH = (Modes[_mode] == GameMode.Accuracy ? 610f : 470f) - (_modeLocked ? 58f : 0f);
+            float w = 480f, panelH = (Modes[_mode] == GameMode.Accuracy ? 610f : 470f) - (_modeLocked ? 58f : 0f) - 58f;   // -58: no stadium row
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 640f);
@@ -88,9 +88,8 @@ namespace Trickshot
             float lx = x + 30f, lw = w - 60f, row = y + 60f;
             UITheme.Divider(lx, row - 8f, lw);
             if (!_modeLocked) Picker(lx, ref row, lw, "Mode", ModeNames, ref _mode);
-            // PickerVals, not Picker: the names are filtered to the OFFERED venues, so the button
-            // position is no longer the All index, and Create() sends _stadium as the wire byte.
-            PickerVals(lx, ref row, lw, "Stadium", StadiumNames(), StadiumStyle.PickableIndices(), ref _stadium);
+            // (The stadium is picked on its own screen after Create - the same one single player
+            // uses - so the venue row that used to sit here is gone.)
             if (Modes[_mode] == GameMode.Match)
             {
                 PickerVals(lx, ref row, lw, "Team size", new[] { "3 v 3", "5 v 5", "11 v 11" }, new[] { 3, 5, 11 }, ref _perSide);
@@ -200,7 +199,10 @@ namespace Trickshot
                 publicLobby = _publicLobby,
                 // Set-pieces + accuracy share these knobs (both are dead-ball modes).
                 goalScale = deadBall ? _goalPct / 100f : 1f,
-                keeperAbility = deadBall ? _keeperPct / 100f : 0.5f,
+                goalScaleH = deadBall ? _goalPct / 100f : 1f,   // the pickers here are one scale for both
+                // Striker's goal + keeper are set on the stadium/goal screen that follows; this is
+                // just the starting point it opens on (Normal).
+                keeperAbility = deadBall ? _keeperPct / 100f : SimConfig.AiLevelAbility[(int)SimConfig.AiDifficulty.Normal],
                 // Host-placed free-kick spot + wall. fkPlaced tells the driver to honour them;
                 // when false (map never opened / other modes) the driver uses its own default.
                 fkPlaced = deadBall && _fkInit,
@@ -257,7 +259,9 @@ namespace Trickshot
         // "Hard" means one thing across the game instead of the old Low/Med/High meaning something
         // else again. None builds no goalkeeper at all.
         static readonly string[] KeeperNames = { "None", "Easy", "Normal", "Hard", "Insane" };
-        static readonly int[]    KeeperPcts  = { 0, 25, 50, 75, 100 };
+        // The SAME ladder as SimConfig.AiLevelAbility (x100), not a separate 0/25/50/75/100 - the
+        // comment above promised "Hard means one thing across the game" and the numbers did not.
+        static readonly int[]    KeeperPcts  = { 0, 15, 30, 55, 80 };
 
         void PickerVals(float lx, ref float row, float lw, string label, string[] names, int[] vals, ref int val)
         {
@@ -284,12 +288,5 @@ namespace Trickshot
             row += 40f;
         }
 
-        static string[] StadiumNames()
-        {
-            var idx = StadiumStyle.PickableIndices();
-            var names = new string[idx.Length];
-            for (int i = 0; i < idx.Length; i++) names[i] = StadiumStyle.All[idx[i]].Name;
-            return names;
-        }
     }
 }

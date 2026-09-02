@@ -38,6 +38,30 @@ namespace Trickshot.Net
         MatchStats = 19,    // host -> clients, once at full time: the post-match per-player table
         NominateJersey = 20, // client -> host: toggle MY slot's jersey as a candidate for my team
         CastJerseyVote = 21, // client -> host: vote for a candidate slot (255 = clear my vote)
+        CrosserSetup = 22,   // client -> host request, then host -> clients relay: the AI crosser panel
+    }
+
+    /// <summary>
+    /// The AI crosser's shared setup: where crosses land, where the crosser stands, how he delivers,
+    /// the two serve sliders, and the AI's display name. Striker mode's cross map (M) edits this.
+    ///
+    /// Replicated even though ONLY THE HOST SIMULATES the crosser, because the panel itself has to
+    /// tell the truth on every screen: any player may open the map and edit it, so a client showing
+    /// its own stale defaults while someone else's edits were live is exactly the confusion this
+    /// message exists to remove. The host is still the only peer that acts on the values.
+    ///
+    /// Positions are x/z only - the panel places on a flat pitch map and the y is derived (ball
+    /// radius for a target, 0 for the crosser's feet), so sending it would be two wasted floats and
+    /// a chance for the two ends to disagree about a number neither of them chose.
+    /// </summary>
+    public struct CrosserSetupMsg
+    {
+        public float targetX, targetZ;   // where crosses land
+        public float spotX, spotZ;       // where the AI crosser stands
+        public byte delivery;            // Crosser.DeliveryType
+        public float ballSpeed;          // -> SimConfig.BallSpeedMul
+        public float crossInterval;      // multiplier -> SimConfig.ServeInterval
+        public string aiName;            // the AI crosser's name (host-renamable; "Clanker" default)
     }
 
     /// <summary>
@@ -104,6 +128,9 @@ namespace Trickshot.Net
         // ranked lobby is distinguishable in the discovery-probe string itself, with no changes
         // needed to the probe/browse wire format - the existing "mode" string already carries it.
         public bool onlineRanked;
+        // Goal HEIGHT multiplier, separate from goalScale (which is now the WIDTH). The host's goal
+        // editor sizes the two independently. 0 = not set: the reader keeps the goal in proportion.
+        public float goalScaleH;
     }
 
     // Host -> clients: the set-pieces shootout tally. activeShooter = slot currently up;
@@ -161,12 +188,16 @@ namespace Trickshot.Net
         public bool jump, legL, legR, sprint, passGround, passLofted, tackle, reset;
         public bool closeControl;   // dribble close-control modifier (second bit byte)
         public bool passChip;       // chip pass button (second bit byte, bit 2)
+        public bool cross;          // set up a cross, Enter (second bit byte, bit 3)
+        public bool thirdLeg;       // adult mode: appendage to attention while held (second bit byte, bit 4)
         public byte emoteId;      // 255 = none; else Celebration.Emote to start this tick
     }
 
     // Animation state a body is in, synced so clients play the matching canned local animation on
     // the interpolated puppet (instead of a rigid stance). Discrete state, not streamed poses.
-    public enum AnimState : byte { Idle = 0, Run = 1, Jump = 2, Dive = 3, Down = 4, Kick = 5, Sit = 6 }
+    // KickL is the left-footed swing: footedness is authored per player, so a left-footed crosser's
+    // puppet has to swing the leg he actually kicks with on every other screen, not the right one.
+    public enum AnimState : byte { Idle = 0, Run = 1, Jump = 2, Dive = 3, Down = 4, Kick = 5, Sit = 6, KickL = 7 }
 
     // One body's state in a snapshot (host -> clients). Compact: pos + yaw + flags.
     public struct BodyState
@@ -180,6 +211,8 @@ namespace Trickshot.Net
         public byte anim;         // AnimState the body is in (drives the client-side canned anim)
         public uint lastInputTick; // host: the highest input tick applied for this slot (client
                                    // reads its OWN slot's value to reconcile its predicted body)
+        public bool erect;        // adult mode: the body's appendage is standing to attention (the
+                                  // client mirrors it onto the puppet's AnatomySim; no-op without one)
     }
 
     public struct Snapshot
@@ -198,11 +231,28 @@ namespace Trickshot.Net
     }
 
     // Compact big-endian-free binary writer/reader over a MemoryStream.
+    //
+    // The stream + BinaryWriter are SHARED across messages instead of allocated per message: a
+    // client encodes an input every rendered frame and the host a snapshot 20 times a second, and
+    // two garbage objects per message was a steady trickle of GC at match rate. Encoding is
+    // main-thread and never nested (every NetCodec method writes one message and returns it), so
+    // one shared pair is enough; a nested/foreign use just falls back to its own private pair.
+    // ToArray still hands out a fresh byte[] - the transport keeps reliable packets for resends.
     public class NetWriter
     {
-        readonly MemoryStream _ms = new MemoryStream(64);
+        static readonly MemoryStream s_ms = new MemoryStream(256);
+        static readonly BinaryWriter s_bw = new BinaryWriter(s_ms);
+        static bool s_busy;
+
+        readonly MemoryStream _ms;
         readonly BinaryWriter _bw;
-        public NetWriter(MsgType type) { _bw = new BinaryWriter(_ms); _bw.Write((byte)type); }
+        readonly bool _shared;
+        public NetWriter(MsgType type)
+        {
+            if (!s_busy) { s_busy = true; _shared = true; _ms = s_ms; _bw = s_bw; _ms.SetLength(0); }
+            else { _ms = new MemoryStream(64); _bw = new BinaryWriter(_ms); }
+            _bw.Write((byte)type);
+        }
         public void U8(byte v) => _bw.Write(v);
         public void U32(uint v) => _bw.Write(v);
         public void F(float v) => _bw.Write(v);
@@ -224,7 +274,13 @@ namespace Trickshot.Net
             _bw.Write((byte)Mathf.Clamp(Mathf.RoundToInt(c.g * 255f), 0, 255));
             _bw.Write((byte)Mathf.Clamp(Mathf.RoundToInt(c.b * 255f), 0, 255));
         }
-        public byte[] ToArray() { _bw.Flush(); return _ms.ToArray(); }
+        public byte[] ToArray()
+        {
+            _bw.Flush();
+            var arr = _ms.ToArray();
+            if (_shared) { _ms.SetLength(0); s_busy = false; }   // release the shared pair
+            return arr;
+        }
     }
 
     public class NetReader
@@ -295,7 +351,15 @@ namespace Trickshot.Net
         /// struct at the wrong offsets, so bodies teleport and the ball is somewhere else. The host
         /// compares this at Hello and refuses with JoinRefusal.Version instead.
         /// </summary>
-        public const byte ProtocolVersion = 3;   // 3: AnimState.Sit
+        public const byte ProtocolVersion = 7;   // 7: BodyState carries the adult-mode erect flag (fixed-stride record grew)
+                                                 // 6: PlayerInput carries a bundle of frames; ReliableBulk stream
+                                                 // 5: MatchConfig.goalScaleH, InputFrame.cross, player flags
+
+        // Trailing per-player flags on Hello / Loadout (after the version / passing mask). Footedness
+        // was never on the wire, so the host animated every REMOTE kicker with the HOST'S foot; a
+        // crosser's whole run-up and swing depend on it, so it goes across as one bit.
+        public const byte FlagLeftFooted = 1;
+        public static byte PlayerFlags() => PlayerProfile.LeftFooted ? FlagLeftFooted : (byte)0;
 
         public static byte[] Hello(string name, PlayerAppearance appearance)
         {
@@ -304,6 +368,7 @@ namespace Trickshot.Net
             // parses up to this point, so the host can identify the mismatch (absent = version 0)
             // rather than failing to read the message at all.
             w.U8(ProtocolVersion);
+            w.U8(PlayerFlags());   // trailing, after the version, so the version gate is unmoved
             return w.ToArray();
         }
 
@@ -314,9 +379,20 @@ namespace Trickshot.Net
             return w.ToArray();
         }
 
-        public static byte[] Input(in InputFrame f)
+        // A client's input packet carries its last few frames (NetSession.InputRedundancy), oldest
+        // first: [count u8] then `count` frames in the layout WriteInputFrame writes. A packet lost
+        // on the way is covered by the next one, which repeats the frames it held. The host reads
+        // them with ReadInput in a loop and keeps only ticks it has not seen.
+        public static byte[] InputBundle(InputFrame[] frames, int count)
         {
             var w = new NetWriter(MsgType.PlayerInput);
+            w.U8((byte)count);
+            for (int i = 0; i < count; i++) WriteInputFrame(w, frames[i]);
+            return w.ToArray();
+        }
+
+        static void WriteInputFrame(NetWriter w, in InputFrame f)
+        {
             w.U32(f.tick); w.V2(f.move); w.F(f.lookYaw); w.F(f.lookPitch);
             byte bits = 0;
             if (f.jump) bits |= 1; if (f.legL) bits |= 2; if (f.legR) bits |= 4; if (f.sprint) bits |= 8;
@@ -330,8 +406,9 @@ namespace Trickshot.Net
             byte bits2 = 0;
             if (f.closeControl) bits2 |= 1;
             if (f.passChip) bits2 |= 2;
+            if (f.cross) bits2 |= 4;
+            if (f.thirdLeg) bits2 |= 8;
             w.U8(bits2);
-            return w.ToArray();
         }
 
         public static InputFrame ReadInput(NetReader r)
@@ -345,6 +422,8 @@ namespace Trickshot.Net
             byte bits2 = r.More ? r.U8() : (byte)0;
             f.closeControl = (bits2 & 1) != 0;
             f.passChip = (bits2 & 2) != 0;
+            f.cross = (bits2 & 4) != 0;
+            f.thirdLeg = (bits2 & 8) != 0;
             return f;
         }
 
@@ -356,7 +435,9 @@ namespace Trickshot.Net
             w.U32(s.clockSec);
             w.U8((byte)(s.bodies?.Length ?? 0));
             if (s.bodies != null)
-                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); w.U32(b.lastInputTick); }
+                // `erect` sits INSIDE the fixed-stride record (it is per body), which is why this
+                // change cost a ProtocolVersion bump where `guided` below did not.
+                foreach (var b in s.bodies) { w.U8(b.slot); w.V3(b.pos); w.F(b.yaw); w.B(b.down); w.U8(b.emoteId); w.U8(b.emotePhase); w.U8(b.anim); w.U32(b.lastInputTick); w.B(b.erect); }
             // TRAILING, after the body loop, so it costs no protocol break. It belongs to the BALL and
             // is declared beside ballVel in the struct for readability - wire order and field order do
             // not have to agree, and here they deliberately do not. Putting it beside ballVel ON THE
@@ -374,7 +455,7 @@ namespace Trickshot.Net
             int n = r.U8();
             s.bodies = new BodyState[n];
             for (int i = 0; i < n; i++)
-                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8(), anim = r.U8(), lastInputTick = r.U32() };
+                s.bodies[i] = new BodyState { slot = r.U8(), pos = r.V3(), yaw = r.F(), down = r.B(), emoteId = r.U8(), emotePhase = r.U8(), anim = r.U8(), lastInputTick = r.U32(), erect = r.B() };
             // Trailing (see Snap). A sender without it reads as not guided, which is the permissive
             // direction: the landing telegraph draws. That is correct for an older peer, which has no
             // assist window it could be lying about.
@@ -451,6 +532,7 @@ namespace Trickshot.Net
             w.U8(cfg.accWallCount); w.U8(cfg.accTargets);
             w.B(cfg.accTurnByTime); w.U8(cfg.accTurnKicks); w.U32(cfg.accTurnSeconds);
             w.B(cfg.onlineRanked);   // appended last for the same reason
+            w.F(cfg.goalScaleH);     // ...and this after it
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); w.B(s.nominated); w.U8(s.voteFor); }
@@ -469,7 +551,7 @@ namespace Trickshot.Net
                                     accWallCount = r.U8(), accTargets = r.U8(),
                                     accTurnByTime = r.B(), accTurnKicks = r.U8(),
                                     accTurnSeconds = (ushort)r.U32(),
-                                    onlineRanked = r.B() };
+                                    onlineRanked = r.B(), goalScaleH = r.F() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
@@ -485,7 +567,7 @@ namespace Trickshot.Net
         // PlayerAppearance: Hello writes the appearance and then ProtocolVersion AFTER it, so growing
         // the appearance moves the version byte and breaks the version gate in both directions.
         public static byte[] Loadout(PlayerAppearance a, byte passMask)
-        { var w = new NetWriter(MsgType.UpdateLoadout); WriteAppearance(w, a); w.U8(passMask); return w.ToArray(); }
+        { var w = new NetWriter(MsgType.UpdateLoadout); WriteAppearance(w, a); w.U8(passMask); w.U8(PlayerFlags()); return w.ToArray(); }
         // One jersey PNG chunk (client<->host). Field order must match ReadJerseyChunk.
         public static byte[] JerseyChunk(byte slot, uint index, uint total, uint totalBytes, byte[] chunk)
         {
@@ -503,6 +585,21 @@ namespace Trickshot.Net
         public static byte[] NominateJersey() => new NetWriter(MsgType.NominateJersey).ToArray();
         public static byte[] CastJerseyVote(byte candidateSlot) { var w = new NetWriter(MsgType.CastJerseyVote); w.U8(candidateSlot); return w.ToArray(); }
         public static byte[] ReplayEnd() => new NetWriter(MsgType.ReplayEnd).ToArray();
+
+        // The AI crosser panel (client -> host as a request; host -> everyone as the truth).
+        public static byte[] CrosserSetup(in CrosserSetupMsg c)
+        {
+            var w = new NetWriter(MsgType.CrosserSetup);
+            w.F(c.targetX); w.F(c.targetZ); w.F(c.spotX); w.F(c.spotZ);
+            w.U8(c.delivery); w.F(c.ballSpeed); w.F(c.crossInterval);
+            w.Str(c.aiName ?? "");
+            return w.ToArray();
+        }
+
+        public static CrosserSetupMsg ReadCrosserSetup(NetReader r)
+            => new CrosserSetupMsg { targetX = r.F(), targetZ = r.F(), spotX = r.F(), spotZ = r.F(),
+                                     delivery = r.U8(), ballSpeed = r.F(), crossInterval = r.F(),
+                                     aiName = r.Str() };
 
         // Set-pieces shootout tally (host -> clients). Writes activeShooter + over flag + the
         // per-slot scored/taken arrays (fixed length, sender passes MaxSlots-sized arrays).

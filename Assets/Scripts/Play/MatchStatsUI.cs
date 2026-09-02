@@ -130,7 +130,7 @@ namespace Trickshot
 
                 // Flip arrows flank the right pane's header - text glyphs, matching CareerStatsUI's
                 // own just-shipped precedent (no arrow icon assets exist anywhere in the project).
-                var arrowSt = new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
+                var arrowSt = _arrowSt ??= new GUIStyle(GUI.skin.button) { fontSize = 20, fontStyle = FontStyle.Bold };
                 if (UITheme.Button(new Rect(rightX, bodyY, 40f, 36f), "‹", arrowSt)) Step(-1);
                 if (UITheme.Button(new Rect(rightX + rightW - 40f, bodyY, 40f, 36f), "›", arrowSt)) Step(1);
             }
@@ -164,11 +164,14 @@ namespace Trickshot
             DrawStatRow(ref ry, x, w, rowH, gap, "Saves", s.keeper ? s.saves.ToString() : "-");
         }
 
+        static GUIStyle _arrowSt, _valTintSt;
         void DrawStatRow(ref float ry, float x, float w, float rowH, float gap, string label, string value, Color? valColor = null)
         {
             UITheme.Label(new Rect(x, ry, w * 0.55f, rowH), label, _labelSt);
             var vs = _valSt;
-            if (valColor.HasValue) { vs = new GUIStyle(_valSt); vs.normal.textColor = valColor.Value; }
+            // One reusable tinted copy, recoloured per call, instead of a fresh GUIStyle per row per
+            // OnGUI pass (this board draws over a still-running networked match).
+            if (valColor.HasValue) { vs = _valTintSt ??= new GUIStyle(_valSt); vs.normal.textColor = valColor.Value; }
             UITheme.Label(new Rect(x + w * 0.55f, ry, w * 0.45f, rowH), value, vs);
             UITheme.Divider(x, ry + rowH, w);
             ry += rowH + gap;

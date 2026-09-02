@@ -35,6 +35,7 @@ namespace Trickshot
             _loaded = true;
             _fov = Mathf.Clamp(PlayerPrefs.GetFloat(KeyFov, 0f), MinFov, MaxFov);
             _vsync = PlayerPrefs.GetInt(KeyVsync, 1) != 0;
+            _tier = (GraphicsTier)Mathf.Clamp(PlayerPrefs.GetInt(KeyGfx, (int)GraphicsTier.High), 0, TierNames.Length - 1);
             MenuScale.UserScale = PlayerPrefs.GetFloat(KeyUi, 1f);
         }
 
@@ -42,6 +43,7 @@ namespace Trickshot
         public static void ApplyOnBoot()
         {
             Load();
+            ApplyGraphics();
             QualitySettings.vSyncCount = _vsync ? 1 : 0;
 
             int w = PlayerPrefs.GetInt(KeyW, 0), h = PlayerPrefs.GetInt(KeyH, 0);
@@ -86,6 +88,51 @@ namespace Trickshot
                 PlayerPrefs.SetInt(KeyVsync, value ? 1 : 0);
                 PlayerPrefs.Save();
             }
+        }
+
+        // ---------------------------------------------------------------- graphics tier
+
+        /// <summary>
+        /// Rendering quality, four steps over the project's quality levels (ProjectSettings/
+        /// QualitySettings.asset: Very Low, Low, Medium, High, Very High, Ultra). Rendering is
+        /// local to every machine, so this is each player's own frame rate: a client on Potato gets
+        /// its own smoothness back, and only the HOST's setting has any bearing on anyone else
+        /// (the host's frame pacing is the simulation's).
+        ///   Potato      Very Low - no shadows, no MSAA, no reflection probes, a third of the crowd.
+        ///   Low         Medium   - hard shadows, one cascade, short shadow range, 60% crowd.
+        ///   High        Very High - soft shadows, two cascades to 70 m, MSAA 2x, full crowd.
+        ///   Extra High  Ultra    - four cascades to 150 m; the previous fixed default.
+        /// The crowd share applies when a venue is next built (a mode start), not mid-match.
+        /// </summary>
+        public enum GraphicsTier { Potato = 0, Low = 1, High = 2, ExtraHigh = 3 }
+        public static readonly string[] TierNames = { "Potato", "Low", "High", "Extra High" };
+        const string KeyGfx = "disp.gfx";
+        static GraphicsTier _tier = GraphicsTier.High;
+        static readonly int[]   TierLevel = { 0, 2, 4, 5 };            // QualitySettings level per tier
+        static readonly float[] TierCrowd = { 0.35f, 0.6f, 1f, 1f };   // share of a venue's MaxFans
+
+        public static GraphicsTier Graphics
+        {
+            get { Load(); return _tier; }
+            set
+            {
+                Load();
+                _tier = (GraphicsTier)Mathf.Clamp((int)value, 0, TierNames.Length - 1);
+                ApplyGraphics();
+                PlayerPrefs.SetInt(KeyGfx, (int)_tier);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>Crowd density for the current tier, read by Crowd when a venue is built.</summary>
+        public static float CrowdScale { get { Load(); return TierCrowd[(int)_tier]; } }
+
+        static void ApplyGraphics()
+        {
+            int lvl = Mathf.Clamp(TierLevel[(int)_tier], 0, QualitySettings.names.Length - 1);
+            if (QualitySettings.GetQualityLevel() != lvl) QualitySettings.SetQualityLevel(lvl, true);
+            // Every quality level carries its own vSyncCount; the player's own choice wins.
+            QualitySettings.vSyncCount = _vsync ? 1 : 0;
         }
 
         // ---------------------------------------------------------------- UI scale

@@ -14,10 +14,17 @@ namespace Trickshot
     /// capsule. A constant-radius cylinder plus an over-wide cap gives the silhouette a shoulder at
     /// the join, and that step is the part the eye actually recognises.
     ///
-    /// Purely visual: its own pieces have NO colliders (never a hitbox on the ball). It DOES push
-    /// out of player bodies (own + others') by testing the free nodes against nearby ragdoll
-    /// colliders, but explicitly ignores the ball, so the ball's motion is never affected.
+    /// Hanging, it is purely visual: its own pieces have NO colliders (never a hitbox on the ball).
+    /// It DOES push out of player bodies (own + others') by testing the free nodes against nearby
+    /// ragdoll colliders, but explicitly ignores the ball, so the ball's motion is never affected.
     /// Attached + sized by Cosmetics.AttachAdult when PlayerAppearance.Adult is true.
+    ///
+    /// STANDING TO ATTENTION (the ThirdLeg bind, held): the chain is eased onto a rigid line out of
+    /// the pelvis (SimConfig.ThirdLegAngleDeg above its forward axis) and a capsule hitbox fixed
+    /// along that line is enabled, so the ball CAN be struck with it - BallController routes such a
+    /// contact through the header's goal-ward redirect as ShotType.ThirdLeg. The hitbox is a child
+    /// of the pelvis Rigidbody (a compound shape), registered as one of the body's own colliders so
+    /// it never fights the thighs or the ground probe, and it is disabled again as the piece drops.
     ///
     /// TWO BODY PLANS. A biped keeps the hand-tuned literals below verbatim. A QUADRUPED cannot: its
     /// pelvis is a different size per species and the barrel hangs a belly out in front of it, so a
@@ -45,6 +52,41 @@ namespace Trickshot
         Transform _tip;               // cap on the far end: a sphere wider than the shaft, pink
         Transform _berryL, _berryR;   // the two spheres at the attachment
         float _memberRadius, _berryRadius;
+
+        // ---- Third leg: stand to attention (SimConfig.ThirdLeg*) ----
+        // Erect is the TARGET the Striker writes every tick (a networked puppet gets it from the
+        // snapshot); _erect01 eases toward it. Hanging, there is still no collider anywhere.
+        public bool Erect;
+        float _erect01;
+        Vector3 _erectLocalDir;      // pelvis-local unit direction of the erect line
+        CapsuleCollider _hit;        // the hitbox: fixed in pelvis space, enabled only while erect
+        ActiveRagdoll _rag;          // for the self-collision ignores each time the hitbox comes on
+
+        /// <summary>0..1 how far toward attention the piece currently is.</summary>
+        public float Erect01 => _erect01;
+        /// <summary>Is the hitbox live right now (erect enough that the ball can be struck with it)?</summary>
+        public bool IsErect => _hit != null && _hit.enabled;
+        /// <summary>Is `c` this piece's hitbox? BallController asks on every body contact.</summary>
+        public bool IsHitbox(Collider c) => c != null && _hit != null && c == _hit;
+
+        /// <summary>
+        /// The posed pieces, for the replay recorder (ReplaySystem.TrackBody): it records these like
+        /// bones and pauses this component for the playback, so a replay shows the piece exactly as
+        /// it was - standing to attention included - instead of a fresh hang re-simulated off the
+        /// replayed pelvis. Position, rotation AND scale matter: the shaft's length is its scale.
+        /// </summary>
+        public Transform[] ReplayTransforms
+        {
+            get
+            {
+                var list = new System.Collections.Generic.List<Transform>(4);
+                if (_member != null) list.Add(_member);
+                if (_tip != null) list.Add(_tip);
+                if (_berryL != null) list.Add(_berryL);
+                if (_berryR != null) list.Add(_berryR);
+                return list.ToArray();
+            }
+        }
 
         // Reused buffer for body-collision queries (avoids per-tick allocation).
         //
@@ -203,6 +245,7 @@ namespace Trickshot
                           float lenMul, float girthMul, float ballMul)
         {
             _pelvis = pelvis;
+            _rag = rag;
             bool quad = rag != null && rag.Plan == BodyPlan.Quadruped;
             float gScale = rag != null ? rag.GirthScale : 1f;
             float hScale = rag != null ? rag.HeightScale : 1f;
@@ -293,8 +336,36 @@ namespace Trickshot
             _berryL = MakePiece("berryL", mat).transform;
             _berryR = MakePiece("berryR", mat).transform;
 
+            BuildHitbox(rag, quad);
+
             PoseBerries();
             PoseMember();
+        }
+
+        // The erect line and its hitbox. The line is fixed in PELVIS space (forward and up by the
+        // species' angle), so the capsule can be a fixed child of the pelvis: no per-tick re-posing,
+        // and PhysX sees a compound shape on the pelvis body rather than a moving static collider.
+        // Sized to the DRAWN piece - shaft length plus the cap's protruding radius - at
+        // ThirdLegHitboxMul x the cap radius, generous the way the head's collider is.
+        void BuildHitbox(ActiveRagdoll rag, bool quad)
+        {
+            float a = (quad ? SimConfig.ThirdLegQuadAngleDeg : SimConfig.ThirdLegAngleDeg) * Mathf.Deg2Rad;
+            _erectLocalDir = new Vector3(0f, Mathf.Sin(a), Mathf.Cos(a));
+            float capR = _memberRadius * CapWiden;
+            float len = _segLen * (Nodes - 1) + capR;
+            float r = capR * SimConfig.ThirdLegHitboxMul;
+
+            var go = new GameObject("hitbox");
+            go.transform.SetParent(transform, false);   // this object sits at the pelvis origin, unrotated
+            go.transform.localPosition = _rootLocal + _erectLocalDir * (len * 0.5f);
+            go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, _erectLocalDir);
+            go.transform.localScale = Vector3.one;
+            _hit = go.AddComponent<CapsuleCollider>();
+            _hit.direction = 1;             // local Y, rotated onto the erect line above
+            _hit.radius = r;
+            _hit.height = len + 2f * r;     // capsule ends one radius past the root and past the cap
+            _hit.enabled = false;           // hanging: no hitbox. Enabled by FixedUpdate as it rises.
+            if (rag != null) rag.RegisterExtraCollider(_hit);
         }
 
         // Lowest world y of a bone's collider, i.e. the underside of that body part. Falls back to
@@ -338,6 +409,7 @@ namespace Trickshot
             float damp = SimConfig.HairDamping;
             float gStep = g * dt * dt;
             Vector3 down = -_pelvis.up;                 // cone axis; see DeriveCone
+            Vector3 fwd  = _pelvis.forward;             // the half-space the piece may never leave; see ClampCone
 
             // 1) Pin the root to the pelvis attach point; Verlet-integrate the free nodes under
             //    gravity. The pinned root moving with the body drags the chain, so it swings.
@@ -399,7 +471,7 @@ namespace Trickshot
                     if (a == 0) _pos[b] -= d * diff;                     // root fixed: move only b
                     else { _pos[a] += d * (0.5f * diff); _pos[b] -= d * (0.5f * diff); }
                 }
-                ClampCone(down);
+                ClampCone(down, fwd);
             }
 
             // 3) Body collision: push each FREE node out of any player-body collider it sinks into,
@@ -418,7 +490,7 @@ namespace Trickshot
                 for (int h = 0; h < n; h++)
                 {
                     var col = _hits[h];
-                    if (col == null) continue;
+                    if (col == null || col == _hit) continue;   // never push out of our own hitbox
                     // Cheapest reject first, which matters now the buffer is 16: every ragdoll bone
                     // carries its Rigidbody on the SAME GameObject as its collider (ActiveRagdoll
                     // builds both on the "P_<Bone>" object), so static scenery - the turf above all -
@@ -477,7 +549,35 @@ namespace Trickshot
                 if (a == 0) Push(b, -d * diff);                          // root fixed: move only b
                 else { Push(a, d * (0.5f * diff)); Push(b, -d * (0.5f * diff)); }
             }
-            ClampCone(down);
+            ClampCone(down, fwd);
+
+            // 5) Third leg. Ease toward attention and blend the chain onto the rigid erect line.
+            //    Applied LAST so the hanging solve above still owns whatever fraction is not yet
+            //    erect, and through Push (velocity-neutral) so letting go resumes the swing from
+            //    where the line left it instead of flinging the piece. Fully erect, the nodes are
+            //    pinned outright so no residual swing accumulates underneath the pose.
+            float rate = Erect ? SimConfig.ThirdLegRiseRate : SimConfig.ThirdLegFallRate;
+            _erect01 = Mathf.MoveTowards(_erect01, Erect ? 1f : 0f, rate * dt);
+            if (_erect01 > 0.001f)
+            {
+                Vector3 dirW = _pelvis.TransformDirection(_erectLocalDir);
+                bool pinned = _erect01 >= 0.999f;
+                for (int i = 1; i < Nodes; i++)
+                {
+                    Vector3 want = root + dirW * (_segLen * i);
+                    Push(i, (want - _pos[i]) * _erect01);
+                    if (pinned) _prev[i] = _pos[i];
+                }
+            }
+            // The hitbox follows the ease, not the flag, so a piece that is still visibly dropping
+            // cannot strike, and one still rising cannot until it is nearly there. Re-ignore the
+            // body's own colliders on every enable: PhysX drops the pairs when a collider disables.
+            bool live = _erect01 >= SimConfig.ThirdLegHitboxOn;
+            if (_hit != null && _hit.enabled != live)
+            {
+                _hit.enabled = live;
+                if (live && _rag != null) _rag.IgnoreOwnCollisionsWith(_hit);
+            }
 
             PoseBerries();
             PoseMember();
@@ -497,7 +597,15 @@ namespace Trickshot
         //
         // Built from an explicit orthonormal basis instead of Quaternion.AngleAxis: no handedness to
         // get wrong, and it keeps the node in its own swing plane.
-        void ClampCone(Vector3 down)
+        //
+        // AND NEVER BEHIND THE HIPS. The cone alone still allowed a backward tilt of up to the cone
+        // angle, which is straight through the striker's legs whenever the body leans into a run
+        // (pelvis-down tips back, a world-vertical hang reads as backward in pelvis space). The
+        // second clamp is a half-space in the pelvis frame: the node's offset from the root may
+        // have no component along -forward. Straight down is the limit; it never crosses that plane.
+        // Dropping the backward component and restoring the length moves the direction TOWARD the
+        // down axis, so the cone clamp just applied still holds and the two never fight.
+        void ClampCone(Vector3 down, Vector3 fwd)
         {
             for (int i = 1; i < Nodes; i++)
             {
@@ -505,11 +613,23 @@ namespace Trickshot
                 float len = d.magnitude;
                 if (len < 1e-5f) continue;
                 float cos = Vector3.Dot(d, down) / len;
-                if (cos >= _coneCos) continue;
-                Vector3 side = d - down * (cos * len);
-                float sm = side.magnitude;
-                Vector3 perp = sm > 1e-6f ? side / sm : _pelvis.right;   // exactly anti-parallel: pick a side
-                Push(i, _pos[0] + (down * _coneCos + perp * _coneSin) * len - _pos[i]);
+                if (cos < _coneCos)
+                {
+                    Vector3 side = d - down * (cos * len);
+                    float sm = side.magnitude;
+                    Vector3 perp = sm > 1e-6f ? side / sm : _pelvis.right;   // exactly anti-parallel: pick a side
+                    Vector3 to = _pos[0] + (down * _coneCos + perp * _coneSin) * len;
+                    Push(i, to - _pos[i]);
+                    d = to - _pos[0];
+                }
+                float back = Vector3.Dot(d, fwd);
+                if (back < 0f)
+                {
+                    Vector3 flat = d - fwd * back;                          // shed the backward part
+                    float fm = flat.magnitude;
+                    Vector3 to = _pos[0] + (fm > 1e-6f ? flat * (len / fm) : down * len);
+                    Push(i, to - _pos[i]);
+                }
             }
         }
 

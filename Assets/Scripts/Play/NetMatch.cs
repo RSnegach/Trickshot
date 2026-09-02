@@ -445,7 +445,7 @@ namespace Trickshot
             {
                 var b = _bodies[i];
                 if (b == null || i == _localSlot) continue;
-                if (b.netInput != null) b.netInput.Feed(_s.InputForSlot(i));
+                if (b.netInput != null) b.netInput.Feed(_s.ConsumeInputForSlot(i));
                 // Start a remote player's emote from their wire pick so the host sims it and streams
                 // id+phase to everyone (matches NetStrikerMatch). One-shot: EmoteId != 255 only on
                 // the tick it changes.
@@ -504,6 +504,7 @@ namespace Trickshot
                     slot = (byte)i, pos = p, yaw = b.ragdoll.FacingRotation.eulerAngles.y,
                     down = down, emoteId = eid, emotePhase = eph, anim = (byte)AnimStateOf(b),
                     lastInputTick = _s.InputTickForSlot(i),
+                    erect = b.ragdoll.Anatomy != null && b.ragdoll.Anatomy.Erect,
                 });
             }
             int home = _game != null ? _game.HomeScore : 0;
@@ -525,6 +526,7 @@ namespace Trickshot
         {
             if (b.ragdoll == null) return AnimState.Idle;
             if (b.footballer != null && b.footballer.IsDown) return AnimState.Down;
+            if (b.striker != null && (b.striker.IsDiving || b.striker.IsTumbling)) return AnimState.Down;   // prone
             if (b.keeper != null && b.keeper.IsCommitting) return AnimState.Dive;
             if (!b.ragdoll.IsGrounded) return AnimState.Jump;
             if (b.striker != null && b.striker.IsSitting) return AnimState.Sit;
@@ -657,6 +659,8 @@ namespace Trickshot
                 Vector3 pos = Vector3.Lerp(sa.pos, sb.pos, f);
                 float yaw = Mathf.LerpAngle(sa.yaw, sb.yaw, f);
                 var facing = Quaternion.Euler(0f, yaw, 0f);
+                // Adult mode: the puppet's appendage follows the host's flag (AnatomySim eases it).
+                if (body.ragdoll.Anatomy != null) body.ragdoll.Anatomy.Erect = sb.erect;
                 byte emoteId = sb.emoteId != 255 ? sb.emoteId : sa.emoteId;
                 if (emoteId != 255)
                 {
@@ -830,7 +834,8 @@ namespace Trickshot
                 Hud.ShotBar(meBody.striker.ShotCharge01, true, meBody.striker.ShotInRange);
 
             Hud.Legend(_localIsKeeper ? "WASD move   Mouse aim   LMB/RMB dive   Space jump   E/Q throw"
-                                      : "WASD move   LMB/RMB legs   E pass   Q loft   X chip   C tackle   B emote   V ball cam");
+                                      : "WASD move   LMB/RMB legs   E pass   Q loft   X chip   C tackle   B emote   V ball cam"
+                                        + Keybinds.ThirdLegHint(PlayerProfile.Appearance.Adult));
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             // Player indicators: one coloured chevron per HUMAN slot, colour keyed to the slot so no

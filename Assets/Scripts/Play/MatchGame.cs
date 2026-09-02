@@ -1471,7 +1471,8 @@ namespace Trickshot
 
             string help = _role == SimConfig.MatchRole.Keeper
                 ? "Keeper:  A/D move   Space/LMB/RMB dive   E/Q throw   Reset: R"
-                : "WASD move   LMB/RMB shoot   E pass   Q loft   X chip   C tackle   B emote   V ball cam   R reset";
+                : "WASD move   LMB/RMB shoot   E pass   Q loft   X chip   C tackle   B emote   V ball cam   R reset"
+                  + Keybinds.ThirdLegHint(PlayerProfile.Appearance.Adult);
             // Shared banner renderer: it shrinks the font and wraps if the line would run off
             // the right edge, so the controls stay readable and fully on-screen at any resolution.
             Hud.Legend(help);
@@ -1497,7 +1498,10 @@ namespace Trickshot
                         : (_controlled != null ? _controlled.Ragdoll : null);
             Hud.PlayerMarker(meRag, Hud.SlotColor(0));
 
-            if (_wheelOpen) DrawEmoteWheel();
+            // Gated on Paused as well as _wheelOpen: only Update is pause-gated, so an already-open
+            // wheel kept drawing REAL buttons under the pause menu and they stayed clickable through
+            // it (IMGUI has no occlusion; the pause scrim is a plain DrawTexture and eats no events).
+            if (_wheelOpen && !PauseMenu.Paused) DrawEmoteWheel();
             Hud.End();
         }
     }

@@ -242,6 +242,54 @@ namespace Trickshot
         public const float CrossTapMaxHold = 0.18f; // held below this = a tap (driven); above = a chip
         public const float CrossChargeFlatMul = 0.8f;  // bare tap: 0.8x the type's flight time (flatter/faster)
         public const float CrossChargeFloatMul = 1.2f;  // full hold: 1.2x (a bit floatier, still a low arc)
+        public const float CrossGroundMinSpeed = 4f;  // floor on a Ground delivery's launch speed, so a
+                                                       // short distance still rolls with visible pace
+        // Pace of a Ground delivery, per sqrt(metre) to the target. The ball is frictionless until it
+        // passes that spot (BallController.HoldRollFrictionUntil), so this sets how firmly the pass is
+        // played rather than deciding whether it gets there. 2.2 puts a 10 m ball at ~7 m/s and a 20 m
+        // ball at ~9.8, both inside the BallRollSpeed 11 ceiling that lets friction bite afterwards.
+        public const float CrossGroundPace = 2.2f;
+
+        // ---- Human crosser STANCE (CrosserControl): Enter sets up, then it is played like a free kick ----
+        // Where he stands to run in from, relative to the ball at his feet: back along the aim line and
+        // OFF to the side his plant foot goes - a right-footer comes in from the ball's left so the
+        // right leg swings through with the left foot planted beside it, a left-footer the mirror.
+        public const float CrossStanceRunUp   = 1.8f;   // metres back from the ball (short: he was just there)
+        public const float CrossStanceSide    = 0.7f;   // metres to the plant-foot side of the aim line
+        public const float CrossStanceBubble  = 2.5f;   // nobody else inside this radius while he is set (CrosserBubble)
+        // Loft. The arc is a time-of-flight per sqrt(metre) (see CrossFlightTime); the stance blends
+        // it between the flat "drive" constant and this, from three inputs: looking UP lifts it,
+        // S (held, charges 0..1) floats it, W drives it down - all the way to the turf at a full W
+        // (CrossGroundPitchMin), where it is a rolled ball instead.
+        public const float CrossArcKLoft      = 0.58f;  // fully lofted k (CrossArcKAir 0.41 is the AI's normal cross)
+        public const float CrossLoftBase      = 0.45f;  // loft blend with a level look and no key
+        public const float CrossPitchLoft     = 1.4f;   // loft blend per unit of look-direction Y (up = more)
+        public const float CrossLoftKeyGain   = 0.5f;   // loft blend added at a full S charge
+        // Accuracy. The aim wanders by up to CrossScatterMaxDeg at zero passing (the reach and loft by
+        // CrossScatterDistFrac / CrossScatterLoft), plus this much more yaw at a full botch - an
+        // over-held curl, the free-kick model; the held meter itself cannot overcharge. Power is NEVER
+        // scaled down by accuracy on purpose: a bad passer can hit it as far, it just goes somewhere else.
+        public const float CrossBotchScatterDeg = 10f;
+        public const float CrossBotchDistFrac   = 0.15f; // +/- fraction of the reach at a full botch
+        public const float CrossScatterMaxDeg   = 14f;   // aim yaw error at zero passing (deg). Wider than a
+                                                         // short pass's PassScatterMaxDeg: a 20 m ball has 20 m to be wrong over
+        public const float CrossScatterDistFrac = 0.16f; // +/- fraction of the reach at zero passing
+        public const float CrossScatterLoft     = 0.25f; // +/- loft blend at zero passing
+        // The power meter fills ONCE and holds at the top (no ping-pong, no overcharge). It fills
+        // slower for a better passer - more time to pick the distance - from the zero-passing rate
+        // to the full-passing rate (Maestro counts as full).
+        public const float CrossMeterRateLow  = 1.3f;   // bar/s at zero passing: full in ~0.8 s
+        public const float CrossMeterRateHigh = 0.55f;  // bar/s at full passing: full in ~1.8 s
+        // W drives the ball down. Its charge (0..1) scales the loft toward the flat drive and, from
+        // this fraction of full, the ball is played along the turf instead: a rolled ball at
+        // CrossGroundPace, frictionless until past the spot (BallController.HoldRollFrictionUntil).
+        public const float CrossGroundPitchMin = 0.98f;
+        // The flight-preview line (CrossPathLine): the first part of the INTENDED path, from the ball.
+        // A fraction of the flight that grows with passing, capped in metres of path. Poor passers get
+        // a short line, and their ball does not follow even that reliably (the scatter above).
+        public const float CrossLineFracLow   = 0.2f;
+        public const float CrossLineFracHigh  = 0.6f;
+        public const float CrossLineMaxMetres = 14f;
 
         // ---- Human crosser AIM (CrosserControl): look direction + charge, no map click ----
         // Aim is RELATIVE to wherever the crosser is actually standing (ServeFromFeet: he walks
@@ -258,16 +306,31 @@ namespace Trickshot
         // sane rather than an edge case. Matches the shot mechanic's "aim = where you look, charge =
         // power" so the two deliveries feel like the same game.
         public const float CrossAimNearReach = 8f;    // metres the ray travels from his feet at a tap
-        public const float CrossAimFarReach  = 20f;   // ...and at a full hold
+        public const float CrossAimFarReach  = 100f;  // ...and at a full hold: nearly a full-size pitch (105 m)
+        // The meter-to-reach curve. Reach is FarReach x meter^Curve, so with the far end pushed out to
+        // a whole pitch the bottom of the bar still resolves the 10-25 m ball the striker arena
+        // actually asks for: at 1.5, 15 m sits at 0.28 of the bar and 50 m at 0.63, against 0.15 and
+        // 0.50 for a straight line. Above 1 only: the top of the bar is always the full reach.
+        public const float CrossReachCurve   = 1.5f;
+        // A long ball is not allowed to leave faster than a foot can hit it. Solve's time of flight is
+        // k x sqrt(reach) (the AI's arc shape, see CrossFlightTime), but held open past the AI's 1.8 s
+        // cap so the long ball can HANG; and when even that arc would need more launch speed than
+        // this, the flight time is raised until it fits, so the ball rises higher rather than turning
+        // into a laser. 34 m/s clears 100 m at a ~3.4 s flight (30 m/s flat, 14 m apex), which is a
+        // real goal-kick punt; StrikeHorizMax (26) is the open-play SHOT ceiling and deliberately lower.
+        public const float CrossMaxLaunchSpeed = 34f;
+        public const float CrossHumanArcMaxTime = 7f;  // sanity bound only; the speed cap sets the real arc
         public const float CrossAimHalfWidth = 11f;   // X clamp, either side of goal centre
         public const float CrossAimMinDepth  = 2f;    // Z clamp: never behind this close to the goal line
         public const float CrossAimMaxDepth  = 18f;   // Z clamp: never farther out than this
-        // Curl magnitude at FULL charge (see BallController.LaunchTo's curlAccel). Which foot (LMB/RMB)
-        // sets the SIGN, not which wing the crosser is standing on - a deliberate simplification, not
-        // a claim about real in/outswinger technique. Shaped the same way the shot's curl is (peaks at
-        // mid-charge, tapers at both ends - Sin(charge*pi)), so a tap or a full hold curls least and a
-        // half-charge curls most.
-        public const float CrossCurlAccMax = 3.2f;
+        // Curl is the free kick's model (LaunchSetPiece's A/D): the ball leaves angled OUT to the key's
+        // side at this lateral speed (x the A/D charge) and a constant return acceleration bends it
+        // back over the flight, netting zero drift - it still comes down on the spot. D = out to the
+        // crosser's right and back, spinning counterclockwise seen from above; A the mirror. A touch
+        // more than the free kick's ~6-7 m/s out-speed at typical stats.
+        public const float CrossCurlOutSpeed  = 8f;
+        public const float CrossGroundCurlMul = 0.5f;   // a rolled ball bends this fraction as much
+        public const float CrossCurlSpinVis   = 18f;    // cosmetic angular velocity (rad/s) at a full curl
         // Human crosser: pressing R drops a fresh ball at their feet, but only if the current ball
         // has been served away (is at least this far from the feet). Avoids yanking a ready ball.
         public const float CrosserRefillDist = 1.5f;
@@ -487,6 +550,15 @@ namespace Trickshot
         public const float CamPitchMax = 68f;
         public const float CamDistance = 6.2f;
         public const float CamLookHeight = 1.25f;
+        // ---- Replay (Broadcast) camera: the viewer's own orbit (GameCamera.BroadcastUpdate) ----
+        // The mouse orbits the auto-framed focus and the wheel zooms, on every machine watching.
+        // Until the first input the automatic vantage runs exactly as before.
+        public const float ReplayCamPitchMin = 2f;      // deg: never under the turf
+        public const float ReplayCamPitchMax = 85f;     // deg: near-overhead
+        public const float ReplayCamDistMin  = 4f;      // m from the focus (x pitch scale)
+        public const float ReplayCamDistMax  = 80f;
+        public const float ReplayCamZoomPerNotch = 0.85f;   // distance multiplier per wheel notch in; 1/x out
+        public const float ReplayCamZoomEase = 10f;     // 1/s the distance eases to the zoom target
 
         // ---- Ragdoll drive ----
         public const float JointSpring = 6500f;     // snappier: limbs reach the pose fast
@@ -508,6 +580,17 @@ namespace Trickshot
         // this many deg of headroom each way). Only used when PlayerProfile.PerkAcrobat is owned.
         public const float AcrobatFlipLimit = 720f;
 
+        // ---- Tumble: landing tipped over (a bicycle kick, a scrolled flip) - Striker.StartTumble ----
+        // Coming down with the pelvis tipped further than this from upright (dot with world up; 0.6
+        // is about 53 deg) puts him DOWN - limp, back or front first, the way a diving header lands
+        // - instead of snapping upright the moment the ground probe sees turf, which happens with
+        // the pelvis still a metre up and read as recovering in mid-air. Under it he keeps his feet.
+        // Acrobat is exempt: it chases a full rotation and lands on its feet by design.
+        public const float TumbleUpness     = 0.6f;
+        public const float TumbleProneTime  = 1.2f;   // s down before he gets up (x RecoveryTimeMul, floor DiveProneMinTime)
+        public const float TumbleMaxTime    = 3f;     // hard cap on the whole tumble, whatever the probe says
+        public const float TumbleDriveScale = 0.15f;  // limp, as DiveDriveScale
+
         // ---- Dive header (hold Space while moving forward) ----
         // Carried run momentum is zeroed, then a modest up + forward launch tips him into
         // a belly-down header; gravity arcs him into the flop. Kept small so he doesn't
@@ -521,6 +604,27 @@ namespace Trickshot
         public const float DiveProneTime = 1.5f;      // base time prone after a dive/flop lands (Agility recovery nodes cut this)
         public const float DiveProneMinTime = 0.55f;  // floor: recovery upgrades can't drop below this
         public const float AcrobatRecoveryMul = 1.4f; // Acrobat capstone: extra divisor on prone recovery time
+
+        // ---- Header hold carried through touchdown (Striker.ResolveHeaderLanding) ----
+        // LMB+RMB held in the air is the header pose. If both are STILL held when the ground comes
+        // up, the landing resolves the hold rather than leaving both legs cocked at full raise (which
+        // read as sitting in mid-air while the run carried on): pushing FORWARD lays him out into a
+        // HIGH diving header - more pop than the Space dive, same belly-down flop and prone recovery -
+        // and anything else drops him straight into the sit, exactly as the standing gesture would.
+        public const float HeaderDiveUpVel      = 4.5f;  // upward pop of the landing dive (DiveUpVel is 2)
+        public const float HeaderDiveForwardVel = 8f;    // forward launch (DiveForwardVel is 10)
+
+        // ---- Third leg (adult mode): hold the ThirdLeg bind to stand the appendage to attention ----
+        // AnatomySim eases its chain from the hanging pendulum onto a rigid line out of the pelvis at
+        // this angle above the forward axis, and a capsule hitbox along that line goes live once the
+        // ease is nearly complete. Only exists on a body built with PlayerAppearance.Adult on a
+        // species that AllowsAdult; the bind does nothing otherwise.
+        public const float ThirdLegAngleDeg     = 45f;   // biped: forward and up, clear of the pelvis box
+        public const float ThirdLegQuadAngleDeg = 12f;   // quadruped: hugs the belly instead of stabbing into it
+        public const float ThirdLegRiseRate     = 4f;    // 1/s toward erect (full in ~0.25 s)
+        public const float ThirdLegFallRate     = 2f;    // 1/s back to hanging
+        public const float ThirdLegHitboxOn     = 0.85f; // ease amount at/above which the hitbox is enabled
+        public const float ThirdLegHitboxMul    = 1.5f;  // hitbox radius vs the drawn cap radius (generous, as the head is)
         public const float BalanceFrequency = 3.2f;
         public const float BalanceDamping = 0.85f;
         // Rate (1/s) the residual YAW RING of a non-biped body is bled off while it stands still.
@@ -672,7 +776,7 @@ namespace Trickshot
         // as one gesture - but it only opens on the second button's PRESS EDGE, so pressing one,
         // swinging, then pressing the other is still two ordinary leg raises.
         public const float SitWindow    = 0.18f;  // sec the two clicks may be apart and still read as together
-        public const float SitRaiseMax  = 0.5f;   // a leg already this far up is a committed strike - no sit
+        public const float SitRaiseMax  = 0.5f;   // legacy: the sit is now vetoed by a charging SHOT, not a raise (see Striker.UpdateSit)
         public const float SitDrop      = 0.72f;  // m the hips sink to seat height (scaled by build height)
         public const float SitDropEase  = 2.2f;   // m/s the hips sink into, and rise out of, the sit
         public const float SitPoseSpeed = 4f;     // pose blend rate into Sit and back to Stand
@@ -684,7 +788,7 @@ namespace Trickshot
         // The gap between 1.2 and 3.5 is dead ground where neither fires, which is deliberate: a
         // jogging player who mashes both buttons gets nothing rather than a coin flip.
         // LMB+RMB is one combo with TWO outcomes, and the MOVE STICK picks which: pushing forward
-        // slides, pulling back sits. It used to be arbitrated by SPEED instead (sit under 1.2 m/s,
+        // slides, a still stick (or pulled back) sits. It used to be arbitrated by SPEED instead (sit under 1.2 m/s,
         // slide over 3.5), which meant the same intent gave different results depending on how fast he
         // happened to be travelling, and neither was reachable on purpose from a standing start. The
         // deadzone is wide enough that a neutral stick does neither.
@@ -695,8 +799,10 @@ namespace Trickshot
         // A slide COMMITS: releasing the buttons does not cancel it, because a real one cannot be
         // taken back halfway. He rides it out and gets up, and cannot start another until Recover
         // has passed.
-        public const float SlideDuration = 0.85f;   // s committed to the slide before he gets back up
-        public const float SlideLunge    = 6.5f;    // m/s forward push launching the slide
+        // Retuned to slide FARTHER (about 1.6-1.7x the distances measured below): a harder lunge,
+        // a longer commitment so the extra travel plays out, and less braking per frame.
+        public const float SlideDuration = 1.0f;    // s committed to the slide before he gets back up (was 0.85)
+        public const float SlideLunge    = 8.5f;    // m/s forward push launching the slide (was 6.5)
         public const float SlideDrop     = 0.5f;    // m the hips sink (x build height), as SitDrop
         // Horizontal velocity retained per 60 Hz FRAME while down. It is applied per RENDER frame
         // (Striker.Tick is pumped from Update), so it has to be raised to Time.deltaTime*60 or the
@@ -704,25 +810,29 @@ namespace Trickshot
         // 6.5 m/s launch and fixedDeltaTime 0.014: as a raw per-frame multiply it carried 3.34 m at
         // 30 fps, 2.29 m at 60, 1.10 m at 144 and 0.69 m at 240 - a 4.8x spread. Raised to dt*60 the
         // same integration holds 2.24 / 2.29 / 2.31 / 2.32 m across that range.
-        public const float SlideFriction = 0.94f;
+        // (Those figures were taken at 0.94. At 0.955 the same geometric decay keeps about 30% more
+        // of the launch over the slide, before the harder lunge is counted.)
+        public const float SlideFriction = 0.955f;
         public const float SlideRecover  = 0.45f;   // s after standing up before he can slide again
         public const float SlidePoseSpeed = 7f;     // pose blend into Slide: faster than the sit, it is a lunge
         // Ceiling on the TOTAL horizontal launch speed (carried run + SlideLunge). It exists because
         // the slide now runs with LocomotionEnabled false, and with the locomotion servo out of the
-        // way nothing else caps what he arrives with. Measured travel is linear in launch speed at
-        // 0.354 m per m/s (2.30 m from 6.5, 4.72 m from 13.3), so:
-        //     standstill        6.5  -> 2.30 m
-        //     base run    3.8 + 6.5  -> 3.65 m   (under the cap; the cap changes nothing here)
-        //     base sprint 6.8 + 6.5  -> 4.26 m   (capped, from 4.72)
-        //     maxed Pace 19.7 + 6.5  -> 4.26 m   BRAKED to the ceiling, which is why this exists
-        // Pace still buys reach; it cannot buy a slide across a third of the box. Same shape as
+        // way nothing else caps what he arrives with. Measured travel (at the OLD 0.85 s / 0.94
+        // tuning) was linear in launch speed at 0.354 m per m/s (2.30 m from 6.5, 4.72 m from 13.3).
+        // With the retune the same model gives about 0.46 m per m/s - not re-measured - so roughly:
+        //     standstill        8.5  -> ~3.9 m   (was 2.30)
+        //     base run    3.8 + 8.5  -> ~5.7 m   (under the cap)
+        //     base sprint 6.8 + 8.5  -> ~6.5 m   (capped to 14, from 15.3)
+        //     maxed Pace 19.7 + 8.5  -> ~6.5 m   BRAKED to the ceiling, which is why this exists
+        // Pace still buys reach; it cannot buy a slide across half the box. Same shape as
         // SprintSpeedCeiling - a backstop that states the number it guarantees.
-        public const float SlideLaunchMax = 12f;   // m/s
+        public const float SlideLaunchMax = 14f;   // m/s (was 12)
         // The slide hands off to a LIMP phase rather than snapping upright, reusing the diving
         // header's mechanism (DriveScale down, upright/balance/locomotion off, one timer, EndTrick
-        // restores). SlideDuration 0.85 + SlideLimpTime 0.6 = 1.45 s of total commitment, against the
-        // KnockdownTime 1.4 s the man you felled spends down: landing a tackle trades about even on
-        // time, so it is neither a free tempo win nor a punishment for connecting.
+        // restores). SlideDuration 1.0 + SlideLimpTime 0.6 = 1.6 s of total commitment, against the
+        // KnockdownTime 1.4 s the man you felled spends down: the longer slide means the tackler is
+        // now up about 0.2 s AFTER the man he felled - the price of the extra reach, and still no
+        // free tempo win for connecting.
         public const float SlideLimpTime = 0.6f;       // s limp on the deck before he gets up
         public const float SlideLimpMinTime = 0.3f;    // floor: recovery upgrades can't drop below this
         // The same number as DiveDriveScale today, on purpose - the request was "limp like the diving

@@ -228,6 +228,13 @@ namespace Trickshot
             // only write ever: the mesh lives on a child of the head, so local-space verts ride the
             // head rigidly with zero per-tick cost. Simulated hair overwrites this each FixedUpdate.
             WriteVerts(_head.worldToLocalMatrix);        // fills vertices + tangent normals
+            // UPLOAD them here too. WriteVerts only fills the arrays (the per-tick upload lives in
+            // LateUpdate behind _meshDirty), and `triangles` set against an EMPTY vertex buffer is
+            // rejected by Unity outright - which blanked every card on every style: a dynamic
+            // style uploaded its verts a frame later to a mesh with no triangles, and a static
+            // style never dirties the mesh at all, so this is its one and only upload.
+            _mesh.vertices = _vtx;
+            _mesh.normals = _norm;
             _mesh.uv = _uvAtlas;                         // static atlas UV (set once)
             _mesh.uv2 = _uvRootTip;                      // static root->tip factor (set once)
             _mesh.triangles = _tris;
@@ -323,7 +330,6 @@ namespace Trickshot
             // MultiplyPoint3x4, instead of per-node TransformPoint / InverseTransformPoint native
             // calls. The matrices are constant across this body's nodes this tick, so it's exact.
             Matrix4x4 l2w = _head.localToWorldMatrix;
-            Matrix4x4 w2l = _head.worldToLocalMatrix;
 
             // 1) Pin roots to the scalp (they ride the head), Verlet-integrate the rest under
             //    gravity, then spring each free node toward its styled rest so shaped styles hold.
@@ -374,7 +380,25 @@ namespace Trickshot
                 if (m < rad && m > 1e-4f) _pos[i] = centre + d * (rad / m);
             }
 
-            WriteVerts(w2l);
+            // Build the ribbon verts HERE, against the head's PHYSICS pose (the transform is the
+            // rigidbody's own during FixedUpdate), and only UPLOAD them in LateUpdate. Building them
+            // in LateUpdate was wrong: the bones interpolate, so the head transform there is a
+            // render-time blend of two physics poses while the strand positions come from the
+            // physics step itself, and during a fast flip the two disagreed by up to a step's
+            // rotation - the cards visibly stretched and lagged the head. The upload is the cost
+            // worth moving (it ran per physics step under catch-up); the maths is not.
+            WriteVerts(_head.worldToLocalMatrix);
+            _meshDirty = true;
+        }
+
+        bool _meshDirty;
+        void LateUpdate()
+        {
+            // Once per RENDERED frame, whatever the physics step count was.
+            if (!_meshDirty || _mesh == null) return;
+            _meshDirty = false;
+            _mesh.vertices = _vtx;
+            _mesh.normals = _norm;
             _mesh.RecalculateBounds();
         }
 
@@ -424,8 +448,7 @@ namespace Trickshot
                     }
                 }
             }
-            _mesh.vertices = _vtx;
-            _mesh.normals = _norm;
+            // (_vtx/_norm go to the mesh in LateUpdate.)
         }
 
         // A runtime-generated mesh is not freed by destroying the GameObject, and the customize

@@ -21,7 +21,7 @@ namespace Trickshot
         // are the same numbers SimConfig.ApplyMatchStatics resets to, and two hand-copied lists of
         // one set of defaults is how the goal-size leak survived as long as it did.
         const float BaseGoalWidth = SimConfig.GoalWidthBase, BaseGoalHeight = SimConfig.GoalHeightBase;
-        const float BaseServeInterval = 3.5f;
+        // (The cross cadence base moved with its slider - see CrossMap.BaseServeInterval.)
         const float BaseStrikerSpeed = SimConfig.StrikerMoveSpeedBase;
         const float BaseKeeperSpeed = SimConfig.KeeperStrafeSpeedBase;
         static readonly float BaseKeeperJump = SimConfig.KeeperJumpVelBase;
@@ -32,7 +32,8 @@ namespace Trickshot
         // (e.g. pausing to Match Setup mid-match). Resets to defaults only on a new
         // session or the Reset All button.
         static float _goalWidth = 1f, _goalHeight = 1f, _ballSpeed = 1f;
-        static float _crossInterval = 1f, _keeperAbility = 0.5f, _strikerSpeed = 1f;   // striker
+        readonly GoalEditor _goalEditor = new GoalEditor();   // Striker: the goal picture (edits _goalWidth/_goalHeight)
+        static float _keeperAbility = 0.5f, _strikerSpeed = 1f;   // striker
         static float _shotDifficulty = 0.5f, _keeperSpeed = 1f, _keeperJump = 1f;      // keeper
 
         // ---- Challenge-mode raw settings ----
@@ -86,9 +87,13 @@ namespace Trickshot
             if (_mode == GameMode.Match)
                 return 3 + GridRows(Mathf.Max(1, _scrimPerSide), PosPerRow);
 
-            int n = 3; // goal width, goal height, ball velocity (all modes)
-            if (_mode == GameMode.Striker) n += 3;
-            else if (_mode == GameMode.Goalkeeper) n += 3;
+            // Striker has no slider rows at all: its goal size + keeper are the goal picture
+            // (GoalEditor, sized separately in DrawSetup), its shot speed and cross interval live on
+            // the in-match cross map, and its striker speed is fixed. Every other mode: goal width +
+            // height + shot speed.
+            if (_mode == GameMode.Striker) return 0;
+            int n = 3;
+            if (_mode == GameMode.Goalkeeper) n += 3;
             else
             {
                 n += 1; // striker speed
@@ -114,7 +119,8 @@ namespace Trickshot
 
         void DrawSetup()
         {
-            float panelH = HeadH + RowCount() * RowH + FootH;
+            // Striker's panel is taller than its (zero) slider rows say: it holds the goal picture.
+            float panelH = HeadH + RowCount() * RowH + FootH + (_mode == GameMode.Striker ? GoalEditor.ContentH + 8f : 0f);
             float x = MenuScale.Width * 0.5f - PanelW * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.40f, PanelW + 520f);
@@ -149,17 +155,30 @@ namespace Trickshot
                 return;
             }
 
-            // Multiplier sliders with per-slider ranges. Goal/ball apply to every mode.
-            _goalWidth  = Slider(lx, ref row, lw, "Goal width",   _goalWidth,  0.6f, 1.5f, 1f);
-            _goalHeight = Slider(lx, ref row, lw, "Goal height",  _goalHeight, 0.6f, 1.5f, 1f);
-            _ballSpeed  = Slider(lx, ref row, lw, "Ball velocity", _ballSpeed, 0.5f, 2f,   1f);
-
             if (_mode == GameMode.Striker)
             {
-                _crossInterval = Slider(lx, ref row, lw, "Cross interval", _crossInterval, 0.4f, 2f, 1f);
-                _keeperAbility = KeeperPicker(lx, ref row, lw, "Keeper", _keeperAbility);
-                _strikerSpeed  = Slider(lx, ref row, lw, "Striker speed",  _strikerSpeed,  0.5f, 1.8f, 1f);
+                // The goal as a picture you drag to size, with the keeper's difficulty under it -
+                // the identical control the multiplayer host gets (GoalEditor), embedded here. It
+                // edits the same width/height multipliers the sliders did (same 0.6x-1.5x range) and
+                // the same keeper ability, so Reset All and the apply block below are unchanged.
+                // Shot speed + cross interval live on the in-match cross map; striker speed is fixed.
+                float gw = BaseGoalWidth * _goalWidth, gh = BaseGoalHeight * _goalHeight;
+                int lvl = SimConfig.NearestAiLevel(_keeperAbility);
+                _goalEditor.Draw(new Rect(lx, row + 4f, lw, GoalEditor.ContentH), ref gw, ref gh, ref lvl, framed: false);
+                _goalWidth = gw / BaseGoalWidth; _goalHeight = gh / BaseGoalHeight;
+                _keeperAbility = SimConfig.AiLevelAbility[lvl];
+                row += GoalEditor.ContentH + 8f;
             }
+            else
+            {
+                // Multiplier sliders with per-slider ranges. Goal size + shot speed for every mode
+                // but Striker (whose shot speed and cross interval are on the in-match cross map).
+                _goalWidth  = Slider(lx, ref row, lw, "Goal width",   _goalWidth,  0.6f, 1.5f, 1f);
+                _goalHeight = Slider(lx, ref row, lw, "Goal height",  _goalHeight, 0.6f, 1.5f, 1f);
+                _ballSpeed  = Slider(lx, ref row, lw, "Shot speed",   _ballSpeed,  0.5f, 2f,   1f);
+            }
+
+            if (_mode == GameMode.Striker) { }   // its only controls are the goal picture above
             else if (_mode == GameMode.Goalkeeper)
             {
                 _shotDifficulty = Slider(lx, ref row, lw, "Shot difficulty", _shotDifficulty, 0f,   1f, 0.5f);
@@ -379,13 +398,19 @@ namespace Trickshot
 
             SimConfig.GoalWidth  = BaseGoalWidth  * _goalWidth;
             SimConfig.GoalHeight = BaseGoalHeight * _goalHeight;
-            SimConfig.BallSpeedMul = _ballSpeed;
+            // Every mode EXCEPT Striker still dials shot speed here (Striker's lives on the cross
+            // map), matching which modes actually draw the slider in DrawSetup.
+            if (_mode != GameMode.Striker) SimConfig.BallSpeedMul = _ballSpeed;
 
             if (_mode == GameMode.Striker)
             {
-                SimConfig.ServeInterval    = BaseServeInterval * _crossInterval;
+                // Shot speed + cross interval are NOT written here any more: the cross map's Crosser
+                // tab owns them and seeds both statics itself (CrossMap.Apply, called from the
+                // driver's Configure), so writing a stale slider value here would just be overwritten
+                // a moment later - and would silently win for the modes that never open that panel.
+                // Striker speed has no slider in this mode any more: base pace.
                 SimConfig.KeeperAbility    = _keeperAbility;
-                SimConfig.StrikerMoveSpeed = BaseStrikerSpeed * _strikerSpeed;
+                SimConfig.StrikerMoveSpeed = BaseStrikerSpeed;
             }
             else if (_mode == GameMode.Goalkeeper)
             {
@@ -396,7 +421,9 @@ namespace Trickshot
             else
             {
                 SimConfig.StrikerMoveSpeed = BaseStrikerSpeed * _strikerSpeed;
-                SimConfig.ServeInterval    = BaseServeInterval * _crossInterval;
+                // No ServeInterval here: these are dead-ball modes (SetPieceTaker), none of which
+                // build a Crosser, so the cadence this used to write was never read. The only mode
+                // with an auto-crosser is Striker, and its cadence lives on the cross map now.
                 // One keeper slider covers all of these modes (0 = no keeper is built at all).
                 SimConfig.KeeperAbility    = _keeperAbility;
                 SimConfig.AccuracySeconds  = _accuracySeconds;
@@ -507,7 +534,10 @@ namespace Trickshot
         void ResetAll()
         {
             _goalWidth = _goalHeight = _ballSpeed = 1f;
-            _crossInterval = _strikerSpeed = _keeperSpeed = _keeperJump = 1f;
+            _strikerSpeed = _keeperSpeed = _keeperJump = 1f;
+            // The cross panel's settings are static for the same reason these are, so Reset All has
+            // to clear them too or the two halves of "everything back to default" disagree.
+            CrossMap.ResetSession();
             _keeperAbility = _shotDifficulty = 0.5f;
             _accuracySeconds = 90f; _accuracyTargets = 4f;
             _penaltyMode = false; _freeKickDistance = 20f;
