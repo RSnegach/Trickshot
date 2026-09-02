@@ -293,17 +293,43 @@ that each need fixing later.
 and where the worst offenders are, and it produces a visible result early enough to judge the
 approach before committing to eyewear, hats, masks, props and the animals.
 
+## Status (2026-09-02): executed
+
+All four phases are built, rendered and committed. Every one of the 95 items was recaptured after
+its slice landed and reviewed against its before-sheet; the after-sheets live next to the before
+ones. Commits, in order: shared groundwork + human hair and facial hair, human accessories,
+horse (`0923a0e`), elephant, then this verification pass.
+
+What changed against the plan while building it:
+
+- The horse markings and tack, and the elephant tack, are a **Cosmetics pass over the built
+  decor** (`ActiveRagdoll.TryGetDecor` hands back each decor piece's transform and scaled dims)
+  rather than a `DecorVisual` enum on the table. Gated primitive rows for them are gone; the
+  option lists and indices are unchanged.
+- Elephant ears and tusks keep their solid rows as **Hidden colliders** (`DecorSpec.Hidden`), so
+  the hitbox is still the table while the visual is a fan sheet / swept tube. Tusk rows are
+  `GirthDims` chords of one shared arc (`BodyLayout.ElephantTuskArc`), so the whole tusk is
+  outside the skull at every build; the Banded rows and the tack rows were deleted.
+- Elephant ear colour is the hide colour, not the StyleA tint: an ear that is not the colour of
+  the head it grows from reads as a prop. Slot colours are seeded per species on a species change
+  (`SpeciesCosmetics.SeedStyleColors`) so a fresh elephant gets ivory tusks and red tack.
+- Dapples are painted as translucent soft blotches in a lighter shade of the coat; the blaze runs
+  as one strip from the forehead over the muzzle top to between the nostrils.
+
 ## Where things are
 
 | Path | What |
 |---|---|
 | `docs/cosmetics-verdicts.md` | Full per-item plan, all 97 items, with touchpoints and risks |
 | `docs/cosmetics-before/sheets/` | The 95 before-renders, one labelled contact sheet per item |
+| `docs/cosmetics-after/sheets/` | The 95 after-renders, same names, for side-by-side comparison |
+| `Assets/Scripts/Sim/Cosmetics.Horse.cs` / `.HorseDecor.cs` | Mane catalog; painted markings and lofted tack |
+| `Assets/Scripts/Sim/Cosmetics.Elephant.cs` | Fan-sheet ears, swept tusks, head cloth, ankle bands, blanket |
 | `docs/cosmetics-before/sheet.py` | Rebuilds contact sheets from raw gallery PNGs |
-| `Assets/Scripts/Sim/MeshGen.cs` | Geometry toolkit (built, tested, unused) |
-| `Assets/Scripts/Sim/CosmeticMesh.cs` | Downloaded-model mounting (built, tested, unused) |
+| `Assets/Scripts/Sim/MeshGen.cs` | Geometry toolkit (Param, Lathe, Tube, Extrude, Torus, Combine...) |
+| `Assets/Scripts/Sim/CosmeticMesh.cs` | Downloaded-model mounting for the hat models |
 | `Assets/Scripts/DevTools/CosmeticGallery.cs` | Capture harness, editor-only |
-| `Assets/Resources/Cosmetics/_probe/` | 150 staged model files — promote the keepers, delete the rest |
+| `../cosmetics-probe-staging/_probe/` | The 150 candidate model files, moved OUT of the project (Resources ship in builds); the five keepers live in `Models/` |
 | `Assets/Resources/Cosmetics/manifest.json` | id, title, author, license, source URL per model |
 | `Assets/Resources/Cosmetics/LICENSES.md` | Credit list split by CC0 / CC-BY |
 

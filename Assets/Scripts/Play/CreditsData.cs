@@ -8,8 +8,8 @@ namespace Trickshot
     /// The asset lines are sourced from the licence files kept beside each asset
     /// (Resources/*/*-License.txt, Resources/Cosmetics/LICENSES.md). CC-BY entries MUST stay
     /// listed for as long as the asset ships; the CC0 packs are listed as a courtesy, which is
-    /// the norm. The cosmetic candidates under Resources/Cosmetics/_probe are still being
-    /// picked over, so every CC-BY author in that manifest is credited now, grouped by author:
+    /// the norm. Every CC-BY author in the cosmetics manifest is credited, grouped by author,
+    /// whether or not their model was kept (the candidates were staged outside the project):
     /// an unused credit costs nothing, a missing one is a licence breach.
     /// </summary>
     public static class CreditsData
