@@ -21,6 +21,23 @@ namespace Trickshot
         ActiveRagdoll _ragdoll;
         public ActiveRagdoll Ragdoll => _ragdoll;   // so the net match can slot/puppet the crosser body
 
+        /// <summary>
+        /// Swap the body this crosser drives. The networked match rebuilds the crosser body for
+        /// whoever holds the seat (NetStrikerMatch.RebuildCrosserBody). Everything here reads
+        /// _ragdoll live, so nothing else needs re-deriving; a planted (AI) crosser gets the same
+        /// upright / no-locomotion setup Init gives it, and the caller re-plants it.
+        /// </summary>
+        public void SetRagdoll(ActiveRagdoll ragdoll)
+        {
+            _ragdoll = ragdoll;
+            if (_ragdoll != null && Cosmetic)
+            {
+                _ragdoll.UprightLock = true;
+                _ragdoll.LocomotionEnabled = false;
+                _ragdoll.MoveInput = Vector3.zero;
+            }
+        }
+
         float _timer;
         Vector3 _pendingTarget;
         float _pendingTime;
@@ -430,7 +447,11 @@ namespace Trickshot
                 _ball.HoldRollFrictionUntil(_pendingTarget);
                 // KickTo zeroes the spin, which would slide the ball along the turf like a puck.
                 // Same rolling-spin visual a dribble touch uses (Dribble.RollSpin).
-                _ball.Rb.angularVelocity = Vector3.Cross(Vector3.up, dir) * (speed * SimConfig.DribbleSpinScale);
+                // At EXACTLY the rolling rate (v / r), not the dribble's cosmetic 2.2 rad/s per m/s:
+                // under-spun, the turf's friction eats the slip and a solid sphere settles to
+                // (5v + 2rw) / 7 - 15% of the pace gone inside the first metre - so the ball arrived
+                // short of the speed it was solved at. See CrosserControl.Launch for the human's.
+                _ball.Rb.angularVelocity = Vector3.Cross(Vector3.up, dir) * (speed / SimConfig.BallRadius);
             }
             else
             {

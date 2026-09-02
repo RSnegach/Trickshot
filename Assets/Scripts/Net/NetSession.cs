@@ -569,6 +569,25 @@ namespace Trickshot.Net
             return true;
         }
 
+        /// <summary>
+        /// Host: a Clanker in an AI seat takes the crosser seat and the human crossing takes ITS seat -
+        /// a straight swap, so the host picks which shooter seat they land in instead of the lowest
+        /// free one ClearCrosser gives them. Only meaningful while a human crosses (refused
+        /// otherwise: an AI-for-AI swap changes nothing). The crosser AI keeps its own renamable
+        /// name; the swapped Clanker's number simply retires with its seat.
+        /// </summary>
+        public bool AssignCrosserAi(int aiSlot)
+        {
+            if (!IsHost || aiSlot < 0 || aiSlot >= MaxSlots || aiSlot == CrosserSlot) return false;
+            if (_slotOwner[aiSlot].IsValid || !_slotAi[aiSlot] || !SlotAllowed(aiSlot)) return false;
+            var human = _slotOwner[CrosserSlot];
+            if (!human.IsValid) return false;
+            _slotAi[aiSlot] = false;        // the Clanker leaves that seat...
+            _slotAi[CrosserSlot] = true;    // ...and takes the crosser's, before the one roster push
+            ApplySlotRequest(human, aiSlot);
+            return true;
+        }
+
         /// <summary>Host: rename the AI crosser. Sanitised + relayed like any other panel change.</summary>
         public void RenameCrosserAi(string name)
         {

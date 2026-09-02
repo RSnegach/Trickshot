@@ -41,6 +41,30 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   own camera and input, not one of the existing roles. To be fleshed out later — just an idea, not
   being built yet.
 
+- **Non-playing seats: camera operators and referees (besides the sniper).** Two more ways to join
+  a match without kicking a ball, both new `NetRole`s on top of the existing slot-less spectator
+  (`NetRole.Spectator`), each with its own camera and input rather than a body.
+  - **Camera operator.** Joins to film: a free camera plus the framed shot types the replay orbit
+    already has (`GameCamera.BroadcastUpdate`), and their feed is what the replay / a broadcast view
+    shows. Natural feeder for Trickshot Studio (below): an operator's live camera track is a clip.
+  - **Referee.** Calls fouls (tackles and knockdowns already resolve through `MatchGame` /
+    `Knockdown`, so a call is a flag on a contact the sim saw), gives cards — a card is a TIMEOUT
+    (a timed spell off the pitch, sin-bin style) rather than a sending-off — and appoints free kicks
+    and penalties by placing the spot on a version of the cross map (`CrossMap`'s placement UI,
+    re-skinned for a set-piece spot; Match already has free kicks to hand the spot to). EVERY
+    decision goes to a lobby-wide vote: every player votes uphold / overturn, and the roster's
+    jersey vote (`LobbySlot.nominated` / `voteFor`, every peer deriving the same result off its own
+    roster) is the shape to copy for the ballot. Lose three votes in a row and the ref is EJECTED;
+    the match carries on to full time with no ref, as it does today. The incentive is the point:
+    call it straight and the lobby backs you, call it badly and you're out — or the lobby gangs up
+    on a player through the ref's calls, which is also fine. Open: how a ref sees the play (an
+    operator-style free camera, or the broadcast orbit), whether votes are timed, and what a ref
+    does during a vote.
+  - **VAR (later).** A review the ref runs off the replay recorder (`ReplaySystem`, scrub + the orbit
+    camera) before confirming a call, with every player spectating the review as it happens — the
+    same clip on every screen, since each peer already records its own replay window.
+  Not scoped beyond this — just an idea, not being built yet.
+
 - **Career stats, Rocket League-style.** Persistent per-player stats across sessions/modes
   (goals, save %, streak PBs, matches played) rather than only a single match's scoreboard.
   Implies some form of save-file or account-tied persistence that doesn't exist yet.

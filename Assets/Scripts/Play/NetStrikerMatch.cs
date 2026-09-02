@@ -93,8 +93,16 @@ namespace Trickshot
         float _crossNextPublish;
         const float CrossPublishInterval = 0.1f;
         // A crosser reassignment picked on the panel, applied from Update (see DrawCrossOverlay).
-        // -2 = none, -1 = the AI, >= 0 = that slot's human.
+        // -2 = none, -1 = the AI, >= 0 = that slot: a human to move in, or (with _pendingAssignAi) an
+        // AI seat whose Clanker swaps into the crosser seat.
         int _pendingAssign = -2;
+        bool _pendingAssignAi;
+        // The plain AI server's look (the bootstrap's colours), built once and reused across every
+        // hand-back so a seat that changes hands a few times does not leak a material a time.
+        Material _aiCrosserTorso, _aiCrosserLimb;
+        // The replay recorder holds transforms; a body rebuilt while a replay was ROLLING could not
+        // be re-tracked at the time, so it is re-tracked when that replay ends.
+        bool _replayStale;
 
         bool _localIsCrosser;
         bool _localIsKeeper;
@@ -151,14 +159,7 @@ namespace Trickshot
             // that serves, and the only one whose copy is read.
             if (_s.IsHost) { CrossMap.Apply(CrossMap.Session, _crosser); _crosser.Arm(SimConfig.ServeFirstDelay); _ball.ResetTo(_launch.position); }
 
-            // Per-machine replay over this peer's local bodies + ball. Each machine plays
-            // back what IT recorded (host = true physics, clients = their interpolated view).
-            var tracked = new List<Transform> { _ball.transform };
-            var drivers = new List<MonoBehaviour>();
-            for (int i = 0; i < _bodies.Length; i++)
-                if (_bodies[i] != null) ReplaySystem.TrackBody(tracked, drivers, _bodies[i].ragdoll);
-            _replay = gameObject.AddComponent<ReplaySystem>();
-            _replay.Setup(tracked, drivers, SimConfig.ReplayWindow);
+            SetupReplay();
             _s.ReplayStarted += OnReplayStarted;
             _s.ReplayEnded += OnReplayEnded;
             _s.JerseyUpdated += OnJerseyUpdated;
@@ -331,6 +332,71 @@ namespace Trickshot
             _bodies[slot] = b;
         }
 
+        // Per-machine replay over this peer's local bodies + ball. Each machine plays back what IT
+        // recorded (host = true physics, clients = their interpolated view). Re-run whenever a body
+        // is rebuilt (the crosser seat changing hands): the recorder holds transforms, and the new
+        // body would otherwise never appear in a replay.
+        void SetupReplay()
+        {
+            if (_replay == null) _replay = gameObject.AddComponent<ReplaySystem>();
+            else if (_replay.IsPlaying) { _replayStale = true; return; }   // re-track once it ends
+            _replayStale = false;
+            var tracked = new List<Transform> { _ball.transform };
+            var drivers = new List<MonoBehaviour>();
+            for (int i = 0; i < _bodies.Length; i++)
+                if (_bodies[i] != null) ReplaySystem.TrackBody(tracked, drivers, _bodies[i].ragdoll);
+            _replay.Setup(tracked, drivers, SimConfig.ReplayWindow);
+        }
+
+        /// <summary>
+        /// Rebuild the shared crosser body for whoever holds the seat. A HUMAN wears their own
+        /// synced look - species, build, skin, cosmetics and painted kit, exactly as a shooter body
+        /// does in SpawnBody; the AI server is the plain orange body the bootstrap builds. The one
+        /// bootstrap body used to serve everyone, so a human in the seat crossed as an orange
+        /// default. Runs on host and client alike (both hold a body per seat); the caller then fits
+        /// it (FitHumanCrosser / RestoreAiCrosser). The Crosser's own reference, the bubble and the
+        /// replay recorder are re-pointed here; the ball's ignore list is set by the fit.
+        /// </summary>
+        ActiveRagdoll RebuildCrosserBody(int slot, bool human)
+        {
+            var old = _crosser.Ragdoll;
+            // Where the old body stood (the panel's spot at worst), facing the goal.
+            Vector3 pos = CrossMap.Session.spot; pos.y = 0f;
+            Vector3 toGoal = SimConfig.GoalCenter - pos; toGoal.y = 0f;
+            Quaternion facing = toGoal.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(toGoal.normalized, Vector3.up)
+                                                            : Quaternion.identity;
+            if (old != null && old.Pelvis != null) { pos = old.Pelvis.position; pos.y = 0f; facing = old.FacingRotation; }
+
+            Material torso, limb; PlayerAppearance? appr = null;
+            if (human)
+            {
+                var rs = _s.RosterSlot(slot);
+                limb = Make.Mat(rs.appearance.Skin);
+                appr = rs.appearance;
+                var jt = _s.JerseyForSlot(slot);              // a late kit still lands via OnJerseyUpdated
+                torso = jt != null ? Make.MatTex(jt) : _torso;
+            }
+            else
+            {
+                _aiCrosserTorso ??= Make.Mat(new Color(0.85f, 0.5f, 0.2f));
+                _aiCrosserLimb  ??= Make.Mat(new Color(0.65f, 0.38f, 0.15f));
+                torso = _aiCrosserTorso; limb = _aiCrosserLimb;
+            }
+
+            // Deferred Destroy on purpose: the teardown that follows a hand-back (RestoreAiCrosser)
+            // may still read the old body this frame. Never the Crosser's own object.
+            if (old != null && old.gameObject != _crosser.gameObject) Destroy(old.gameObject);
+            var go = new GameObject("Body");
+            go.transform.SetParent(_crosser.transform, false);
+            var rag = go.AddComponent<ActiveRagdoll>();
+            rag.Build(pos, facing, torso, limb, withGloves: false, appearance: appr);
+            _crosser.SetRagdoll(rag);
+            var bub = _crosser.GetComponent<CrosserBubble>();
+            if (bub != null) bub.Init(rag);
+            SetupReplay();
+            return rag;
+        }
+
         // The crosser slot reuses the pre-built _crosser (its ragdoll is already placed on the
         // wing). Host + human -> CrosserControl drives it (AutoServe off). Host + no human ->
         // the AI auto-serve loop (unchanged). Client -> display puppet.
@@ -360,8 +426,16 @@ namespace Trickshot
         /// </summary>
         void FitHumanCrosser(Body b, int slot, bool isLocal, bool hostSim)
         {
-            var ragdoll = b.ragdoll;
             b.wasHuman = true; b.ai = null;
+            // The seat's body becomes THIS player's own look before anything is wired to it.
+            b.ragdoll = RebuildCrosserBody(slot, human: true);
+            var ragdoll = b.ragdoll;
+            if (ragdoll != null && ragdoll.Pelvis != null)
+            {
+                b.targetPos = ragdoll.Pelvis.position; b.targetPos.y = 0f;
+                b.targetYaw = ragdoll.FacingRotation.eulerAngles.y;
+                b.hasLastInterp = false;
+            }
             // Idle, not just AutoServe off: a serve the AI had already telegraphed would otherwise
             // still fire from the new human's feet a moment later. Idle cancels it and drops the
             // reticle.
@@ -551,6 +625,7 @@ namespace Trickshot
             bool localMoved = mySlot >= 0 && mySlot < NetSession.MaxSlots && mySlot != _localSlot;
             if (localMoved) _localSlot = mySlot;
             bool localRebuilt = false;
+            bool crosserRebuilt = false;   // the shared crosser body was replaced: the camera's framing holds it
 
             // 2. Humans who LEFT a seat (left the match, or were moved to another seat).
             for (int i = 0; i < _bodies.Length; i++)
@@ -573,6 +648,10 @@ namespace Trickshot
                 if (b.isCrosser)
                 {
                     b.striker = null; b.netInput = null; b.crosserCtl = null; b.wasHuman = false;
+                    // Back to the plain AI body: the human's look leaves with them.
+                    b.ragdoll = RebuildCrosserBody(i, human: false);
+                    b.hasLastInterp = false;
+                    crosserRebuilt = true;
                     RestoreAiCrosser(b.ragdoll);
                     continue;
                 }
@@ -594,7 +673,7 @@ namespace Trickshot
                 if (b != null && b.wasHuman) continue;        // already a human's body: nothing to do
                 if (i == NetSession.CrosserSlot)
                 {
-                    if (b != null) FitHumanCrosser(b, i, i == _localSlot, _s.IsHost);
+                    if (b != null) { FitHumanCrosser(b, i, i == _localSlot, _s.IsHost); crosserRebuilt = true; }
                 }
                 else
                 {
@@ -607,7 +686,7 @@ namespace Trickshot
 
             // 4. Whoever moved keeps their view: the camera re-targets to my (new) body, and the
             //    role flags the HUD + input routing read follow it.
-            if (localMoved || localRebuilt) AttachCamera();
+            if (localMoved || localRebuilt || crosserRebuilt) AttachCamera();
 
             SyncKeeperVisibility();
         }
@@ -781,7 +860,7 @@ namespace Trickshot
             // A reassignment is DEFERRED to Update. This runs inside OnGUI, and on the host the
             // session applies the move synchronously - roster push, RosterChanged, bodies destroyed
             // and built, the camera re-targeted - none of which belongs inside an IMGUI event pass.
-            if (res.assignCrosser != -2) _pendingAssign = res.assignCrosser;
+            if (res.assignCrosser != -2) { _pendingAssign = res.assignCrosser; _pendingAssignAi = res.assignAi; }
         }
 
         /// <summary>
@@ -802,19 +881,32 @@ namespace Trickshot
         // (PassAccuracyMul 1..1.85 -> 0..1), so a human cross scatters like a pass does.
         static float LocalPassAcc() => Mathf.Clamp01((PlayerProfile.PassAccuracyMul - 1f) / 0.85f);
 
-        // Humans the host could hand the crosser seat to: everyone holding a slot - the host
-        // included - except whoever is already crossing. Mid-match too: the session moves the
-        // player and OnRosterChanged rebuilds the bodies + camera around the move.
+        // Who the host could hand the crosser seat to, off the roster (rebuilt on the host by every
+        // push, so it is never stale here): every human holding a seat except whoever is crossing -
+        // the host included, and ALONE included, because a host who handed the seat to the AI has to
+        // be able to take it back - plus, while a HUMAN crosses, every AI seat: picking a Clanker
+        // swaps it into the crosser seat and the human into its seat (NetSession.AssignCrosserAi).
+        // While the AI crosses the AI seats are not offered; an AI-for-AI swap changes nothing.
+        // Mid-match too: the session moves the player and OnRosterChanged rebuilds bodies + camera.
         //
+        // (Superseded note, kept for the history of the greyed button it caused:)
         // NONE while the host is the only human: the one name would be the host's own, and a crosser
         // with nobody in the box to cross to is not a choice worth offering. The AI is not on this
         // list (it is the dropdown's own first row), so a lone host can still hand the seat to it.
-        List<(int slot, string name)> CrosserCandidates()
+        List<(int slot, string name, bool ai)> CrosserCandidates()
         {
-            if (_s.PlayerCount <= 1) return new List<(int, string)>();
-            var all = _s.HumanSlots();
-            all.RemoveAll(h => h.slot == NetSession.CrosserSlot);
-            return all;
+            var list = new List<(int, string, bool)>();
+            var roster = _s.Roster;
+            if (roster == null) return list;
+            bool humanCrosser = _s.RosterSlot(NetSession.CrosserSlot).human;
+            for (int i = 0; i < roster.Length; i++)
+            {
+                var r = roster[i];
+                if (r.slot == NetSession.CrosserSlot) continue;
+                if (r.human) list.Add((r.slot, r.name, false));
+                else if (r.ai && humanCrosser) list.Add((r.slot, r.name, true));
+            }
+            return list;
         }
 
         // A clickable radial emote menu (B). Clicking a slice records the pick on the input
@@ -872,6 +964,7 @@ namespace Trickshot
         // Replay end (host tallied all skips, or buffer finished): resume + re-arm serving.
         void OnReplayEnded()
         {
+            if (_replayStale) SetupReplay();   // a body was rebuilt while this replay rolled
             if (!_replaying) return;
             _replaying = false;
             if (_replay != null) _replay.Stop();
@@ -980,8 +1073,10 @@ namespace Trickshot
             // A crosser reassignment picked on the panel (host only; the session refuses the rest).
             if (_pendingAssign != -2)
             {
-                int pick = _pendingAssign; _pendingAssign = -2;
+                int pick = _pendingAssign; bool ai = _pendingAssignAi;
+                _pendingAssign = -2; _pendingAssignAi = false;
                 if (pick == -1) _s.ClearCrosser();
+                else if (ai) _s.AssignCrosserAi(pick);
                 else _s.AssignCrosser(pick);
             }
 

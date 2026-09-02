@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/NetSession.cs": {
-    "mtime": 1788330675.8662996,
-    "seen": 1788330798.9511728,
-    "ast_hash": "f69d365dfd27d031ff6a03bd265faf6f",
+    "mtime": 1788337401.4888978,
+    "seen": 1788337439.0205367,
+    "ast_hash": "afb1fa8c4c1887f52d3bfa956e190ffa",
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/ReliableChannel.cs": {
@@ -102,9 +102,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/BallController.cs": {
-    "mtime": 1788333355.2879422,
-    "seen": 1788333527.6375785,
-    "ast_hash": "79d78b5574d6552a67f4e51c6276b63f",
+    "mtime": 1788336573.388979,
+    "seen": 1788336589.956261,
+    "ast_hash": "8a35f83774683ed56ccfde994eb45fc6",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Celebration.cs": {
@@ -114,21 +114,21 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/CrossMap.cs": {
-    "mtime": 1788324407.6982262,
-    "seen": 1788328305.9311132,
-    "ast_hash": "da7e3853d16e523c69858b51a7b12118",
+    "mtime": 1788337401.4822948,
+    "seen": 1788337439.0205367,
+    "ast_hash": "3babdc76e1f785a813fb871fc64e07f3",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Crosser.cs": {
-    "mtime": 1788328040.9837065,
-    "seen": 1788328305.9311132,
-    "ast_hash": "ca34eefe5fd5fbcb5ae2e8fab472e828",
+    "mtime": 1788336573.383405,
+    "seen": 1788336589.956261,
+    "ast_hash": "c2bd3018244c21f261ac6865eb29a69f",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/CrosserControl.cs": {
-    "mtime": 1788333355.2942808,
-    "seen": 1788333527.6375785,
-    "ast_hash": "57849bc876b7909f9469a9bc47c22e08",
+    "mtime": 1788337401.4792519,
+    "seen": 1788337439.0205367,
+    "ast_hash": "a0579068efc6957fcbb0a28a3ce016e4",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Crowd.cs": {
@@ -348,9 +348,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetStrikerMatch.cs": {
-    "mtime": 1788334665.1755097,
-    "seen": 1788334690.9216704,
-    "ast_hash": "fabcaee6371f6623bbde9c1227582fc6",
+    "mtime": 1788337401.486882,
+    "seen": 1788337439.0205367,
+    "ast_hash": "607f6adfcb75b08afc649134acc28800",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/OptionsMenu.cs": {
@@ -402,9 +402,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/SetPieceTaker.cs": {
-    "mtime": 1788327868.7271755,
-    "seen": 1788328305.9311132,
-    "ast_hash": "527d5ab150a693598fb087a18bc658d2",
+    "mtime": 1788337401.4782522,
+    "seen": 1788337439.0205367,
+    "ast_hash": "ac602eab7ee9863a510ca0950ec13c8c",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/ShotServer.cs": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
-    "mtime": 1788330417.1457422,
-    "seen": 1788330798.9511728,
-    "ast_hash": "5000811246f0365f89f0b0de4f53a9e6",
+    "mtime": 1788336573.383405,
+    "seen": 1788336589.956261,
+    "ast_hash": "ba5b7bc3177b1a943a80292a4d1b64a3",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/Make.cs": {
@@ -516,9 +516,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/SimConfig.cs": {
-    "mtime": 1788334665.1793697,
-    "seen": 1788334690.9216704,
-    "ast_hash": "2737297d03fc2c4b29ecd9c844b1748c",
+    "mtime": 1788337401.4757016,
+    "seen": 1788337439.0205367,
+    "ast_hash": "b74e9545c3f80482ee053e7f344e1ba4",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/SkillTree.cs": {
@@ -1125,12 +1125,6 @@
     "mtime": 1788289638.5340989,
     "seen": 1788289682.8400986,
     "ast_hash": "2ccb6dc909b2a42b6d764a0617b60da9",
-    "semantic_hash": ""
-  },
-  ".cline/mcp.json": {
-    "mtime": 1788227472.1547368,
-    "seen": 1788288953.1075418,
-    "ast_hash": "293297f6dc58bf4eeae8e535ff3a8d8d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/Playlist.cs": {

@@ -278,8 +278,8 @@ namespace Trickshot
         // The power meter fills ONCE and holds at the top (no ping-pong, no overcharge). It fills
         // slower for a better passer - more time to pick the distance - from the zero-passing rate
         // to the full-passing rate (Maestro counts as full).
-        public const float CrossMeterRateLow  = 1.3f;   // bar/s at zero passing: full in ~0.8 s
-        public const float CrossMeterRateHigh = 0.55f;  // bar/s at full passing: full in ~1.8 s
+        public const float CrossMeterRateLow  = 0.55f;  // bar/s at zero passing: full in ~1.8 s (the old full-passing rate)
+        public const float CrossMeterRateHigh = 0.344f; // bar/s at full passing: full in ~2.9 s (was 0.275; +25%)
         // W drives the ball down. Its charge (0..1) scales the loft toward the flat drive and, from
         // this fraction of full, the ball is played along the turf instead: a rolled ball at
         // CrossGroundPace, frictionless until past the spot (BallController.HoldRollFrictionUntil).
@@ -306,7 +306,7 @@ namespace Trickshot
         // sane rather than an edge case. Matches the shot mechanic's "aim = where you look, charge =
         // power" so the two deliveries feel like the same game.
         public const float CrossAimNearReach = 8f;    // metres the ray travels from his feet at a tap
-        public const float CrossAimFarReach  = 100f;  // ...and at a full hold: nearly a full-size pitch (105 m)
+        public const float CrossAimFarReach  = 80f;   // ...and at a full hold (was 100: max power cut by 20%)
         // The meter-to-reach curve. Reach is FarReach x meter^Curve, so with the far end pushed out to
         // a whole pitch the bottom of the bar still resolves the 10-25 m ball the striker arena
         // actually asks for: at 1.5, 15 m sits at 0.28 of the bar and 50 m at 0.63, against 0.15 and
@@ -329,6 +329,24 @@ namespace Trickshot
         // crosser's right and back, spinning counterclockwise seen from above; A the mirror. A touch
         // more than the free kick's ~6-7 m/s out-speed at typical stats.
         public const float CrossCurlOutSpeed  = 8f;
+        // Passing skill widens the bend: the out-speed above is the ZERO-passing curl, and a full
+        // passer gets this much more of it on top (1 = double). Botch and scatter are unchanged.
+        public const float CrossCurlSkillGain = 1f;
+        // The HUMAN's Ground cross is played firmer than the AI's serve (CrossGroundPace 2.2) and is
+        // not held under BallRollSpeed: a delivered ball is flagged so rolling resistance takes it
+        // past its spot at ANY speed (BallController.HoldRollFrictionUntil), so it can be driven
+        // hard and still come to a stop like any loose ball. 3.2 puts a 10 m ball at ~10 m/s and a
+        // 20 m ball at ~14; the ceiling is a hard-struck pass, well under the shot ceiling (26).
+        public const float CrossGroundPaceHuman = 3.52f;  // 3.2 x 1.1: ground balls travel 10% faster, every passer
+        public const float CrossGroundMaxSpeed  = 19.8f;  // 18 x 1.1, the same 10%
+        // The crosser's A/D curl axis charges this much faster than the free kick's WASD spin
+        // (SetPieceSpinChargeRate). Rate only: the full point and the over-hold botch window
+        // (SetPieceSpinOverTime, widened by accuracy) are exactly where they were.
+        public const float CrossCurlChargeMul = 1.2f;
+        // Triple-tap shortcuts while charging a cross (SetPieceTaker.TripleTaps): three presses of
+        // the same key inside this many seconds of each other. W W W = a ground ball at once,
+        // D D D / A A A = that side's curl maxed at once.
+        public const float CrossTripleTapWindow = 0.4f;
         public const float CrossGroundCurlMul = 0.5f;   // a rolled ball bends this fraction as much
         public const float CrossCurlSpinVis   = 18f;    // cosmetic angular velocity (rad/s) at a full curl
         // Human crosser: pressing R drops a fresh ball at their feet, but only if the current ball

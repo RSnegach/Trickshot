@@ -627,15 +627,22 @@ namespace Trickshot
         Vector3 _rollHoldPoint;
         Vector3 _rollHoldDir;     // flat, normalized
         float _rollHoldTimeout;   // safety: never hold longer than this (see RollFrictionHeld)
+        // A delivered ground ball that has reached (or timed out short of) its spot. Rolling
+        // resistance then applies at ANY speed - the BallRollSpeed gate below exists to keep a
+        // fresh STRIKE undamped, and a delivery past its spot is not one - so a ground cross can be
+        // played harder than a loose ball ever rolls and still come to a stop. Cleared with the hold.
+        bool _rollDelivered;
 
         /// <summary>
         /// Suspend rolling friction until the ball passes `target`. Called by a delivery that solved
         /// its own launch speed to land the ball on a spot (the crosser's Ground cross), so the roll
-        /// out to that spot keeps the pace it was struck with.
+        /// out to that spot keeps the pace it was struck with. `seconds` bounds the hold (never under
+        /// the 6 s default). Past the spot the ball is a loose ball at any pace (see _rollDelivered).
         /// </summary>
-        public void HoldRollFrictionUntil(Vector3 target)
+        public void HoldRollFrictionUntil(Vector3 target, float seconds = 6f)
         {
             Vector3 flat = target - Rb.position; flat.y = 0f;
+            _rollDelivered = false;
             if (flat.sqrMagnitude < 1e-6f) { _rollHoldActive = false; return; }
             _rollHoldActive = true;
             _rollHoldPoint = target;
@@ -643,21 +650,22 @@ namespace Trickshot
             // Bounded so a ball that never gets there (blocked, deflected, trapped against a body)
             // cannot stay frictionless for the rest of the round. Generous: it only has to cover the
             // distance it was aimed at, and any real contact clears the hold outright (see ClearRollHold).
-            _rollHoldTimeout = Time.time + 6f;
+            _rollHoldTimeout = Time.time + Mathf.Max(6f, seconds);
         }
 
         /// <summary>Drop the hold: the ball was struck / touched / reset, so the delivery is over.</summary>
-        void ClearRollHold() => _rollHoldActive = false;
+        void ClearRollHold() { _rollHoldActive = false; _rollDelivered = false; }
 
         // Is friction still suspended? True only while the ball is short of the target plane, has
         // not timed out, and is still travelling roughly the way it was sent (a deflection that
-        // turns it around ends the delivery).
+        // turns it around ends the delivery). Reaching the spot, or running out the clock on the
+        // way, marks the ball DELIVERED so the roll past it is damped whatever its pace.
         bool RollFrictionHeld()
         {
             if (!_rollHoldActive) return false;
-            if (Time.time > _rollHoldTimeout) { _rollHoldActive = false; return false; }
+            if (Time.time > _rollHoldTimeout) { _rollHoldActive = false; _rollDelivered = true; return false; }
             Vector3 toTarget = _rollHoldPoint - Rb.position; toTarget.y = 0f;
-            if (Vector3.Dot(toTarget, _rollHoldDir) <= 0f) { _rollHoldActive = false; return false; }  // past it
+            if (Vector3.Dot(toTarget, _rollHoldDir) <= 0f) { _rollHoldActive = false; _rollDelivered = true; return false; }  // past it
             Vector3 v = Rb.linearVelocity; v.y = 0f;
             if (Vector3.Dot(v, _rollHoldDir) <= 0f) { _rollHoldActive = false; return false; }         // turned back
             return true;
@@ -680,7 +688,9 @@ namespace Trickshot
 
             Vector3 flat = new Vector3(v.x, 0f, v.z);
             float speed = flat.magnitude;
-            if (speed > SimConfig.BallRollSpeed) return;
+            // The loose-ball speed gate keeps a fresh strike undamped; a ground cross past its spot
+            // is flagged delivered and is damped at any pace, so it stops like any other roll.
+            if (speed > SimConfig.BallRollSpeed && !_rollDelivered) return;
 
             // Kill the last of it rather than letting the ball creep for seconds. Vertical is left
             // alone so a settling ball still sinks onto the turf normally.

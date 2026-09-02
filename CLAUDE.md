@@ -8,6 +8,28 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 
+## Project notes
+
+Workflow
+- Compile check without the editor: the open editor holds `Temp/UnityLockfile`, so batchmode is out. `dotnet <sdk>/Roslyn/bincore/csc.dll -target:library -langversion:9.0 -recurse:Assets/Scripts/*.cs` referencing every `Editor/Data/Managed/UnityEngine/UnityEngine*.dll`, `Editor/Data/NetStandard/ref/2.1.0/netstandard.dll` and `Library/ScriptAssemblies/Unity.InputSystem.dll` builds the whole runtime assembly (Unity 6000.4.1f1 under `C:/Program Files/Unity/Hub/Editor`). Steam code is behind `TRICKSHOT_STEAM`, so no Steamworks reference is needed.
+- Scripts are CRLF (`core.autocrlf=true`); keep them CRLF when writing files programmatically.
+- "Add to ideas" means a bullet under `## Ideas so far` in `DESIGN_NOTES.md`, ending with its "just an idea, not being built yet" line. Record it; don't build it.
+
+Networking
+- `BodyState` snapshot records are fixed-stride with no per-record length, so any per-body wire field forces a `NetCodec.ProtocolVersion` bump (v7 added `erect`). Fields appended AFTER the body loop (e.g. `guided`) are read with `r.More` and need no bump. `InputFrame`'s trailing `bits2` byte is the extension point for new held buttons (bit 4 = thirdLeg).
+- A held input bit must be written onto the body every tick (not on edges): the host re-feeds a quiet client's last frame forever, so only a level write lets a release land.
+
+Ragdoll / cosmetics
+- `Bone` is a fixed 13-slot enum shared by every body plan; ~47 `Bone.Count` loops (balance, mass, poses, gait, emotes, replay) assume every slot is body mass. Optional parts (hair, the adult appendage) are Verlet cosmetics parented to a bone, not bones.
+- `ActiveRagdoll.IsGrounded` is a pelvis sphere-cast: it reads grounded before touchdown and flickers for a few frames while a landed body settles. Gate air-only input on jump/landing edges (see Striker's `_wheelArmed` / `_airHold`), never on the raw flag.
+- The adult hitbox is a compound `CapsuleCollider` under the pelvis rigidbody, adopted via `ActiveRagdoll.RegisterExtraCollider`; self-collision ignores are re-applied on every enable (`IgnoreOwnCollisionsWith`) because PhysX refuses `IgnoreCollision` on a disabled collider. `BoneOf` returns null for it by design; the ball resolves it through `AnatomySim.IsHitbox`.
+- `HairSim` uploads mesh vertices in `LateUpdate` behind `_meshDirty`; `Build` must upload vertices BEFORE assigning triangles or Unity rejects the triangles and every card is invisible (static styles never dirty the mesh at all).
+- Replays (`ReplaySystem`) record position, rotation AND local scale; `ReplaySystem.TrackBody` adds a body's bones plus its `AnatomySim` pieces and pauses that sim as a driver. Re-run `Setup` after any tracked body is rebuilt.
+
+Striker-mode crosser (MP)
+- The crosser body is a child `Body` object of the `Crosser` and is rebuilt per seat holder by `NetStrikerMatch.RebuildCrosserBody` (a human's roster look, or the orange AI); `Crosser.SetRagdoll` re-points the driver. Single-player's `BuildStrikerMode` still puts the ragdoll on the Crosser object itself, so never destroy `Crosser.Ragdoll.gameObject` without checking it is not the Crosser's own.
+- The host's crosser dropdown reads the roster (humans always, AI seats while a human crosses; an AI pick is `NetSession.AssignCrosserAi`, a seat swap). The open list is modal and opens downward: IMGUI gives an overlapping click to the first-drawn control, which is how the AI sliders once ate every pick.
+
 ## Session Clearing Protocol
 
 Trigger phrases (from the user, in any phrasing): "about to clear", "clearing", "I'm going to clear", "clear soon", or any other indication the user is about to clear/reset the Claude Code conversation.

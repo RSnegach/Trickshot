@@ -844,7 +844,13 @@ namespace Trickshot
         {
             var crosserGo = new GameObject("Crosser");
             crosserGo.transform.SetParent(root, true);
-            crosserRagdoll = crosserGo.AddComponent<ActiveRagdoll>();
+            // The BODY is a child object, not the Crosser's own: the networked match rebuilds it for
+            // whoever holds the seat - a human's own look, or this plain AI server - and destroys
+            // the old one (NetStrikerMatch.RebuildCrosserBody), which it could not do to the object
+            // the Crosser, its launch point and its bubble live on.
+            var bodyGo = new GameObject("Body");
+            bodyGo.transform.SetParent(crosserGo.transform, false);
+            crosserRagdoll = bodyGo.AddComponent<ActiveRagdoll>();
             Vector3 toGoalFlat = SimConfig.GoalCenter - SimConfig.CrosserStart; toGoalFlat.y = 0f;
             var crosserFacing = Quaternion.LookRotation(toGoalFlat.normalized, Vector3.up);
             crosserRagdoll.Build(SimConfig.CrosserStart, crosserFacing,

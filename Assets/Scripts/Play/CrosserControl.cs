@@ -196,7 +196,8 @@ namespace Trickshot
                          launch: Launch,
                          dualAxisSpin: true,              // A/D and W/S stack
                          meterRate: _meterRate,           // slower for a better passer
-                         meterHoldAtMax: true);           // fills once, sits at the top
+                         meterHoldAtMax: true,            // fills once, sits at the top
+                         curlChargeMul: SimConfig.CrossCurlChargeMul);   // A/D fills quicker; same botch window
         }
 
         void ExitStance()
@@ -252,7 +253,8 @@ namespace Trickshot
             // return acceleration of -2w/T bends it back so the net sideways drift over the flight is
             // zero (wT - wT) - more curve never means wider, it still lands on the spot.
             float side = curl > 0f ? 1f : curl < 0f ? -1f : 0f;
-            float outSpeed = SimConfig.CrossCurlOutSpeed * Mathf.Abs(curl);
+            // The bend grows with passing: the base out-speed at zero, CrossCurlSkillGain more at full.
+            float outSpeed = SimConfig.CrossCurlOutSpeed * (1f + SimConfig.CrossCurlSkillGain * Acc01) * Mathf.Abs(curl);
 
             // Pitch: W (+) drives it down, S (-) floats it.
             float w = Mathf.Max(0f, pitch), s = Mathf.Max(0f, -pitch);
@@ -261,8 +263,11 @@ namespace Trickshot
             {
                 // Rolled: a flat pace for the distance (Crosser.GroundRollSpeed's shape, without the
                 // AI's "Cross speed" slider), frictionless until past the spot. The roll bends less.
-                float speed = Mathf.Clamp(SimConfig.CrossGroundPace * Mathf.Sqrt(reach),
-                                          SimConfig.CrossGroundMinSpeed, SimConfig.BallRollSpeed - 0.01f);
+                // Firmer than the AI's serve and NOT capped under BallRollSpeed: the ball is flagged
+                // as a delivery, so rolling resistance still stops it past the spot whatever its pace
+                // (see CrossGroundPaceHuman / BallController.HoldRollFrictionUntil).
+                float speed = Mathf.Clamp(SimConfig.CrossGroundPaceHuman * Mathf.Sqrt(reach),
+                                          SimConfig.CrossGroundMinSpeed, SimConfig.CrossGroundMaxSpeed);
                 float outG = outSpeed * SimConfig.CrossGroundCurlMul;
                 f.tof = reach / speed;
                 f.v0 = flatDir * speed + right * (side * outG);
@@ -330,11 +335,17 @@ namespace Trickshot
                 // The taker has just put the ball on the spot (on the turf). Straight KickTo, then the
                 // hold and the curl - AFTER it, since KickTo clears both.
                 _ball.KickTo(f.v0);
-                _ball.HoldRollFrictionUntil(f.target);
+                // Frictionless out to the spot, held long enough to actually get there (the default
+                // 6 s covered the AI's short serves, not an 80 m ball). Past it the ball is a loose
+                // ball again and rolling resistance brings it to a stop, at any pace.
+                _ball.HoldRollFrictionUntil(f.target, f.tof * 1.5f + 1f);
                 if (side != 0f) _ball.SetCurl(f.accel, f.tof);
-                // KickTo zeroes the spin, which would slide the ball like a puck: the same rolling
-                // visual a dribble touch and the AI's rolled cross use.
-                _ball.Rb.angularVelocity = Vector3.Cross(Vector3.up, f.flatDir) * (f.v0.magnitude * SimConfig.DribbleSpinScale);
+                // KickTo zeroes the spin, which would slide the ball like a puck. Spin it at EXACTLY
+                // the rolling rate (v / r), not the dribble's cosmetic 2.2 rad/s per m/s: under-spun,
+                // the turf's friction ate the slip - a solid sphere settles to (5v + 2rw) / 7, 15% of
+                // the pace, inside the first metre - so every ground cross arrived short of the speed
+                // it was solved at, and read as friction killing it.
+                _ball.Rb.angularVelocity = Vector3.Cross(Vector3.up, f.flatDir) * (f.v0.magnitude / SimConfig.BallRadius);
             }
             else
             {

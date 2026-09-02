@@ -210,8 +210,10 @@ namespace Trickshot
             /// still hand the seat to the AI (and then plays as a striker), but is not offered
             /// himself - crossing to nobody is not a choice worth listing.</summary>
             public bool dropdownEnabled;
-            /// <summary>Humans that could be given the seat: (slot, name), the host included.</summary>
-            public List<(int slot, string name)> candidates;
+            /// <summary>Everyone the seat could go to: (slot, name, ai). Every human but the one
+            /// crossing, the host included; and, while a HUMAN crosses, every AI seat too - picking a
+            /// Clanker swaps it into the crosser seat and the human into that Clanker's seat.</summary>
+            public List<(int slot, string name, bool ai)> candidates;
             /// <summary>The AI crosser's name, for the "hand it back to the AI" row.</summary>
             public string aiName;
 
@@ -258,6 +260,7 @@ namespace Trickshot
             public bool spotMoved;      // re-plant: caller calls Crosser.SetOrigin
             public bool edited;         // any value changed: caller publishes it
             public int assignCrosser;   // -2 none, -1 hand the seat to the AI, >=0 give it to that slot
+            public bool assignAi;       // with assignCrosser >= 0: that slot is an AI seat (swap the AI in)
             public string rename;       // non-null: the AI's new name
         }
 
@@ -294,11 +297,18 @@ namespace Trickshot
             if (!targetTab && s.edit == 0) s.edit = 1;
             if (!spotTab && s.edit == 1) s.edit = 0;
 
+            // While the host's crosser picker list is OPEN the panel is modal to it: nothing else
+            // takes a click until it closes. The list used to be drawn UPWARD from its row, over
+            // the two AI sliders, and IMGUI hands a mouse-down to the FIRST control drawn under it,
+            // so the slider took every click meant for a name once the AI had the seat. It now opens
+            // DOWNWARD (see DrawCrosserPicker); this keeps the rest of the panel out of it anyway.
+            bool pickerModal = p.isHost && s_pickerOpen;
+
             // The map itself: non-interactive when this viewer may not edit the marker this tab
             // places, so clicks do nothing and the hover reticle is gone. A wash says so at a glance.
             bool canEditThis = s.edit == 0 ? p.canEditTarget : p.canEditSpot;
             var before = s;
-            res.spotMoved = Draw(mapRect, ref s.target, ref s.spot, interactive: canEditThis, editing: s.edit);
+            res.spotMoved = Draw(mapRect, ref s.target, ref s.spot, interactive: canEditThis && !pickerModal, editing: s.edit);
             if (!canEditThis) UITheme.Fill(mapRect, new Color(0.02f, 0.03f, 0.05f, 0.45f));
 
             float y = mapRect.yMax + 30f;
@@ -307,7 +317,7 @@ namespace Trickshot
             if (p.aiControls)
             {
                 bool wasEnabled = GUI.enabled;
-                GUI.enabled = wasEnabled && p.canEditTarget;   // greys the controls AND refuses their clicks
+                GUI.enabled = wasEnabled && p.canEditTarget && !pickerModal;   // greys the controls AND refuses their clicks
 
                 // Delivery: one row, three exclusive options (the codebase has no dropdown widget;
                 // a segmented row is the same single-select and matches the tabs right above).
@@ -412,19 +422,25 @@ namespace Trickshot
 
             if (!s_pickerOpen) return;
 
-            // The open list, drawn UPWARD from the row so it never runs off the bottom of the screen
-            // (the row already sits below the map, near the lower edge). The AI is offered only when
-            // it does NOT already have the seat; every human who does not have it is offered.
+            // The open list, DOWNWARD from the row like any dropdown (upward covered the map and the
+            // AI's sliders), and lifted back up only as far as it needs to stay on screen. Every
+            // human without the seat is offered, and while a human crosses every AI seat is too (a
+            // swap). The bare "hand it to the AI" row is kept for a lobby with a human crossing and
+            // no AI seat at all, since it is then the only way to give the seat back.
             int nCand = p.candidates?.Count ?? 0;
-            int n = (p.humanCrosser ? 1 : 0) + nCand;
+            bool anyAi = false;
+            if (p.candidates != null) foreach (var c in p.candidates) if (c.ai) { anyAi = true; break; }
+            bool bareAiRow = p.humanCrosser && !anyAi;
+            int n = (bareAiRow ? 1 : 0) + nCand;
             if (n == 0) { s_pickerOpen = false; return; }
             const float itemH = 22f;
             float listH = n * itemH;
-            float ly = y - 2f - listH;
+            float ly = y + 26f;
+            if (ly + listH > Hud.H - 8f) ly = Mathf.Max(0f, Hud.H - 8f - listH);
             UITheme.Fill(new Rect(bx - 2f, ly - 2f, bw + 4f, listH + 4f), new Color(0.05f, 0.06f, 0.09f, 0.97f));
 
             int i = 0;
-            if (p.humanCrosser)
+            if (bareAiRow)
             {
                 if (UITheme.Button(new Rect(bx, ly + i * itemH, bw, itemH - 2f), p.aiNameOr(), SmallBtn))
                 { res.assignCrosser = -1; s_pickerOpen = false; }
@@ -434,9 +450,15 @@ namespace Trickshot
                 foreach (var c in p.candidates)
                 {
                     if (UITheme.Button(new Rect(bx, ly + i * itemH, bw, itemH - 2f), c.name, SmallBtn))
-                    { res.assignCrosser = c.slot; s_pickerOpen = false; }
+                    { res.assignCrosser = c.slot; res.assignAi = c.ai; s_pickerOpen = false; }
                     i++;
                 }
+
+            // A press anywhere ELSE closes the list. The rows and the row button above have already
+            // taken their own mouse-down by now, so one still unused is outside them; swallow it so
+            // it cannot reach whatever the list was covering (the panel is modal while it is open).
+            var evt = Event.current;
+            if (evt.type == EventType.MouseDown) { s_pickerOpen = false; evt.Use(); }
         }
 
         // Compact button for the picker rows / rename box. Local rather than added to Hud: it is

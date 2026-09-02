@@ -150,7 +150,8 @@ namespace Trickshot
                           float combinedOverride = -1f, System.Func<Vector3> aimPoint = null,
                           int leftFootedOverride = -1,
                           bool chargeWithLegs = false, System.Action<Commit> launch = null,
-                          bool dualAxisSpin = false, float meterRate = -1f, bool meterHoldAtMax = false)
+                          bool dualAxisSpin = false, float meterRate = -1f, bool meterHoldAtMax = false,
+                          float curlChargeMul = 1f)
         {
             _input = input; _ragdoll = ragdoll; _ball = ball;
             _ballSpot = ballSpot; _goalCenter = goalCenter;
@@ -160,12 +161,14 @@ namespace Trickshot
             _chargeWithLegs = chargeWithLegs;
             _launch = launch;
             _dualAxis = dualAxisSpin;
+            _curlChargeMul = Mathf.Max(0.1f, curlChargeMul);
             _meterRate = meterRate;
             _meterHold = meterHoldAtMax;
             _state = State.Charging;
             _meter = 0f; _meterDir = 1f; _pegTime = 0f;
             _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
             _curlAxis = 0f; _pitchAxis = 0f; _committedCurl = 0f; _committedPitch = 0f;
+            _tapCount = 0; _prevMv = Vector2.zero;
             _spin = BallController.SetPieceSpin.None;
             _leftFooted = leftFootedOverride < 0 ? KickSwing.LocalFoot : leftFootedOverride == 1;
             _hopGrace = 0f;
@@ -351,6 +354,7 @@ namespace Trickshot
                 _meter = 0f; _meterDir = 1f; _pegTime = 0f;
                 _spinDir = 0f; _spinCharge = 0f; _spinOverTime = 0f;
                 _curlAxis = 0f; _pitchAxis = 0f;
+                _tapCount = 0; _prevMv = Vector2.zero;
                 _spin = BallController.SetPieceSpin.None;
                 _spaceHeldTime = 0f; _releaseTime = 0f;
                 return;
@@ -398,14 +402,46 @@ namespace Trickshot
         // starts that axis over. The curl axis over-holds into the botch timer exactly as a single
         // spin does; `_spin`/`_spinCharge` mirror it so the commit reads the same to a caller that
         // only looks at those.
+        // Dual-axis only: how much faster the CURL axis fills than SetPieceSpinChargeRate (the
+        // crosser's CrossCurlChargeMul). The over-hold clock below still counts real seconds, so a
+        // faster fill reaches full sooner and then has exactly the same window before it botches.
+        float _curlChargeMul = 1f;
+
+        // Triple-tap shortcuts (dual-axis only): W W W fills the pitch axis to full W at once - a
+        // ground ball - and D D D / A A A fill that side's curl at once. A tap is a press edge on
+        // the axis, and three on the same key inside CrossTripleTapWindow of each other fire it.
+        // The curl's over-hold clock is reset with it, so the shortcut never lands on a botch.
+        Vector2 _prevMv;
+        int _tapKey;        // 1 = D, -1 = A, 2 = W
+        int _tapCount;
+        float _tapLast;
+
+        void TripleTaps(Vector2 mv)
+        {
+            int key = 0;
+            if (mv.x > 0.3f && _prevMv.x <= 0.3f) key = 1;
+            else if (mv.x < -0.3f && _prevMv.x >= -0.3f) key = -1;
+            else if (mv.y > 0.3f && _prevMv.y <= 0.3f) key = 2;
+            _prevMv = mv;
+            if (key == 0) return;
+            float now = Time.time;
+            if (key != _tapKey || now - _tapLast > SimConfig.CrossTripleTapWindow) _tapCount = 0;
+            _tapKey = key; _tapLast = now; _tapCount++;
+            if (_tapCount < 3) return;
+            _tapCount = 0;
+            if (key == 2) _pitchAxis = 1f;
+            else { _curlAxis = key; _spinOverTime = 0f; }
+        }
+
         void TickDualAxis(Vector2 mv)
         {
+            TripleTaps(mv);
             float dt = Time.deltaTime * SimConfig.SetPieceSpinChargeRate;
             if (Mathf.Abs(mv.x) > 0.3f)
             {
                 float s = Mathf.Sign(mv.x);
                 if (_curlAxis != 0f && Mathf.Sign(_curlAxis) != s) { _curlAxis = 0f; _spinOverTime = 0f; }
-                float mag = Mathf.Abs(_curlAxis) + dt;
+                float mag = Mathf.Abs(_curlAxis) + dt * _curlChargeMul;
                 if (mag >= 1f) { mag = 1f; _spinOverTime += Time.deltaTime; }
                 _curlAxis = s * mag;
             }
