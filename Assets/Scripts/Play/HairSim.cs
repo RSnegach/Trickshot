@@ -39,8 +39,9 @@ namespace Trickshot
         //   FrontHairline - a band just behind the front hairline (bangs that sweep down)
         //   TieCluster    - a 2 cm disc about def.tieDir (a ponytail's tie)
         //   Explicit      - def.roots / def.dirs supplied by the caller (crest cards on a fin)
+        //   Path          - roots scattered along def.rootPath (a horse's neck crest, a tail dock)
         public enum RootMode { Crown, SidesBack, BackCluster, Strip, Ring, TopSidesBack, FrontSweep,
-                               Hairline, FrontHairline, TieCluster, Explicit }
+                               Hairline, FrontHairline, TieCluster, Explicit, Path }
 
         // Which strand atlas a style's cards sample. Long is Resources/Hair/HairAtlas.png (four
         // full-height strands, the drape styles); Tuft is Resources/Hair/TuftAtlas.png (four
@@ -85,6 +86,14 @@ namespace Trickshot
             public float growthClampDot;
             public Vector3[] roots;              // Explicit: head-local root positions (already scaled)
             public Vector3[] dirs;               // Explicit: per-root growth directions
+            // Path mode: a polyline in the ANCHOR's frame (already scaled) with per-point surface
+            // normals; roots are spread laterally by rootSpread with a side bias (-1..1, 0 straddles
+            // the ridge, 0.6 puts every root on the +side). A 1-point path is a disc.
+            public Vector3[] rootPath;
+            public Vector3[] rootNormals;
+            public float rootSpread;
+            public float rootSideBias;
+            public bool splitSides;              // odd strands mirror flow.x and fall to the other side
         }
 
         // Vertical strips in Resources/Hair/HairAtlas.png (detected from the source art: 4 hair
@@ -146,6 +155,9 @@ namespace Trickshot
         float _stiffness;
         float _hugMax;
         float _bundle;
+        // Extra collision capsules (a horse's neck), each in the frame of a transform.
+        readonly System.Collections.Generic.List<(Transform space, Vector3 a, Vector3 b, float r)> _capsules = new System.Collections.Generic.List<(Transform, Vector3, Vector3, float)>();
+        Vector3[] _rootOutward;         // Path mode: per-strand outward direction at the root (for card facing)
         Vector2[] _bundleOff;           // per-strand offset from the bundle centroid (metres, in a frame ⟂ to the tail)
 
         // Deterministic per-instance RNG (Random.* is banned in some hosts; tiny LCG seeded from def).
@@ -165,6 +177,10 @@ namespace Trickshot
         /// radius times the body's girth, which is what every human body wants. A horse skull is 0.15
         /// where a human's is 0.19, so leaving it derived would float every root 0.05 m off the head.
         /// </param>
+        /// <summary>Register a collision capsule (segment a-b, radius r) in <paramref name="space"/>'s
+        /// frame. Nodes are pushed out of it after the head-sphere pass. Call before Build.</summary>
+        public void AddCapsule(Transform space, Vector3 a, Vector3 b, float r) => _capsules.Add((space, a, b, r));
+
         public void Build(Transform head, in HairDef def, Material mat, float headRadius = 0f)
         {
             _head = head;
@@ -249,6 +265,40 @@ namespace Trickshot
                     rootDir = rootPos.sqrMagnitude > 1e-8f ? rootPos.normalized : Vector3.up;
                     Vector3 gd = def.dirs != null && s < def.dirs.Length ? def.dirs[s] : flow;
                     growth = gd.sqrMagnitude > 1e-6f ? gd.normalized : flow;
+                }
+                else if (def.root == RootMode.Path && def.rootPath != null && def.rootPath.Length > 0)
+                {
+                    // Along the polyline at t, spread sideways off the ridge.
+                    int np = def.rootPath.Length;
+                    float tt = t * (np - 1);
+                    int k = Mathf.Clamp(Mathf.FloorToInt(tt), 0, Mathf.Max(np - 2, 0));
+                    float f = np > 1 ? tt - k : 0f;
+                    Vector3 p = np > 1 ? Vector3.Lerp(def.rootPath[k], def.rootPath[k + 1], f) : def.rootPath[0];
+                    Vector3 nrm = def.rootNormals != null && def.rootNormals.Length == np
+                                ? (np > 1 ? Vector3.Slerp(def.rootNormals[k], def.rootNormals[k + 1], f) : def.rootNormals[0]).normalized
+                                : Vector3.up;
+                    Vector3 tangent = np > 1 ? (def.rootPath[Mathf.Min(k + 1, np - 1)] - def.rootPath[Mathf.Max(k - 1, 0)]).normalized : Vector3.forward;
+                    Vector3 lat = Vector3.Cross(tangent, nrm);
+                    if (lat.sqrMagnitude < 1e-6f) lat = Vector3.Cross(nrm, Vector3.forward);
+                    lat.Normalize();
+                    float bias = def.rootSideBias;
+                    float lateral = def.rootSpread * (bias + RandSym() * (1f - Mathf.Abs(bias)));
+                    Vector3 flowS = flow;
+                    if (def.splitSides && (s & 1) == 1) { lateral = -Mathf.Abs(lateral); flowS = new Vector3(-flow.x, flow.y, flow.z); }
+                    else if (def.splitSides) lateral = Mathf.Abs(lateral);
+                    if (np == 1)
+                    {
+                        // A disc about the point: scatter in the plane perpendicular to the normal.
+                        Vector3 b2 = Vector3.Cross(nrm, lat);
+                        float ang = Rand01() * Mathf.PI * 2f, rad = def.rootSpread * Mathf.Sqrt(Rand01());
+                        rootPos = p + (lat * Mathf.Cos(ang) + b2 * Mathf.Sin(ang)) * rad + nrm * 0.004f;
+                    }
+                    else rootPos = p + lat * lateral + nrm * 0.004f;
+                    rootDir = nrm;
+                    Vector3 fl = flowS.sqrMagnitude > 1e-4f && def.flow.sqrMagnitude > 1e-4f ? flowS : nrm;
+                    growth = Vector3.Slerp(fl, nrm, normalBlend).normalized;
+                    if (_rootOutward == null) _rootOutward = new Vector3[_strandCount];
+                    _rootOutward[s] = nrm;
                 }
                 else
                 {
@@ -545,6 +595,23 @@ namespace Trickshot
                 // Hug clamp: a fringe must lie ON the forehead, not stand off it like an awning.
                 else if (hugR > 0f && m > hugR) _pos[i] = centre + d * (hugR / m);
             }
+            // 3b) Extra capsules (a neck): point-vs-segment pushout.
+            for (int c = 0; c < _capsules.Count; c++)
+            {
+                var cap = _capsules[c];
+                if (cap.space == null) continue;
+                Vector3 a = cap.space.TransformPoint(cap.a), b = cap.space.TransformPoint(cap.b);
+                float rr = cap.r + SimConfig.HairHeadPad;
+                Vector3 ab = b - a; float abLen2 = Mathf.Max(ab.sqrMagnitude, 1e-8f);
+                for (int i = 0; i < _pos.Length; i++)
+                {
+                    if (_rootNode[i]) continue;
+                    float tt = Mathf.Clamp01(Vector3.Dot(_pos[i] - a, ab) / abLen2);
+                    Vector3 q = a + ab * tt;
+                    Vector3 d = _pos[i] - q; float m = d.magnitude;
+                    if (m < rr && m > 1e-4f) _pos[i] = q + d * (rr / m);
+                }
+            }
 
             // Build the ribbon verts HERE, against the head's PHYSICS pose (the transform is the
             // rigidbody's own during FixedUpdate), and only UPLOAD them in LateUpdate. Building them
@@ -591,8 +658,10 @@ namespace Trickshot
                     Vector3 axis = (k < _perStrand - 1) ? _simLocal[p + 1] - pos : pos - _simLocal[p - 1];
                     if (axis.sqrMagnitude < 1e-8f) axis = Vector3.up;
                     axis.Normalize();
-                    // Outward from the head centre (head-local origin is the head centre).
-                    Vector3 outward = pos;
+                    // Outward from the head centre (head-local origin is the head centre) - or, for a
+                    // Path style rooted on a neck, the root's surface normal, so cards on the flank
+                    // face out instead of edge-on.
+                    Vector3 outward = _rootOutward != null ? _rootOutward[s] : pos;
                     if (outward.sqrMagnitude < 1e-6f) outward = Vector3.forward;
                     outward.Normalize();
                     // Card width direction: perpendicular to both the strand and outward, so the flat

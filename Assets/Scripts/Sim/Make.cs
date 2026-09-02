@@ -39,6 +39,41 @@ namespace Trickshot
             return m;
         }
 
+        /// <summary>Standard in premultiplied TRANSPARENT mode: a glass lens, a visor. The Standard
+        /// shader is in Always Included Shaders, so every variant survives a player build.</summary>
+        public static Material Transparent(Color c, float alpha, float smoothness, float metallic = 0f)
+        {
+            var m = new Material(Standard);
+            m.color = new Color(c.r, c.g, c.b, alpha);
+            m.SetFloat("_Glossiness", smoothness);
+            m.SetFloat("_Metallic", metallic);
+            m.SetFloat("_Mode", 3f);
+            m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.SetInt("_ZWrite", 0);
+            m.DisableKeyword("_ALPHATEST_ON");
+            m.DisableKeyword("_ALPHABLEND_ON");
+            m.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+            m.renderQueue = 3000;
+            return m;
+        }
+
+        /// <summary>Standard in CUTOUT mode with a painted RGBA texture: a mask shell whose eye
+        /// holes are alpha and whose detail is luminance under the player's tint.</summary>
+        public static Material MatCutout(Texture2D tex, Color tint, float smoothness, float metallic = 0f)
+        {
+            var m = new Material(Standard);
+            m.color = new Color(tint.r, tint.g, tint.b, 1f);
+            m.mainTexture = tex;
+            m.SetFloat("_Glossiness", smoothness);
+            m.SetFloat("_Metallic", metallic);
+            m.SetFloat("_Mode", 1f);
+            m.SetFloat("_Cutoff", 0.5f);
+            m.EnableKeyword("_ALPHATEST_ON");
+            m.renderQueue = 2450;
+            return m;
+        }
+
         /// <summary>Standard material with a main texture (e.g. the painted jersey). Tint
         /// is white so the texture shows as painted.</summary>
         public static Material MatTex(Texture2D tex, float smoothness = 0.1f)

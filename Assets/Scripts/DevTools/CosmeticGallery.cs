@@ -73,6 +73,9 @@ namespace Trickshot
             foreach (var r in rends) b.Encapsulate(r.bounds);
             var views = new[] { V("front", 0f, 10f, dist, false), V("q34", 40f, 25f, dist, false), V("side", 90f, 5f, dist, false), V("top", 20f, 70f, dist, false) };
             WarmShaders(go);
+            g._cam.transform.position = b.center - Vector3.forward * dist; g._cam.transform.LookAt(b.center);
+            g._cam.targetTexture = g._rt; g._cam.Render(); g._cam.targetTexture = null;
+            for (int w = 0; w < 200 && UnityEditor.ShaderUtil.anythingCompiling; w++) System.Threading.Thread.Sleep(25);
             int before = Written;
             foreach (var v in views)
             {
@@ -286,7 +289,15 @@ namespace Trickshot
                 var torso = Make.Mat(new Color(0.55f, 0.58f, 0.66f));
                 var limbs = Make.Mat(new Color(0.5f, 0.5f, 0.5f));
                 var facing = Quaternion.identity;
-                rag.Build(Stage, facing, torso, limbs, withGloves: false, appearance: job.App);
+                try
+                {
+                    rag.Build(Stage, facing, torso, limbs, withGloves: false, appearance: job.App);
+                }
+                catch (System.Exception e)
+                {
+                    // One broken builder must not kill the whole run: log it and shoot what exists.
+                    Debug.LogError("CosmeticGallery: " + job.Id + " threw " + e);
+                }
                 rag.BecomeDisplayBody();
                 rag.DisplaySnap(Stage, facing);
 
@@ -297,7 +308,13 @@ namespace Trickshot
                     yield return new WaitForFixedUpdate();
                 }
                 WarmShaders(root);
-                while (UnityEditor.ShaderUtil.anythingCompiling) yield return null;
+                // A variant only starts compiling when it is first RENDERED: shoot once into the
+                // RenderTexture to kick every material, then wait until nothing is compiling.
+                _cam.transform.position = Stage + new Vector3(0f, 1.5f, 2.5f);
+                _cam.transform.LookAt(Stage + Vector3.up * 1.5f);
+                _cam.targetTexture = _rt; _cam.Render(); _cam.targetTexture = null;
+                for (int w = 0; w < 240 && UnityEditor.ShaderUtil.anythingCompiling; w++) yield return null;
+                yield return null;
                 yield return new WaitForEndOfFrame();
 
                 var head = rag.Phys(Bone.Head);

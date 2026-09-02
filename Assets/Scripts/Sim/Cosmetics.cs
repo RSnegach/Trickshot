@@ -81,6 +81,11 @@ namespace Trickshot
         {
             public string Name; public bool Headgear;   // headgear can't combine with non-bald hair
             public Action<Transform, Material> Build;
+            // The accessory material's surface: matte cloth 0.05, plastic 0.5, metal 0.85/0.75.
+            public float Smoothness = 0.25f;
+            public float Metallic = 0f;
+            // Optional torso-mounted build (chain necklace): torso transform, its SCALED box size, the material.
+            public Action<Transform, Vector3, Material> BuildBody;
         }
 
         // ---- public API -----------------------------------------------------
@@ -249,9 +254,17 @@ namespace Trickshot
                 var acc = _accessories[a.Accessory];
                 if (!(acc.Headgear && !IsBald(a.HairStyle)))
                 {
-                    var mat = Make.Mat(a.AccessoryColor, 0.25f);
+                    _rag = rag;   // so builders can register the extra materials they make (Own)
+                    var mat = Make.Mat(a.AccessoryColor, acc.Smoothness, acc.Metallic);
                     rag.RegisterCosmeticMaterial(mat);
                     acc.Build(head, mat);
+                    if (acc.BuildBody != null)
+                    {
+                        var torso = rag.Phys(Bone.Torso);
+                        var bc = torso != null ? torso.GetComponent<BoxCollider>() : null;
+                        if (torso != null && bc != null) acc.BuildBody(torso, bc.size, mat);
+                    }
+                    _rag = null;
                 }
             }
         }
@@ -457,315 +470,6 @@ namespace Trickshot
             go.AddComponent<GeneratedMeshOwner>().Mesh = mesh;
         }
 
-        // ---- accessory catalog (index 0 = None) -----------------------------
-        static readonly List<AccessoryEntry> _accessories = new List<AccessoryEntry>
-        {
-            new AccessoryEntry { Name = "None", Headgear = false, Build = (h,m) => { } },
-
-            // EYEWEAR / MASKS ---------------------------------------------
-            new AccessoryEntry { Name = "Glasses", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.08f, 0.02f, 0.185f), new Vector3(0.09f, 0.09f, 0.025f), m);     // left rim
-                Ball(h, new Vector3(0.08f, 0.02f, 0.185f), new Vector3(0.09f, 0.09f, 0.025f), m);      // right rim
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.19f), new Vector3(0.065f, 0.065f, 0.015f), Glass()); // left lens
-                Blk(h, new Vector3(0.08f, 0.02f, 0.19f), new Vector3(0.065f, 0.065f, 0.015f), Glass());  // right lens
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.05f, 0.015f, 0.02f), m);           // bridge
-                Blk(h, new Vector3(-0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);        // left arm
-                Blk(h, new Vector3(0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);         // right arm
-            } },
-            new AccessoryEntry { Name = "Square Glasses", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.185f), new Vector3(0.11f, 0.09f, 0.02f), m);        // left rectangular frame
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.193f), new Vector3(0.09f, 0.07f, 0.012f), Glass());
-                Blk(h, new Vector3(0.08f, 0.02f, 0.185f), new Vector3(0.11f, 0.09f, 0.02f), m);         // right rectangular frame
-                Blk(h, new Vector3(0.08f, 0.02f, 0.193f), new Vector3(0.09f, 0.07f, 0.012f), Glass());
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.05f, 0.02f, 0.02f), m);            // bridge
-                Blk(h, new Vector3(-0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);        // left arm
-                Blk(h, new Vector3(0.15f, 0.03f, 0.10f), new Vector3(0.025f, 0.02f, 0.16f), m);         // right arm
-            } },
-            new AccessoryEntry { Name = "Sunglasses", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.05f, 0.185f), new Vector3(0.32f, 0.02f, 0.02f), m);            // top brow bar
-                Blk(h, new Vector3(-0.08f, 0.02f, 0.19f), new Vector3(0.12f, 0.09f, 0.015f), Dark());   // left dark lens (wide)
-                Blk(h, new Vector3(0.08f, 0.02f, 0.19f), new Vector3(0.12f, 0.09f, 0.015f), Dark());    // right dark lens (wide)
-                Blk(h, new Vector3(0f, 0.03f, 0.185f), new Vector3(0.06f, 0.02f, 0.02f), m);            // bridge
-                Blk(h, new Vector3(-0.15f, 0.04f, 0.10f), new Vector3(0.03f, 0.02f, 0.16f), m);         // left arm
-                Blk(h, new Vector3(0.15f, 0.04f, 0.10f), new Vector3(0.03f, 0.02f, 0.16f), m);          // right arm
-            } },
-            new AccessoryEntry { Name = "Aviators", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.085f, 0.02f, 0.185f), new Vector3(0.12f, 0.10f, 0.03f), m);       // thick left frame (trapezoid feel)
-                Blk(h, new Vector3(-0.085f, 0.02f, 0.196f), new Vector3(0.09f, 0.07f, 0.014f), Dark());
-                Blk(h, new Vector3(0.085f, 0.02f, 0.185f), new Vector3(0.12f, 0.10f, 0.03f), m);        // thick right frame
-                Blk(h, new Vector3(0.085f, 0.02f, 0.196f), new Vector3(0.09f, 0.07f, 0.014f), Dark());
-                Blk(h, new Vector3(0f, 0.06f, 0.185f), new Vector3(0.30f, 0.025f, 0.025f), m);          // heavy brow bar
-                Blk(h, new Vector3(0f, 0.02f, 0.185f), new Vector3(0.05f, 0.025f, 0.025f), m);          // thick bridge
-                Blk(h, new Vector3(-0.16f, 0.03f, 0.09f), new Vector3(0.035f, 0.025f, 0.18f), m);       // chunky left arm
-                Blk(h, new Vector3(0.16f, 0.03f, 0.09f), new Vector3(0.035f, 0.025f, 0.18f), m);        // chunky right arm
-            } },
-            new AccessoryEntry { Name = "Visor Shades", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.02f, 0.19f), new Vector3(0.30f, 0.07f, 0.02f), Dark());        // main wraparound band
-                Blk(h, new Vector3(-0.17f, 0.02f, 0.12f), new Vector3(0.05f, 0.06f, 0.08f), new Vector3(0f, 35f, 0f), Dark()); // left wrap edge
-                Blk(h, new Vector3(0.17f, 0.02f, 0.12f), new Vector3(0.05f, 0.06f, 0.08f), new Vector3(0f, -35f, 0f), Dark()); // right wrap edge
-                Blk(h, new Vector3(0f, 0.06f, 0.185f), new Vector3(0.32f, 0.015f, 0.02f), m);           // frame trim above band
-                Blk(h, new Vector3(-0.16f, 0.03f, 0.06f), new Vector3(0.025f, 0.02f, 0.14f), m);        // left arm
-                Blk(h, new Vector3(0.16f, 0.03f, 0.06f), new Vector3(0.025f, 0.02f, 0.14f), m);         // right arm
-            } },
-            new AccessoryEntry { Name = "Monocle", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(0.08f, 0.02f, 0.19f), new Vector3(0.11f, 0.11f, 0.025f), m);        // rim
-                Blk(h, new Vector3(0.08f, 0.02f, 0.196f), new Vector3(0.075f, 0.075f, 0.014f), Glass()); // lens
-                Blk(h, new Vector3(0.08f, 0.02f, 0.175f), new Vector3(0.02f, 0.02f, 0.015f), m);        // clip/stud
-                Blk(h, new Vector3(0.13f, -0.02f, 0.16f), new Vector3(0.012f, 0.06f, 0.012f), new Vector3(0f, 0f, 25f), m);  // chain link 1
-                Blk(h, new Vector3(0.16f, -0.09f, 0.13f), new Vector3(0.012f, 0.08f, 0.012f), new Vector3(0f, 0f, 45f), m);  // chain link 2, hangs down
-            } },
-            new AccessoryEntry { Name = "Eyepatch", Headgear = false, Build = (h,m) => {
-                // No added shapes: the patch is a region DRAWN ON the head where the right eye
-                // is (a flush dark cap, same trick as the beard bib), and the strap is a line
-                // drawn from the patch edge over the crown to the nape that sags like a cord.
-                HeadPatch(h, Dark(), new Vector3(0.08f, 0.02f, 0.19f), 0.30f, 0.34f);
-                HeadLine(h, m, new Vector3(0.08f, 0.10f, 0.18f), new Vector3(0f, -0.06f, -0.19f), 0.018f, 0.15f);
-            } },
-            new AccessoryEntry { Name = "Ski Goggles", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.02f, 0.19f), new Vector3(0.32f, 0.11f, 0.02f), Glass());       // big lens band
-                Blk(h, new Vector3(0f, 0.075f, 0.185f), new Vector3(0.34f, 0.03f, 0.025f), m);          // thick top frame
-                Blk(h, new Vector3(0f, -0.035f, 0.185f), new Vector3(0.34f, 0.03f, 0.025f), m);         // thick bottom frame
-                Blk(h, new Vector3(-0.16f, 0.02f, 0.17f), new Vector3(0.03f, 0.10f, 0.04f), m);         // left side frame
-                Blk(h, new Vector3(0.16f, 0.02f, 0.17f), new Vector3(0.03f, 0.10f, 0.04f), m);          // right side frame
-                Blk(h, new Vector3(-0.19f, 0.05f, 0.02f), new Vector3(0.03f, 0.04f, 0.20f), new Vector3(0f, 20f, 0f), m);   // left strap
-                Blk(h, new Vector3(0.19f, 0.05f, 0.02f), new Vector3(0.03f, 0.04f, 0.20f), new Vector3(0f, -20f, 0f), m);   // right strap
-            } },
-            new AccessoryEntry { Name = "Reading Glasses", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.07f, -0.01f, 0.19f), new Vector3(0.09f, 0.045f, 0.018f), m);      // half-height left frame, low on nose
-                Blk(h, new Vector3(-0.07f, -0.01f, 0.196f), new Vector3(0.07f, 0.035f, 0.012f), Glass());
-                Blk(h, new Vector3(0.07f, -0.01f, 0.19f), new Vector3(0.09f, 0.045f, 0.018f), m);       // half-height right frame
-                Blk(h, new Vector3(0.07f, -0.01f, 0.196f), new Vector3(0.07f, 0.035f, 0.012f), Glass());
-                Blk(h, new Vector3(0f, -0.01f, 0.19f), new Vector3(0.04f, 0.015f, 0.015f), m);          // low bridge
-                Blk(h, new Vector3(-0.14f, 0f, 0.11f), new Vector3(0.02f, 0.018f, 0.15f), new Vector3(6f, 0f, 0f), m);   // arm angling up to ear
-                Blk(h, new Vector3(0.14f, 0f, 0.11f), new Vector3(0.02f, 0.018f, 0.15f), new Vector3(-6f, 0f, 0f), m);
-            } },
-            new AccessoryEntry { Name = "Batman Mask", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.06f, 0.155f), new Vector3(0.36f, 0.30f, 0.10f), m);            // cowl face plate (upper)
-                Blk(h, new Vector3(-0.10f, 0.24f, 0.02f), new Vector3(0.05f, 0.14f, 0.05f), new Vector3(0f, 0f, -12f), m);  // ear
-                Blk(h, new Vector3(0.10f, 0.24f, 0.02f), new Vector3(0.05f, 0.14f, 0.05f), new Vector3(0f, 0f, 12f), m);    // ear
-                Blk(h, new Vector3(0f, 0.14f, 0.17f), new Vector3(0.34f, 0.04f, 0.06f), m);             // brow ridge above eyes
-                Blk(h, new Vector3(-0.09f, 0.09f, 0.215f), new Vector3(0.15f, 0.05f, 0.02f), Glass());  // left eye slit (wide)
-                Blk(h, new Vector3(0.09f, 0.09f, 0.215f), new Vector3(0.15f, 0.05f, 0.02f), Glass());   // right eye slit (wide)
-                Blk(h, new Vector3(0f, -0.10f, 0.16f), new Vector3(0.30f, 0.14f, 0.09f), m);            // jaw/cheek plate
-                Blk(h, new Vector3(0f, -0.06f, 0.215f), new Vector3(0.22f, 0.05f, 0.02f), Dark());      // mouth (wide)
-            } },
-            new AccessoryEntry { Name = "Hockey Mask", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, -0.01f, 0.17f), new Vector3(0.34f, 0.40f, 0.07f), m);            // face plate
-                Blk(h, new Vector3(-0.07f, 0.04f, 0.205f), new Vector3(0.04f, 0.04f, 0.02f), Dark());   // left eye hole
-                Blk(h, new Vector3(0.07f, 0.04f, 0.205f), new Vector3(0.04f, 0.04f, 0.02f), Dark());    // right eye hole
-                Blk(h, new Vector3(0f, -0.10f, 0.205f), new Vector3(0.03f, 0.03f, 0.02f), Dark());      // mouth hole
-                Blk(h, new Vector3(0f, -0.02f, 0.207f), new Vector3(0.018f, 0.018f, 0.015f), Dark());   // nose vent
-                Blk(h, new Vector3(-0.05f, 0.14f, 0.205f), new Vector3(0.015f, 0.015f, 0.012f), Dark()); // forehead vent left
-                Blk(h, new Vector3(0.05f, 0.14f, 0.205f), new Vector3(0.015f, 0.015f, 0.012f), Dark());  // forehead vent right
-                Blk(h, new Vector3(0f, -0.16f, 0.16f), new Vector3(0.14f, 0.06f, 0.06f), m);            // chin guard ridge
-            } },
-            new AccessoryEntry { Name = "Venetian Mask", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.05f, 0.175f), new Vector3(0.34f, 0.26f, 0.06f), m);            // ornate upper-face plate
-                Blk(h, new Vector3(0f, 0.15f, 0.19f), new Vector3(0.30f, 0.04f, 0.03f), new Vector3(4f, 0f, 0f), m);  // brow curve accent
-                Blk(h, new Vector3(-0.08f, 0.04f, 0.205f), new Vector3(0.05f, 0.045f, 0.02f), Dark());  // left eye hole
-                Blk(h, new Vector3(0.08f, 0.04f, 0.205f), new Vector3(0.05f, 0.045f, 0.02f), Dark());   // right eye hole
-                Ball(h, new Vector3(-0.15f, -0.02f, 0.16f), new Vector3(0.04f, 0.05f, 0.03f), m);       // cheek flourish left
-                Ball(h, new Vector3(0.15f, -0.02f, 0.16f), new Vector3(0.04f, 0.05f, 0.03f), m);        // cheek flourish right
-                Blk(h, new Vector3(0f, 0.22f, 0.14f), new Vector3(0.06f, 0.10f, 0.03f), new Vector3(-15f, 0f, 0f), m); // top flourish/feather
-            } },
-            // ENVELOPS the whole head: a full-head hood replaces the old front-plate + straps,
-            // so this is now headgear (hair cards would clip straight through the shell). The
-            // canister and the eye frames sit proud of the hood's surface.
-            new AccessoryEntry { Name = "Gas Mask", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.02f, 0f), new Vector3(0.50f, 0.44f, 0.50f), m);             // full-head hood
-                Ball(h, new Vector3(0f, -0.07f, 0.24f), new Vector3(0.11f, 0.11f, 0.11f), m);         // round front canister at mouth
-                Blk(h, new Vector3(0f, -0.07f, 0.30f), new Vector3(0.05f, 0.05f, 0.04f), m);          // filter nub
-                Blk(h, new Vector3(-0.09f, 0.03f, 0.245f), new Vector3(0.11f, 0.10f, 0.025f), m);      // left eye frame
-                Blk(h, new Vector3(-0.09f, 0.03f, 0.255f), new Vector3(0.085f, 0.075f, 0.014f), Glass());
-                Blk(h, new Vector3(0.09f, 0.03f, 0.245f), new Vector3(0.11f, 0.10f, 0.025f), m);        // right eye frame
-                Blk(h, new Vector3(0.09f, 0.03f, 0.255f), new Vector3(0.085f, 0.075f, 0.014f), Glass());
-            } },
-            new AccessoryEntry { Name = "Welding Mask", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.02f, 0.16f), new Vector3(0.38f, 0.42f, 0.06f), m);             // large flat front plate
-                Blk(h, new Vector3(0f, 0.04f, 0.195f), new Vector3(0.22f, 0.035f, 0.02f), Dark());      // horizontal view slit
-                Blk(h, new Vector3(0f, 0.20f, 0.08f), new Vector3(0.30f, 0.03f, 0.05f), m);             // top hinge bar
-                Blk(h, new Vector3(-0.18f, 0.10f, 0.05f), new Vector3(0.03f, 0.10f, 0.05f), m);         // left side hinge
-                Blk(h, new Vector3(0.18f, 0.10f, 0.05f), new Vector3(0.03f, 0.10f, 0.05f), m);          // right side hinge
-                Blk(h, new Vector3(0f, -0.18f, 0.10f), new Vector3(0.20f, 0.06f, 0.06f), m);            // chin guard
-            } },
-
-            // JEWELRY / FACE PROPS ----------------------------------------
-            new AccessoryEntry { Name = "Pipe", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.06f, -0.07f, 0.24f), new Vector3(0.05f, 0.03f, 0.14f), m);        // stem forward from mouth
-                Blk(h, new Vector3(0.06f, -0.07f, 0.185f), new Vector3(0.055f, 0.035f, 0.02f), m);     // mouthpiece flare at the lips
-                Blk(h, new Vector3(0.06f, -0.02f, 0.315f), new Vector3(0.05f, 0.09f, 0.055f), m);      // bowl standing up at the end
-                Blk(h, new Vector3(0.06f, -0.065f, 0.315f), new Vector3(0.035f, 0.015f, 0.045f), m);   // bowl foot/base
-                Blk(h, new Vector3(0.06f, 0.02f, 0.315f), new Vector3(0.03f, 0.01f, 0.035f), Dark());  // charred rim at the bowl opening
-            } },
-            new AccessoryEntry { Name = "Stud Earrings", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.19f, 0.0f, 0.0f), new Vector3(0.025f, 0.025f, 0.025f), m);      // left ear stud
-                Ball(h, new Vector3(0.19f, 0.0f, 0.0f), new Vector3(0.025f, 0.025f, 0.025f), m);       // right ear stud
-            } },
-            new AccessoryEntry { Name = "Hoop Earrings", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.19f, -0.02f, 0.0f), new Vector3(0.008f, 0.014f, 0.03f), m);      // left hoop, top arc
-                Blk(h, new Vector3(-0.19f, -0.08f, 0.0f), new Vector3(0.008f, 0.014f, 0.03f), m);      // left hoop, bottom arc
-                Blk(h, new Vector3(-0.19f, -0.05f, 0.03f), new Vector3(0.008f, 0.03f, 0.014f), m);     // left hoop, front arc
-                Blk(h, new Vector3(-0.19f, -0.05f, -0.03f), new Vector3(0.008f, 0.03f, 0.014f), m);    // left hoop, back arc
-                Blk(h, new Vector3(0.19f, -0.02f, 0.0f), new Vector3(0.008f, 0.014f, 0.03f), m);       // right hoop, top arc
-                Blk(h, new Vector3(0.19f, -0.08f, 0.0f), new Vector3(0.008f, 0.014f, 0.03f), m);       // right hoop, bottom arc
-                Blk(h, new Vector3(0.19f, -0.05f, 0.03f), new Vector3(0.008f, 0.03f, 0.014f), m);      // right hoop, front arc
-                Blk(h, new Vector3(0.19f, -0.05f, -0.03f), new Vector3(0.008f, 0.03f, 0.014f), m);     // right hoop, back arc
-            } },
-            new AccessoryEntry { Name = "Dangle Earrings", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(-0.19f, 0.0f, 0.0f), new Vector3(0.016f, 0.016f, 0.016f), m);      // left stud
-                Blk(h, new Vector3(-0.19f, -0.045f, 0.0f), new Vector3(0.006f, 0.03f, 0.006f), m);     // left link
-                Ball(h, new Vector3(-0.19f, -0.09f, 0.0f), new Vector3(0.022f, 0.028f, 0.022f), m);    // left dangling drop
-                Ball(h, new Vector3(0.19f, 0.0f, 0.0f), new Vector3(0.016f, 0.016f, 0.016f), m);       // right stud
-                Blk(h, new Vector3(0.19f, -0.045f, 0.0f), new Vector3(0.006f, 0.03f, 0.006f), m);      // right link
-                Ball(h, new Vector3(0.19f, -0.09f, 0.0f), new Vector3(0.022f, 0.028f, 0.022f), m);     // right dangling drop
-            } },
-            new AccessoryEntry { Name = "Nose Stud", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(0.035f, -0.02f, 0.205f), new Vector3(0.01f, 0.01f, 0.01f), m);     // stud base on the nostril
-                Ball(h, new Vector3(0.035f, -0.02f, 0.212f), new Vector3(0.006f, 0.006f, 0.006f), Glass()); // tiny gem sparkle
-            } },
-            new AccessoryEntry { Name = "Septum Ring", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.0f, -0.036f, 0.19f), new Vector3(0.014f, 0.006f, 0.006f), m);     // hoop top
-                Blk(h, new Vector3(0.0f, -0.064f, 0.19f), new Vector3(0.014f, 0.006f, 0.006f), m);     // hoop bottom
-                Blk(h, new Vector3(-0.014f, -0.05f, 0.19f), new Vector3(0.006f, 0.014f, 0.006f), m);   // hoop left
-                Blk(h, new Vector3(0.014f, -0.05f, 0.19f), new Vector3(0.006f, 0.014f, 0.006f), m);    // hoop right
-            } },
-            new AccessoryEntry { Name = "Eyebrow Piercing", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.05f, 0.06f, 0.19f), new Vector3(0.03f, 0.006f, 0.006f), m);       // barbell bar over the brow
-                Ball(h, new Vector3(0.02f, 0.06f, 0.19f), new Vector3(0.008f, 0.008f, 0.008f), m);     // inner ball end
-                Ball(h, new Vector3(0.08f, 0.06f, 0.19f), new Vector3(0.008f, 0.008f, 0.008f), m);     // outer ball end
-            } },
-            new AccessoryEntry { Name = "Nipple Piercings", Headgear = false, Build = (h,m) => {
-                // The eyebrow piercing's barbell (same bar + ball ends), worn twice on the chest
-                // and spaced apart like nipples. Head-bone offsets like the Chain Necklace: the
-                // pieces sit LOW and FORWARD of the head bone so they ride the front of the torso.
-                Blk(h, new Vector3(-0.06f, -0.36f, 0.20f), new Vector3(0.03f, 0.006f, 0.006f), m);     // left bar
-                Ball(h, new Vector3(-0.09f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);  // left outer ball end
-                Ball(h, new Vector3(-0.03f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);  // left inner ball end
-                Blk(h, new Vector3(0.06f, -0.36f, 0.20f), new Vector3(0.03f, 0.006f, 0.006f), m);     // right bar
-                Ball(h, new Vector3(0.03f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);   // right inner ball end
-                Ball(h, new Vector3(0.09f, -0.36f, 0.20f), new Vector3(0.008f, 0.008f, 0.008f), m);   // right outer ball end
-            } },
-            new AccessoryEntry { Name = "Cigar", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.05f, -0.07f, 0.26f), new Vector3(0.03f, 0.03f, 0.15f), m);       // thick body forward from the mouth
-                Blk(h, new Vector3(-0.05f, -0.07f, 0.185f), new Vector3(0.032f, 0.032f, 0.012f), m);   // paper band near the mouth
-                Ball(h, new Vector3(-0.05f, -0.07f, 0.35f), new Vector3(0.022f, 0.022f, 0.018f), Dark()); // burning ember tip
-            } },
-            new AccessoryEntry { Name = "Toothpick", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.06f, -0.075f, 0.24f), new Vector3(0.004f, 0.004f, 0.09f), m);     // thin pick from the mouth corner
-                Blk(h, new Vector3(0.06f, -0.075f, 0.285f), new Vector3(0.002f, 0.002f, 0.02f), m);    // tapered tip
-            } },
-            new AccessoryEntry { Name = "Lollipop", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(0.0f, -0.07f, 0.25f), new Vector3(0.006f, 0.006f, 0.11f), m);       // thin stick from the mouth
-                Ball(h, new Vector3(0.0f, -0.07f, 0.335f), new Vector3(0.035f, 0.035f, 0.035f), m);    // round candy on the end
-                Ball(h, new Vector3(0.008f, -0.062f, 0.345f), new Vector3(0.01f, 0.01f, 0.01f), Glass()); // glossy candy shine
-            } },
-            new AccessoryEntry { Name = "Bindi", Headgear = false, Build = (h,m) => {
-                Ball(h, new Vector3(0.0f, 0.06f, 0.188f), new Vector3(0.014f, 0.014f, 0.008f), m);     // backing dot centered on the brow
-                Ball(h, new Vector3(0.0f, 0.06f, 0.194f), new Vector3(0.008f, 0.008f, 0.006f), Glass()); // small jewel center
-            } },
-            new AccessoryEntry { Name = "Vampire Fangs", Headgear = false, Build = (h,m) => {
-                Blk(h, new Vector3(-0.035f, -0.10f, 0.185f), new Vector3(0.008f, 0.022f, 0.008f), new Vector3(8f, 0f, 0f), m);   // left fang pointing down
-                Blk(h, new Vector3(0.035f, -0.10f, 0.185f), new Vector3(0.008f, 0.022f, 0.008f), new Vector3(-8f, 0f, 0f), m);   // right fang pointing down
-            } },
-            new AccessoryEntry { Name = "Chain Necklace", Headgear = false, Build = (h,m) => {
-                // A chain resting ON the chest, NOT ringing the neck: the links sit LOWER (y -0.30,
-                // below the head bone so they're at collar/upper-chest height) and the ring is
-                // pushed FORWARD (+z biased) so it drapes over the front of the torso instead of
-                // clipping through it. Torso box is ~0.18 half-width / 0.11 half-depth; the front
-                // links sit proud of that, the back links hug the nape above the shoulders.
-                Ball(h, new Vector3(0.0f, -0.34f, 0.20f), new Vector3(0.016f, 0.016f, 0.016f), m);     // front centre, on the sternum
-                Ball(h, new Vector3(0.12f, -0.32f, 0.16f), new Vector3(0.016f, 0.016f, 0.016f), m);    // front-right
-                Ball(h, new Vector3(0.20f, -0.27f, 0.04f), new Vector3(0.016f, 0.016f, 0.016f), m);    // right shoulder
-                Ball(h, new Vector3(0.16f, -0.20f, -0.10f), new Vector3(0.014f, 0.014f, 0.014f), m);   // right, rising to nape
-                Blk(h, new Vector3(0.0f, -0.17f, -0.19f), new Vector3(0.02f, 0.014f, 0.01f), Dark());  // clasp at the nape (above shoulders)
-                Ball(h, new Vector3(-0.16f, -0.20f, -0.10f), new Vector3(0.014f, 0.014f, 0.014f), m);  // left, rising to nape
-                Ball(h, new Vector3(-0.20f, -0.27f, 0.04f), new Vector3(0.016f, 0.016f, 0.016f), m);   // left shoulder
-                Ball(h, new Vector3(-0.12f, -0.32f, 0.16f), new Vector3(0.016f, 0.016f, 0.016f), m);   // front-left
-            } },
-
-            // HEADWEAR (only wearable when bald) --------------------------
-            new AccessoryEntry { Name = "Cap", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.15f, -0.01f), new Vector3(0.46f, 0.30f, 0.46f), m);     // crown
-                Blk(h, new Vector3(0f, 0.10f, 0.22f), new Vector3(0.34f, 0.04f, 0.20f), m);       // brim forward
-                Blk(h, new Vector3(0f, 0.083f, 0.22f), new Vector3(0.32f, 0.012f, 0.19f), Dark()); // darker brim underside
-                Blk(h, new Vector3(0f, 0.155f, 0.235f), new Vector3(0.30f, 0.05f, 0.02f), m);     // front panel seam above brim
-                Ball(h, new Vector3(0f, 0.30f, -0.01f), new Vector3(0.06f, 0.06f, 0.06f), m);     // top button
-                Blk(h, new Vector3(0f, 0.06f, -0.20f), new Vector3(0.10f, 0.05f, 0.03f), Dark()); // rear adjuster
-            } },
-            new AccessoryEntry { Name = "Bucket Hat", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.16f, -0.01f), new Vector3(0.44f, 0.24f, 0.44f), m);     // short crown
-                Ball(h, new Vector3(0f, 0.10f, 0f), new Vector3(0.66f, 0.06f, 0.66f), m);         // all-around sloped brim
-                Blk(h, new Vector3(0.13f, 0.14f, 0.13f), new Vector3(0.02f, 0.02f, 0.02f), Dark()); // eyelet vent
-                Blk(h, new Vector3(-0.13f, 0.14f, -0.13f), new Vector3(0.02f, 0.02f, 0.02f), Dark()); // eyelet vent
-            } },
-            new AccessoryEntry { Name = "Fedora", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.20f, -0.01f), new Vector3(0.38f, 0.20f, 0.38f), m);      // crown
-                Blk(h, new Vector3(0f, 0.25f, 0.05f), new Vector3(0.30f, 0.03f, 0.10f), m);       // front pinch crease
-                Blk(h, new Vector3(-0.15f, 0.26f, -0.01f), new Vector3(0.05f, 0.04f, 0.30f), new Vector3(0f,0f,-10f), m); // left teardrop dent ridge
-                Blk(h, new Vector3(0.15f, 0.26f, -0.01f), new Vector3(0.05f, 0.04f, 0.30f), new Vector3(0f,0f,10f), m);   // right teardrop dent ridge
-                Blk(h, new Vector3(0f, 0.12f, 0f), new Vector3(0.66f, 0.03f, 0.66f), m);          // wide flat brim
-                Blk(h, new Vector3(0f, 0.105f, 0f), new Vector3(0.64f, 0.012f, 0.64f), Dark());   // brim underside
-                Blk(h, new Vector3(0f, 0.10f, 0f), new Vector3(0.40f, 0.04f, 0.40f), Dark());     // band
-                Blk(h, new Vector3(-0.14f, 0.10f, 0.14f), new Vector3(0.05f, 0.045f, 0.03f), m);  // band side bow
-            } },
-            new AccessoryEntry { Name = "Top Hat", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.09f, 0f), new Vector3(0.56f, 0.03f, 0.56f), m);          // flat brim
-                Blk(h, new Vector3(0f, 0.075f, 0f), new Vector3(0.54f, 0.012f, 0.54f), Dark());   // brim underside
-                Blk(h, new Vector3(0f, 0.28f, -0.01f), new Vector3(0.34f, 0.34f, 0.34f), m);      // tall cylinder crown
-                Blk(h, new Vector3(0f, 0.45f, -0.01f), new Vector3(0.36f, 0.02f, 0.36f), m);      // flat top rim
-                Blk(h, new Vector3(0f, 0.14f, 0f), new Vector3(0.36f, 0.05f, 0.36f), Dark());     // band
-                Blk(h, new Vector3(0f, 0.145f, 0.18f), new Vector3(0.05f, 0.045f, 0.02f), Glass()); // band buckle front
-            } },
-            new AccessoryEntry { Name = "Cowboy Hat", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.22f, -0.01f), new Vector3(0.34f, 0.22f, 0.34f), m);      // crown
-                Blk(h, new Vector3(0f, 0.12f, 0f), new Vector3(0.70f, 0.03f, 0.62f), m);          // wide brim
-                Blk(h, new Vector3(-0.30f, 0.16f, 0f), new Vector3(0.24f, 0.03f, 0.30f), new Vector3(0f, 0f, 35f), m);  // left curl
-                Blk(h, new Vector3(0.30f, 0.16f, 0f), new Vector3(0.24f, 0.03f, 0.30f), new Vector3(0f, 0f, -35f), m);  // right curl
-            } },
-            new AccessoryEntry { Name = "Beret", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0.02f, 0.17f, -0.02f), new Vector3(0.40f, 0.09f, 0.36f), m);   // small elliptical disc crown
-                Ball(h, new Vector3(0.02f, 0.23f, -0.02f), new Vector3(0.04f, 0.04f, 0.04f), m);   // tiny stalk
-            } },
-            new AccessoryEntry { Name = "Peaky Cap", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.14f, -0.01f), new Vector3(0.46f, 0.22f, 0.46f), m);     // low rounded crown
-                Ball(h, new Vector3(0f, 0.15f, 0.10f), new Vector3(0.44f, 0.16f, 0.30f), m);      // front peak swept over the brim
-                Blk(h, new Vector3(0f, 0.09f, 0.20f), new Vector3(0.30f, 0.03f, 0.12f), m);       // short stubby brim
-                Blk(h, new Vector3(0f, 0.078f, 0.20f), new Vector3(0.28f, 0.01f, 0.11f), Dark()); // brim underside
-                Ball(h, new Vector3(0f, 0.24f, -0.01f), new Vector3(0.05f, 0.05f, 0.05f), m);     // top button
-            } },
-            new AccessoryEntry { Name = "Headband", Headgear = true, Build = (h,m) => {
-                // DRAWN ON: a thin ribbon lying flush on the head sphere around the brow
-                // (HeadRing), not a box ringing the head. Nothing sticks out.
-                HeadRing(h, m, 1.07f, 0.045f);
-            } },
-            new AccessoryEntry { Name = "Trapper Hat", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.15f, -0.01f), new Vector3(0.46f, 0.26f, 0.46f), m);     // draped cloth dome
-                Ball(h, new Vector3(0f, 0.12f, -0.20f), new Vector3(0.08f, 0.08f, 0.08f), m);     // back knot
-                Blk(h, new Vector3(0f, -0.02f, -0.26f), new Vector3(0.09f, 0.28f, 0.04f), m);      // beaver-tail flap, hangs down the nape
-            } },
-            new AccessoryEntry { Name = "Sombrero", Headgear = true, Build = (h,m) => {
-                Ball(h, new Vector3(0f, 0.20f, -0.01f), new Vector3(0.32f, 0.18f, 0.32f), m);     // small crown
-                Blk(h, new Vector3(0f, 0.14f, 0f), new Vector3(0.34f, 0.03f, 0.34f), Dark());     // crown band
-                Ball(h, new Vector3(0f, 0.12f, 0f), new Vector3(0.90f, 0.03f, 0.90f), m);         // very wide flat brim
-            } },
-            new AccessoryEntry { Name = "Party Hat", Headgear = true, Build = (h,m) => {
-                // Just a cone on top of the head: no base band, no tip gem.
-                Ball(h, new Vector3(0f, 0.18f, -0.01f), new Vector3(0.32f, 0.16f, 0.32f), m);     // lower cone
-                Ball(h, new Vector3(0f, 0.30f, -0.01f), new Vector3(0.16f, 0.16f, 0.16f), m);     // upper cone taper
-            } },
-            new AccessoryEntry { Name = "Wizard Hat", Headgear = true, Build = (h,m) => {
-                Blk(h, new Vector3(0f, 0.08f, 0f), new Vector3(0.48f, 0.07f, 0.48f), m);          // band
-                Ball(h, new Vector3(0f, 0.18f, -0.01f), new Vector3(0.34f, 0.20f, 0.34f), m);     // cone base
-                Ball(h, new Vector3(0f, 0.28f, -0.08f), new Vector3(0.22f, 0.18f, 0.22f), m);     // slumping cone
-                Ball(h, new Vector3(0f, 0.34f, -0.16f), new Vector3(0.09f, 0.09f, 0.09f), m);     // drooping pom
-            } },
-        };
-
-        // Small tint materials for mask details (independent of the accessory colour). Created
-        // per call; the ragdoll can't track these, so keep them rare (only masks use them). They
-        // are tiny and reclaimed on scene change.
-        static Material Glass() => Make.Mat(new Color(0.6f, 0.8f, 0.95f, 1f), 0.6f);
-        static Material Dark()  => Make.Mat(new Color(0.06f, 0.06f, 0.07f, 1f), 0.1f);
     }
 
     // Holds a runtime-generated Mesh (see Cosmetics.BeardMesh) and destroys it when its
@@ -775,6 +479,7 @@ namespace Trickshot
     public class GeneratedMeshOwner : MonoBehaviour
     {
         public Mesh Mesh;
-        void OnDestroy() { if (Mesh != null) Destroy(Mesh); }
+        public Texture2D Tex;   // a per-body painted texture (a lollipop swirl), freed with the mesh
+        void OnDestroy() { if (Mesh != null) Destroy(Mesh); if (Tex != null) Destroy(Tex); }
     }
 }
