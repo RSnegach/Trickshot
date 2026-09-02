@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// Uniform scaling for every IMGUI surface in the game: the pre-match / setup menus, the
-    /// pause menu and options, and the in-match HUD (see Hud.Begin).
+    /// pause menu and settings, and the in-match HUD (see Hud.Begin).
     ///
     /// All of it is laid out in FIXED PIXELS (panel widths, row heights, font sizes) against a
     /// single design canvas. Left alone, that means the layout is a small unreadable island on a

@@ -28,7 +28,7 @@ namespace Trickshot
             // PlayerSettings (see Assets/Editor/BuildAll.cs) so the editor behaves like a build.
             Application.runInBackground = true;
 
-            // Resolution / window mode / vsync / UI scale, as the player last set them (Options ->
+            // Resolution / window mode / vsync / UI scale, as the player last set them (Settings ->
             // Camera). Runs before anything draws so the first frame is already the right size.
             DisplaySettings.ApplyOnBoot();
 
@@ -575,7 +575,7 @@ namespace Trickshot
             var cam = _cam;
             var camGo = _camGo;
 
-            // Pause menu (Esc): Resume / Match Setup / Options / Leave. The leave callback is a
+            // Pause menu (Esc): Resume / Match Setup / Settings / Leave. The leave callback is a
             // CLIENT clean-leave (drops only this player, host + others play on); it's null in
             // single-player and for the host, where "Main Menu" ends the session for everyone.
             var pauseGo = new GameObject("PauseMenu");

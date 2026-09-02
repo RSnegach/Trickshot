@@ -8,7 +8,7 @@ namespace Trickshot
     ///
     /// The game builds its whole UI in IMGUI at runtime, so nothing about the window is authored
     /// in a scene: resolution, window mode, vsync, UI scale and camera FOV all live here and are
-    /// edited from the Camera tab of the options menu (pause menu -> Options -> Camera).
+    /// edited from the Camera tab of the settings menu (pause menu -> Settings -> Camera).
     ///
     /// ApplyOnBoot() runs once from GameBootstrap before anything draws. It only calls
     /// Screen.SetResolution when the player actually chose a resolution, so a fresh install keeps

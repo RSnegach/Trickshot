@@ -4,19 +4,21 @@ using UnityEngine.InputSystem;
 namespace Trickshot
 {
     /// <summary>
-    /// Options overlay opened from the pause menu. Four tabs:
+    /// Settings overlay opened from the pause menu and the main-menu hub. Five tabs:
     ///   KEYBINDINGS - one row per action showing its current bind, click to rebind, duplicates
     ///                 highlighted, plus Reset to Defaults.
     ///   AUDIO       - per-channel volume sliders.
     ///   QUICKCHAT   - assign a phrase to each number key.
     ///   CAMERA      - resolution, window mode, vsync, UI scale, and camera field of view.
+    ///   CREDITS     - rolling, looping credits: the creator, then every third-party asset
+    ///                 (the text itself lives in CreditsData).
     ///
-    /// Drawn by PauseMenu when Options is open, inside its MenuScale block, so lay out against
-    /// MenuScale.Width/Height rather than Screen.*.
+    /// Drawn by PauseMenu / MenuUI while Settings is open, inside their MenuScale block, so lay
+    /// out against MenuScale.Width/Height rather than Screen.*.
     /// </summary>
-    public class OptionsMenu
+    public class SettingsMenu
     {
-        enum Tab { Keybindings, Audio, Quickchat, Camera }
+        enum Tab { Keybindings, Audio, Quickchat, Camera, Credits }
         Tab _tab = Tab.Keybindings;
 
         GameInput _input;
@@ -27,9 +29,19 @@ namespace Trickshot
         Vector2 _resScroll;                 // scroll pos of the resolution list
         bool _gfxOpen;                      // the Graphics tier dropdown is unfolded
 
+        // Credits roll (see DrawCredits). The offset is how far the list has scrolled up, in
+        // virtual px, wrapped modulo the list's height so it loops; the hold is the time left
+        // before auto-scroll resumes after the player scrubbed it. Entry heights are measured
+        // once, because the long asset lines word-wrap.
+        float _creditsOffset, _creditsHold, _creditsDragY, _creditsTotal;
+        bool _creditsDrag;
+        float[] _creditsHeights;
+        const float CreditsSpeed = 28f;   // px/s: about a line a second, a film's end crawl
+        const float CreditsHold = 2f;     // seconds the roll waits after a wheel or a drag
+
         public bool IsRebinding => _listening != null;
 
-        public OptionsMenu(GameInput input) { _input = input; }
+        public SettingsMenu(GameInput input) { _input = input; }
 
         // Returns true while open; PauseMenu calls Draw and closes when it returns false.
         // `onClose` fires when the user backs out.
@@ -43,19 +55,23 @@ namespace Trickshot
             UITheme.Panel(new Rect(x, y, w, h), UITheme.Gold);
 
             var title = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Ink } };
-            UITheme.Shadowed(new Rect(x + 24f, y + 14f, w - 48f, 34f), "OPTIONS", title, UITheme.Ink, 0.7f, 2f);
+            UITheme.Shadowed(new Rect(x + 24f, y + 14f, w - 48f, 34f), "SETTINGS", title, UITheme.Ink, 0.7f, 2f);
 
             // Tab strip. Switching tabs cancels any in-flight rebind so it isn't orphaned.
             var tab = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
             var tabSel = new GUIStyle(tab); tabSel.normal.textColor = UITheme.Gold;
-            if (TabBtn(new Rect(x + 24f, y + 54f, 140f, 30f), "Keybindings", _tab == Tab.Keybindings, tab, tabSel) && _tab != Tab.Keybindings)
+            // Five tabs share the 612 px content width: 116 each on a 122 stride.
+            const float tabW = 116f, tabStep = 122f;
+            if (TabBtn(new Rect(x + 24f, y + 54f, tabW, 30f), "Keybindings", _tab == Tab.Keybindings, tab, tabSel) && _tab != Tab.Keybindings)
                 _tab = Tab.Keybindings;
-            if (TabBtn(new Rect(x + 24f + 146f, y + 54f, 140f, 30f), "Audio", _tab == Tab.Audio, tab, tabSel) && _tab != Tab.Audio)
+            if (TabBtn(new Rect(x + 24f + tabStep, y + 54f, tabW, 30f), "Audio", _tab == Tab.Audio, tab, tabSel) && _tab != Tab.Audio)
                 { CancelListening(); _tab = Tab.Audio; }
-            if (TabBtn(new Rect(x + 24f + 292f, y + 54f, 140f, 30f), "Quickchat", _tab == Tab.Quickchat, tab, tabSel) && _tab != Tab.Quickchat)
+            if (TabBtn(new Rect(x + 24f + tabStep * 2f, y + 54f, tabW, 30f), "Quickchat", _tab == Tab.Quickchat, tab, tabSel) && _tab != Tab.Quickchat)
                 { CancelListening(); _qcPickingSlot = 0; _tab = Tab.Quickchat; }
-            if (TabBtn(new Rect(x + 24f + 438f, y + 54f, 140f, 30f), "Camera", _tab == Tab.Camera, tab, tabSel) && _tab != Tab.Camera)
+            if (TabBtn(new Rect(x + 24f + tabStep * 3f, y + 54f, tabW, 30f), "Camera", _tab == Tab.Camera, tab, tabSel) && _tab != Tab.Camera)
                 { CancelListening(); _qcPickingSlot = 0; _tab = Tab.Camera; }
+            if (TabBtn(new Rect(x + 24f + tabStep * 4f, y + 54f, tabW, 30f), "Credits", _tab == Tab.Credits, tab, tabSel) && _tab != Tab.Credits)
+                { CancelListening(); _qcPickingSlot = 0; _tab = Tab.Credits; _creditsOffset = 0f; _creditsHold = 0f; _creditsDrag = false; }
 
             // Hairline under the strip so the tabs read as attached to the content below.
             UITheme.Divider(x + 24f, y + 88f, w - 48f);
@@ -63,7 +79,8 @@ namespace Trickshot
             if      (_tab == Tab.Keybindings) DrawKeybindings(x, y + 96f, w, h - 96f);
             else if (_tab == Tab.Audio)       DrawAudio(x, y + 96f, w, h - 96f);
             else if (_tab == Tab.Quickchat)   DrawQuickchat(x, y + 96f, w, h - 96f);
-            else                              DrawCamera(x, y + 96f, w, h - 96f);
+            else if (_tab == Tab.Camera)      DrawCamera(x, y + 96f, w, h - 96f);
+            else                              DrawCredits(x, y + 96f, w, h - 96f);
 
             // Sliders write their value every frame while dragged, so the pref store is only
             // flushed to disk once the drag ends.
@@ -375,6 +392,128 @@ namespace Trickshot
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
             UITheme.Label(new Rect(lx, y6 + 36f, cw, 34f),
                 "Saved on this machine. UI Scale resizes menus and the control banner.", note);
+        }
+
+        // Rolling credits. CreditsData's list scrolls up on its own like a film's end crawl and
+        // wraps seamlessly: copies are stacked one under the other, so the head of the list
+        // follows its own tail with no blank stretch. The wheel or a drag scrubs it, and either
+        // holds the roll for a couple of seconds so the player can read what they stopped on.
+        // unscaledDeltaTime, because the pause menu freezes timeScale and this must still roll.
+        //
+        // No GUI.BeginGroup: UITheme's crisp-text pass drops GUI.matrix to identity for every
+        // label it draws, and how that composes with a clip group pushed under the scaled matrix
+        // is not something to lean on blind. Lines are culled to the window instead, and faded
+        // over a short band at either edge, so nothing ever draws past the window and the ends
+        // read as a soft vignette rather than a hard cut.
+        void DrawCredits(float x, float y, float w, float h)
+        {
+            var win = new Rect(x + 24f, y + 2f, w - 48f, h - 58f);   // stops short of the Back row
+            var entries = CreditsData.Entries;
+
+            var heading = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = false, normal = { textColor = UITheme.Ink } };
+            var sub     = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = false, normal = { textColor = UITheme.Gold } };
+            var strong  = new GUIStyle(GUI.skin.label) { fontSize = 19, alignment = TextAnchor.MiddleCenter, wordWrap = false, normal = { textColor = UITheme.Ink } };
+            var line    = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.UpperCenter, wordWrap = true, normal = { textColor = UITheme.Dim } };
+
+            // Heights are measured once. The wrap is measured a little narrower than the draw, so
+            // the crisp pass (which re-rasterizes at a rounded native font size, and can wrap a
+            // hair differently) only ever has more room than the measure assumed, never less.
+            if (_creditsHeights == null || _creditsHeights.Length != entries.Length)
+            {
+                _creditsHeights = new float[entries.Length];
+                _creditsTotal = 0f;
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    float eh = EntryHeight(entries[i], win.width - 16f, line);
+                    _creditsHeights[i] = eh;
+                    _creditsTotal += eh;
+                }
+            }
+            if (_creditsTotal <= 0f) return;
+
+            // Scrubbing. The drag tracks absolute mouse Y rather than Event.delta: mousePosition
+            // is already in virtual coordinates under MenuScale, delta is not promised to be.
+            var e = Event.current;
+            bool over = win.Contains(e.mousePosition);
+            if (e.type == EventType.ScrollWheel && over)
+            {
+                _creditsOffset += e.delta.y * 10f;   // a notch is ~3 units: ~30 px, about a line
+                _creditsHold = CreditsHold;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseDown && e.button == 0 && over)
+            {
+                _creditsDrag = true;
+                _creditsDragY = e.mousePosition.y;
+                _creditsHold = CreditsHold;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseDrag && _creditsDrag)
+            {
+                _creditsOffset -= e.mousePosition.y - _creditsDragY;   // drag down = pull the list back down
+                _creditsDragY = e.mousePosition.y;
+                _creditsHold = CreditsHold;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseUp && _creditsDrag)
+            {
+                _creditsDrag = false;   // not Used: Draw's MouseUp check still flushes DisplaySettings
+            }
+
+            // Advance on Repaint only - OnGUI runs once per event, and every pass calls Draw.
+            if (e.type == EventType.Repaint)
+            {
+                float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);   // a hitch must not skip a screenful
+                if (_creditsHold > 0f) _creditsHold -= dt;
+                else if (!_creditsDrag) _creditsOffset += CreditsSpeed * dt;
+            }
+            _creditsOffset = Mathf.Repeat(_creditsOffset, _creditsTotal);
+
+            // Enough copies to cover the window whatever the list's length; two, in practice.
+            const float fade = 36f;
+            int copies = Mathf.CeilToInt(win.height / _creditsTotal) + 1;
+            var keepCol = GUI.color;
+            for (int c = 0; c < copies; c++)
+            {
+                float ly = win.y - _creditsOffset + c * _creditsTotal;
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    float top = ly, lh = _creditsHeights[i];
+                    ly += lh;
+                    var en = entries[i];
+                    if (en.Kind == CreditsData.Kind.Gap) continue;
+                    if (top < win.y || top + lh > win.yMax) continue;   // culled: never past the window
+                    float a = Mathf.Clamp01(Mathf.Min((top - win.y) / fade, (win.yMax - top - lh) / fade));
+                    if (a <= 0.01f) continue;
+                    GUI.color = new Color(1f, 1f, 1f, a);   // multiplies the text (and the shadow)
+
+                    var r = new Rect(win.x, top, win.width, lh);
+                    switch (en.Kind)
+                    {
+                        case CreditsData.Kind.Heading: UITheme.Shadowed(r, en.Text, heading, UITheme.Ink, 0.7f, 2f); break;
+                        case CreditsData.Kind.Sub:     UITheme.Label(r, en.Text, sub); break;
+                        case CreditsData.Kind.Strong:  UITheme.Label(r, en.Text, strong); break;
+                        default:                       UITheme.Label(r, en.Text, line); break;
+                    }
+                }
+            }
+            GUI.color = keepCol;
+
+            UITheme.Hint(new Rect(x + 24f, y + h - 46f, w - 48f - 150f, 34f), "Scroll or drag to browse", TextAnchor.MiddleLeft);
+        }
+
+        // Height of one credits entry in virtual px. Only Line entries wrap; the rest are one line
+        // of a known size, and Gap is whatever the data says.
+        static float EntryHeight(CreditsData.Entry en, float wrapW, GUIStyle line)
+        {
+            switch (en.Kind)
+            {
+                case CreditsData.Kind.Heading: return 46f;
+                case CreditsData.Kind.Sub:     return 26f;
+                case CreditsData.Kind.Strong:  return 30f;
+                case CreditsData.Kind.Gap:     return en.Size;
+                default:                       return line.CalcHeight(new GUIContent(en.Text), wrapW) + 4f;
+            }
         }
 
         void BeginListen(string action)

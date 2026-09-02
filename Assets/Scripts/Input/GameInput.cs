@@ -101,7 +101,7 @@ namespace Trickshot
             _playerInput.defaultActionMap = "Play";
 
             // Do NOT capture the cursor here. GameInput is created while the title-screen menu is
-            // still up (GetInput() is called to wire the Options button), and the menu is IMGUI,
+            // still up (GetInput() is called to wire the Settings button), and the menu is IMGUI,
             // which needs a free, visible pointer. Capture is switched on only when a match starts,
             // via CaptureCursor(true). Locking at construction hid the cursor under the live menu
             // and killed every button.
@@ -112,7 +112,7 @@ namespace Trickshot
             => _map.AddAction(action, InputActionType.Button, Keybinds.Path(action));
 
         // ---- runtime rebinding ----
-        // Apply a new control path to an action's binding (used by the options menu after a
+        // Apply a new control path to an action's binding (used by the settings menu after a
         // successful rebind). Rebuilds the Move composite when a movement direction changes.
         public void ApplyBinding(string action, string path)
         {
@@ -138,7 +138,7 @@ namespace Trickshot
         }
 
         // Listen for the next key / mouse-button press and report its control path, so the
-        // options menu can rebind interactively. Cancels on Escape (reports null).
+        // settings menu can rebind interactively. Cancels on Escape (reports null).
         public InputActionRebindingExtensions.RebindingOperation StartRebind(string action, System.Action<string> onComplete)
         {
             var a = (action == "MoveUp" || action == "MoveDown" || action == "MoveLeft" || action == "MoveRight")

@@ -330,7 +330,7 @@ namespace Trickshot
         }
 
         // Each camera mode has its own tuned FOV; the player's Field of View option (Camera tab
-        // in Options) shifts all of them by the same amount so the relative feel is preserved.
+        // in Settings) shifts all of them by the same amount so the relative feel is preserved.
         static float Fov(float baseFov) => Mathf.Clamp(baseFov + DisplaySettings.FovOffset, 34f, 78f);
 
         Vector3 GroupCenter()

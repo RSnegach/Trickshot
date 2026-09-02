@@ -12,7 +12,7 @@ namespace Trickshot
 
     /// <summary>
     /// IMGUI start menu, two screens: a title SPLASH (the wordmark + "press any key"), then a
-    /// FIFA-style HUB of mode cards (Single Player / Multiplayer / Career Stats / Zoo / Options).
+    /// FIFA-style HUB of mode cards (Single Player / Multiplayer / Career Stats / Zoo / Settings).
     /// Single Player opens a consolidated flat list of every solo mode (Striker/Goalkeeper plus
     /// what used to be the separate "Mode" submenu). Kept as IMGUI so it needs no Canvas/
     /// EventSystem wiring (consistent with the rest of the runtime build).
@@ -31,10 +31,10 @@ namespace Trickshot
         Phase _phase = Phase.Splash;
         int _splashStartFrame;   // guards Input.anyKeyDown against a false-positive on frame one
 
-        // Options overlay (Keybindings + Audio), same panel the pause menu uses. Built lazily from
-        // the passed GameInput; null if none was supplied (then no Options card is shown).
-        OptionsMenu _options;
-        bool _optionsOpen;
+        // Settings overlay (Keybindings + Audio), same panel the pause menu uses. Built lazily from
+        // the passed GameInput; null if none was supplied (then no Settings button is shown).
+        SettingsMenu _settings;
+        bool _settingsOpen;
         CareerStatsUI _careerStats;
 
         // Small Friends/Achievements chips, bottom-right of the Hub only (see DrawHub). Mutually
@@ -46,7 +46,7 @@ namespace Trickshot
         {
             _onChoose = onChoose;
             _onMultiplayer = onMultiplayer;
-            if (input != null) _options = new OptionsMenu(input);
+            if (input != null) _settings = new SettingsMenu(input);
             GameInput.CaptureCursor(false);
             _splashStartFrame = Time.frameCount;
             if (skipSplash) _phase = Phase.Hub;
@@ -54,7 +54,7 @@ namespace Trickshot
 
         // Legacy Input.anyKeyDown is deliberate here, not GameInput/IStrikerInput: that abstraction
         // is a gameplay action map (Jump, LegL, LegR, ...) with no "any key at all" concept, and is
-        // itself optional (null when no Options should show) - the wrong coupling for a one-shot,
+        // itself optional (null when no Settings should show) - the wrong coupling for a one-shot,
         // non-gameplay splash dismiss. activeInputHandler is "Both" in this project (confirmed in
         // ProjectSettings.asset), so legacy Input isn't disabled, just unused by gameplay code.
         void Update()
@@ -70,11 +70,11 @@ namespace Trickshot
             // Fit to the window (see MenuScale); virtual coordinates from here on.
             MenuScale.Begin();
 
-            // Options overlay takes over the whole menu while open (same panel as the pause menu).
-            // Only ever reachable from Phase.Hub (the Options card), same as the old Options button.
-            if (_optionsOpen && _options != null)
+            // Settings overlay takes over the whole menu while open (same panel as the pause menu).
+            // Only ever reachable from Phase.Hub (the Settings button in the top-right corner).
+            if (_settingsOpen && _settings != null)
             {
-                _options.Draw(() => _optionsOpen = false);
+                _settings.Draw(() => _settingsOpen = false);
                 MenuScale.End();
                 return;
             }
@@ -106,8 +106,8 @@ namespace Trickshot
 
         // The FIFA-style hub: straight to a row of mode cards, no wordmark - the splash already
         // showed the logo once, so repeating it here just ate space the cards can use instead.
-        // Card count adapts if Options has nothing to open into (no GameInput supplied) - same
-        // "hasOptions" guard the old single-column button list used, just sizing a row instead of
+        // Card count adapts if Settings has nothing to open into (no GameInput supplied) - same
+        // "hasSettings" guard the old single-column button list used, just sizing a row instead of
         // a column. Card size and spacing are fractions of the real canvas (MenuScale.Width/
         // Height), not fixed pixel values - that canvas is NOT a constant 1280x760, it scales with
         // the actual window and the UI Scale setting (measured live elsewhere in this project at
@@ -117,13 +117,15 @@ namespace Trickshot
         {
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
 
-            bool hasOptions = _options != null;
+            bool hasSettings = _settings != null;
 
             float marginX = MenuScale.Width * 0.05f;
 
-            var optionsBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold, stretchWidth = false };
-            if (hasOptions && UITheme.Button(new Rect(MenuScale.Width - marginX - 90f, 26f, 90f, 34f), "OPTIONS", optionsBtn))
-                _optionsOpen = true;
+            // 110 wide: "SETTINGS" clips at the old 90 in 12 pt bold, and the origin moves by the
+            // same 20 so the button stays flush to the right margin.
+            var settingsBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold, stretchWidth = false };
+            if (hasSettings && UITheme.Button(new Rect(MenuScale.Width - marginX - 110f, 26f, 110f, 34f), "SETTINGS", settingsBtn))
+                _settingsOpen = true;
 
             int cardCount = 3;   // Single Player, Multiplayer, Career Stats
             float cardGap = MenuScale.Width * 0.028f;
@@ -232,7 +234,7 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            _options?.Dispose();   // abort any in-flight rebind so the op isn't orphaned
+            _settings?.Dispose();   // abort any in-flight rebind so the op isn't orphaned
         }
     }
 }

@@ -142,7 +142,7 @@ namespace Trickshot
             // Cross-targeting map (M): toggle. While open, the striker doesn't tick (aiming
             // is frozen) so you can click the map without steering, and the cursor is freed.
             // Escape also closes it (never opens it) - a second way out for a mouse-only reflex,
-            // matching every other overlay in the game (options, quickchat, pause itself).
+            // matching every other overlay in the game (settings, quickchat, pause itself).
             if (_input.CrossMapPressed) SetCrossMapOpen(!_crossOpen);
             else if (_crossOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 SetCrossMapOpen(false);

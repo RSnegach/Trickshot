@@ -12,7 +12,7 @@ namespace Trickshot
     ///   Resume          - unpause
     ///   Restart Match   - rebuild the same mode with the same settings (single-player only)
     ///   Match Setup     - tear down and reopen the pre-match slider config for this mode
-    ///   Options         - keybindings / audio / quickchat / camera + display
+    ///   Settings        - keybindings / audio / quickchat / camera + display / credits
     ///   Leave Match     - client only: drop out without ending the match for everyone else
     ///   End Match       - host: ends it for everyone. Single-player: quit to the main menu
     ///   Quit to Desktop - close the game
@@ -32,9 +32,9 @@ namespace Trickshot
         System.Action _onMatchSetup;
         System.Action _onRestart;  // single-player only: rebuild this mode as-is
         System.Action _onLeave;    // client-only: leave a net match without ending it for others
-        OptionsMenu _options;
-        bool _optionsOpen;
-        // Match Setup as an in-panel overlay (like Options) instead of a teardown + full-screen
+        SettingsMenu _settings;
+        bool _settingsOpen;
+        // Match Setup as an in-panel overlay (like Settings) instead of a teardown + full-screen
         // rebuild: the live-tunable settings apply to the running match immediately, so there is no
         // reason to leave it. The full-screen flow is still reachable from inside, for the settings
         // that genuinely need a rebuild (goal size, Match team pickers). See PauseMatchSetup.
@@ -73,7 +73,7 @@ namespace Trickshot
             _onMatchSetup = onMatchSetup;
             _onLeave = onLeave;
             _onRestart = onRestart;
-            if (input != null) _options = new OptionsMenu(input);
+            if (input != null) _settings = new SettingsMenu(input);
             _mode = mode;
             // Only build the inline panel for a mode that actually has live-tunable settings; a mode
             // with none (Match: every picker needs a rebuild) keeps the old full-screen entry alone.
@@ -114,13 +114,13 @@ namespace Trickshot
                 // on Escape too, and must not ALSO open the pause menu on that same press.
                 if (GameManager.CrossMapEscapeOwned) return;
 
-                // Back out one level at a time: confirm card -> options/setup -> buttons -> unpause.
+                // Back out one level at a time: confirm card -> settings/setup -> buttons -> unpause.
                 if (_confirmAct != null) { ClearConfirm(); return; }
-                if (_optionsOpen)
+                if (_settingsOpen)
                 {
                     // If a rebind is listening, the rebind op consumes Esc itself, so ignore it here.
-                    if (_options != null && _options.IsRebinding) return;
-                    _optionsOpen = false;
+                    if (_settings != null && _settings.IsRebinding) return;
+                    _settingsOpen = false;
                     return;
                 }
                 if (_setupOpen) { _setupOpen = false; return; }
@@ -130,7 +130,7 @@ namespace Trickshot
 
             // Keyboard navigation. Polled here rather than off IMGUI key events so it works
             // regardless of GUI focus; the Input System is unaffected by timeScale = 0.
-            if (!Paused || _optionsOpen || _setupOpen) return;
+            if (!Paused || _settingsOpen || _setupOpen) return;
 
             bool up = kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame;
             bool down = kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame;
@@ -223,8 +223,8 @@ namespace Trickshot
             else if (_onMatchSetup != null && !Trickshot.Net.Multiplayer.IsClient)
                 _entries.Add(new Entry { Label = "Match Setup", Act = () => { Unfreeze(); _onMatchSetup?.Invoke(); } });
 
-            if (_options != null)
-                _entries.Add(new Entry { Label = "Options", Act = () => _optionsOpen = true });
+            if (_settings != null)
+                _entries.Add(new Entry { Label = "Settings", Act = () => _settingsOpen = true });
 
             // Client in a networked match: leave without ending it for everyone else. The host
             // keeps running the sim and this player's slot reverts to AI.
@@ -264,10 +264,10 @@ namespace Trickshot
             // MenuScale.Width/Height instead of Screen.*.
             MenuScale.Begin();
 
-            // Options overlay takes over the pause screen while open.
-            if (_optionsOpen && _options != null)
+            // Settings overlay takes over the pause screen while open.
+            if (_settingsOpen && _settings != null)
             {
-                _options.Draw(() => _optionsOpen = false);
+                _settings.Draw(() => _settingsOpen = false);
                 MenuScale.End();
                 return;
             }
@@ -388,7 +388,7 @@ namespace Trickshot
         {
             // Never leave the game frozen if this object is destroyed while paused.
             if (Paused) { Time.timeScale = 1f; Paused = false; }
-            _options?.Dispose();   // abort any in-flight rebind operation
+            _settings?.Dispose();   // abort any in-flight rebind operation
         }
     }
 }

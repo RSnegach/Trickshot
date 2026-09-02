@@ -3,11 +3,11 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Career Stats screen, opened from the main menu hub. Same shape as OptionsMenu/CustomizeUI -
+    /// Career Stats screen, opened from the main menu hub. Same shape as SettingsMenu/CustomizeUI -
     /// a plain class MenuUI holds and calls Draw(...) on, not a MonoBehaviour.
     ///
     /// Categories cycle with a compact ‹ › arrow (CustomizeUI's pattern) rather than a row of tab
-    /// buttons (OptionsMenu's pattern) - nine categories as button chips would be cramped. Every
+    /// buttons (SettingsMenu's pattern) - nine categories as button chips would be cramped. Every
     /// category is a 3-column row list (label / SP / MP) rather than a stacked SP block then an
     /// MP block - Match's tab is already the tallest at 13 rows, and doubling every tab's row
     /// count would blow the panel's height budget. Numbers come straight from CareerStats.Data;

@@ -38,8 +38,8 @@ namespace Trickshot
             ("ThirdLeg",   "Third leg (adult mode)"),
         };
 
-        // Binds that only mean anything with adult mode on. The options list hides them otherwise
-        // (see OptionsMenu.DrawKeybindings); the action itself is always built and bound.
+        // Binds that only mean anything with adult mode on. The settings list hides them otherwise
+        // (see SettingsMenu.DrawKeybindings); the action itself is always built and bound.
         public static bool AdultOnly(string action) => action == "ThirdLeg";
 
         /// <summary>Control-band chunk for the third-leg bind ("   MMB third leg"), or "" when adult

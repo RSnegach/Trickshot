@@ -141,7 +141,7 @@ namespace Trickshot
                 case "multiplayer": TwoHeads(); break;
                 case "career": BarChart(); break;
                 case "zoo": Quadruped(); break;
-                case "options": Gear(); break;
+                case "settings": Gear(); break;
             }
         }
 

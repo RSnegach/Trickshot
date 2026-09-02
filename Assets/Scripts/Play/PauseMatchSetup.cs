@@ -4,7 +4,7 @@ namespace Trickshot
 {
     /// <summary>
     /// "Match Setup" as an overlay INSIDE the pause menu, so a running match can be re-tuned
-    /// without being torn down and rebuilt. Same shape as OptionsMenu: a plain class the PauseMenu
+    /// without being torn down and rebuilt. Same shape as SettingsMenu: a plain class the PauseMenu
     /// owns and swaps in for its own body while open (see PauseMenu._setupOpen).
     ///
     /// STRIKER: the goal window (GoalEditor) beside a small panel - the goal's size, dragged like a
