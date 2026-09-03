@@ -99,14 +99,17 @@ namespace Trickshot
             // uses - so the venue row that used to sit here is gone.)
             if (Modes[_mode] == GameMode.Match)
             {
-                // Capped at 5 a side: the 8-slot board cannot seat two full 11-a-side teams, so
-                // 11v11 only ever ran as a mostly-AI match wearing a big number. 1v1 replaces it.
+                // ONLY SEATABLE SIZES. Match maps two teams onto the 8-slot board, so a team is
+                // capped at NetSession.ScrimSlotsPerTeam (4) - and NetSession.ScrimPerSide clamps to
+                // exactly that. The old 5v5/11v11 entries were silently clamped to 4 as well: they
+                // opened a lobby with four slots per side while calling itself eleven a side. Offering
+                // only what the board can seat is what stops the picker promising a size the lobby
+                // then refuses.
                 //
-                // The VALUES are roster sizes INCLUDING the keeper (shirt 0 is always the keeper -
-                // see Footballer.PerSide), so "1 v 1" is perSide 2: a keeper and one outfielder each,
-                // which is the authored {GK, ST} formation. perSide 1 would be a keeper and NOBODY,
-                // and is the shirt invariant NetSession.ScrimPerSide and Footballer both clamp away.
-                PickerVals(lx, ref row, lw, "Team size", new[] { "1 v 1", "3 v 3", "5 v 5" }, new[] { 2, 3, 5 }, ref _perSide);
+                // Values are roster sizes INCLUDING the keeper (shirt 0), the same "N a side"
+                // convention the pitch sizing uses - so 2 is a keeper + 1 outfielder. perSide 1 would
+                // be a keeper and NOBODY, the shirt invariant ScrimPerSide and Footballer clamp away.
+                PickerVals(lx, ref row, lw, "Team size", new[] { "2 v 2", "3 v 3", "4 v 4" }, new[] { 2, 3, 4 }, ref _perSide);
                 PickerVals(lx, ref row, lw, "Match length", new[] { "2 min", "3 min", "5 min", "10 min" }, new[] { 2, 3, 5, 10 }, ref _matchMin);
                 LookingForRow(lx, ref row, lw);
             }

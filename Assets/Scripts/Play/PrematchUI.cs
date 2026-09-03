@@ -279,16 +279,18 @@ namespace Trickshot
         // All four are the one LadderPicker the keeper ladder uses. They were four hand-rolled copies
         // of the same button loop, which is also how they came to disagree about button gaps (8 px
         // here, 6 px on the keeper row).
-        // The VALUES are roster sizes INCLUDING the keeper (shirt 0 is always the keeper), so
-        // "1 v 1" is perSide 2: a keeper and one outfielder each, the authored {GK, ST} formation.
-        // perSide 1 would be a keeper and NOBODY, which is the shirt invariant every consumer
-        // clamps away (Footballer.PerSide, GameBootstrap's Max(2, ...)).
+        // Values are roster sizes INCLUDING the keeper (shirt 0), the "N a side" convention the
+        // pitch sizing uses - so 2 a side is a keeper and one outfielder, the authored {GK, ST}
+        // formation, and it is labelled 2 v 2 for the same reason 3 is labelled 3 v 3. perSide 1
+        // would be a keeper and NOBODY, the shirt invariant every consumer clamps away
+        // (Footballer.PerSide, GameBootstrap's Max(2, ...)).
         //
-        // Capped at 5 a side to match multiplayer, whose 8-slot board cannot seat two 11-a-side
-        // teams: 11v11 was a mostly-AI match wearing a big number, and having it here but not there
-        // meant the two screens disagreed about what sizes the game offers.
+        // Capped at 5 a side: 11v11 was a mostly-AI match wearing a big number. Single player has no
+        // seating limit of its own (the 8-slot board only binds multiplayer), so it keeps 5 where the
+        // host picker stops at 4 - these lists are deliberately allowed to differ, because the reason
+        // multiplayer stops earlier does not exist here.
         static readonly int[]    ScrimSizes     = { 2, 3, 5 };
-        static readonly string[] ScrimSizeNames = { "1 v 1", "3 v 3", "5 v 5" };
+        static readonly string[] ScrimSizeNames = { "2 v 2", "3 v 3", "5 v 5" };
         static readonly float[]  ScrimMins      = { 2f, 3f, 5f, 10f };
         static readonly string[] ScrimMinNames  = { "2 min", "3 min", "5 min", "10 min" };
 

@@ -708,10 +708,11 @@ namespace Trickshot.Net
             switch (mode)
             {
                 case GameMode.Match:
-                    // perSide counts the keeper (shirt 0), but the lobby size players talk about
-                    // is the OUTFIELD count - the host setup picker says "1 v 1" for perSide 2 - so
-                    // advertise the same number the host chose, not one more.
-                    int n = Mathf.Max(1, (int)Config.perSide - 1);
+                    // "N a side" is perSide INCLUDING the keeper, the same convention the pitch
+                    // sizing and the host picker use - so a 3-a-side lobby advertises 3v3. Report the
+                    // SEATED size, not the raw config byte: the 8-slot board caps a team at
+                    // ScrimSlotsPerTeam, and a lobby that seats 4 must not advertise 5.
+                    int n = Mathf.Clamp((int)Config.perSide, 2, ScrimSlotsPerTeam);
                     return "Match " + n + "v" + n + LookingRoles.Tag(Config.lookingFor);
                 case GameMode.SetPieces: return "Set Pieces";
                 default: return mode.ToString();

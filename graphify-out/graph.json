@@ -515,7 +515,7 @@
       },
       "norm_label": "sticky",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L756"
+      "source_location": "L757"
     },
     {
       "id": "assets_scripts_ragdoll_gait_trickshot_gait",
@@ -8588,7 +8588,7 @@
       },
       "norm_label": ".assignlocal()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1564"
+      "source_location": "L1565"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastshootout",
@@ -8606,7 +8606,7 @@
       },
       "norm_label": ".broadcastshootout()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L922"
+      "source_location": "L923"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_host",
@@ -9146,7 +9146,7 @@
       },
       "norm_label": ".inputforslot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L747"
+      "source_location": "L748"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_sticky_or",
@@ -9164,7 +9164,7 @@
       },
       "norm_label": ".or()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L760"
+      "source_location": "L761"
     },
     {
       "id": "assets_scripts_play_dribble_trickshot_dribble_strideinterval",
@@ -10832,7 +10832,7 @@
       },
       "norm_label": ".broadcastsnapshot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L818"
+      "source_location": "L819"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_inputtickforslot",
@@ -10850,7 +10850,7 @@
       },
       "norm_label": ".inputtickforslot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L790"
+      "source_location": "L791"
     },
     {
       "id": "assets_scripts_play_netmatch_trickshot_netmatch_animstateof",
@@ -18164,7 +18164,7 @@
       },
       "norm_label": ".consumeinputforslot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L774"
+      "source_location": "L775"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_sampleinterpolated",
@@ -18182,7 +18182,7 @@
       },
       "norm_label": ".sampleinterpolated()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L997"
+      "source_location": "L998"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_setlocalinput",
@@ -18200,7 +18200,7 @@
       },
       "norm_label": ".setlocalinput()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L802"
+      "source_location": "L803"
     },
     {
       "id": "assets_scripts_play_netmatch_trickshot_netmatch_hostupdate",
@@ -18776,7 +18776,7 @@
       },
       "norm_label": ".deliverquickchat()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L894"
+      "source_location": "L895"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_qcallow",
@@ -18794,7 +18794,7 @@
       },
       "norm_label": ".qcallow()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L859"
+      "source_location": "L860"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_sendquickchat",
@@ -18812,7 +18812,7 @@
       },
       "norm_label": ".sendquickchat()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L878"
+      "source_location": "L879"
     },
     {
       "id": "assets_scripts_play_chatcensor_trickshot_chatcensor_clean",
@@ -19208,7 +19208,7 @@
       },
       "norm_label": ".routemessage()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1040"
+      "source_location": "L1041"
     },
     {
       "id": "assets_scripts_sim_achievements_trickshot_achievements_save",
@@ -19640,7 +19640,7 @@
       },
       "norm_label": ".broadcastmatchstats()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L916"
+      "source_location": "L917"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_clearmatchstats",
@@ -19658,7 +19658,7 @@
       },
       "norm_label": ".clearmatchstats()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L912"
+      "source_location": "L913"
     },
     {
       "id": "assets_scripts_play_matchgame_trickshot_matchgame_wirestats",
@@ -22862,7 +22862,7 @@
       },
       "norm_label": ".applyslotrequest()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1467"
+      "source_location": "L1468"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_assigncrosser",
@@ -22916,7 +22916,7 @@
       },
       "norm_label": ".broadcastballkick()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L827"
+      "source_location": "L828"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_broadcastjersey",
@@ -22952,7 +22952,7 @@
       },
       "norm_label": ".broadcastposthit()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L833"
+      "source_location": "L834"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_buildadvert",
@@ -22970,7 +22970,7 @@
       },
       "norm_label": ".buildadvert()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L730"
+      "source_location": "L731"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_castjerseyvote",
@@ -23024,7 +23024,7 @@
       },
       "norm_label": ".clearsnapshotbuffer()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1021"
+      "source_location": "L1022"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_endreplayhost",
@@ -23060,7 +23060,7 @@
       },
       "norm_label": ".grantslot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1368"
+      "source_location": "L1369"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_grantwithinteam",
@@ -23078,7 +23078,7 @@
       },
       "norm_label": ".grantwithinteam()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1357"
+      "source_location": "L1358"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_humancount",
@@ -23240,7 +23240,7 @@
       },
       "norm_label": ".newqctimes()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L851"
+      "source_location": "L852"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_onconnectedtohost",
@@ -23258,7 +23258,7 @@
       },
       "norm_label": ".onconnectedtohost()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1312"
+      "source_location": "L1313"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_onjerseychunk",
@@ -23276,7 +23276,7 @@
       },
       "norm_label": ".onjerseychunk()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L934"
+      "source_location": "L935"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_onmessage",
@@ -23294,7 +23294,7 @@
       },
       "norm_label": ".onmessage()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1030"
+      "source_location": "L1031"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_onpeerjoined",
@@ -23312,7 +23312,7 @@
       },
       "norm_label": ".onpeerjoined()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1321"
+      "source_location": "L1322"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_onpeerleft",
@@ -23330,7 +23330,7 @@
       },
       "norm_label": ".onpeerleft()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1323"
+      "source_location": "L1324"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_poll",
@@ -23366,7 +23366,7 @@
       },
       "norm_label": ".preferredmatchteam()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1346"
+      "source_location": "L1347"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_pushlocaljersey",
@@ -23402,7 +23402,7 @@
       },
       "norm_label": ".pushroster()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1613"
+      "source_location": "L1614"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_pushsnap",
@@ -23420,7 +23420,7 @@
       },
       "norm_label": ".pushsnap()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L980"
+      "source_location": "L981"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_rebuildroster",
@@ -23438,7 +23438,7 @@
       },
       "norm_label": ".rebuildroster()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1577"
+      "source_location": "L1578"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_requestslot",
@@ -23456,7 +23456,7 @@
       },
       "norm_label": ".requestslot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1458"
+      "source_location": "L1459"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_resetslotinput",
@@ -23474,7 +23474,7 @@
       },
       "norm_label": ".resetslotinput()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1253"
+      "source_location": "L1254"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_roleforslot",
@@ -23618,7 +23618,7 @@
       },
       "norm_label": ".slotallowed()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1283"
+      "source_location": "L1284"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_slotishuman",
@@ -23636,7 +23636,7 @@
       },
       "norm_label": ".slotishuman()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L745"
+      "source_location": "L746"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_slotislocal",
@@ -23654,7 +23654,7 @@
       },
       "norm_label": ".slotislocal()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L746"
+      "source_location": "L747"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_slotof",
@@ -23672,7 +23672,7 @@
       },
       "norm_label": ".slotof()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1621"
+      "source_location": "L1622"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_startmatch",
@@ -23726,7 +23726,7 @@
       },
       "norm_label": ".tryendreplay()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L739"
+      "source_location": "L740"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_updatelocalappearance",
@@ -24878,7 +24878,7 @@
       },
       "norm_label": ".broadcastevent()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L838"
+      "source_location": "L839"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_leftfootedforslot",
@@ -30224,7 +30224,7 @@
       },
       "norm_label": ".drawfreekicksetup()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L174"
+      "source_location": "L177"
     },
     {
       "id": "assets_scripts_play_setpiecemap_trickshot_setpiecemap_clampoutsidebox",
@@ -35120,7 +35120,7 @@
       },
       "norm_label": ".passstatsforslot()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1550"
+      "source_location": "L1551"
     },
     {
       "id": "assets_scripts_play_customizeui_trickshot_customizeui_commit",
@@ -37748,7 +37748,7 @@
       },
       "norm_label": ".apply()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L391"
+      "source_location": "L393"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_drawnav",
@@ -37820,7 +37820,7 @@
       },
       "norm_label": ".endrow()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L500"
+      "source_location": "L502"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_gridrows",
@@ -37838,7 +37838,7 @@
       },
       "norm_label": ".gridrows()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L359"
+      "source_location": "L361"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_init",
@@ -37874,7 +37874,7 @@
       },
       "norm_label": ".keeperpicker()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L516"
+      "source_location": "L518"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_ladderpicker",
@@ -37892,7 +37892,7 @@
       },
       "norm_label": ".ladderpicker()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L362"
+      "source_location": "L364"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_matchpickers",
@@ -37910,7 +37910,7 @@
       },
       "norm_label": ".matchpickers()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L295"
+      "source_location": "L297"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_ongui",
@@ -37946,7 +37946,7 @@
       },
       "norm_label": ".pickstyle()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L493"
+      "source_location": "L495"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_placessetpiece",
@@ -37964,7 +37964,7 @@
       },
       "norm_label": ".placessetpiece()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L387"
+      "source_location": "L389"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_positionpicker",
@@ -37982,7 +37982,7 @@
       },
       "norm_label": ".positionpicker()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L339"
+      "source_location": "L341"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_rawslider",
@@ -38000,7 +38000,7 @@
       },
       "norm_label": ".rawslider()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L539"
+      "source_location": "L541"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_resetall",
@@ -38018,7 +38018,7 @@
       },
       "norm_label": ".resetall()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L562"
+      "source_location": "L564"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_rowcount",
@@ -38054,7 +38054,7 @@
       },
       "norm_label": ".rowlabel()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L479"
+      "source_location": "L481"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_rowvalue",
@@ -38072,7 +38072,7 @@
       },
       "norm_label": ".rowvalue()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L485"
+      "source_location": "L487"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
@@ -38090,7 +38090,7 @@
       },
       "norm_label": ".slider()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L522"
+      "source_location": "L524"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
@@ -38108,7 +38108,7 @@
       },
       "norm_label": ".toggle()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L550"
+      "source_location": "L552"
     },
     {
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_nearestailevel",
@@ -38810,7 +38810,7 @@
       },
       "norm_label": ".create()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L185"
+      "source_location": "L188"
     },
     {
       "id": "assets_scripts_play_lobbyui_trickshot_lobbyui_update",
@@ -39908,7 +39908,7 @@
       },
       "norm_label": ".ishostonly()",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1306"
+      "source_location": "L1307"
     },
     {
       "id": "assets_scripts_net_inettransport_trickshot_net_inettransport_join",
@@ -41834,7 +41834,7 @@
       },
       "norm_label": ".lookingforrow()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L300"
+      "source_location": "L303"
     },
     {
       "id": "assets_scripts_play_hostsetupui_trickshot_hostsetupui_ongui",
@@ -41870,7 +41870,7 @@
       },
       "norm_label": ".picker()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L260"
+      "source_location": "L263"
     },
     {
       "id": "assets_scripts_play_hostsetupui_trickshot_hostsetupui_pickervals",
@@ -41888,7 +41888,7 @@
       },
       "norm_label": ".pickervals()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L283"
+      "source_location": "L286"
     },
     {
       "id": "assets_scripts_play_hostsetupui_trickshot_hostsetupui_pickstyle",
@@ -41906,7 +41906,7 @@
       },
       "norm_label": ".pickstyle()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L253"
+      "source_location": "L256"
     },
     {
       "id": "assets_scripts_play_hostsetupui_trickshot_hostsetupui_rowlabel",
@@ -41924,7 +41924,7 @@
       },
       "norm_label": ".rowlabel()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L247"
+      "source_location": "L250"
     },
     {
       "id": "assets_scripts_play_hostsetupui_trickshot_hostsetupui_toggle",
@@ -41942,7 +41942,7 @@
       },
       "norm_label": ".toggle()",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L316"
+      "source_location": "L319"
     },
     {
       "id": "assets_scripts_play_jerseydesigns_trickshot_jerseydesigns_rect",
@@ -59933,7 +59933,7 @@
       },
       "norm_label": "hasmatchstats",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L905"
+      "source_location": "L906"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_hassnapshot",
@@ -60018,7 +60018,7 @@
       },
       "norm_label": "latestmatchstats",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L904"
+      "source_location": "L905"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_latestshootout",
@@ -60171,7 +60171,7 @@
       },
       "norm_label": "refusedbecause",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1560"
+      "source_location": "L1561"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_roster",
@@ -60222,7 +60222,7 @@
       },
       "norm_label": "slotanswered",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1532"
+      "source_location": "L1533"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_slotrefused",
@@ -60239,7 +60239,7 @@
       },
       "norm_label": "slotrefused",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1521"
+      "source_location": "L1522"
     },
     {
       "id": "assets_scripts_net_netsession_trickshot_net_netsession_transport",
@@ -77882,7 +77882,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1471",
+      "source_location": "L1472",
       "weight": 1.0
     },
     {
@@ -77894,7 +77894,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1472",
+      "source_location": "L1473",
       "weight": 1.0
     },
     {
@@ -77906,7 +77906,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1493",
+      "source_location": "L1494",
       "weight": 1.0
     },
     {
@@ -77918,7 +77918,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1506",
+      "source_location": "L1507",
       "weight": 1.0
     },
     {
@@ -77930,7 +77930,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1506",
+      "source_location": "L1507",
       "weight": 1.0
     },
     {
@@ -77942,7 +77942,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1507",
+      "source_location": "L1508",
       "weight": 1.0
     },
     {
@@ -77954,7 +77954,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1508",
+      "source_location": "L1509",
       "weight": 1.0
     },
     {
@@ -77966,7 +77966,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1511",
+      "source_location": "L1512",
       "weight": 1.0
     },
     {
@@ -78038,7 +78038,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L829",
+      "source_location": "L830",
       "weight": 1.0
     },
     {
@@ -78050,7 +78050,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L840",
+      "source_location": "L841",
       "weight": 1.0
     },
     {
@@ -78074,7 +78074,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L919",
+      "source_location": "L920",
       "weight": 1.0
     },
     {
@@ -78086,7 +78086,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L835",
+      "source_location": "L836",
       "weight": 1.0
     },
     {
@@ -78098,7 +78098,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L926",
+      "source_location": "L927",
       "weight": 1.0
     },
     {
@@ -78110,7 +78110,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L822",
+      "source_location": "L823",
       "weight": 1.0
     },
     {
@@ -78122,7 +78122,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L730",
+      "source_location": "L731",
       "weight": 1.0
     },
     {
@@ -78134,7 +78134,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L734",
+      "source_location": "L735",
       "weight": 1.0
     },
     {
@@ -78146,7 +78146,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L735",
+      "source_location": "L736",
       "weight": 1.0
     },
     {
@@ -78230,7 +78230,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L896",
+      "source_location": "L897",
       "weight": 1.0
     },
     {
@@ -78254,7 +78254,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1377",
+      "source_location": "L1378",
       "weight": 1.0
     },
     {
@@ -78266,7 +78266,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1401",
+      "source_location": "L1402",
       "weight": 1.0
     },
     {
@@ -78278,7 +78278,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1402",
+      "source_location": "L1403",
       "weight": 1.0
     },
     {
@@ -78290,7 +78290,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1414",
+      "source_location": "L1415",
       "weight": 1.0
     },
     {
@@ -78302,7 +78302,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1415",
+      "source_location": "L1416",
       "weight": 1.0
     },
     {
@@ -78314,7 +78314,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1423",
+      "source_location": "L1424",
       "weight": 1.0
     },
     {
@@ -78326,7 +78326,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1432",
+      "source_location": "L1433",
       "weight": 1.0
     },
     {
@@ -78338,7 +78338,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1434",
+      "source_location": "L1435",
       "weight": 1.0
     },
     {
@@ -78350,7 +78350,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1440",
+      "source_location": "L1441",
       "weight": 1.0
     },
     {
@@ -78362,7 +78362,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1445",
+      "source_location": "L1446",
       "weight": 1.0
     },
     {
@@ -78374,7 +78374,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1452",
+      "source_location": "L1453",
       "weight": 1.0
     },
     {
@@ -78386,7 +78386,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1363",
+      "source_location": "L1364",
       "weight": 1.0
     },
     {
@@ -78482,7 +78482,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L715",
+      "source_location": "L716",
       "weight": 1.0
     },
     {
@@ -78494,7 +78494,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L854",
+      "source_location": "L855",
       "weight": 1.0
     },
     {
@@ -78506,7 +78506,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1318",
+      "source_location": "L1319",
       "weight": 1.0
     },
     {
@@ -78518,7 +78518,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L936",
+      "source_location": "L937",
       "weight": 1.0
     },
     {
@@ -78530,7 +78530,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L955",
+      "source_location": "L956",
       "weight": 1.0
     },
     {
@@ -78542,7 +78542,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L973",
+      "source_location": "L974",
       "weight": 1.0
     },
     {
@@ -78554,7 +78554,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1032",
+      "source_location": "L1033",
       "weight": 1.0
     },
     {
@@ -78566,7 +78566,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1325",
+      "source_location": "L1326",
       "weight": 1.0
     },
     {
@@ -78578,7 +78578,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1333",
+      "source_location": "L1334",
       "weight": 1.0
     },
     {
@@ -78590,7 +78590,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1338",
+      "source_location": "L1339",
       "weight": 1.0
     },
     {
@@ -78602,7 +78602,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1554",
+      "source_location": "L1555",
       "weight": 1.0
     },
     {
@@ -78614,7 +78614,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1555",
+      "source_location": "L1556",
       "weight": 1.0
     },
     {
@@ -78626,7 +78626,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1557",
+      "source_location": "L1558",
       "weight": 1.0
     },
     {
@@ -78662,7 +78662,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1616",
+      "source_location": "L1617",
       "weight": 1.0
     },
     {
@@ -78674,7 +78674,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1617",
+      "source_location": "L1618",
       "weight": 1.0
     },
     {
@@ -78686,7 +78686,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1579",
+      "source_location": "L1580",
       "weight": 1.0
     },
     {
@@ -78698,7 +78698,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1594",
+      "source_location": "L1595",
       "weight": 1.0
     },
     {
@@ -78710,7 +78710,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1606",
+      "source_location": "L1607",
       "weight": 1.0
     },
     {
@@ -78722,7 +78722,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1607",
+      "source_location": "L1608",
       "weight": 1.0
     },
     {
@@ -78794,7 +78794,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1461",
+      "source_location": "L1462",
       "weight": 1.0
     },
     {
@@ -78806,7 +78806,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1462",
+      "source_location": "L1463",
       "weight": 1.0
     },
     {
@@ -78842,7 +78842,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1051",
+      "source_location": "L1052",
       "weight": 1.0
     },
     {
@@ -78854,7 +78854,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1058",
+      "source_location": "L1059",
       "weight": 1.0
     },
     {
@@ -78866,7 +78866,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1064",
+      "source_location": "L1065",
       "weight": 1.0
     },
     {
@@ -78878,7 +78878,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1066",
+      "source_location": "L1067",
       "weight": 1.0
     },
     {
@@ -78890,7 +78890,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1070",
+      "source_location": "L1071",
       "weight": 1.0
     },
     {
@@ -78902,7 +78902,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1091",
+      "source_location": "L1092",
       "weight": 1.0
     },
     {
@@ -78914,7 +78914,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1097",
+      "source_location": "L1098",
       "weight": 1.0
     },
     {
@@ -78926,7 +78926,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1097",
+      "source_location": "L1098",
       "weight": 1.0
     },
     {
@@ -78938,7 +78938,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1100",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -78950,7 +78950,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1106",
+      "source_location": "L1107",
       "weight": 1.0
     },
     {
@@ -78962,7 +78962,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1110",
+      "source_location": "L1111",
       "weight": 1.0
     },
     {
@@ -78974,7 +78974,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1112",
+      "source_location": "L1113",
       "weight": 1.0
     },
     {
@@ -78986,7 +78986,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1115",
+      "source_location": "L1116",
       "weight": 1.0
     },
     {
@@ -78998,7 +78998,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1119",
+      "source_location": "L1120",
       "weight": 1.0
     },
     {
@@ -79010,7 +79010,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1131",
+      "source_location": "L1132",
       "weight": 1.0
     },
     {
@@ -79022,7 +79022,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1143",
+      "source_location": "L1144",
       "weight": 1.0
     },
     {
@@ -79034,7 +79034,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1150",
+      "source_location": "L1151",
       "weight": 1.0
     },
     {
@@ -79046,7 +79046,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1163",
+      "source_location": "L1164",
       "weight": 1.0
     },
     {
@@ -79058,7 +79058,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1166",
+      "source_location": "L1167",
       "weight": 1.0
     },
     {
@@ -79070,7 +79070,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1176",
+      "source_location": "L1177",
       "weight": 1.0
     },
     {
@@ -79082,7 +79082,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1176",
+      "source_location": "L1177",
       "weight": 1.0
     },
     {
@@ -79094,7 +79094,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1180",
+      "source_location": "L1181",
       "weight": 1.0
     },
     {
@@ -79106,7 +79106,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1184",
+      "source_location": "L1185",
       "weight": 1.0
     },
     {
@@ -79118,7 +79118,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1190",
+      "source_location": "L1191",
       "weight": 1.0
     },
     {
@@ -79130,7 +79130,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1205",
+      "source_location": "L1206",
       "weight": 1.0
     },
     {
@@ -79142,7 +79142,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1212",
+      "source_location": "L1213",
       "weight": 1.0
     },
     {
@@ -79154,7 +79154,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1213",
+      "source_location": "L1214",
       "weight": 1.0
     },
     {
@@ -79166,7 +79166,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1214",
+      "source_location": "L1215",
       "weight": 1.0
     },
     {
@@ -79178,7 +79178,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1215",
+      "source_location": "L1216",
       "weight": 1.0
     },
     {
@@ -79190,7 +79190,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1226",
+      "source_location": "L1227",
       "weight": 1.0
     },
     {
@@ -79238,7 +79238,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L883",
+      "source_location": "L884",
       "weight": 1.0
     },
     {
@@ -79250,7 +79250,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L884",
+      "source_location": "L885",
       "weight": 1.0
     },
     {
@@ -79262,7 +79262,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L885",
+      "source_location": "L886",
       "weight": 1.0
     },
     {
@@ -79286,7 +79286,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L814",
+      "source_location": "L815",
       "weight": 1.0
     },
     {
@@ -79334,7 +79334,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1287",
+      "source_location": "L1288",
       "weight": 1.0
     },
     {
@@ -79382,7 +79382,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L741",
+      "source_location": "L742",
       "weight": 1.0
     },
     {
@@ -79394,7 +79394,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L741",
+      "source_location": "L742",
       "weight": 1.0
     },
     {
@@ -88694,7 +88694,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L195",
+      "source_location": "L198",
       "weight": 1.0
     },
     {
@@ -88706,7 +88706,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L203",
+      "source_location": "L206",
       "weight": 1.0
     },
     {
@@ -88718,7 +88718,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L177",
+      "source_location": "L180",
       "weight": 1.0
     },
     {
@@ -88730,7 +88730,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L181",
+      "source_location": "L184",
       "weight": 1.0
     },
     {
@@ -88754,7 +88754,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L302",
+      "source_location": "L305",
       "weight": 1.0
     },
     {
@@ -88766,7 +88766,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L302",
+      "source_location": "L305",
       "weight": 1.0
     },
     {
@@ -88778,7 +88778,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L309",
+      "source_location": "L312",
       "weight": 1.0
     },
     {
@@ -88790,7 +88790,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L309",
+      "source_location": "L312",
       "weight": 1.0
     },
     {
@@ -88802,7 +88802,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L312",
+      "source_location": "L315",
       "weight": 1.0
     },
     {
@@ -88814,7 +88814,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L109",
+      "source_location": "L112",
       "weight": 1.0
     },
     {
@@ -88826,7 +88826,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L111",
+      "source_location": "L114",
       "weight": 1.0
     },
     {
@@ -88838,7 +88838,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L140",
+      "source_location": "L143",
       "weight": 1.0
     },
     {
@@ -88850,7 +88850,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L143",
+      "source_location": "L146",
       "weight": 1.0
     },
     {
@@ -88862,7 +88862,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L150",
+      "source_location": "L153",
       "weight": 1.0
     },
     {
@@ -88874,7 +88874,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L154",
+      "source_location": "L157",
       "weight": 1.0
     },
     {
@@ -88886,7 +88886,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L161",
+      "source_location": "L164",
       "weight": 1.0
     },
     {
@@ -88898,7 +88898,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L162",
+      "source_location": "L165",
       "weight": 1.0
     },
     {
@@ -88910,7 +88910,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L169",
+      "source_location": "L172",
       "weight": 1.0
     },
     {
@@ -88922,7 +88922,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L171",
+      "source_location": "L174",
       "weight": 1.0
     },
     {
@@ -89006,7 +89006,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L262",
+      "source_location": "L265",
       "weight": 1.0
     },
     {
@@ -89018,7 +89018,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L262",
+      "source_location": "L265",
       "weight": 1.0
     },
     {
@@ -89030,7 +89030,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L267",
+      "source_location": "L270",
       "weight": 1.0
     },
     {
@@ -89042,7 +89042,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L267",
+      "source_location": "L270",
       "weight": 1.0
     },
     {
@@ -89054,7 +89054,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L270",
+      "source_location": "L273",
       "weight": 1.0
     },
     {
@@ -89066,7 +89066,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L285",
+      "source_location": "L288",
       "weight": 1.0
     },
     {
@@ -89078,7 +89078,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L285",
+      "source_location": "L288",
       "weight": 1.0
     },
     {
@@ -89090,7 +89090,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L290",
+      "source_location": "L293",
       "weight": 1.0
     },
     {
@@ -89102,7 +89102,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L290",
+      "source_location": "L293",
       "weight": 1.0
     },
     {
@@ -89114,7 +89114,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L293",
+      "source_location": "L296",
       "weight": 1.0
     },
     {
@@ -89126,7 +89126,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L255",
+      "source_location": "L258",
       "weight": 1.0
     },
     {
@@ -89138,7 +89138,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L249",
+      "source_location": "L252",
       "weight": 1.0
     },
     {
@@ -89150,7 +89150,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L318",
+      "source_location": "L321",
       "weight": 1.0
     },
     {
@@ -89162,7 +89162,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L323",
+      "source_location": "L326",
       "weight": 1.0
     },
     {
@@ -99398,7 +99398,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L418",
+      "source_location": "L420",
       "weight": 1.0
     },
     {
@@ -99410,7 +99410,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L467",
+      "source_location": "L469",
       "weight": 1.0
     },
     {
@@ -99422,7 +99422,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L468",
+      "source_location": "L470",
       "weight": 1.0
     },
     {
@@ -99770,7 +99770,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L502",
+      "source_location": "L504",
       "weight": 1.0
     },
     {
@@ -99794,7 +99794,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L518",
+      "source_location": "L520",
       "weight": 1.0
     },
     {
@@ -99806,7 +99806,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L519",
+      "source_location": "L521",
       "weight": 1.0
     },
     {
@@ -99818,7 +99818,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L365",
+      "source_location": "L367",
       "weight": 1.0
     },
     {
@@ -99830,7 +99830,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L366",
+      "source_location": "L368",
       "weight": 1.0
     },
     {
@@ -99842,7 +99842,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L366",
+      "source_location": "L368",
       "weight": 1.0
     },
     {
@@ -99854,7 +99854,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L368",
+      "source_location": "L370",
       "weight": 1.0
     },
     {
@@ -99866,7 +99866,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L376",
+      "source_location": "L378",
       "weight": 1.0
     },
     {
@@ -99878,7 +99878,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L378",
+      "source_location": "L380",
       "weight": 1.0
     },
     {
@@ -99890,7 +99890,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L298",
+      "source_location": "L300",
       "weight": 1.0
     },
     {
@@ -99902,7 +99902,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L306",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -99914,7 +99914,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L311",
+      "source_location": "L313",
       "weight": 1.0
     },
     {
@@ -99926,7 +99926,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L312",
+      "source_location": "L314",
       "weight": 1.0
     },
     {
@@ -99974,7 +99974,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L495",
+      "source_location": "L497",
       "weight": 1.0
     },
     {
@@ -99986,7 +99986,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L341",
+      "source_location": "L343",
       "weight": 1.0
     },
     {
@@ -99998,7 +99998,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L350",
+      "source_location": "L352",
       "weight": 1.0
     },
     {
@@ -100010,7 +100010,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L350",
+      "source_location": "L352",
       "weight": 1.0
     },
     {
@@ -100022,7 +100022,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L351",
+      "source_location": "L353",
       "weight": 1.0
     },
     {
@@ -100034,7 +100034,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L543",
+      "source_location": "L545",
       "weight": 1.0
     },
     {
@@ -100046,7 +100046,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L543",
+      "source_location": "L545",
       "weight": 1.0
     },
     {
@@ -100058,7 +100058,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L544",
+      "source_location": "L546",
       "weight": 1.0
     },
     {
@@ -100070,7 +100070,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L546",
+      "source_location": "L548",
       "weight": 1.0
     },
     {
@@ -100082,7 +100082,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L568",
+      "source_location": "L570",
       "weight": 1.0
     },
     {
@@ -100106,7 +100106,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L481",
+      "source_location": "L483",
       "weight": 1.0
     },
     {
@@ -100118,7 +100118,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L487",
+      "source_location": "L489",
       "weight": 1.0
     },
     {
@@ -100130,7 +100130,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L525",
+      "source_location": "L527",
       "weight": 1.0
     },
     {
@@ -100142,7 +100142,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L529",
+      "source_location": "L531",
       "weight": 1.0
     },
     {
@@ -100154,7 +100154,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L529",
+      "source_location": "L531",
       "weight": 1.0
     },
     {
@@ -100166,7 +100166,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L530",
+      "source_location": "L532",
       "weight": 1.0
     },
     {
@@ -100178,7 +100178,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L532",
+      "source_location": "L534",
       "weight": 1.0
     },
     {
@@ -100190,7 +100190,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L534",
+      "source_location": "L536",
       "weight": 1.0
     },
     {
@@ -100202,7 +100202,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L552",
+      "source_location": "L554",
       "weight": 1.0
     },
     {
@@ -100214,7 +100214,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L557",
+      "source_location": "L559",
       "weight": 1.0
     },
     {
@@ -100226,7 +100226,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L558",
+      "source_location": "L560",
       "weight": 1.0
     },
     {
@@ -125772,7 +125772,7 @@
         "ref_token": "Dictionary"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1243",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -126297,7 +126297,7 @@
         "ref_token": "GUIStyle"
       },
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L246",
+      "source_location": "L249",
       "weight": 1.0
     },
     {
@@ -126372,7 +126372,7 @@
         "ref_token": "GUIStyle"
       },
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L478",
+      "source_location": "L480",
       "weight": 1.0
     },
     {
@@ -127377,7 +127377,7 @@
         "ref_token": "InputFrame"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L799",
+      "source_location": "L800",
       "weight": 1.0
     },
     {
@@ -127392,7 +127392,7 @@
         "ref_token": "JoinRefusal"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1560",
+      "source_location": "L1561",
       "weight": 1.0
     },
     {
@@ -129147,7 +129147,7 @@
         "ref_token": "Queue"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L849",
+      "source_location": "L850",
       "weight": 1.0
     },
     {
@@ -129942,7 +129942,7 @@
         "ref_token": "StatRow"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L904",
+      "source_location": "L905",
       "weight": 1.0
     },
     {
@@ -130017,7 +130017,7 @@
         "ref_token": "Sticky"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L769",
+      "source_location": "L770",
       "weight": 1.0
     },
     {
@@ -133344,7 +133344,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1521",
+      "source_location": "L1522",
       "weight": 1.0
     },
     {
@@ -133356,7 +133356,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1532",
+      "source_location": "L1533",
       "weight": 1.0
     },
     {
@@ -133368,7 +133368,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1560",
+      "source_location": "L1561",
       "weight": 1.0
     },
     {
@@ -133560,7 +133560,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L904",
+      "source_location": "L905",
       "weight": 1.0
     },
     {
@@ -133572,7 +133572,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L905",
+      "source_location": "L906",
       "weight": 1.0
     },
     {
@@ -142305,7 +142305,7 @@
         "ref_token": "PlayerAppearance"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1243",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -144135,7 +144135,7 @@
         "ref_token": "appr"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1243",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -144210,7 +144210,7 @@
         "ref_token": "name"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1243",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -153561,7 +153561,7 @@
         "ref_token": "InputFrame"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L802",
+      "source_location": "L803",
       "weight": 1.0
     },
     {
@@ -153576,7 +153576,7 @@
         "ref_token": "InputFrame"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L760",
+      "source_location": "L761",
       "weight": 1.0
     },
     {
@@ -153591,7 +153591,7 @@
         "ref_token": "JerseyChunkMsg"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L934",
+      "source_location": "L935",
       "weight": 1.0
     },
     {
@@ -153651,7 +153651,7 @@
         "ref_token": "JoinRefusal"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1564",
+      "source_location": "L1565",
       "weight": 1.0
     },
     {
@@ -156801,7 +156801,7 @@
         "ref_token": "MsgType"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1306",
+      "source_location": "L1307",
       "weight": 1.0
     },
     {
@@ -157101,7 +157101,7 @@
         "ref_token": "NetRole"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1564",
+      "source_location": "L1565",
       "weight": 1.0
     },
     {
@@ -157566,7 +157566,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1467",
+      "source_location": "L1468",
       "weight": 1.0
     },
     {
@@ -157581,7 +157581,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1368",
+      "source_location": "L1369",
       "weight": 1.0
     },
     {
@@ -157596,7 +157596,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L934",
+      "source_location": "L935",
       "weight": 1.0
     },
     {
@@ -157611,7 +157611,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1030",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -157626,7 +157626,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1321",
+      "source_location": "L1322",
       "weight": 1.0
     },
     {
@@ -157641,7 +157641,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1323",
+      "source_location": "L1324",
       "weight": 1.0
     },
     {
@@ -157656,7 +157656,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1040",
+      "source_location": "L1041",
       "weight": 1.0
     },
     {
@@ -157686,7 +157686,7 @@
         "ref_token": "PeerId"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1621",
+      "source_location": "L1622",
       "weight": 1.0
     },
     {
@@ -157941,7 +157941,7 @@
         "ref_token": "PlayerAppearance"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1368",
+      "source_location": "L1369",
       "weight": 1.0
     },
     {
@@ -159246,7 +159246,7 @@
         "ref_token": "ShootoutState"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L922",
+      "source_location": "L923",
       "weight": 1.0
     },
     {
@@ -159576,7 +159576,7 @@
         "ref_token": "Snapshot"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L818",
+      "source_location": "L819",
       "weight": 1.0
     },
     {
@@ -159591,7 +159591,7 @@
         "ref_token": "Snapshot"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L980",
+      "source_location": "L981",
       "weight": 1.0
     },
     {
@@ -159606,7 +159606,7 @@
         "ref_token": "Snapshot"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L997",
+      "source_location": "L998",
       "weight": 1.0
     },
     {
@@ -159801,7 +159801,7 @@
         "ref_token": "StatRow"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L916",
+      "source_location": "L917",
       "weight": 1.0
     },
     {
@@ -163881,7 +163881,7 @@
         "ref_token": "Vector3"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L827",
+      "source_location": "L828",
       "weight": 1.0
     },
     {
@@ -163896,7 +163896,7 @@
         "ref_token": "Vector3"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L833",
+      "source_location": "L834",
       "weight": 1.0
     },
     {
@@ -167444,7 +167444,7 @@
         "ref_token": "InputFrame"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L774",
+      "source_location": "L775",
       "weight": 1.0
     },
     {
@@ -167459,7 +167459,7 @@
         "ref_token": "InputFrame"
       },
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L747",
+      "source_location": "L748",
       "weight": 1.0
     },
     {
@@ -179409,7 +179409,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L756",
+      "source_location": "L757",
       "weight": 1.0
     },
     {
@@ -189177,7 +189177,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1021",
+      "source_location": "L1022",
       "weight": 1.0
     },
     {
@@ -189188,7 +189188,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1030",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -189199,7 +189199,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1040",
+      "source_location": "L1041",
       "weight": 1.0
     },
     {
@@ -189210,7 +189210,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1253",
+      "source_location": "L1254",
       "weight": 1.0
     },
     {
@@ -189232,7 +189232,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1283",
+      "source_location": "L1284",
       "weight": 1.0
     },
     {
@@ -189243,7 +189243,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1306",
+      "source_location": "L1307",
       "weight": 1.0
     },
     {
@@ -189254,7 +189254,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1312",
+      "source_location": "L1313",
       "weight": 1.0
     },
     {
@@ -189265,7 +189265,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1321",
+      "source_location": "L1322",
       "weight": 1.0
     },
     {
@@ -189276,7 +189276,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1323",
+      "source_location": "L1324",
       "weight": 1.0
     },
     {
@@ -189287,7 +189287,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1346",
+      "source_location": "L1347",
       "weight": 1.0
     },
     {
@@ -189298,7 +189298,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1357",
+      "source_location": "L1358",
       "weight": 1.0
     },
     {
@@ -189309,7 +189309,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1368",
+      "source_location": "L1369",
       "weight": 1.0
     },
     {
@@ -189320,7 +189320,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1458",
+      "source_location": "L1459",
       "weight": 1.0
     },
     {
@@ -189331,7 +189331,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1467",
+      "source_location": "L1468",
       "weight": 1.0
     },
     {
@@ -189342,7 +189342,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1550",
+      "source_location": "L1551",
       "weight": 1.0
     },
     {
@@ -189353,7 +189353,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1564",
+      "source_location": "L1565",
       "weight": 1.0
     },
     {
@@ -189364,7 +189364,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1577",
+      "source_location": "L1578",
       "weight": 1.0
     },
     {
@@ -189375,7 +189375,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1613",
+      "source_location": "L1614",
       "weight": 1.0
     },
     {
@@ -189386,7 +189386,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1621",
+      "source_location": "L1622",
       "weight": 1.0
     },
     {
@@ -189848,7 +189848,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L730",
+      "source_location": "L731",
       "weight": 1.0
     },
     {
@@ -189859,7 +189859,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L739",
+      "source_location": "L740",
       "weight": 1.0
     },
     {
@@ -189870,7 +189870,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L745",
+      "source_location": "L746",
       "weight": 1.0
     },
     {
@@ -189881,7 +189881,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L746",
+      "source_location": "L747",
       "weight": 1.0
     },
     {
@@ -189892,7 +189892,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L747",
+      "source_location": "L748",
       "weight": 1.0
     },
     {
@@ -189903,7 +189903,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L774",
+      "source_location": "L775",
       "weight": 1.0
     },
     {
@@ -189914,7 +189914,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L790",
+      "source_location": "L791",
       "weight": 1.0
     },
     {
@@ -189936,7 +189936,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L802",
+      "source_location": "L803",
       "weight": 1.0
     },
     {
@@ -189947,7 +189947,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L818",
+      "source_location": "L819",
       "weight": 1.0
     },
     {
@@ -189958,7 +189958,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L827",
+      "source_location": "L828",
       "weight": 1.0
     },
     {
@@ -189969,7 +189969,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L833",
+      "source_location": "L834",
       "weight": 1.0
     },
     {
@@ -189980,7 +189980,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L838",
+      "source_location": "L839",
       "weight": 1.0
     },
     {
@@ -189991,7 +189991,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L851",
+      "source_location": "L852",
       "weight": 1.0
     },
     {
@@ -190002,7 +190002,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L859",
+      "source_location": "L860",
       "weight": 1.0
     },
     {
@@ -190013,7 +190013,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L878",
+      "source_location": "L879",
       "weight": 1.0
     },
     {
@@ -190024,7 +190024,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L894",
+      "source_location": "L895",
       "weight": 1.0
     },
     {
@@ -190035,7 +190035,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L912",
+      "source_location": "L913",
       "weight": 1.0
     },
     {
@@ -190046,7 +190046,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L916",
+      "source_location": "L917",
       "weight": 1.0
     },
     {
@@ -190057,7 +190057,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L922",
+      "source_location": "L923",
       "weight": 1.0
     },
     {
@@ -190068,7 +190068,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L934",
+      "source_location": "L935",
       "weight": 1.0
     },
     {
@@ -190079,7 +190079,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L980",
+      "source_location": "L981",
       "weight": 1.0
     },
     {
@@ -190090,7 +190090,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L997",
+      "source_location": "L998",
       "weight": 1.0
     },
     {
@@ -190101,7 +190101,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L760",
+      "source_location": "L761",
       "weight": 1.0
     },
     {
@@ -194985,7 +194985,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L174",
+      "source_location": "L177",
       "weight": 1.0
     },
     {
@@ -194996,7 +194996,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L185",
+      "source_location": "L188",
       "weight": 1.0
     },
     {
@@ -195007,7 +195007,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L247",
+      "source_location": "L250",
       "weight": 1.0
     },
     {
@@ -195018,7 +195018,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L253",
+      "source_location": "L256",
       "weight": 1.0
     },
     {
@@ -195029,7 +195029,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L260",
+      "source_location": "L263",
       "weight": 1.0
     },
     {
@@ -195040,7 +195040,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L283",
+      "source_location": "L286",
       "weight": 1.0
     },
     {
@@ -195051,7 +195051,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L300",
+      "source_location": "L303",
       "weight": 1.0
     },
     {
@@ -195062,7 +195062,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L316",
+      "source_location": "L319",
       "weight": 1.0
     },
     {
@@ -200056,7 +200056,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L295",
+      "source_location": "L297",
       "weight": 1.0
     },
     {
@@ -200067,7 +200067,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L339",
+      "source_location": "L341",
       "weight": 1.0
     },
     {
@@ -200078,7 +200078,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L359",
+      "source_location": "L361",
       "weight": 1.0
     },
     {
@@ -200089,7 +200089,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L362",
+      "source_location": "L364",
       "weight": 1.0
     },
     {
@@ -200100,7 +200100,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L387",
+      "source_location": "L389",
       "weight": 1.0
     },
     {
@@ -200111,7 +200111,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L391",
+      "source_location": "L393",
       "weight": 1.0
     },
     {
@@ -200122,7 +200122,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L479",
+      "source_location": "L481",
       "weight": 1.0
     },
     {
@@ -200133,7 +200133,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L485",
+      "source_location": "L487",
       "weight": 1.0
     },
     {
@@ -200144,7 +200144,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L493",
+      "source_location": "L495",
       "weight": 1.0
     },
     {
@@ -200155,7 +200155,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L500",
+      "source_location": "L502",
       "weight": 1.0
     },
     {
@@ -200166,7 +200166,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L516",
+      "source_location": "L518",
       "weight": 1.0
     },
     {
@@ -200177,7 +200177,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L522",
+      "source_location": "L524",
       "weight": 1.0
     },
     {
@@ -200188,7 +200188,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L539",
+      "source_location": "L541",
       "weight": 1.0
     },
     {
@@ -200199,7 +200199,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L550",
+      "source_location": "L552",
       "weight": 1.0
     },
     {
@@ -200210,7 +200210,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L562",
+      "source_location": "L564",
       "weight": 1.0
     },
     {
@@ -210925,7 +210925,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1506",
+      "source_location": "L1507",
       "weight": 1.0
     },
     {
@@ -210937,7 +210937,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1051",
+      "source_location": "L1052",
       "weight": 1.0
     },
     {
@@ -210949,7 +210949,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1057",
+      "source_location": "L1058",
       "weight": 1.0
     },
     {
@@ -210961,7 +210961,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1062",
+      "source_location": "L1063",
       "weight": 1.0
     },
     {
@@ -210973,7 +210973,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1070",
+      "source_location": "L1071",
       "weight": 1.0
     },
     {
@@ -210985,7 +210985,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1198",
+      "source_location": "L1199",
       "weight": 1.0
     },
     {
@@ -210997,7 +210997,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1201",
+      "source_location": "L1202",
       "weight": 1.0
     },
     {
@@ -218137,7 +218137,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Net/NetSession.cs",
-      "source_location": "L1042",
+      "source_location": "L1043",
       "weight": 1.0
     },
     {
@@ -218305,7 +218305,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L208",
+      "source_location": "L211",
       "weight": 1.0
     },
     {
@@ -218317,7 +218317,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L302",
+      "source_location": "L305",
       "weight": 1.0
     },
     {
@@ -218341,7 +218341,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L262",
+      "source_location": "L265",
       "weight": 1.0
     },
     {
@@ -218353,7 +218353,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L285",
+      "source_location": "L288",
       "weight": 1.0
     },
     {
@@ -218365,7 +218365,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/HostSetupUI.cs",
-      "source_location": "L322",
+      "source_location": "L325",
       "weight": 1.0
     },
     {
@@ -220717,7 +220717,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L366",
+      "source_location": "L368",
       "weight": 1.0
     },
     {
@@ -220729,7 +220729,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L350",
+      "source_location": "L352",
       "weight": 1.0
     },
     {
@@ -220741,7 +220741,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L543",
+      "source_location": "L545",
       "weight": 1.0
     },
     {
@@ -220753,7 +220753,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L529",
+      "source_location": "L531",
       "weight": 1.0
     },
     {
@@ -220765,7 +220765,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L556",
+      "source_location": "L558",
       "weight": 1.0
     },
     {
@@ -223425,5 +223425,5 @@
       "source_file": "MULTIPLAYER.md"
     }
   ],
-  "built_at_commit": "35f6241154389ee0b7473bb31d8128a2f6a54e01"
+  "built_at_commit": "85c4981991785ef72678a073de9c76d454b5d968"
 }

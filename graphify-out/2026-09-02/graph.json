@@ -37748,7 +37748,7 @@
       },
       "norm_label": ".apply()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L369"
+      "source_location": "L391"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_drawnav",
@@ -37766,7 +37766,7 @@
       },
       "norm_label": ".drawnav()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L247"
+      "source_location": "L261"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
@@ -37784,7 +37784,7 @@
       },
       "norm_label": ".drawsetup()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L120"
+      "source_location": "L121"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_drawstatcard",
@@ -37802,7 +37802,7 @@
       },
       "norm_label": ".drawstatcard()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L233"
+      "source_location": "L247"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_endrow",
@@ -37820,7 +37820,7 @@
       },
       "norm_label": ".endrow()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L472"
+      "source_location": "L500"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_gridrows",
@@ -37838,7 +37838,7 @@
       },
       "norm_label": ".gridrows()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L337"
+      "source_location": "L359"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_init",
@@ -37874,7 +37874,7 @@
       },
       "norm_label": ".keeperpicker()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L488"
+      "source_location": "L516"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_ladderpicker",
@@ -37892,7 +37892,7 @@
       },
       "norm_label": ".ladderpicker()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L340"
+      "source_location": "L362"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_matchpickers",
@@ -37910,7 +37910,7 @@
       },
       "norm_label": ".matchpickers()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L273"
+      "source_location": "L295"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_ongui",
@@ -37928,7 +37928,7 @@
       },
       "norm_label": ".ongui()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L113"
+      "source_location": "L114"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_pickstyle",
@@ -37946,7 +37946,7 @@
       },
       "norm_label": ".pickstyle()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L465"
+      "source_location": "L493"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_placessetpiece",
@@ -37964,7 +37964,7 @@
       },
       "norm_label": ".placessetpiece()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L365"
+      "source_location": "L387"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_positionpicker",
@@ -37982,7 +37982,7 @@
       },
       "norm_label": ".positionpicker()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L317"
+      "source_location": "L339"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_rawslider",
@@ -38000,7 +38000,7 @@
       },
       "norm_label": ".rawslider()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L511"
+      "source_location": "L539"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_resetall",
@@ -38018,7 +38018,7 @@
       },
       "norm_label": ".resetall()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L534"
+      "source_location": "L562"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_rowcount",
@@ -38054,7 +38054,7 @@
       },
       "norm_label": ".rowlabel()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L451"
+      "source_location": "L479"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_rowvalue",
@@ -38072,7 +38072,7 @@
       },
       "norm_label": ".rowvalue()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L457"
+      "source_location": "L485"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
@@ -38090,7 +38090,7 @@
       },
       "norm_label": ".slider()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L494"
+      "source_location": "L522"
     },
     {
       "id": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
@@ -38108,7 +38108,7 @@
       },
       "norm_label": ".toggle()",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L522"
+      "source_location": "L550"
     },
     {
       "id": "assets_scripts_sim_simconfig_trickshot_simconfig_nearestailevel",
@@ -99398,7 +99398,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L395",
+      "source_location": "L418",
       "weight": 1.0
     },
     {
@@ -99410,7 +99410,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L439",
+      "source_location": "L467",
       "weight": 1.0
     },
     {
@@ -99422,7 +99422,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L440",
+      "source_location": "L468",
       "weight": 1.0
     },
     {
@@ -99434,7 +99434,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L249",
+      "source_location": "L263",
       "weight": 1.0
     },
     {
@@ -99446,7 +99446,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L252",
+      "source_location": "L266",
       "weight": 1.0
     },
     {
@@ -99458,7 +99458,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L260",
+      "source_location": "L274",
       "weight": 1.0
     },
     {
@@ -99470,7 +99470,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L123",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -99482,24 +99482,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L126",
+      "source_location": "L130",
       "weight": 1.0
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
       "target": "assets_scripts_play_uitheme_trickshot_uitheme_panel",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L127",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_prematchui_trickshot_prematchui_drawstatcard",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -99511,31 +99499,19 @@
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
+      "target": "assets_scripts_play_prematchui_trickshot_prematchui_drawstatcard",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L135",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
       "target": "assets_scripts_play_prematchui_cs_guistyle",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L136",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_uitheme_trickshot_uitheme_shadowed",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L137",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_uitheme_trickshot_uitheme_fill",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -99547,7 +99523,7 @@
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_uitheme_trickshot_uitheme_divider",
+      "target": "assets_scripts_play_uitheme_trickshot_uitheme_shadowed",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -99559,7 +99535,7 @@
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_uitheme_trickshot_uitheme_button",
+      "target": "assets_scripts_play_uitheme_trickshot_uitheme_fill",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -99571,7 +99547,7 @@
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_prematchui_trickshot_prematchui_resetall",
+      "target": "assets_scripts_play_uitheme_trickshot_uitheme_divider",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -99583,6 +99559,30 @@
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
+      "target": "assets_scripts_play_uitheme_trickshot_uitheme_button",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L148",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
+      "target": "assets_scripts_play_prematchui_trickshot_prematchui_resetall",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L149",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
       "target": "assets_scripts_play_prematchui_trickshot_prematchui_matchpickers",
       "relation": "calls",
       "_origin": "ast",
@@ -99590,19 +99590,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L153",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
-      "target": "assets_scripts_play_prematchui_trickshot_prematchui_drawnav",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L154",
+      "source_location": "L158",
       "weight": 1.0
     },
     {
@@ -99614,7 +99602,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L166",
+      "source_location": "L164",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_drawsetup",
+      "target": "assets_scripts_play_prematchui_trickshot_prematchui_drawnav",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L168",
       "weight": 1.0
     },
     {
@@ -99626,7 +99626,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L176",
+      "source_location": "L190",
       "weight": 1.0
     },
     {
@@ -99638,7 +99638,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L194",
+      "source_location": "L208",
       "weight": 1.0
     },
     {
@@ -99650,7 +99650,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L204",
+      "source_location": "L218",
       "weight": 1.0
     },
     {
@@ -99662,7 +99662,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L212",
+      "source_location": "L226",
       "weight": 1.0
     },
     {
@@ -99674,7 +99674,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L221",
+      "source_location": "L235",
       "weight": 1.0
     },
     {
@@ -99686,7 +99686,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L223",
+      "source_location": "L237",
       "weight": 1.0
     },
     {
@@ -99698,7 +99698,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L224",
+      "source_location": "L238",
       "weight": 1.0
     },
     {
@@ -99710,7 +99710,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L236",
+      "source_location": "L250",
       "weight": 1.0
     },
     {
@@ -99722,7 +99722,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L238",
+      "source_location": "L252",
       "weight": 1.0
     },
     {
@@ -99734,7 +99734,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L239",
+      "source_location": "L253",
       "weight": 1.0
     },
     {
@@ -99746,7 +99746,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L242",
+      "source_location": "L256",
       "weight": 1.0
     },
     {
@@ -99758,7 +99758,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L243",
+      "source_location": "L257",
       "weight": 1.0
     },
     {
@@ -99770,7 +99770,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L474",
+      "source_location": "L502",
       "weight": 1.0
     },
     {
@@ -99794,7 +99794,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L490",
+      "source_location": "L518",
       "weight": 1.0
     },
     {
@@ -99806,7 +99806,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L491",
+      "source_location": "L519",
       "weight": 1.0
     },
     {
@@ -99818,7 +99818,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L343",
+      "source_location": "L365",
       "weight": 1.0
     },
     {
@@ -99830,7 +99830,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L344",
+      "source_location": "L366",
       "weight": 1.0
     },
     {
@@ -99842,7 +99842,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L344",
+      "source_location": "L366",
       "weight": 1.0
     },
     {
@@ -99854,7 +99854,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L346",
+      "source_location": "L368",
       "weight": 1.0
     },
     {
@@ -99866,7 +99866,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L354",
+      "source_location": "L376",
       "weight": 1.0
     },
     {
@@ -99878,7 +99878,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L356",
+      "source_location": "L378",
       "weight": 1.0
     },
     {
@@ -99890,7 +99890,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L276",
+      "source_location": "L298",
       "weight": 1.0
     },
     {
@@ -99902,7 +99902,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L284",
+      "source_location": "L306",
       "weight": 1.0
     },
     {
@@ -99914,7 +99914,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L289",
+      "source_location": "L311",
       "weight": 1.0
     },
     {
@@ -99926,7 +99926,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L290",
+      "source_location": "L312",
       "weight": 1.0
     },
     {
@@ -99938,7 +99938,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L115",
+      "source_location": "L116",
       "weight": 1.0
     },
     {
@@ -99950,7 +99950,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L116",
+      "source_location": "L117",
       "weight": 1.0
     },
     {
@@ -99962,7 +99962,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L117",
+      "source_location": "L118",
       "weight": 1.0
     },
     {
@@ -99974,7 +99974,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L467",
+      "source_location": "L495",
       "weight": 1.0
     },
     {
@@ -99986,7 +99986,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L319",
+      "source_location": "L341",
       "weight": 1.0
     },
     {
@@ -99998,7 +99998,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L328",
+      "source_location": "L350",
       "weight": 1.0
     },
     {
@@ -100010,7 +100010,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L328",
+      "source_location": "L350",
       "weight": 1.0
     },
     {
@@ -100022,7 +100022,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L329",
+      "source_location": "L351",
       "weight": 1.0
     },
     {
@@ -100034,7 +100034,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L515",
+      "source_location": "L543",
       "weight": 1.0
     },
     {
@@ -100046,7 +100046,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L515",
+      "source_location": "L543",
       "weight": 1.0
     },
     {
@@ -100058,7 +100058,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L516",
+      "source_location": "L544",
       "weight": 1.0
     },
     {
@@ -100070,7 +100070,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L518",
+      "source_location": "L546",
       "weight": 1.0
     },
     {
@@ -100082,7 +100082,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L540",
+      "source_location": "L568",
       "weight": 1.0
     },
     {
@@ -100094,7 +100094,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L88",
+      "source_location": "L89",
       "weight": 1.0
     },
     {
@@ -100106,7 +100106,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L453",
+      "source_location": "L481",
       "weight": 1.0
     },
     {
@@ -100118,7 +100118,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L459",
+      "source_location": "L487",
       "weight": 1.0
     },
     {
@@ -100130,7 +100130,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L497",
+      "source_location": "L525",
       "weight": 1.0
     },
     {
@@ -100142,71 +100142,11 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L501",
+      "source_location": "L529",
       "weight": 1.0
     },
     {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
-      "target": "assets_scripts_play_uitheme_trickshot_uitheme_label",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L501",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
-      "target": "assets_scripts_play_prematchui_trickshot_prematchui_rowvalue",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L502",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
-      "target": "assets_scripts_play_uitheme_trickshot_uitheme_button",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L504",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
-      "target": "assets_scripts_play_prematchui_trickshot_prematchui_endrow",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L506",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
-      "target": "assets_scripts_play_prematchui_cs_guistyle",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L524",
-      "weight": 1.0
-    },
-    {
-      "source": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
       "target": "assets_scripts_play_uitheme_trickshot_uitheme_label",
       "relation": "calls",
       "_origin": "ast",
@@ -100218,6 +100158,66 @@
       "weight": 1.0
     },
     {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
+      "target": "assets_scripts_play_prematchui_trickshot_prematchui_rowvalue",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L530",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
+      "target": "assets_scripts_play_uitheme_trickshot_uitheme_button",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L532",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_slider",
+      "target": "assets_scripts_play_prematchui_trickshot_prematchui_endrow",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L534",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
+      "target": "assets_scripts_play_prematchui_cs_guistyle",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L552",
+      "weight": 1.0
+    },
+    {
+      "source": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
+      "target": "assets_scripts_play_uitheme_trickshot_uitheme_label",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "Assets/Scripts/Play/PrematchUI.cs",
+      "source_location": "L557",
+      "weight": 1.0
+    },
+    {
       "source": "assets_scripts_play_prematchui_trickshot_prematchui_toggle",
       "target": "assets_scripts_play_prematchui_trickshot_prematchui_endrow",
       "relation": "calls",
@@ -100226,7 +100226,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L530",
+      "source_location": "L558",
       "weight": 1.0
     },
     {
@@ -126372,7 +126372,7 @@
         "ref_token": "GUIStyle"
       },
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L450",
+      "source_location": "L478",
       "weight": 1.0
     },
     {
@@ -200012,7 +200012,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L113",
+      "source_location": "L114",
       "weight": 1.0
     },
     {
@@ -200023,7 +200023,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L120",
+      "source_location": "L121",
       "weight": 1.0
     },
     {
@@ -200034,7 +200034,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L233",
+      "source_location": "L247",
       "weight": 1.0
     },
     {
@@ -200045,7 +200045,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L247",
+      "source_location": "L261",
       "weight": 1.0
     },
     {
@@ -200056,7 +200056,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L273",
+      "source_location": "L295",
       "weight": 1.0
     },
     {
@@ -200067,7 +200067,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L317",
+      "source_location": "L339",
       "weight": 1.0
     },
     {
@@ -200078,7 +200078,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L337",
+      "source_location": "L359",
       "weight": 1.0
     },
     {
@@ -200089,7 +200089,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L340",
+      "source_location": "L362",
       "weight": 1.0
     },
     {
@@ -200100,7 +200100,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L365",
+      "source_location": "L387",
       "weight": 1.0
     },
     {
@@ -200111,7 +200111,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L369",
+      "source_location": "L391",
       "weight": 1.0
     },
     {
@@ -200122,7 +200122,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L451",
+      "source_location": "L479",
       "weight": 1.0
     },
     {
@@ -200133,7 +200133,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L457",
+      "source_location": "L485",
       "weight": 1.0
     },
     {
@@ -200144,7 +200144,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L465",
+      "source_location": "L493",
       "weight": 1.0
     },
     {
@@ -200155,7 +200155,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L472",
+      "source_location": "L500",
       "weight": 1.0
     },
     {
@@ -200166,7 +200166,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L488",
+      "source_location": "L516",
       "weight": 1.0
     },
     {
@@ -200177,7 +200177,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L494",
+      "source_location": "L522",
       "weight": 1.0
     },
     {
@@ -200188,7 +200188,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L511",
+      "source_location": "L539",
       "weight": 1.0
     },
     {
@@ -200199,7 +200199,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L522",
+      "source_location": "L550",
       "weight": 1.0
     },
     {
@@ -200210,7 +200210,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L534",
+      "source_location": "L562",
       "weight": 1.0
     },
     {
@@ -216541,7 +216541,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L167",
+      "source_location": "L165",
       "weight": 1.0
     },
     {
@@ -220681,7 +220681,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L252",
+      "source_location": "L266",
       "weight": 1.0
     },
     {
@@ -220693,7 +220693,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L127",
+      "source_location": "L131",
       "weight": 1.0
     },
     {
@@ -220705,7 +220705,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L236",
+      "source_location": "L250",
       "weight": 1.0
     },
     {
@@ -220717,7 +220717,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L344",
+      "source_location": "L366",
       "weight": 1.0
     },
     {
@@ -220729,7 +220729,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L328",
+      "source_location": "L350",
       "weight": 1.0
     },
     {
@@ -220741,7 +220741,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L515",
+      "source_location": "L543",
       "weight": 1.0
     },
     {
@@ -220753,7 +220753,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L501",
+      "source_location": "L529",
       "weight": 1.0
     },
     {
@@ -220765,7 +220765,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "Assets/Scripts/Play/PrematchUI.cs",
-      "source_location": "L528",
+      "source_location": "L556",
       "weight": 1.0
     },
     {

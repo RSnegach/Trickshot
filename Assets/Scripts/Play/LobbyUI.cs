@@ -459,10 +459,11 @@ namespace Trickshot
             string stadium = c.stadium < StadiumStyle.All.Length ? StadiumStyle.All[c.stadium].Name : "?";
             if (mode == GameMode.Match)
             {
-                // perSide counts the keeper; the size players talk about (and the host picker
-                // shows) is the OUTFIELD count, so subtract the keeper - same as NetSession.ModeLabel.
-                int nOut = Mathf.Max(1, c.perSide - 1);
-                return $"Match  {nOut}v{nOut}   {stadium}   {c.matchSec / 60} min";
+                // "N a side" INCLUDES the keeper, and the number shown is the size actually
+                // SEATED: the 8-slot board caps a team at ScrimSlotsPerTeam, so a config asking for
+                // more would otherwise label a lobby with a size it cannot fill.
+                int n = Mathf.Clamp(c.perSide, 2, NetSession.ScrimSlotsPerTeam);
+                return $"Match  {n}v{n}   {stadium}   {c.matchSec / 60} min";
             }
             return $"{mode}   {stadium}";
         }
