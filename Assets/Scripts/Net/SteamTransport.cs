@@ -27,6 +27,16 @@ namespace Trickshot.Net
         // TODO(steam): set to the lobby owner's CSteamID on Join/LobbyEnter; = LocalPeer on host.
         public PeerId HostPeer { get; private set; }
 
+        /// <summary>
+        /// The CSteamID of the lobby this transport is in, or 0 when there is none. This is the
+        /// handle an INVITE is addressed to (SteamMatchmaking.InviteUserToLobby takes the lobby,
+        /// not the host), so SteamFriendsAPI reads it from here rather than keeping its own copy
+        /// that could drift out of step with the transport's actual lobby.
+        ///
+        /// Set on LobbyCreated_t (host) and LobbyEnter_t (client); cleared by Shutdown.
+        /// </summary>
+        public ulong LobbyId { get; private set; }
+
         // Events satisfy INetTransport; without TRICKSHOT_STEAM they never fire (the guarded
         // code raises them once wired). Pragma silences the "event never used" warning.
 #pragma warning disable 0067
@@ -55,8 +65,13 @@ namespace Trickshot.Net
         {
 #if TRICKSHOT_STEAM
             // TODO(steam): SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, maxPlayers)
-            //   - on LobbyCreated_t: store lobby id, LocalPeer = new PeerId(SteamUser.GetSteamID().m_SteamID)
+            //   - on LobbyCreated_t: LobbyId = cb.m_ulSteamIDLobby;
+            //     LocalPeer = new PeerId(SteamUser.GetSteamID().m_SteamID)
             //   - on LobbyChatUpdate_t (member joined): raise PeerJoined(new PeerId(theirSteamId))
+            //   NOTE: LobbyId must be set from the CALLBACK, not here - CreateLobby is async, and
+            //   an invite sent against a zero id silently does nothing. InviteFriendsUI shows
+            //   "Creating lobby..." until SteamFriendsAPI.CanInvite goes true for exactly this
+            //   window.
             IsHost = true; IsRunning = true;
 #else
             Debug.LogWarning("SteamTransport: built without TRICKSHOT_STEAM; StartHost is a no-op. See MULTIPLAYER.md.");
@@ -67,8 +82,9 @@ namespace Trickshot.Net
         {
 #if TRICKSHOT_STEAM
             // TODO(steam): SteamMatchmaking.JoinLobby(new CSteamID(lobbyOrHost))
-            //   - on LobbyEnter_t: LocalPeer = SteamUser.GetSteamID(); open a P2P channel to
-            //     the lobby owner; raise Connected() once the session is accepted.
+            //   - on LobbyEnter_t: LobbyId = cb.m_ulSteamIDLobby;
+            //     LocalPeer = SteamUser.GetSteamID(); open a P2P channel to the lobby owner;
+            //     raise Connected() once the session is accepted.
             IsRunning = true;
 #else
             Debug.LogWarning("SteamTransport: built without TRICKSHOT_STEAM; Join is a no-op. See MULTIPLAYER.md.");
@@ -78,9 +94,12 @@ namespace Trickshot.Net
         public void Shutdown()
         {
 #if TRICKSHOT_STEAM
-            // TODO(steam): SteamMatchmaking.LeaveLobby(lobby); close SteamNetworkingMessages
-            //   sessions; raise Disconnected().
+            // TODO(steam): SteamMatchmaking.LeaveLobby(new CSteamID(LobbyId)); close
+            //   SteamNetworkingMessages sessions; raise Disconnected().
 #endif
+            // Cleared unconditionally: a stale lobby id outliving the session would let the invite
+            // panel address a lobby this peer has left.
+            LobbyId = 0;
             IsRunning = false;
         }
 

@@ -114,10 +114,28 @@ publishing/consuming snapshots. Striker mode is the same with one shooter slot +
    - `Send`/`SendToAll` → `SteamNetworkingMessages.SendMessageToUser`
    - `Poll` → `SteamAPI.RunCallbacks()` + `ReceiveMessagesOnChannel`
    - peer ids: `CSteamID.m_SteamID` ↔ `PeerId.Value`
-5. **Lobby UI.** Add Host / Join-friend / lobby-browser buttons to the menu that call
+   - **`SteamTransport.LobbyId`** — set it from the `LobbyCreated_t` (host) and `LobbyEnter_t`
+     (client) *callbacks*, not inline. `CreateLobby` is async, and an invite sent against a
+     zero id silently does nothing.
+5. **Friends + invites.** Fill the `TODO(steam)` blocks in `SteamFriendsAPI.cs` and set
+   `SteamFriendsAPI.AppId` to the real appid (it ships as `480`, Valve's Spacewar test app,
+   so a friend in *some other* game is not mislabelled as playing Trickshot):
+   - `RequestFriendsList` → `GetFriendCount`/`GetFriendByIndex` + `GetFriendPersonaName`,
+     `GetFriendPersonaState`, `GetFriendGamePlayed`
+   - `InviteToLobby` → `SteamMatchmaking.InviteUserToLobby(lobby, friend)` — this single call
+     **is** the invite notification; the in-game friend picker
+     (`Assets/Scripts/Play/InviteFriendsUI.cs`) is already wired to it and needs no changes
+   - `OpenInviteDialog` → `SteamFriends.ActivateGameOverlayInviteDialog` (the overlay fallback
+     offered inside that panel)
+6. **Accepting an invite.** Handle `GameLobbyJoinRequested_t` (clicked invite / "Join game"
+   in the friends list) and the `+connect_lobby <id>` launch argument by calling
+   `Multiplayer.Join(lobbyId)`. Without this the invite arrives but clicking it does nothing.
+7. **Lobby UI.** Add Host / Join-friend / lobby-browser buttons to the menu that call
    `Multiplayer.Host(maxPlayers)` / `Multiplayer.Join(lobbyId)`.
 
-Nothing above touches gameplay code — only `SteamTransport` and a bit of menu glue.
+Nothing above touches gameplay code — only `SteamTransport`, `SteamFriendsAPI` and a bit of
+menu glue. Until step 3 is done the invite panel is honest about it: it says "Steam is not
+connected", lists nobody, and `InviteToLobby` returns `false` rather than reporting a send.
 
 ## Packaging (send it to friends)
 

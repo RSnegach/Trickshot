@@ -24,6 +24,10 @@ namespace Trickshot
         // Match only: which of the roster/jersey-vote tabs is showing (see DrawLobby).
         bool _showJerseyTab;
 
+        /// <summary>The Invite Friends modal is up (InviteFriendsUI). Owned here rather than by the
+        /// panel so the lobby can draw it LAST, over its own controls.</summary>
+        bool _inviteOpen;
+
         public void Init(System.Action onCustomize, System.Action onStart, System.Action onLeave)
         {
             _onCustomize = onCustomize; _onStart = onStart; _onLeave = onLeave;
@@ -77,6 +81,9 @@ namespace Trickshot
             if (_s == null) { _onLeave?.Invoke(); return; }
             MenuScale.Begin();
             DrawLobby();
+            // The invite modal draws LAST, over the lobby, and swallows clicks outside its card so
+            // the roster underneath cannot be operated through it (UITheme.ClickBlocker).
+            if (_inviteOpen) InviteFriendsUI.Draw(() => _inviteOpen = false);
             MenuScale.End();
         }
 
@@ -125,8 +132,18 @@ namespace Trickshot
                 GUI.backgroundColor = keepCopy;
                 GUI.enabled = true;
 
+                // Narrowed to clear the Invite Friends button on its right (was w - 64).
                 var addr = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Dim } };
-                UITheme.Label(new Rect(x + 32f, iy + 52f, w - 64f, 18f), "or by address:  " + _hostAddrLine, addr);
+                UITheme.Label(new Rect(x + 32f, iy + 52f, w - 178f, 18f), "or by address:  " + _hostAddrLine, addr);
+
+                // Invite Friends sits on the direct-IP host too, not just the Steam one: a player
+                // signed into Steam has the same friends whatever transport carries the match, and
+                // hiding the button here would mean the feature vanished on exactly the transport
+                // this build actually runs. The panel itself reports honestly when Steam cannot
+                // send (see InviteFriendsUI), so it is never a button that lies.
+                var friendsBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold };
+                if (UITheme.Button(new Rect(x + w - 132f, iy + 52f, 100f, 24f), "Invite Friends", friendsBtn))
+                { _inviteOpen = true; InviteFriendsUI.OnOpened(); }
 
                 // Discoverability read-out. Discovery is silent by design: a host that is private,
                 // full, or already playing simply does not answer probes, so it vanishes from every
@@ -149,11 +166,12 @@ namespace Trickshot
                 float iy = y + 72f, ih = 44f;
                 UITheme.Chip(new Rect(x + 20f, iy, w - 40f, ih), new Color(0.10f, 0.14f, 0.21f, 0.96f), UITheme.Green);
                 var inviteBtn = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
-                GUI.enabled = SteamFriendsAPI.Available;
-                if (UITheme.Button(new Rect(x + 32f, iy + 7f, w - 64f, ih - 14f),
-                    SteamFriendsAPI.Available ? "Invite Steam Friends" : "Invite Steam Friends (Steam not connected)", inviteBtn))
-                    SteamFriendsAPI.OpenInviteDialog();
-                GUI.enabled = true;
+                // Opens the in-game friend picker rather than Steam's overlay: the list shows who
+                // is online and sends a per-friend invite itself (InviteFriendsUI). The overlay is
+                // still reachable from a button inside that panel. Always ENABLED - the panel is
+                // what explains a missing Steam, and a dead button explains nothing.
+                if (UITheme.Button(new Rect(x + 32f, iy + 7f, w - 64f, ih - 14f), "Invite Friends", inviteBtn))
+                { _inviteOpen = true; InviteFriendsUI.OnOpened(); }
                 rosterTop = iy + ih + 10f;
             }
 
