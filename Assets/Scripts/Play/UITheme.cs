@@ -320,6 +320,42 @@ namespace Trickshot
         }
 
         /// <summary>Soft radial glow centred on the rect. Used for shadows and callout bloom.</summary>
+        static Texture2D _disc;
+        /// <summary>A white filled circle, antialiased at the rim. Tinted by GUI.color like every
+        /// other plate here, so one texture serves any colour.</summary>
+        static Texture2D DiscTex
+        {
+            get
+            {
+                if (_disc != null) return _disc;
+                const int N = 64;
+                var t = new Texture2D(N, N, TextureFormat.RGBA32, false);
+                var px = new Color[N * N];
+                float c = (N - 1) * 0.5f, rad = c - 0.5f;
+                for (int y = 0; y < N; y++)
+                    for (int x = 0; x < N; x++)
+                    {
+                        float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                        // One pixel of falloff at the rim, so it does not look jagged when scaled.
+                        px[y * N + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(rad - d));
+                    }
+                t.SetPixels(px);
+                t.Apply();
+                t.wrapMode = TextureWrapMode.Clamp;
+                t.hideFlags = HideFlags.HideAndDontSave;
+                return _disc = t;
+            }
+        }
+
+        /// <summary>A flat filled circle inscribed in `r`. No glow, unlike <see cref="Dot"/> - for
+        /// pips and counters that sit next to each other, where a glow bleeds into its neighbour.</summary>
+        public static void Disc(Rect r, Color c)
+        {
+            var p = GUI.color; GUI.color = c;
+            GUI.DrawTexture(r, DiscTex);
+            GUI.color = p;
+        }
+
         public static void Glow(Rect r, Color c)
         {
             var p = GUI.color; GUI.color = c;
@@ -636,7 +672,7 @@ namespace Trickshot
         {
             LockText(st);
             var e = Event.current;
-            if (e != null && r.Contains(e.mousePosition))
+            if (GUI.enabled && e != null && r.Contains(e.mousePosition))   // see ModeCard on GUI.enabled
             {
                 Color bar = bad ? Red : Gold;
                 Glow(new Rect(r.x - 26f, r.y - 6f, r.width + 52f, r.height + 12f),
@@ -801,7 +837,9 @@ namespace Trickshot
         public static bool ModeCard(Rect r, Texture2D icon, string title, string subtitle, bool comingSoon = false)
         {
             var e = Event.current;
-            bool hot = e != null && r.Contains(e.mousePosition);
+            // GUI.enabled is part of "hot": a card under an open modal (see ClickBlocker) is inert,
+            // so lighting it on hover would advertise a click that cannot happen.
+            bool hot = GUI.enabled && e != null && r.Contains(e.mousePosition);
 
             Panel(r, accent: null);
             if (hot)
@@ -849,6 +887,116 @@ namespace Trickshot
             }
 
             return GUI.Button(r, GUIContent.none, GUIStyle.none);
+        }
+
+        /// <summary>
+        /// A large mode panel whose body is a LIVE SCENE rendered into <paramref name="scene"/>:
+        /// the label sits at the top and the picture fills the rest. The texture is drawn with
+        /// GUI.color white (GUI.color multiplies, so any tint would dim the scene) and the camera
+        /// clears to zero alpha, so only the figures land on the plate.
+        ///
+        /// Hovering outlines the panel rather than only blooming it, which is what tells the player
+        /// the scene inside is the one that is running. The outline is FrameOutline's coloured
+        /// draw, not Frame's fixed PanelEdge.
+        ///
+        /// Returns true when clicked. The control is allocated LAST and unconditionally, exactly as
+        /// ModeCard does: adding or removing controls between the layout and repaint passes
+        /// desynchronises IMGUI's control ids and breaks every click on the screen.
+        /// </summary>
+        public static bool ScenePanel(Rect r, string title, Texture scene, bool hot)
+        {
+            Panel(r, accent: null);
+            if (hot)
+                Glow(new Rect(r.x - 16f, r.y - 16f, r.width + 32f, r.height + 32f),
+                     new Color(Gold.r, Gold.g, Gold.b, 0.12f));
+
+            const float titleH = 34f, pad = 10f;
+            var titleRect = new Rect(r.x, r.y + 8f, r.width, titleH);
+            _cardTitleStyle ??= new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            UIFont.Heavy(_cardTitleStyle); _cardTitleStyle.fontSize = 20;
+            Shadowed(titleRect, title, _cardTitleStyle, hot ? Ink : Dim);
+
+            var inner = SceneRect(r);
+            if (scene != null)
+            {
+                var pc = GUI.color; GUI.color = Color.white;
+                GUI.DrawTexture(inner, scene, ScaleMode.StretchToFill, true);
+                GUI.color = pc;
+            }
+
+            // The hover outline, on the panel edge rather than the picture, so it reads as the
+            // whole button being live.
+            if (hot) FrameOutline(r, Gold);
+
+            return GUI.Button(r, GUIContent.none, GUIStyle.none);
+        }
+
+        /// <summary>The picture area inside a ScenePanel - the caller sizes its RenderTexture from
+        /// this, so the texture's aspect matches what it is drawn into and nothing stretches.</summary>
+        public static Rect SceneRect(Rect r)
+        {
+            const float titleH = 34f, pad = 10f;
+            float top = r.y + 8f + titleH + 2f;
+            return new Rect(r.x + pad, top, r.width - pad * 2f, Mathf.Max(8f, r.yMax - pad - top));
+        }
+
+        /// <summary>
+        /// Swallows every mouse click that lands in neither <paramref name="keep"/> nor
+        /// <paramref name="keep2"/>, and returns true on the frame one such click happens (so a
+        /// caller can close its flyout on a click-away). Call it AFTER the screen behind is drawn
+        /// and BEFORE the overlay itself, with the overlay's rect as `keep`.
+        ///
+        /// `keep2` is the second live region: the control that OPENED the overlay, which is drawn
+        /// after this blocker and still has to receive its own clicks (pressing the lit chip again
+        /// is how the flyout closes). Pass an empty rect when there isn't one.
+        ///
+        /// IMGUI has no z-order and no modality: a control does not shadow the one drawn under it,
+        /// and whoever claims a click first wins - which for a flyout drawn last means the button
+        /// BEHIND it takes the press (the same trap CustomizeUI.ModalUp documents). Drawing order
+        /// alone therefore cannot make an overlay modal; something has to actively eat the events
+        /// the overlay is sitting on top of.
+        ///
+        /// This is a full-screen GUI.Button with a hole in it. The control is allocated
+        /// UNCONDITIONALLY - one that appears or disappears between the layout and repaint passes
+        /// desynchronises IMGUI's control ids and breaks every click on the screen - and the hole
+        /// is honoured by moving the blocker off-screen for that one event rather than by skipping
+        /// the control, so the overlay's own buttons, drawn after this, still see their clicks.
+        ///
+        /// GUI.enabled is the other half of the job and is the caller's: this stops raw
+        /// Event.current handlers and anything drawn LATER, but a control drawn EARLIER has already
+        /// taken its click by the time this runs.
+        /// </summary>
+        public static bool ClickBlocker(float w, float h, Rect keep, Rect keep2)
+        {
+            var e = Event.current;
+            bool outside = e != null && !keep.Contains(e.mousePosition)
+                                     && !keep2.Contains(e.mousePosition);
+
+            // Off-screen when the pointer is inside the hole: the control still exists (ids stay
+            // stable) but is handed a rect the mouse is not in, so it neither responds nor consumes
+            // and the overlay drawn after it gets the event.
+            var block = outside ? new Rect(0f, 0f, w, h) : new Rect(-10f, -10f, 1f, 1f);
+
+            bool prev = GUI.enabled;
+            GUI.enabled = true;          // a blocker over a disabled screen still has to block
+            bool hit = GUI.Button(block, GUIContent.none, GUIStyle.none);
+            GUI.enabled = prev;
+            return hit;
+        }
+
+        /// <summary>
+        /// Frame(), but in a colour of the caller's choosing. Frame hardcodes PanelEdge, and the
+        /// plate texture it draws is a WHITE outline on a transparent body, so GUI.color sets the
+        /// outline colour directly.
+        /// </summary>
+        public static void FrameOutline(Rect r, Color colour)
+        {
+            _frameStyle ??= new GUIStyle { border = new RectOffset(Slice, Slice, Slice, Slice) };
+            _frameStyle.normal.background = FrameTex;
+            var p = GUI.backgroundColor; GUI.backgroundColor = Color.white;
+            var c = GUI.color; GUI.color = colour;
+            Plate9(_frameStyle, r);
+            GUI.color = c; GUI.backgroundColor = p;
         }
 
         /// <summary>

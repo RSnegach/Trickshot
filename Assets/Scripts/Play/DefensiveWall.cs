@@ -26,6 +26,10 @@ namespace Trickshot
         readonly List<GameObject> _blockers = new List<GameObject>();
         readonly List<Vector3> _groundPos = new List<Vector3>();   // rest (grounded) centre positions
         PhysicsMaterial _bounce;
+        // The kit materials this wall allocated. Make.Mat hands back a new Material every call and
+        // nothing frees one when its GameObject dies, so a wall that is rebuilt (a fresh attempt, a
+        // menu scene re-entered) would leak three per build without this.
+        readonly List<Material> _mats = new List<Material>();
 
         // Shared hop: the whole wall jumps as one. < 0 = grounded / idle.
         float _hopTime = -1f;
@@ -72,6 +76,20 @@ namespace Trickshot
             BuildAt(root, wallCenter, lat, count);
         }
 
+        /// <summary>
+        /// Build with an explicit centre AND an explicit shooting direction, for a caller whose
+        /// goal is not the one at SimConfig.GoalCenter. Both overloads above take the ball->goal
+        /// direction from that readonly static, which is correct on the pitch and wrong anywhere
+        /// else - a stage built far off the pitch gets a wall facing back down the world.
+        /// </summary>
+        public void BuildFacing(Transform root, Vector3 wallCenter, Vector3 shotDir, int count)
+        {
+            shotDir.y = 0f;
+            if (shotDir.sqrMagnitude < 0.0001f) shotDir = Vector3.forward;
+            Vector3 lat = Vector3.Cross(Vector3.up, shotDir.normalized).normalized;
+            BuildAt(root, wallCenter, lat, count);
+        }
+
         // Shared core: fan `count` blockers along `lateral` around `wallCenter`.
         void BuildAt(Transform root, Vector3 wallCenter, Vector3 lateral, int count)
         {
@@ -91,9 +109,9 @@ namespace Trickshot
             if (dir.sqrMagnitude < 1e-4f) dir = Vector3.forward;
             Quaternion facing = Quaternion.LookRotation(-dir, Vector3.up);
 
-            var shirt = Make.Mat(new Color(0.8f, 0.25f, 0.25f));
-            var shorts = Make.Mat(new Color(0.14f, 0.15f, 0.2f));
-            var skin = Make.Mat(new Color(0.82f, 0.64f, 0.5f));
+            var shirt = Track(Make.Mat(new Color(0.8f, 0.25f, 0.25f)));
+            var shorts = Track(Make.Mat(new Color(0.14f, 0.15f, 0.2f)));
+            var skin = Track(Make.Mat(new Color(0.82f, 0.64f, 0.5f)));
             float half = (count - 1) * 0.5f;
             float centerY = BlockerHeight * 0.5f;   // container sits at body-centre; capsule base on y = 0
 
@@ -222,13 +240,19 @@ namespace Trickshot
             }
         }
 
-        /// <summary>Destroy all blockers and forget them.</summary>
+        Material Track(Material m) { if (m != null) _mats.Add(m); return m; }
+
+        /// <summary>Destroy all blockers and forget them - including the materials this wall made,
+        /// which a Destroy of their GameObjects would leave behind.</summary>
         public void Clear()
         {
             for (int i = 0; i < _blockers.Count; i++)
                 if (_blockers[i] != null) Object.Destroy(_blockers[i]);
             _blockers.Clear();
             _groundPos.Clear();
+            for (int i = 0; i < _mats.Count; i++)
+                if (_mats[i] != null) Object.Destroy(_mats[i]);
+            _mats.Clear();
             _hopTime = -1f;
         }
     }

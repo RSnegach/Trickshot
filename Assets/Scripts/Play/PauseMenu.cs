@@ -113,6 +113,8 @@ namespace Trickshot
                 // Same reasoning: the cross-targeting map (GameManager, single-player striker) closes
                 // on Escape too, and must not ALSO open the pause menu on that same press.
                 if (GameManager.CrossMapEscapeOwned) return;
+                // ...and the accuracy PRACTICE placement map, which is the same contract.
+                if (AccuracyGame.MapEscapeOwned) return;
 
                 // Back out one level at a time: confirm card -> settings/setup -> buttons -> unpause.
                 if (_confirmAct != null) { ClearConfirm(); return; }

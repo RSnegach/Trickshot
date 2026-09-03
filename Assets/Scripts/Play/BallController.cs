@@ -245,8 +245,18 @@ namespace Trickshot
             _trail.time = 0.35f;
             _trail.startWidth = 0.18f;
             _trail.endWidth = 0f;
-            _trail.material = Make.Glow(new Color(1f, 0.95f, 0.4f));
+            _trailMat = Make.Glow(new Color(1f, 0.95f, 0.4f));
+            _trail.material = _trailMat;
             _trail.emitting = false;
+        }
+
+        // Both are allocated per ball in Awake and neither is owned by a GameObject, so a scene
+        // that builds its own ball (the menu vignettes) would leak a pair every time it is opened.
+        Material _trailMat;
+        void OnDestroy()
+        {
+            if (_trailMat != null) Destroy(_trailMat);
+            if (_col != null && _col.material != null) Destroy(_col.material);
         }
 
         public void LaunchTo(Vector3 targetPoint, float timeOfFlight, Vector3 curlAccel, float spin)

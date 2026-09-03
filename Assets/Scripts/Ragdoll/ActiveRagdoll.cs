@@ -64,7 +64,16 @@ namespace Trickshot
             for (int i = 0; i < _cosmeticMats.Count; i++)
                 if (_cosmeticMats[i] != null) Destroy(_cosmeticMats[i]);
             _cosmeticMats.Clear();
+            // The two this class allocates for itself rather than receiving from a caller.
+            if (_slickMat != null) Destroy(_slickMat);
+            for (int i = 0; i < _ownedMats.Count; i++)
+                if (_ownedMats[i] != null) Destroy(_ownedMats[i]);
+            _ownedMats.Clear();
         }
+
+        // Materials Build made on its own (the gloves), as opposed to the caller-owned torso/limb
+        // pair and the registered cosmetic ones.
+        readonly List<Material> _ownedMats = new List<Material>();
 
         Vector3[] _poseFrom = RagdollPose.Stand;
         Vector3[] _poseTo   = RagdollPose.Stand;
@@ -437,7 +446,9 @@ namespace Trickshot
             // Big white glove at the hand end of the forearm, WITH a hitbox: its sphere
             // collider is added to the forearm rigidbody (as a child object sharing the
             // body) and registered as an own-collider so it doesn't self-collide.
-            var glove = Make.Sphere("Glove", 0.32f, rb.transform.position, Make.Mat(Color.white, 0.2f), rb.transform);
+            var gloveMat = Make.Mat(Color.white, 0.2f);
+            _ownedMats.Add(gloveMat);
+            var glove = Make.Sphere("Glove", 0.32f, rb.transform.position, gloveMat, rb.transform);
             glove.transform.localPosition = new Vector3(0f, -0.19f, 0f);
             glove.transform.localScale = Vector3.one * 0.32f;
             var sc = glove.GetComponent<SphereCollider>();  // keep + use as the hitbox

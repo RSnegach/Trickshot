@@ -43,6 +43,18 @@ namespace Trickshot
         // that gate gone would also kill his movement, which the crosser still needs.
         public bool ShootingEnabled = true;
 
+        /// <summary>
+        /// Ignore the player's Acrobat perk on this body: air pitch keeps the normal 115-degree
+        /// clamp and a tipped landing always tumbles. The perk is a global read of the local skill
+        /// tree (PlayerProfile.PerkAcrobat), which is right for a match but wrong for an AUTHORED
+        /// body - the menu vignettes choreograph a bicycle kick that must end on the striker's
+        /// back, and an Acrobat player would silently get the other branch (a full flip that lands
+        /// on its feet) and never see the beat the panel is advertising.
+        /// </summary>
+        public bool IgnoreAcrobat;
+
+        bool Acrobat => !IgnoreAcrobat && PlayerProfile.PerkAcrobat;
+
         public void SetDribble(Dribble d) => _dribble = d;
 
         Trick _mode = Trick.None;
@@ -422,7 +434,7 @@ namespace Trickshot
                     // it (what this did for every landing) had a horizontal body pop to its feet in
                     // mid-air and never hit the ground. Acrobat keeps that: it chases a full
                     // rotation and lands on its feet by design, and that behaviour stays as it is.
-                    bool acrobatic = PlayerProfile.PerkAcrobat;
+                    bool acrobatic = Acrobat;
                     float upness = Vector3.Dot(_ragdoll.Pelvis.transform.up, Vector3.up);
                     if (!acrobatic && upness < SimConfig.TumbleUpness)
                     {
@@ -454,7 +466,7 @@ namespace Trickshot
             // so scrolling past parallel does nothing (no runaway spin). ACROBAT: the clamp opens
             // to +/-AcrobatFlipLimit so scrolling drives the target past 180 and the body loops all
             // the way around into full forward/backward flips.
-            bool acrobat = PlayerProfile.PerkAcrobat;
+            bool acrobat = Acrobat;
             float targetLimit = acrobat ? SimConfig.AcrobatFlipLimit : SimConfig.AirPitchLimit;
             float scroll = _wheelArmed ? _input.Scroll : 0f;
             if (Mathf.Abs(scroll) > SimConfig.ScrollDeadzone)
