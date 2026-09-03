@@ -58,8 +58,27 @@ namespace Trickshot
         public static PlayerAppearance Appearance = PlayerAppearance.Default;
 
         // ---- Normalized positions on each axis (0 = min, 1 = max) ----
-        public static float HeightT => Mathf.InverseLerp(MinHeight, MaxHeight, Height);
-        public static float WeightT => Mathf.InverseLerp(MinWeight, MaxWeight, Weight);
+        /// <summary>
+        /// UNIFORM BODY: every body-derived stat baseline is evaluated as though the player were the
+        /// species' DEFAULT height and weight. Set by the accuracy drivers, alongside
+        /// SkillTree.MaxShootingOverride, so a scored run is the same shot for everybody.
+        ///
+        /// It overrides the NORMALISED slider positions rather than Height/Weight themselves, which
+        /// is what keeps it a stats-only change: the visual scale, mass and the ragdoll build all
+        /// read the raw values (see HeightScale / MassMul), so the player still looks and weighs
+        /// exactly like the character they made - they just shoot like the default one.
+        ///
+        /// One switch covers every body coupling there is: shot, move, sprint, jump, push and reach
+        /// are all functions of these two.
+        /// </summary>
+        public static bool UniformBodyOverride;
+
+        public static float HeightT => UniformBodyOverride
+            ? Mathf.InverseLerp(MinHeight, MaxHeight, DefaultHeight)
+            : Mathf.InverseLerp(MinHeight, MaxHeight, Height);
+        public static float WeightT => UniformBodyOverride
+            ? Mathf.InverseLerp(MinWeight, MaxWeight, DefaultWeight)
+            : Mathf.InverseLerp(MinWeight, MaxWeight, Weight);
 
         // Where this build sits inside its OWN species' band: 1.0 at that species' default.
         // Species-relative, so a mid-range horse and a mid-range human both read 1.0 here.

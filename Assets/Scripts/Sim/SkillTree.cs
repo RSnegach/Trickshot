@@ -78,8 +78,25 @@ namespace Trickshot
             get { int s = 0; foreach (var id in Owned) if (_byId.TryGetValue(id, out var n) && n.Cat == Category.ThirdLeg) s += n.Cost; return s; }
         }
 
+        /// <summary>
+        /// ACCURACY: every shooter is given MAXED shooting and control for the duration of the mode,
+        /// so a scored run measures aim rather than how much of a skill tree somebody has bought.
+        /// Set by the accuracy drivers around a run (see AccuracyGame / NetSetPieceMatch).
+        ///
+        /// It overrides the RESULT of Mul, not the player's Owned set, so nothing is written to the
+        /// saved build and their own tree is exactly as they left it when they leave the mode.
+        /// </summary>
+        public static bool MaxShootingOverride;
+
+        /// <summary>The keys the override covers: the shot maths and the trap that feeds it.</summary>
+        static readonly string[] MaxedKeys = { "shotpower", "shotacc", "trap" };
+
         public static float Mul(string key)
         {
+            if (MaxShootingOverride)
+                for (int i = 0; i < MaxedKeys.Length; i++)
+                    if (MaxedKeys[i] == key) return MaxMul(key, Species.SelectedId);
+
             float sum = 0f;
             foreach (var id in Owned)
                 if (_byId.TryGetValue(id, out var n) && n.Effects != null)

@@ -258,7 +258,7 @@ namespace Trickshot
             _ragdoll.LocomotionEnabled = false;      // let the lunge carry
             _ragdoll.MoveInput = Vector3.zero;
             if (_saveCommitTimer > 0f)
-                _ragdoll.AddVelocityToAll(kRight * (dir * SimConfig.KeeperSaveLunge));
+                _ragdoll.AddVelocityToAll(kRight * (dir * SimConfig.KeeperSaveLunge * SimConfig.HumanKeeperSpeedMul));
             else
             {
                 // Split (both buttons): kill residual horizontal velocity.
@@ -339,8 +339,9 @@ namespace Trickshot
         {
             Vector3 right = _facing * Vector3.right;      // keeper's right in world space
             Vector3 fwd = _facing * Vector3.forward;      // out toward the pitch
-            Vector3 vel = right * (dir * SimConfig.KeeperStrafeSpeed)
-                        + fwd * (fb * SimConfig.KeeperStrafeSpeed);
+            float hcap = SimConfig.HumanKeeperSpeedMul;
+            Vector3 vel = right * (dir * SimConfig.KeeperStrafeSpeed * hcap)
+                        + fwd * (fb * SimConfig.KeeperStrafeSpeed * hcap);
 
             // Clamp lateral shuffle to a window around centre (x only).
             float x = _ragdoll.Pelvis.position.x;
@@ -364,7 +365,7 @@ namespace Trickshot
             _ragdoll.BalanceEnabled = false;
             _ragdoll.LocomotionEnabled = false;
             _ragdoll.BodyOrientTarget = _facing;     // hold vertical, no forward topple
-            _ragdoll.LaunchVerticalAll(SimConfig.KeeperJumpVel);
+            _ragdoll.LaunchVerticalAll(SimConfig.KeeperJumpVel * SimConfig.HumanKeeperSpeedMul);
             _ragdoll.SetPose(KeeperPose.Jump, 16f);
         }
 
@@ -373,8 +374,10 @@ namespace Trickshot
         void LaunchDive(float dir)
         {
             float priorSpeed = new Vector3(_ragdoll.Pelvis.linearVelocity.x, 0f, _ragdoll.Pelvis.linearVelocity.z).magnitude;
-            float horiz = SimConfig.KeeperDiveHorizBase + SimConfig.KeeperDiveHorizPerV * priorSpeed;
-            float up = SimConfig.KeeperDiveUpBase + SimConfig.KeeperDiveUpPerV * priorSpeed;
+            float horiz = (SimConfig.KeeperDiveHorizBase + SimConfig.KeeperDiveHorizPerV * priorSpeed)
+                          * SimConfig.HumanKeeperSpeedMul;
+            float up = (SimConfig.KeeperDiveUpBase + SimConfig.KeeperDiveUpPerV * priorSpeed)
+                       * SimConfig.HumanKeeperSpeedMul;
             // The jump-height setting also scales how high the high dive goes.
             up *= SimConfig.KeeperJumpVel / SimConfig.KeeperJumpVelBase;
             DoDive(dir, horiz, up, SimConfig.KeeperDiveLayoutHigh, isHigh: true);
@@ -383,7 +386,9 @@ namespace Trickshot
         // Double-tap A/D: explosive LOW sideways dive, just off the ground (fixed).
         void LaunchDashDive(float dir)
         {
-            DoDive(dir, SimConfig.KeeperDashDive, SimConfig.KeeperDashUp, SimConfig.KeeperDiveLayoutLow, isHigh: false);
+            DoDive(dir, SimConfig.KeeperDashDive * SimConfig.HumanKeeperSpeedMul,
+                   SimConfig.KeeperDashUp * SimConfig.HumanKeeperSpeedMul,
+                   SimConfig.KeeperDiveLayoutLow, isHigh: false);
         }
 
         // Shared dive launch: sideways+up velocity, plus an ACTIVELY DRIVEN roll to a
