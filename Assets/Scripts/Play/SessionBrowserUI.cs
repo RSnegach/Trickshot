@@ -22,15 +22,24 @@ namespace Trickshot
     {
         System.Action _onBack;
         System.Action _onJoined;   // invoked once we've asked to join a lobby -> show lobby
+        // The mode this browser is locked to: the one picked on the Multiplayer hub. Only lobbies
+        // advertising it are listed (see ApplyFilter) - the player already said what they want to
+        // play, and a Striker row under an ACCURACY title would contradict the screen they are on.
+        GameMode _gameMode;
 
         readonly List<LobbyInfo> _lobbies = new List<LobbyInfo>();
         // Role filter: show only lobbies LOOKING FOR every role ticked here (see LookingRole).
         // 0 = off, which is the default and shows everything. Purely a local view filter - it never
         // changes what discovery sweeps for, so clearing it re-reveals rows with no new sweep.
+        // Match only: hosts advertise roles for nothing else (HostSetupUI sends 0 otherwise), so
+        // the row is not drawn for other modes and the mask stays 0 there.
         byte _wantRoles;
-        // _lobbies filtered by _wantRoles, rebuilt each frame it is drawn. Rows are SELECTED out of
-        // this list, so _sel indexes the VISIBLE rows, never the raw sweep results.
+        // _lobbies filtered by mode + _wantRoles, rebuilt after every sweep and filter change. Rows
+        // are SELECTED out of this list, so _sel indexes the VISIBLE rows, never the raw sweep
+        // results. _modeCount is how many of the sweep are this mode at all (before the role
+        // filter), so the footer and the empty state can say what is hidden and why.
         readonly List<LobbyInfo> _shown = new List<LobbyInfo>();
+        int _modeCount;
         int _sel = -1;
         ulong _selHandle;          // selection follows the LOBBY, not the row index (see Refresh)
         float _autoRefresh;
@@ -76,9 +85,9 @@ namespace Trickshot
             _connecting = false;
         }
 
-        public void Init(System.Action onJoined, System.Action onBack)
+        public void Init(System.Action onJoined, System.Action onBack, GameMode mode)
         {
-            _onJoined = onJoined; _onBack = onBack;
+            _onJoined = onJoined; _onBack = onBack; _gameMode = mode;
             GameInput.CaptureCursor(false);
             Refresh();
         }
@@ -104,8 +113,12 @@ namespace Trickshot
         void ApplyFilter()
         {
             _shown.Clear();
+            _modeCount = 0;
             for (int i = 0; i < _lobbies.Count; i++)
             {
+                // Mode first: this browser only lists the mode picked on the hub.
+                if (!NetSession.LabelIsMode(_lobbies[i].mode, _gameMode)) continue;
+                _modeCount++;
                 // A lobby matches when it is looking for EVERY role the searcher ticked (AND, not
                 // OR): ticking Sniper+Referee means "somewhere I can do both", which is the reading
                 // that never puts a lobby in front of someone it cannot seat.
@@ -240,7 +253,7 @@ namespace Trickshot
                     // Sweep worked, peers answered, nobody is hosting a JOINABLE PUBLIC lobby. Say so
                     // exactly, because a host with "Public" off, a full lobby or a started match are all
                     // invisible by design and would otherwise look like a broken list.
-                    return "Nobody is hosting an open session.";
+                    return "Nobody is hosting an open " + PauseMenu.ModeName(_gameMode) + " session.";
             }
         }
 
@@ -250,15 +263,27 @@ namespace Trickshot
         {
             // Count what is VISIBLE, and say so when a filter is hiding the rest - "2 sessions
             // found" beside a list of two, out of nine swept, is a true sentence that reads false.
-            string what = _shown.Count == 1 ? "1 session" : _shown.Count + " sessions";
-            if (_wantRoles != 0 && _shown.Count != _lobbies.Count)
-                what += " of " + _lobbies.Count;
-            if (Multiplayer.SteamLinked || !Multiplayer.UseDirectIp) return what + " found";
+            // Two things hide rows: the role filter (counted against this mode's lobbies) and the
+            // mode lock itself (other modes' lobbies, named at the end so a thin list still reads
+            // as a working sweep).
+            string name = PauseMenu.ModeName(_gameMode);
+            string what = _shown.Count == 1 ? "1 " + name + " session" : _shown.Count + " " + name + " sessions";
+            if (_wantRoles != 0 && _shown.Count != _modeCount)
+                what += " of " + _modeCount;
+            string others = OtherModesLine();
+            if (Multiplayer.SteamLinked || !Multiplayer.UseDirectIp) return what + " found" + others;
             int peers = TailnetDiscovery.PeerCount;
             string where = TailnetDiscovery.HasTailnet
                 ? (peers == 1 ? "1 Tailscale device + LAN" : peers + " Tailscale devices + LAN")
                 : "your LAN";
-            return what + " found on " + where + (TailnetDiscovery.Scanning ? "  (scanning...)" : "");
+            return what + " found on " + where + others + (TailnetDiscovery.Scanning ? "  (scanning...)" : "");
+        }
+
+        /// <summary>" (+N in other modes)" when the mode lock is hiding swept lobbies, else "".</summary>
+        string OtherModesLine()
+        {
+            int other = _lobbies.Count - _modeCount;
+            return other > 0 ? " (+" + other + " in other modes)" : "";
         }
 
         // Scaled up on big displays like the other pre-match menus (see MenuScale); the fixed sizes
@@ -274,13 +299,14 @@ namespace Trickshot
         void DrawBrowser()
         {
             float w = 560f, rowH = 46f, gap = 8f;
-            float panelH = 150f + 6 * (rowH + gap) + 60f + 78f + 58f;   // +78 join row, +58 role filter
+            // +78 join row; +58 role filter, Match only (see the row itself).
+            float panelH = 150f + 6 * (rowH + gap) + 60f + 78f + (_gameMode == GameMode.Match ? 58f : 0f);
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 300f);
             UITheme.Panel(new Rect(x, y, w, panelH), UITheme.Blue);
 
-            UITheme.Title(new Rect(x, y + 14f, w, 40f), "FIND A SESSION", 30);
+            UITheme.Title(new Rect(x, y + 14f, w, 40f), PauseMenu.ModeName(_gameMode).ToUpper() + " - FIND A SESSION", 28);
 
             var rowName = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
             var rowNameSel = new GUIStyle(rowName); rowNameSel.normal.textColor = UITheme.Gold;
@@ -290,28 +316,32 @@ namespace Trickshot
 
             // ---- Role filter: narrow the list to hosts looking for what the searcher wants to
             // play. Off by default (every lobby shown); ticking a role hides lobbies not asking for
-            // it. Drawn ABOVE the rows so it reads as a control over the list beneath it.
-            UITheme.Label(new Rect(lx, row, lw, 18f), "Looking to play as:", 
-                          new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
+            // it. Drawn ABOVE the rows so it reads as a control over the list beneath it. Match
+            // only: no other mode advertises roles, so anywhere else the row could only hide rows.
+            if (_gameMode == GameMode.Match)
             {
-                var names = LookingRoles.Names;
-                float bw = (lw - 6f * (names.Length - 1)) / names.Length;
-                var fSt = new GUIStyle(GUI.skin.button) { fontSize = 12 };
-                for (int i = 0; i < names.Length; i++)
+                UITheme.Label(new Rect(lx, row, lw, 18f), "Looking to play as:", 
+                              new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
                 {
-                    byte bit = (byte)LookingRoles.All[i];
-                    bool on = (_wantRoles & bit) != 0;
-                    var fs = new GUIStyle(fSt) { fontStyle = on ? FontStyle.Bold : FontStyle.Normal };
-                    if (on) fs.normal.textColor = UITheme.Gold;
-                    if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 20f, bw, 26f), names[i], on, fs))
+                    var names = LookingRoles.Names;
+                    float bw = (lw - 6f * (names.Length - 1)) / names.Length;
+                    var fSt = new GUIStyle(GUI.skin.button) { fontSize = 12 };
+                    for (int i = 0; i < names.Length; i++)
                     {
-                        _wantRoles ^= bit;   // independent checkboxes, not a one-of-N picker
-                        ApplyFilter();       // re-filter NOW so the list reacts to the click
+                        byte bit = (byte)LookingRoles.All[i];
+                        bool on = (_wantRoles & bit) != 0;
+                        var fs = new GUIStyle(fSt) { fontStyle = on ? FontStyle.Bold : FontStyle.Normal };
+                        if (on) fs.normal.textColor = UITheme.Gold;
+                        if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 20f, bw, 26f), names[i], on, fs))
+                        {
+                            _wantRoles ^= bit;   // independent checkboxes, not a one-of-N picker
+                            ApplyFilter();       // re-filter NOW so the list reacts to the click
+                        }
                     }
                 }
+                UITheme.Divider(lx, row + 50f, lw);
+                row += 58f;
             }
-            UITheme.Divider(lx, row + 50f, lw);
-            row += 58f;
 
             if (_shown.Count == 0)
             {
@@ -325,9 +355,15 @@ namespace Trickshot
                 if (sweeping) UITheme.Spinner(new Rect(er.center.x - 16f, er.y + 18f, 32f, 32f), UITheme.Gold);
                 // A filter that hid every row is NOT a discovery failure, and saying "nobody is
                 // hosting" there would send the player to fix a network that is working fine.
-                string why = _lobbies.Count > 0 && _wantRoles != 0
-                    ? "No open session is looking for that. Untick a role, or host one yourself."
-                    : BrowseStatus();
+                // Same for the mode lock: lobbies in other modes prove the sweep works.
+                string why;
+                if (_modeCount > 0 && _wantRoles != 0)
+                    why = "No open session is looking for that. Untick a role, or host one yourself.";
+                else if (_lobbies.Count > 0)
+                    why = "Nobody is hosting an open " + PauseMenu.ModeName(_gameMode) + " session"
+                        + OtherModesLine() + ". Host one yourself.";
+                else
+                    why = BrowseStatus();
                 UITheme.Label(new Rect(er.x, er.y + (sweeping ? 44f : 0f), er.width, er.height - (sweeping ? 44f : 0f)),
                           why, empty);
             }

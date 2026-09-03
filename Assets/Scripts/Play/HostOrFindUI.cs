@@ -4,20 +4,20 @@ using Trickshot.Net;
 namespace Trickshot
 {
     /// <summary>
-    /// The plain Host/Find flow every networkable mode shares, reached off the Multiplayer hub.
-    /// Reused for two different callers rather than duplicated - the title is the only thing that
-    /// differs:
-    ///   - "Other Modes": Striker, Set Pieces, Accuracy (HostSetupUI's mode picker excludes Match).
-    ///   - "Play a Match": Match, pre-locked (HostSetupUI's mode picker is skipped entirely).
+    /// The plain Host/Find split every networkable mode shares: the screen after picking a mode
+    /// on the Multiplayer hub, titled with that mode ("ACCURACY", "SET PIECES", ...). The mode
+    /// itself is carried by GameBootstrap, which locks Host Setup and the session browser to it -
+    /// this screen only needs the title. (It used to be the "Other Modes" / "Play a Match" pair;
+    /// the hub now offers every mode directly, so there is one caller per mode and no catch-all.)
     /// Host a session or find one; shows whether Steam is linked, and when it isn't, notes the
     /// flow still works over the in-process loopback transport (useful for testing).
     /// </summary>
-    public class OtherModesUI : MonoBehaviour
+    public class HostOrFindUI : MonoBehaviour
     {
         System.Action _onHost, _onJoin, _onBack;
         string _title;
 
-        public void Init(System.Action onHost, System.Action onJoin, System.Action onBack, string title = "OTHER MODES")
+        public void Init(System.Action onHost, System.Action onJoin, System.Action onBack, string title)
         {
             _onHost = onHost; _onJoin = onJoin; _onBack = onBack; _title = title;
             GameInput.CaptureCursor(false);

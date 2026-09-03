@@ -4,22 +4,19 @@ using Trickshot.Net;
 namespace Trickshot
 {
     /// <summary>
-    /// Host setup: the host picks the match configuration (mode, stadium, team size, match
-    /// length, visibility) then Creates the session. On create it starts hosting, pushes the
-    /// config to the session, and hands off to the lobby. Joiners inherit this config
-    /// (host-authoritative), so they don't re-pick it.
+    /// Host setup: the host picks the configuration for the mode chosen on the Multiplayer hub
+    /// (team size, match length, visibility, the dead-ball knobs...) then Creates the session. On
+    /// create it starts hosting, pushes the config to the session, and hands off to the lobby.
+    /// Joiners inherit this config (host-authoritative), so they don't re-pick it.
     /// </summary>
     public class HostSetupUI : MonoBehaviour
     {
         System.Action _onCreated, _onBack;
 
-        // Networkable modes. Match is reached ONLY pre-locked now (via Match -> Host
-        // a Session) - the generic picker (reached via Other Modes) never offers it, so the two
-        // arrays are built per-Init rather than being one static list every path shares.
-        GameMode[] Modes;
-        string[] ModeNames;
-        bool _modeLocked;          // true when Modes has exactly one entry - skip drawing the picker
-        int _mode;                 // index into Modes
+        // The mode this screen is locked to. There is no mode picker here any more: the hub
+        // offers every networkable mode as its own button (MultiplayerHubUI.NetModes), so by the
+        // time this screen opens the choice is made, and one option is not a choice.
+        GameMode _gameMode;
         int _stadium;
         int _perSide = 3;          // match team size (1/3/5) - see the Team size picker
         // Match only: extra roles this host wants a stranger to drop into, as a LookingRole
@@ -30,7 +27,17 @@ namespace Trickshot
         bool _publicLobby = true;
         // Set-pieces host settings (goal size %, keeper ability). Ball/player speed intentionally
         // NOT exposed - kept fixed so multiplayer stays balanced.
-        int _goalPct = 100;        // 80 / 100 / 125
+        int _goalPct = 100;        // 80 / 100 / 125 (the picker modes; accuracy uses the graphic below)
+        // ACCURACY uses the same drag-to-size goal picture single player does, so its goal is two
+        // free metre values rather than one of three presets. Static, so reopening the screen keeps
+        // what was dialled.
+        static float _accGoalW = SimConfig.GoalWidthBase, _accGoalH = SimConfig.GoalHeightBase;
+        readonly GoalEditor _goalEditor = new GoalEditor();
+        // Accuracy places its practice-style free kick map beside the panel, exactly as SP does.
+        static bool _accFkInit;
+        static Vector3 _accFkBall, _accFkWall;
+        static int _accFkEdit;
+        static bool _accFkRandom;
         // AI keeper strength, if no human takes the gloves. One of KeeperPcts (the SimConfig ladder
         // x100); 30 = Normal. The default has to be ON the ladder or the picker opens with no button
         // lit, which is exactly what an older 50 did.
@@ -47,29 +54,14 @@ namespace Trickshot
         // shooter's turn ENDS - either a fixed number of kicks (1..100) or a per-turn timer
         // (up to 120 s). Goal size / keeper ability reuse the set-piece pickers above, and the
         // ball/wall placement reuses the same free-kick map.
-        int _accWall = 0;          // wall players (0 = no wall)
-        int _accTargets = 4;       // targets up at once
-        bool _accByTime;           // false = fixed kicks, true = per-turn timer
-        int _accKicks = 10;        // kicks each (1..100) when !_accByTime
-        int _accSeconds = 60;      // turn seconds (<=120) when _accByTime
+        bool _accSuddenDeath;      // false = strikes (a run each), true = one shot per visit
+        bool _accNoKeeper;         // true = open goal for the whole match
         string _hostError = "";    // shown when Create couldn't open the host port
 
-        public void Init(System.Action onCreated, System.Action onBack, GameMode? lockedMode = null)
+        public void Init(System.Action onCreated, System.Action onBack, GameMode mode)
         {
             _onCreated = onCreated; _onBack = onBack;
-            if (lockedMode.HasValue)
-            {
-                Modes = new[] { lockedMode.Value };
-                ModeNames = new[] { lockedMode.Value == GameMode.Match ? "Match" : lockedMode.Value.ToString() };
-                _modeLocked = true;
-            }
-            else
-            {
-                Modes = new[] { GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
-                ModeNames = new[] { "Striker", "Set Pieces", "Accuracy" };
-                _modeLocked = false;
-            }
-            _mode = 0;
+            _gameMode = mode;
             _stadium = StadiumStyle.SelectedIndex;
             GameInput.CaptureCursor(false);
         }
@@ -79,25 +71,28 @@ namespace Trickshot
             // Scale the whole setup panel up on big displays (see MenuScale); sizes below are
             // unchanged, they just fill more of the screen.
             MenuScale.Begin();
-            // Accuracy adds four extra option rows (wall / targets / turn format / turn amount).
-            // A locked single mode skips the picker row entirely (one option is not a choice).
-            // Accuracy adds four extra option rows; Match adds the Looking-for row (+58).
-            float w = 480f, panelH = (Modes[_mode] == GameMode.Accuracy ? 610f : 470f)
-                                   + (Modes[_mode] == GameMode.Match ? 58f : 0f)
-                                   - (_modeLocked ? 58f : 0f) - 58f;   // -58: no stadium row
+            var mode = _gameMode;
+            // Accuracy draws the GOAL PICTURE instead of a goal-size picker, so it is sized the way
+            // the single-player setup screens are (SetupPanel.Height): the picture, plus its two
+            // remaining rows (format + the public-lobby toggle). Match adds the Looking-for row
+            // (+58). -116 on the others: neither a mode row (the mode was chosen on the hub) nor a
+            // stadium row (picked on its own screen after Create).
+            float w = 480f;
+            float panelH = mode == GameMode.Accuracy
+                         ? SetupPanel.Height(2)
+                         : 470f + (mode == GameMode.Match ? 58f : 0f) - 116f;
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 640f);
             UITheme.Panel(new Rect(x, y, w, panelH), UITheme.Blue);
 
-            UITheme.Title(new Rect(x, y + 12f, w, 36f), _modeLocked ? ModeNames[0].ToUpper() + " - HOST SETUP" : "HOST SETUP", 28);
+            UITheme.Title(new Rect(x, y + 12f, w, 36f), PauseMenu.ModeName(mode).ToUpper() + " - HOST SETUP", 28);
 
             float lx = x + 30f, lw = w - 60f, row = y + 60f;
             UITheme.Divider(lx, row - 8f, lw);
-            if (!_modeLocked) Picker(lx, ref row, lw, "Mode", ModeNames, ref _mode);
             // (The stadium is picked on its own screen after Create - the same one single player
             // uses - so the venue row that used to sit here is gone.)
-            if (Modes[_mode] == GameMode.Match)
+            if (mode == GameMode.Match)
             {
                 // ONLY SEATABLE SIZES. Match maps two teams onto the 8-slot board, so a team is
                 // capped at NetSession.ScrimSlotsPerTeam (4) - and NetSession.ScrimPerSide clamps to
@@ -113,27 +108,29 @@ namespace Trickshot
                 PickerVals(lx, ref row, lw, "Match length", new[] { "2 min", "3 min", "5 min", "10 min" }, new[] { 2, 3, 5, 10 }, ref _matchMin);
                 LookingForRow(lx, ref row, lw);
             }
-            else if (Modes[_mode] == GameMode.SetPieces)
+            else if (mode == GameMode.SetPieces)
             {
                 // Balance-safe knobs only: goal size + AI keeper strength.
                 PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
                 PickerVals(lx, ref row, lw, "Keeper", KeeperNames, KeeperPcts, ref _keeperPct);
             }
-            else if (Modes[_mode] == GameMode.Accuracy)
+            else if (mode == GameMode.Accuracy)
             {
-                // Free kicks at pop-up targets; shooters take turns and compare target points.
-                PickerVals(lx, ref row, lw, "Goal size", new[] { "Small", "Normal", "Big" }, new[] { 80, 100, 125 }, ref _goalPct);
-                PickerVals(lx, ref row, lw, "Keeper", KeeperNames, KeeperPcts, ref _keeperPct);
-                PickerVals(lx, ref row, lw, "Wall players", new[] { "None", "2", "3", "4", "5" }, new[] { 0, 2, 3, 4, 5 }, ref _accWall);
-                PickerVals(lx, ref row, lw, "Targets up", new[] { "2", "3", "4", "6", "8" }, new[] { 2, 3, 4, 6, 8 }, ref _accTargets);
-                // Turn format: a fixed kick count, or a timed round each.
-                int fmt = _accByTime ? 1 : 0;
-                PickerVals(lx, ref row, lw, "Turn ends on", new[] { "Kicks", "Timer" }, new[] { 0, 1 }, ref fmt);
-                _accByTime = fmt == 1;
-                if (_accByTime)
-                    PickerVals(lx, ref row, lw, "Turn time", new[] { "30s", "45s", "60s", "90s", "120s" }, new[] { 30, 45, 60, 90, 120 }, ref _accSeconds);
-                else
-                    PickerVals(lx, ref row, lw, "Kicks each", new[] { "1", "3", "5", "10", "25", "50", "100" }, new[] { 1, 3, 5, 10, 25, 50, 100 }, ref _accKicks);
+                // The SP PRACTICE format (see SetupPanel): the goal as a picture you drag to size,
+                // the keeper as a plain Yes/No under it - its STRENGTH is the round ladder's, not a
+                // setting - then the format, and the placement map beside the panel.
+                int kLvl = _accNoKeeper ? 0 : GoalEditor.YesLevel;
+                SetupPanel.GoalRow(_goalEditor, x, ref row, ref _accGoalW, ref _accGoalH, ref kLvl,
+                                   locked: false, yesNo: true);
+                _accNoKeeper = kLvl <= 0;
+
+                int fmt = _accSuddenDeath ? 1 : 0;
+                PickerVals(lx, ref row, lw, "Format", new[] { "Strikes", "Sudden Death" }, new[] { 0, 1 }, ref fmt);
+                _accSuddenDeath = fmt == 1;
+
+                if (!_accFkInit) { SetPieceMap.DefaultPlacement(out _accFkBall, out _accFkWall); _accFkInit = true; }
+                SetupPanel.Map(x, y, ref _accFkBall, ref _accFkWall, ref _accFkEdit, ref _accFkRandom,
+                               "Random spot each round.", showWall: false);
             }
             // This toggle now DOES something. It used to be carried on the wire and ignored; it decides
             // whether the host answers discovery probes at all, so off means the lobby appears in
@@ -165,10 +162,12 @@ namespace Trickshot
                 UITheme.Label(new Rect(x + 24f, by - 46f, w - 48f, 40f), _hostError, err);
             }
 
-            // Free-kick placement map (Set Pieces only): a side panel to the right of the main
+            // Free-kick placement map (SET PIECES only): a side panel to the right of the main
             // window where the host drops the ball spot + wall, like the in-match cross map.
-            // Accuracy uses the same dead-ball + wall placement, so it shows the same map.
-            if (Modes[_mode] == GameMode.SetPieces || Modes[_mode] == GameMode.Accuracy)
+            // ACCURACY draws its OWN map inside its branch above - it has no wall, so it needs the
+            // wall-less variant, and drawing this one too stacked a second map with a WALL marker
+            // straight on top of it.
+            if (mode == GameMode.SetPieces)
                 DrawFreeKickSetup(x + w + 16f, y);
 
             MenuScale.End();
@@ -187,7 +186,7 @@ namespace Trickshot
 
         void Create()
         {
-            var mode = Modes[_mode];
+            var mode = _gameMode;
             StadiumStyle.SelectedIndex = _stadium;
             // Both dead-ball modes (set pieces + accuracy) use the goal/keeper/placement knobs.
             bool deadBall = mode == GameMode.SetPieces || mode == GameMode.Accuracy;
@@ -216,11 +215,19 @@ namespace Trickshot
                 matchSec = (ushort)(_matchMin * 60),
                 publicLobby = _publicLobby,
                 // Set-pieces + accuracy share these knobs (both are dead-ball modes).
-                goalScale = deadBall ? _goalPct / 100f : 1f,
-                goalScaleH = deadBall ? _goalPct / 100f : 1f,   // the pickers here are one scale for both
+                // Accuracy sizes its goal on the picture, which gives width and height separately;
+                // the other dead-ball modes use the one three-step picker for both.
+                goalScale  = mode == GameMode.Accuracy ? _accGoalW / SimConfig.GoalWidthBase
+                           : deadBall ? _goalPct / 100f : 1f,
+                goalScaleH = mode == GameMode.Accuracy ? _accGoalH / SimConfig.GoalHeightBase
+                           : deadBall ? _goalPct / 100f : 1f,
                 // Striker's goal + keeper are set on the stadium/goal screen that follows; this is
                 // just the starting point it opens on (Normal).
-                keeperAbility = deadBall ? _keeperPct / 100f : SimConfig.AiLevelAbility[(int)SimConfig.AiDifficulty.Normal],
+                // Accuracy overloads this: -1 means NO KEEPER, and any other value is ignored (its
+                // keeper comes from the round ladder). Every other mode sends a real 0..1 ability.
+                keeperAbility = mode == GameMode.Accuracy ? (_accNoKeeper ? -1f : 0f)
+                              : deadBall ? _keeperPct / 100f
+                              : SimConfig.AiLevelAbility[(int)SimConfig.AiDifficulty.Normal],
                 // Host-placed free-kick spot + wall. fkPlaced tells the driver to honour them;
                 // when false (map never opened / other modes) the driver uses its own default.
                 fkPlaced = deadBall && _fkInit,
@@ -230,12 +237,10 @@ namespace Trickshot
                 // same schedule. The seed also drives the accuracy target layout.
                 fkRandom = mode == GameMode.SetPieces && _fkRandom,
                 fkSeed = (uint)Random.Range(1, int.MaxValue),
-                // Accuracy: optional wall, target count, and the turn-end rule.
-                accWallCount = (byte)(mode == GameMode.Accuracy ? _accWall : 0),
-                accTargets = (byte)(mode == GameMode.Accuracy ? _accTargets : 4),
-                accTurnByTime = mode == GameMode.Accuracy && _accByTime,
-                accTurnKicks = (byte)Mathf.Clamp(_accKicks, 1, 100),
-                accTurnSeconds = (ushort)Mathf.Clamp(_accSeconds, 10, 120),
+                // Accuracy: format, plus the keeper carried as a NEGATIVE ability (see the
+                // keeperAbility line above) - the mode's real ability comes from the round ladder,
+                // so the field is free to mean "none at all" here rather than needing a new one.
+                accSuddenDeath = mode == GameMode.Accuracy && _accSuddenDeath,
                 // Match only: the roles this host is advertising for (see LookingRole).
                 lookingFor = mode == GameMode.Match ? _lookingFor : (byte)0,
             });
@@ -258,20 +263,6 @@ namespace Trickshot
             var s = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = sel ? FontStyle.Bold : FontStyle.Normal };
             if (sel) s.normal.textColor = UITheme.Gold;
             return s;
-        }
-
-        void Picker(float lx, ref float row, float lw, string label, string[] names, ref int idx)
-        {
-            UITheme.Label(new Rect(lx, row, lw, 20f), label + ":", RowLabel());
-            float bw = (lw - 6f * (names.Length - 1)) / names.Length;
-            for (int i = 0; i < names.Length; i++)
-            {
-                bool sel = i == idx;
-                if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], sel, PickStyle(sel)))
-                    idx = i;
-            }
-            UITheme.Divider(lx, row + 53f, lw);
-            row += 58f;
         }
 
         // Keeper difficulty, as whole percents of SimConfig.KeeperAbility. Same five names and the

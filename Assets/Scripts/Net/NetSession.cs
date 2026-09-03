@@ -713,10 +713,26 @@ namespace Trickshot.Net
                     // SEATED size, not the raw config byte: the 8-slot board caps a team at
                     // ScrimSlotsPerTeam, and a lobby that seats 4 must not advertise 5.
                     int n = Mathf.Clamp((int)Config.perSide, 2, ScrimSlotsPerTeam);
-                    return "Match " + n + "v" + n + LookingRoles.Tag(Config.lookingFor);
-                case GameMode.SetPieces: return "Set Pieces";
-                default: return mode.ToString();
+                    return ModeWord(mode) + " " + n + "v" + n + LookingRoles.Tag(Config.lookingFor);
+                default: return ModeWord(mode);
             }
+        }
+
+        /// <summary>The word a ModeLabel() for this mode starts with. The session browser is
+        /// locked to one mode and matches rows on it (LabelIsMode), so the label and the filter
+        /// share this one source and cannot drift.</summary>
+        public static string ModeWord(GameMode mode) => mode == GameMode.SetPieces ? "Set Pieces" : mode.ToString();
+
+        /// <summary>Does a browser row's mode string advertise this mode? Whole-word: the label is
+        /// the word alone, or the word then a space (Match carries its team size and the LF tag
+        /// after it), so a future mode whose name extends another's cannot match it. An empty or
+        /// unknown label matches nothing.</summary>
+        public static bool LabelIsMode(string label, GameMode mode)
+        {
+            if (string.IsNullOrEmpty(label)) return false;
+            string w = ModeWord(mode);
+            if (!label.StartsWith(w, System.StringComparison.Ordinal)) return false;
+            return label.Length == w.Length || label[w.Length] == ' ';
         }
 
         /// <summary>

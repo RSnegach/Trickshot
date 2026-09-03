@@ -3,38 +3,47 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Multiplayer hub: the first screen after the main-menu Multiplayer button. Match and every
-    /// other networkable mode (Striker, Set Pieces, Accuracy) share the plain Host/Find flow this
-    /// screen used to show directly - see OtherModesUI, which now carries exactly what this file
-    /// used to. Match reaches it pre-locked to the Match mode, titled "PLAY A MATCH".
+    /// Multiplayer hub: the first screen after the main-menu Multiplayer button. One large panel
+    /// per networkable mode (NetModes), each showing a live scene from that mode, and picking one
+    /// IS the mode choice - every screen after it (Host/Find, Host Setup, the session browser) is
+    /// locked to it, so none of them asks again. There is no "Other Modes" catch-all any more.
+    ///
+    /// Layout, paging and the scenes all live in ModeGrid, shared with the Single Player list. The
+    /// page survives the instance: every Back rebuilds this hub, and a mode picked off page two
+    /// should come back to page two.
     /// </summary>
     public class MultiplayerHubUI : MonoBehaviour
     {
-        System.Action _onMatch, _onOtherModes, _onBack;
+        /// <summary>Every mode with a networked driver, in hub order. Host Setup and the browser
+        /// are locked to one of these; a mode not listed here cannot be hosted or found.</summary>
+        public static readonly GameMode[] NetModes = { GameMode.Match, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
 
-        public void Init(System.Action onMatch, System.Action onOtherModes, System.Action onBack)
+        static int _page;
+
+        System.Action<GameMode> _onMode;
+        System.Action _onBack;
+        ModeGrid _grid;
+
+        public void Init(System.Action<GameMode> onMode, System.Action onBack)
         {
-            _onMatch = onMatch; _onOtherModes = onOtherModes; _onBack = onBack;
+            _onMode = onMode; _onBack = onBack;
             GameInput.CaptureCursor(false);
+            _grid = new ModeGrid("MULTIPLAYER", NetModes, transform, _page);
         }
 
         void OnGUI()
         {
             MenuScale.Begin();   // fit to the window; virtual coordinates from here on
-
-            float w = 340f, h = 66f, gap = 20f;
-            float cx = MenuScale.Width * 0.5f - w * 0.5f;
-            float cy = MenuScale.Height * 0.5f - (h * 1.5f + gap);
-
-            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.30f, w + 380f);
-            UITheme.Title(new Rect(0, cy - 110f, MenuScale.Width, 80f), "MULTIPLAYER", 48);
-
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 24, fontStyle = FontStyle.Bold };
-            if (UITheme.Button(new Rect(cx, cy, w, h), "Match", btn)) { enabled = false; _onMatch?.Invoke(); }
-            if (UITheme.Button(new Rect(cx, cy + (h + gap), w, h), "Other Modes", btn)) { enabled = false; _onOtherModes?.Invoke(); }
-            if (UITheme.Button(new Rect(cx, cy + (h + gap) * 2f, w, h), "Back", btn)) { enabled = false; _onBack?.Invoke(); }
-
+            // Callbacks fire AFTER MenuScale.End(): they destroy this object, and the GUI matrix
+            // must be popped either way.
+            var picked = _grid.Draw(out bool back);
+            _page = _grid.Page;
             MenuScale.End();
+
+            if (picked.HasValue) { enabled = false; _grid.Teardown(); _onMode?.Invoke(picked.Value); }
+            else if (back) { enabled = false; _grid.Teardown(); _onBack?.Invoke(); }
         }
+
+        void OnDestroy() => _grid?.Teardown();
     }
 }
