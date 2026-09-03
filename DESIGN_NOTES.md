@@ -207,6 +207,48 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   ("save this, make it cinematic, post it") since that is the on-ramp that needs zero authoring.
   Not scoped beyond this — just an idea, not being built yet, but the one with the biggest upside.
 
+- **Trickshot World Cup (seeded 32-team penalty tournament).** A knockout penalty-shootout cup, in
+  the shape of the old *Penalty Fever Plus* flash game: pick a nation, then shoot and keep your way
+  from a 32-team bracket down to the final. Playable solo against AI, or in a lobby with friends and
+  strangers where everyone shares one bracket.
+  - **What Penalty Fever did, and what is worth taking.** Its loop was: pick a team from a large
+    real-nation roster, enter a competition, and play both halves of every tie — you take the kicks
+    AND you keep. Shooting was a two-click commit (the first click starts the run-up and declares an
+    intended direction, the second sets the real direction and height, so a keeper watching the
+    first click can be wrong-footed); a later 3D version used click-and-hold for power/height.
+    Keeping was a click on the part of the goal to dive at, with a brief marker telegraphing where
+    the shot is going. Best of five kicks, then sudden death. The parts worth stealing are the
+    STRUCTURE (one nation, a bracket, both roles every tie) and the read/counter-read of the shooter
+    declaring before the keeper commits — Trickshot already has a richer version of both halves
+    (`SetPieceTaker`'s charge/spin/aim and the `Goalkeeper` dive bands), so the flash game's input
+    scheme itself is not needed, only its pacing.
+  - **Bracket and seeding.** 32 teams, five rounds (32 -> 16 -> 8 -> 4 -> final). The whole bracket
+    is derived from ONE seed so every peer builds the identical draw, identical AI-vs-AI results and
+    identical shot schedules — the same trick `MatchConfig.fkSeed` already uses to give every peer
+    the same 10 free-kick spots. Humans are slotted into the bracket at the draw; every other slot
+    is an AI nation. Nation kits are free: `JerseyDesigns.NationsN.cs` already ships ~180 world
+    flags, so a 32-team field is a subset, not new art.
+  - **Three kinds of tie, one timeline.** Human vs human and human vs AI are PLAYED. AI vs AI is
+    SIMULATED from the seed (a rating per nation plus the seed decides it, no bodies spawned) and
+    reported as a result on the bracket, so a 32-team round does not cost 16 live shootouts.
+  - **Sequential, and spectated.** Shootouts are short, so ties in a round run ONE AT A TIME with
+    everyone else watching the live one — the tournament is a shared broadcast rather than parallel
+    private matches. That reuses the existing spectator-shaped state: `ShootoutState` already syncs
+    `activeShooter` plus per-slot `scored`/`taken` to every peer, which is most of a spectator HUD
+    already. Eliminated humans keep watching (and can be offered the keeper's view, or a free cam).
+  - **The trophy moment.** The final ends on a podium: the winner up on a pedestal holding a trophy,
+    the beaten finalists and the other survivors around it looking dejected. All of this is existing
+    machinery — `Celebration`/emotes for the poses, `MeshGen`/`Make` for the trophy and the pedestal,
+    the replay camera for the orbit — and it is the screenshot people post, so it is worth more than
+    its cost.
+  - **Open points.** Whether a human who is knocked out early can re-enter as another nation or only
+    spectate; how long a lobby waits on a player who goes idle mid-bracket (an AI takeover on a
+    timeout, presumably, since the whole lobby is blocked on one tie); how nation ratings are set and
+    whether they bias the AI's `keeperAbility` / shot accuracy or just the simulated results; whether
+    the bracket persists across a disconnect (it is derivable from the seed, so it can); and whether
+    a solo run should be the same code path with 31 AI slots, which is the cheapest way to get both.
+  Not scoped beyond this — just an idea, not being built yet.
+
 ## Open questions (not answered yet)
 
 - Where does progression/stats persistence live — local save file, or does it need an account
