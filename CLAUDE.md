@@ -19,6 +19,7 @@ Workflow
 Networking
 - `BodyState` snapshot records are fixed-stride with no per-record length, so any per-body wire field forces a `NetCodec.ProtocolVersion` bump (v7 added `erect`). Fields appended AFTER the body loop (e.g. `guided`) are read with `r.More` and need no bump. `InputFrame`'s trailing `bits2` byte is the extension point for new held buttons (bit 4 = thirdLeg).
 - A held input bit must be written onto the body every tick (not on edges): the host re-feeds a quiet client's last frame forever, so only a level write lets a release land.
+- The discovery probe reply carries only a `mode` STRING (`LobbyProbe`), so new browsable lobby facts go in `NetSession.ModeLabel()` rather than the probe format: Match appends a `[LF:SRC]` tag for the roles the host wants (`LookingRoles.Tag`/`Parse`). `SessionBrowserUI` filters on the parsed mask; an untagged or older label parses to 0.
 
 Ragdoll / cosmetics
 - `Bone` is a fixed 13-slot enum shared by every body plan; ~47 `Bone.Count` loops (balance, mass, poses, gait, emotes, replay) assume every slot is body mass. Optional parts (hair, the adult appendage) are Verlet cosmetics parented to a bone, not bones.
@@ -30,6 +31,12 @@ Ragdoll / cosmetics
 - `MeshGen.Param(f, nu, nv)` winds its front face as Cross(du, dv); `Cosmetics.ParamOut` picks the winding from a supplied outward direction. `Lathe` profiles are (radius, y) bottom-to-top with the solid on the left; `Extrude` is centred on z = 0, front face +Z; `Tube` UV is u round, v along.
 - `Mathf.SmoothStep(a, b, t)` INTERPOLATES a..b; use `Cosmetics.Smooth(a, b, t)` for a GLSL-style threshold.
 - Replays (`ReplaySystem`) record position, rotation AND local scale; `ReplaySystem.TrackBody` adds a body's bones plus its `AnatomySim` pieces and pauses that sim as a driver. Re-run `Setup` after any tracked body is rebuilt.
+
+Match mode (scrim)
+- `perSide` is the roster size INCLUDING the keeper (shirt 0 is always the keeper, outfield is `perSide-1`), and "N a side" means that number everywhere: pitch sizing, both team-size pickers, `Footballer.PerSide`. Label a lobby with `perSide` itself - subtracting the keeper for display is what made 3v3 read as 2v2.
+- MULTIPLAYER CANNOT SEAT MORE THAN 4 A SIDE. Two teams share the 8-slot board, so `NetSession.ScrimPerSide` clamps to `ScrimSlotsPerTeam` (4) and `SlotAllowed` refuses shirts past it. A picker offering 5 or 11 silently seated 4 and opened a lobby that lied about its size; only offer sizes the board seats, and check the SEATING predicate, not just `SimConfig.Formation`, when adding one. Single player has no such cap (`Max(2, ...)`), so the two pickers legitimately differ.
+- `perSide` 1 is not a legal match (a keeper and nobody): the floor of 2 is a shirt invariant re-clamped in `ScrimPerSide`, `Footballer` and `GameBootstrap`. The smallest match is `{GK, ST}`.
+- `SimConfig.ApplyMatchStatics` unconditionally resets the goal to regulation and is called by the SINGLE-PLAYER match path only, so a per-match goal size must be re-applied after it. The networked path never calls it and instead writes the host's config on every peer - goal size must stay one number from one peer or the goal-detection plane desyncs.
 
 Striker-mode crosser (MP)
 - The crosser body is a child `Body` object of the `Crosser` and is rebuilt per seat holder by `NetStrikerMatch.RebuildCrosserBody` (a human's roster look, or the orange AI); `Crosser.SetRagdoll` re-points the driver. Single-player's `BuildStrikerMode` still puts the ragdoll on the Crosser object itself, so never destroy `Crosser.Ragdoll.gameObject` without checking it is not the Crosser's own.
