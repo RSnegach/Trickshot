@@ -4,12 +4,11 @@ using Trickshot.Net;
 namespace Trickshot
 {
     /// <summary>
-    /// The plain Host/Find flow every networkable mode used to share directly off the
-    /// Multiplayer hub (this is that exact old MultiplayerHubUI content, moved here once Match
-    /// got its own dedicated Friendlies/Online flow). Reused for two different callers rather
-    /// than duplicated - the title is the only thing that differs:
+    /// The plain Host/Find flow every networkable mode shares, reached off the Multiplayer hub.
+    /// Reused for two different callers rather than duplicated - the title is the only thing that
+    /// differs:
     ///   - "Other Modes": Striker, Set Pieces, Accuracy (HostSetupUI's mode picker excludes Match).
-    ///   - "Friendlies": Match, pre-locked (HostSetupUI's mode picker is skipped entirely).
+    ///   - "Play a Match": Match, pre-locked (HostSetupUI's mode picker is skipped entirely).
     /// Host a session or find one; shows whether Steam is linked, and when it isn't, notes the
     /// flow still works over the in-process loopback transport (useful for testing).
     /// </summary>

@@ -40,20 +40,6 @@ namespace Trickshot
     {
         public static readonly AchievementDef[] All =
         {
-            new AchievementDef
-            {
-                Id = "ACH_ONLINE_GOALS_100", Title = "Sharpshooter",
-                Description = "Score 100 goals in Online matches.",
-                Kind = AchievementKind.StatThreshold, Target = 100,
-                CurrentValue = d => d.OnlineGoals,
-            },
-            new AchievementDef
-            {
-                Id = "ACH_ONLINE_WINS_10", Title = "Competitor",
-                Description = "Win 10 Online matches.",
-                Kind = AchievementKind.StatThreshold, Target = 10,
-                CurrentValue = d => CareerStats.TotalOnlineWins(),
-            },
             // Leaderboard-placement achievements (e.g. "finish top 10 in a Challenge") go here
             // once Challenges mode + its leaderboards exist - see the AchievementKind doc above.
         };

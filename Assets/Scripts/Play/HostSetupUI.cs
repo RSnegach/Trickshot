@@ -13,7 +13,7 @@ namespace Trickshot
     {
         System.Action _onCreated, _onBack;
 
-        // Networkable modes. Match is reached ONLY pre-locked now (via Match -> Friendlies -> Host
+        // Networkable modes. Match is reached ONLY pre-locked now (via Match -> Host
         // a Session) - the generic picker (reached via Other Modes) never offers it, so the two
         // arrays are built per-Init rather than being one static list every path shares.
         GameMode[] Modes;
@@ -21,7 +21,11 @@ namespace Trickshot
         bool _modeLocked;          // true when Modes has exactly one entry - skip drawing the picker
         int _mode;                 // index into Modes
         int _stadium;
-        int _perSide = 3;          // match team size (3/5/11)
+        int _perSide = 3;          // match team size (1/3/5) - see the Team size picker
+        // Match only: extra roles this host wants a stranger to drop into, as a LookingRole
+        // bitmask. Advertised through ModeLabel so the session browser can filter on it; the roles
+        // are not hooked up to gameplay yet, so this is discovery only.
+        byte _lookingFor;
         int _matchMin = 3;         // match length (min)
         bool _publicLobby = true;
         // Set-pieces host settings (goal size %, keeper ability). Ball/player speed intentionally
@@ -77,7 +81,10 @@ namespace Trickshot
             MenuScale.Begin();
             // Accuracy adds four extra option rows (wall / targets / turn format / turn amount).
             // A locked single mode skips the picker row entirely (one option is not a choice).
-            float w = 480f, panelH = (Modes[_mode] == GameMode.Accuracy ? 610f : 470f) - (_modeLocked ? 58f : 0f) - 58f;   // -58: no stadium row
+            // Accuracy adds four extra option rows; Match adds the Looking-for row (+58).
+            float w = 480f, panelH = (Modes[_mode] == GameMode.Accuracy ? 610f : 470f)
+                                   + (Modes[_mode] == GameMode.Match ? 58f : 0f)
+                                   - (_modeLocked ? 58f : 0f) - 58f;   // -58: no stadium row
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 640f);
@@ -92,8 +99,16 @@ namespace Trickshot
             // uses - so the venue row that used to sit here is gone.)
             if (Modes[_mode] == GameMode.Match)
             {
-                PickerVals(lx, ref row, lw, "Team size", new[] { "3 v 3", "5 v 5", "11 v 11" }, new[] { 3, 5, 11 }, ref _perSide);
+                // Capped at 5 a side: the 8-slot board cannot seat two full 11-a-side teams, so
+                // 11v11 only ever ran as a mostly-AI match wearing a big number. 1v1 replaces it.
+                //
+                // The VALUES are roster sizes INCLUDING the keeper (shirt 0 is always the keeper -
+                // see Footballer.PerSide), so "1 v 1" is perSide 2: a keeper and one outfielder each,
+                // which is the authored {GK, ST} formation. perSide 1 would be a keeper and NOBODY,
+                // and is the shirt invariant NetSession.ScrimPerSide and Footballer both clamp away.
+                PickerVals(lx, ref row, lw, "Team size", new[] { "1 v 1", "3 v 3", "5 v 5" }, new[] { 2, 3, 5 }, ref _perSide);
                 PickerVals(lx, ref row, lw, "Match length", new[] { "2 min", "3 min", "5 min", "10 min" }, new[] { 2, 3, 5, 10 }, ref _matchMin);
+                LookingForRow(lx, ref row, lw);
             }
             else if (Modes[_mode] == GameMode.SetPieces)
             {
@@ -218,6 +233,8 @@ namespace Trickshot
                 accTurnByTime = mode == GameMode.Accuracy && _accByTime,
                 accTurnKicks = (byte)Mathf.Clamp(_accKicks, 1, 100),
                 accTurnSeconds = (ushort)Mathf.Clamp(_accSeconds, 10, 120),
+                // Match only: the roles this host is advertising for (see LookingRole).
+                lookingFor = mode == GameMode.Match ? _lookingFor : (byte)0,
             });
 
             enabled = false;
@@ -272,6 +289,25 @@ namespace Trickshot
                 bool sel = vals[i] == val;
                 if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], sel, PickStyle(sel)))
                     val = vals[i];
+            }
+            UITheme.Divider(lx, row + 53f, lw);
+            row += 58f;
+        }
+
+        // Match only: "Looking for" - Sniper / Referee / Cameraman as independent checkboxes on
+        // one row, so a host can advertise wanting any combination. Drawn as its own row rather
+        // than through Toggle() because all three share a single label and sit side by side.
+        void LookingForRow(float lx, ref float row, float lw)
+        {
+            UITheme.Label(new Rect(lx, row, lw, 20f), "Looking for:", RowLabel());
+            var names = LookingRoles.Names;
+            float bw = (lw - 6f * (names.Length - 1)) / names.Length;
+            for (int i = 0; i < names.Length; i++)
+            {
+                byte bit = (byte)LookingRoles.All[i];
+                bool on = (_lookingFor & bit) != 0;
+                if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 22f, bw, 28f), names[i], on, PickStyle(on)))
+                    _lookingFor ^= bit;   // independent checkboxes, not a one-of-N picker
             }
             UITheme.Divider(lx, row + 53f, lw);
             row += 58f;

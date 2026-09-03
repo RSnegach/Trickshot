@@ -134,7 +134,9 @@ namespace Trickshot
             if (_replayHold > 0f)
             {
                 _replayHold -= Time.unscaledDeltaTime;
-                if (_replayHold <= 0f) StartReplay();
+                // Replays off (Settings > Gameplay): the goal hold still plays out, then it goes
+                // straight back to serving instead of rolling the slow-mo.
+                if (_replayHold <= 0f) { if (GameplaySettings.Replays) StartReplay(); else EndReplay(); }
                 if (_flashTime > 0f) _flashTime -= Time.unscaledDeltaTime;
                 return;
             }

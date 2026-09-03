@@ -56,6 +56,16 @@ namespace Trickshot
             }, spokes, rings, wrapU: true);
             // A flat plate (no bulge) is a sphere patch: radial normals, which also cures the pole.
             if (bulge == null) { var vv = m.vertices; var nn = new Vector3[vv.Length]; for (int i = 0; i < vv.Length; i++) nn[i] = vv[i].normalized; m.normals = nn; }
+            else
+            {
+                // The fan's pole has no d/du, so its finite-difference normal is zero and the first
+                // ring shades BLACK (the dark pill on every bulged plate). The surface is tangent to
+                // the sphere there, so the pole's normal is simply the centre direction.
+                var vv = m.vertices; var nn = m.normals;
+                for (int i = 0; i < vv.Length; i++)
+                    if (Vector3.Dot(vv[i].normalized, centre) > 0.99995f || nn[i].sqrMagnitude < 0.5f) nn[i] = centre;
+                m.normals = nn;
+            }
             Scale(m, _cosScale);
             outer = new Vector3[spokes];
             for (int i = 0; i < spokes; i++) outer[i] = DirAt(i / (float)spokes * Mathf.PI * 2f, 1f);
@@ -112,14 +122,20 @@ namespace Trickshot
             var cap = HeadCapMesh(PhiBot, 0.008f, Bulge, 72, 36, out var lip);
             Piece(h, cap, capMat);
             SweptTube(h, Own(Make.Mat(m.color, 0.35f)), lip, 0.008f, 0.005f, 8, closed: true);
-            // Short rounded ears.
+            // White eyes under the holes: a FIXED white (never the tint), sat between the skin and the
+            // shell and cut larger than the hole so no skin shows at its edge.
+            for (int side = -1; side <= 1; side += 2)
+                SurfacePatch(h, Paper(), HairShape.Dir(EyePhi * Mathf.Deg2Rad, side * EyeTheta * Mathf.Deg2Rad), Ellipse(0.046f, 0.024f, 24), 0.005f, 2);
+            // Ears: upright fins (head-local +Y, no splay), set well apart on the crown with the base
+            // sunk into the shell so the sloping surface never shows under the outer edge.
+            var earMat = Own(Make.Mat(m.color, 0.35f));
             for (int side = -1; side <= 1; side += 2)
             {
-                Vector3 baseDir = HairShape.Dir(22f * Mathf.Deg2Rad, side * 28f * Mathf.Deg2Rad);
-                var fin = MeshGen.Lathe(new[] { new Vector2(0.022f, 0f), new Vector2(0.020f, 0.03f), new Vector2(0.013f, 0.06f), new Vector2(0.005f, 0.078f), new Vector2(0f, 0.08f) }, 12);
-                var axis = Tilt(baseDir, new Vector3(side, 0f, 0f), 8f);
-                MeshGen.Transform(fin, baseDir * (HeadR - 0.002f) * _cosScale, Quaternion.FromToRotation(Vector3.up, axis), new Vector3(0.7f, 1f, 1f) * _cosScale);
-                Piece(h, fin, Own(Make.Mat(m.color, 0.35f)));
+                float ex = side * 0.078f, ez = 0.02f, shellR = HeadR + 0.008f;
+                float ey = Mathf.Sqrt(shellR * shellR - ex * ex - ez * ez) - 0.014f;
+                var fin = MeshGen.Lathe(new[] { new Vector2(0.027f, 0f), new Vector2(0.025f, 0.035f), new Vector2(0.017f, 0.07f), new Vector2(0.006f, 0.098f), new Vector2(0f, 0.105f) }, 12);
+                MeshGen.Transform(fin, new Vector3(ex, ey, ez) * _cosScale, Quaternion.identity, new Vector3(0.7f, 1f, 1f) * _cosScale);
+                Piece(h, fin, earMat);
             }
         }
         // Normalised angular distance from an almond eye hole (21 x 10.5 deg) at (thetaC, EyePhi).
@@ -296,7 +312,7 @@ namespace Trickshot
 
         static void BuildWeldingMask(Transform h, Material m)
         {
-            // A rigid hood standing off the head: front panel, cheek panels, crown plate, lens window, headband, pivots.
+            // A rigid hood standing off the head: front panel, crown plate, lens window, headband, pivots.
             var shell = Own(Make.Mat(m.color, 0.3f));
             Vector3 centre = HairShape.Dir(88f * Mathf.Deg2Rad, 0f);
             float Outline(float a)
@@ -308,26 +324,15 @@ namespace Trickshot
             var plate = FacePlateMesh(centre, Outline, 0.035f, (a, t) => 0f, 48, 10, out var outer);
             Piece(h, plate, shell);
             SweptTube(h, shell, outer, 0.035f, 0.006f, 8, closed: true);
-            // Cheek panels back to the temples, a crown plate over the top.
-            for (int side = -1; side <= 1; side += 2)
-            {
-                int sd = side;
-                var cheek = MeshGen.Param((u, v) =>
-                {
-                    float th = (sd * 48f + sd * u * 45f) * Mathf.Deg2Rad;
-                    float phi = Mathf.Lerp(45f, 135f, v) * Mathf.Deg2Rad;
-                    float proud = Mathf.Lerp(0.035f, 0.015f, u);
-                    return HairShape.Dir(phi, th) * (HeadR + proud);
-                }, 8, 8);
-                Scale(cheek, _cosScale);
-                Piece(h, cheek, shell);
-            }
+            // Crown plate over the top, symmetric. Param winds Cross(du, dv), which for (theta, phi)
+            // order points INTO the head, so flip it or only the far half shows, inside out. It stops
+            // 2 mm under the front plate at its lower edge so the two never share a surface.
             var crown = MeshGen.Param((u, v) =>
             {
                 float th = Mathf.Lerp(-95f, 95f, u) * Mathf.Deg2Rad;
                 float phi = Mathf.Lerp(12f, 45f, v) * Mathf.Deg2Rad;
-                return HairShape.Dir(phi, th) * (HeadR + Mathf.Lerp(0.022f, 0.035f, v));
-            }, 24, 5);
+                return HairShape.Dir(phi, th) * (HeadR + Mathf.Lerp(0.022f, 0.033f, v));
+            }, 24, 5, flip: true);
             Scale(crown, _cosScale);
             Piece(h, crown, shell);
             // Lens window with a raised frame.

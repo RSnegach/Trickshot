@@ -96,6 +96,61 @@ namespace Trickshot.Net
         public byte[] chunk;     // this chunk's bytes
     }
 
+    /// <summary>
+    /// Extra, non-playing roles a Match host can advertise wanting, so a stranger browsing for
+    /// sessions can find a lobby that actually needs what they want to do. A bitmask rather than an
+    /// enum value: a host commonly wants more than one at once.
+    ///
+    /// These are ADVERTISEMENTS ONLY at this point - nothing here seats a player into the role or
+    /// changes how a match plays. The roles themselves are not hooked up yet; this is the discovery
+    /// half, so that when they are, lobbies are already findable by them.
+    /// </summary>
+    [System.Flags]
+    public enum LookingRole : byte
+    {
+        None      = 0,
+        Sniper    = 1 << 0,
+        Referee   = 1 << 1,
+        Cameraman = 1 << 2,
+    }
+
+    /// <summary>Display/tag names for LookingRole, in bit order - shared by the host setup
+    /// checkboxes, the browser filter and ModeLabel's advert tag so the three can never drift.</summary>
+    public static class LookingRoles
+    {
+        public static readonly LookingRole[] All = { LookingRole.Sniper, LookingRole.Referee, LookingRole.Cameraman };
+        public static readonly string[] Names = { "Sniper", "Referee", "Cameraman" };
+        // One letter per role for the compact ModeLabel tag (see NetSession.ModeLabel).
+        public static readonly char[] Tags = { 'S', 'R', 'C' };
+
+        /// <summary>The "[LF:SRC]" advert tag for a mask, or "" when the host wants nobody.
+        /// Appended to the mode string the discovery probe already carries.</summary>
+        public static string Tag(byte mask)
+        {
+            if (mask == 0) return "";
+            var sb = new System.Text.StringBuilder(" [LF:");
+            for (int i = 0; i < All.Length; i++)
+                if ((mask & (byte)All[i]) != 0) sb.Append(Tags[i]);
+            return sb.Append(']').ToString();
+        }
+
+        /// <summary>Read back the mask a Tag() encoded into a browser row's mode string. Unknown
+        /// or absent tag = 0, so a row from a peer that never set one simply matches nothing.</summary>
+        public static byte Parse(string modeLabel)
+        {
+            if (string.IsNullOrEmpty(modeLabel)) return 0;
+            int i = modeLabel.IndexOf("[LF:", System.StringComparison.Ordinal);
+            if (i < 0) return 0;
+            int end = modeLabel.IndexOf(']', i);
+            if (end < 0) return 0;
+            byte mask = 0;
+            for (int k = i + 4; k < end; k++)
+                for (int r = 0; r < Tags.Length; r++)
+                    if (modeLabel[k] == Tags[r]) mask |= (byte)All[r];
+            return mask;
+        }
+    }
+
     // The host's chosen match configuration, synced to all peers so everyone builds the
     // same arena/mode. Mirrors the relevant SimConfig fields.
     public struct MatchConfig
@@ -123,11 +178,11 @@ namespace Trickshot.Net
         // seed is host-chosen and carried here so every peer derives the identical 10-spot schedule.
         public bool fkRandom;
         public uint fkSeed;
-        // Online (ranked drop-in): set only by OnlineQueueUI's auto-host path, never by
-        // HostSetupUI (Friendlies/Other Modes are never ranked). Read by ModeLabel() so a
-        // ranked lobby is distinguishable in the discovery-probe string itself, with no changes
-        // needed to the probe/browse wire format - the existing "mode" string already carries it.
-        public bool onlineRanked;
+        // Match only: the extra roles this host is LOOKING FOR, as a bitmask (see LookingRole).
+        // A public lobby advertises them through ModeLabel(), which appends a compact tag to the
+        // mode string the discovery probe already carries - so the browser can filter on them with
+        // no change to the probe/browse wire format at all. 0 = not looking for anyone.
+        public byte lookingFor;
         // Goal HEIGHT multiplier, separate from goalScale (which is now the WIDTH). The host's goal
         // editor sizes the two independently. 0 = not set: the reader keeps the goal in proportion.
         public float goalScaleH;
@@ -531,7 +586,7 @@ namespace Trickshot.Net
             // Accuracy fields appended last so the existing field order stays untouched.
             w.U8(cfg.accWallCount); w.U8(cfg.accTargets);
             w.B(cfg.accTurnByTime); w.U8(cfg.accTurnKicks); w.U32(cfg.accTurnSeconds);
-            w.B(cfg.onlineRanked);   // appended last for the same reason
+            w.U8(cfg.lookingFor);    // appended last for the same reason
             w.F(cfg.goalScaleH);     // ...and this after it
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
@@ -551,7 +606,7 @@ namespace Trickshot.Net
                                     accWallCount = r.U8(), accTargets = r.U8(),
                                     accTurnByTime = r.B(), accTurnKicks = r.U8(),
                                     accTurnSeconds = (ushort)r.U32(),
-                                    onlineRanked = r.B(), goalScaleH = r.F() };
+                                    lookingFor = r.U8(), goalScaleH = r.F() };
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)

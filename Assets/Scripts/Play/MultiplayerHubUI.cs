@@ -3,11 +3,10 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// Multiplayer hub: the first screen after the main-menu Multiplayer button. Match gets its
-    /// own dedicated flow (Friendlies / Online, see MatchModeUI) since it's the team-sport mode
-    /// with real rosters, positions and a jersey vote; every other networkable mode (Striker, Set
-    /// Pieces, Accuracy) shares the plain Host/Find flow this screen used to show directly - see
-    /// OtherModesUI, which now carries exactly what this file used to.
+    /// Multiplayer hub: the first screen after the main-menu Multiplayer button. Match and every
+    /// other networkable mode (Striker, Set Pieces, Accuracy) share the plain Host/Find flow this
+    /// screen used to show directly - see OtherModesUI, which now carries exactly what this file
+    /// used to. Match reaches it pre-locked to the Match mode, titled "PLAY A MATCH".
     /// </summary>
     public class MultiplayerHubUI : MonoBehaviour
     {

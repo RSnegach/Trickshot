@@ -432,7 +432,7 @@ namespace Trickshot
                 }
             } },
             new FacialEntry { Name = "Stubble",
-                Mat = (facial, skin) => Make.Decal(Color.Lerp(facial, skin, 0.4f), FacialDecals.Stubble()),
+                Mat = (facial, skin) => Make.Decal(Color.Lerp(facial, skin, 0.25f), FacialDecals.Stubble()),   // less skin in the blend: a shade darker
                 Build = (h, m) => HeadDecalGrid(h, m, 100f, 2f, -56f, 40, 16) },
             new FacialEntry { Name = "Short Beard", Build = (h, m) =>
                 BeardAnnulus(h, m, -14f, 0.008f, 0.005f, 0.010f, 0.012f, false, out _, out _) },

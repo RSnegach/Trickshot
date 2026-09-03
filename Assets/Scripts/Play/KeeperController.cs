@@ -61,6 +61,11 @@ namespace Trickshot
         // One of the two EPIC SAVE criteria (the other is ball speed at contact).
         public bool IsHighDive => _state == State.Diving && _diveIsHigh;
 
+        /// <summary>Host-side gate for the post-shot hold: a dive, save or stumble already under way
+        /// still runs to its end, but no new move, dive, jump or save is read and the body's
+        /// MoveInput is zeroed, so he finishes what he was doing and then stands still.</summary>
+        public bool InputLocked;
+
         // Dive lifecycle: landing detection.
         float _diveDir;       // -1 left / +1 right (for the leading-leg bend)
         Quaternion _diveOrient;  // held horizontal lay-out target for the current dive
@@ -124,6 +129,16 @@ namespace Trickshot
             // falls through to the ready path below, so the press that cancelled it is acted on in
             // that same frame instead of being eaten.
             if (_state == State.Stumble && ManageStumble()) return;
+
+            if (InputLocked)
+            {
+                // Post-shot hold: hold the ready stance where he stands and ignore every input.
+                _ragdoll.FacingRotation = _facing;
+                _ragdoll.MoveInput = Vector3.zero;
+                _ragdoll.SetPose(KeeperPose.Ready, 8f);
+                ShuffleGait(0f, 0f);
+                return;
+            }
 
             // Ready: the body faces the camera's cone look. Single source of truth (the
             // camera owns the clamped yaw), so the body and view never desync.

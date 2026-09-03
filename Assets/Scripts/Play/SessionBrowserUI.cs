@@ -24,6 +24,13 @@ namespace Trickshot
         System.Action _onJoined;   // invoked once we've asked to join a lobby -> show lobby
 
         readonly List<LobbyInfo> _lobbies = new List<LobbyInfo>();
+        // Role filter: show only lobbies LOOKING FOR every role ticked here (see LookingRole).
+        // 0 = off, which is the default and shows everything. Purely a local view filter - it never
+        // changes what discovery sweeps for, so clearing it re-reveals rows with no new sweep.
+        byte _wantRoles;
+        // _lobbies filtered by _wantRoles, rebuilt each frame it is drawn. Rows are SELECTED out of
+        // this list, so _sel indexes the VISIBLE rows, never the raw sweep results.
+        readonly List<LobbyInfo> _shown = new List<LobbyInfo>();
         int _sel = -1;
         ulong _selHandle;          // selection follows the LOBBY, not the row index (see Refresh)
         float _autoRefresh;
@@ -83,19 +90,36 @@ namespace Trickshot
                 _lobbies.Clear();
                 _lobbies.AddRange(list);
                 _swept = true;
-                // Re-find the selection BY HANDLE. Rows are ordered by which host answered the probe
-                // first, which is network timing and reorders freely between sweeps - so holding a row
-                // INDEX across an auto-refresh would silently move the selection onto a different
-                // lobby under the player's cursor, and Join would connect to whoever they didn't pick.
-                _sel = -1;
-                if (_selHandle != 0)
-                    for (int i = 0; i < _lobbies.Count; i++)
-                        if (_lobbies[i].handle == _selHandle) { _sel = i; break; }
-                // Nothing picked yet (or the pick is gone): preselect the top row so Join is usable
-                // immediately, which is what a one-lobby list almost always is.
-                if (_sel < 0 && _lobbies.Count > 0) { _sel = 0; _selHandle = _lobbies[0].handle; }
-                if (_lobbies.Count == 0) _selHandle = 0;
+                ApplyFilter();
             });
+        }
+
+        /// <summary>
+        /// Rebuild the visible row list from the last sweep + the role filter, then re-find the
+        /// selection BY HANDLE (see Refresh: row order is network timing and reorders freely, so a
+        /// held index would silently move the selection onto a different lobby). Called after every
+        /// sweep AND whenever the filter changes, so ticking a role never leaves _sel pointing at a
+        /// row that is no longer shown.
+        /// </summary>
+        void ApplyFilter()
+        {
+            _shown.Clear();
+            for (int i = 0; i < _lobbies.Count; i++)
+            {
+                // A lobby matches when it is looking for EVERY role the searcher ticked (AND, not
+                // OR): ticking Sniper+Referee means "somewhere I can do both", which is the reading
+                // that never puts a lobby in front of someone it cannot seat.
+                byte has = LookingRoles.Parse(_lobbies[i].mode);
+                if ((has & _wantRoles) == _wantRoles) _shown.Add(_lobbies[i]);
+            }
+            _sel = -1;
+            if (_selHandle != 0)
+                for (int i = 0; i < _shown.Count; i++)
+                    if (_shown[i].handle == _selHandle) { _sel = i; break; }
+            // Nothing picked yet (or the pick is filtered away): preselect the top row so Join is
+            // usable immediately, which is what a one-lobby list almost always is.
+            if (_sel < 0 && _shown.Count > 0) { _sel = 0; _selHandle = _shown[0].handle; }
+            if (_shown.Count == 0) _selHandle = 0;
         }
 
         // Parse the typed invite code OR "ip" / "ip:port" into a join handle and connect. The handle
@@ -224,7 +248,11 @@ namespace Trickshot
         /// reads as a working search rather than a suspiciously empty one.</summary>
         string FoundLine()
         {
-            string what = _lobbies.Count == 1 ? "1 session" : _lobbies.Count + " sessions";
+            // Count what is VISIBLE, and say so when a filter is hiding the rest - "2 sessions
+            // found" beside a list of two, out of nine swept, is a true sentence that reads false.
+            string what = _shown.Count == 1 ? "1 session" : _shown.Count + " sessions";
+            if (_wantRoles != 0 && _shown.Count != _lobbies.Count)
+                what += " of " + _lobbies.Count;
             if (Multiplayer.SteamLinked || !Multiplayer.UseDirectIp) return what + " found";
             int peers = TailnetDiscovery.PeerCount;
             string where = TailnetDiscovery.HasTailnet
@@ -246,7 +274,7 @@ namespace Trickshot
         void DrawBrowser()
         {
             float w = 560f, rowH = 46f, gap = 8f;
-            float panelH = 150f + 6 * (rowH + gap) + 60f + 78f;   // +78: direct-IP join row
+            float panelH = 150f + 6 * (rowH + gap) + 60f + 78f + 58f;   // +78 join row, +58 role filter
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 300f);
@@ -259,7 +287,33 @@ namespace Trickshot
             var meta = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Dim } };
 
             float row = y + 66f, lx = x + 24f, lw = w - 48f;
-            if (_lobbies.Count == 0)
+
+            // ---- Role filter: narrow the list to hosts looking for what the searcher wants to
+            // play. Off by default (every lobby shown); ticking a role hides lobbies not asking for
+            // it. Drawn ABOVE the rows so it reads as a control over the list beneath it.
+            UITheme.Label(new Rect(lx, row, lw, 18f), "Looking to play as:", 
+                          new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
+            {
+                var names = LookingRoles.Names;
+                float bw = (lw - 6f * (names.Length - 1)) / names.Length;
+                var fSt = new GUIStyle(GUI.skin.button) { fontSize = 12 };
+                for (int i = 0; i < names.Length; i++)
+                {
+                    byte bit = (byte)LookingRoles.All[i];
+                    bool on = (_wantRoles & bit) != 0;
+                    var fs = new GUIStyle(fSt) { fontStyle = on ? FontStyle.Bold : FontStyle.Normal };
+                    if (on) fs.normal.textColor = UITheme.Gold;
+                    if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 20f, bw, 26f), names[i], on, fs))
+                    {
+                        _wantRoles ^= bit;   // independent checkboxes, not a one-of-N picker
+                        ApplyFilter();       // re-filter NOW so the list reacts to the click
+                    }
+                }
+            }
+            UITheme.Divider(lx, row + 50f, lw);
+            row += 58f;
+
+            if (_shown.Count == 0)
             {
                 var empty = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
                 // Given the full row area, not 56px: these messages name a specific thing to go and do
@@ -269,12 +323,17 @@ namespace Trickshot
                 // which is the difference between patience and assuming the screen is broken.
                 bool sweeping = !_swept || TailnetDiscovery.Scanning;
                 if (sweeping) UITheme.Spinner(new Rect(er.center.x - 16f, er.y + 18f, 32f, 32f), UITheme.Gold);
+                // A filter that hid every row is NOT a discovery failure, and saying "nobody is
+                // hosting" there would send the player to fix a network that is working fine.
+                string why = _lobbies.Count > 0 && _wantRoles != 0
+                    ? "No open session is looking for that. Untick a role, or host one yourself."
+                    : BrowseStatus();
                 UITheme.Label(new Rect(er.x, er.y + (sweeping ? 44f : 0f), er.width, er.height - (sweeping ? 44f : 0f)),
-                          BrowseStatus(), empty);
+                          why, empty);
             }
-            for (int i = 0; i < _lobbies.Count && i < 6; i++)
+            for (int i = 0; i < _shown.Count && i < 6; i++)
             {
-                var l = _lobbies[i];
+                var l = _shown[i];
                 bool sel = i == _sel;
                 var r = new Rect(lx, row, lw, rowH);
                 if (UITheme.Toggle(r, "      " + (string.IsNullOrEmpty(l.name) ? "Session" : l.name), sel, sel ? rowNameSel : rowName))
@@ -284,7 +343,7 @@ namespace Trickshot
                 UITheme.Label(new Rect(r.x, r.y, r.width - 14f, rowH), $"{l.mode}    {l.players}/{l.maxPlayers}  ", meta);
                 row += rowH + gap;
             }
-            if (_lobbies.Count > 0)
+            if (_shown.Count > 0)
                 UITheme.Hint(new Rect(lx, row - 2f, lw, 18f), FoundLine(), TextAnchor.MiddleLeft);
 
             // ---- Direct join: the path that works when discovery cannot. Kept in front of the player
@@ -334,12 +393,12 @@ namespace Trickshot
             if (UITheme.Button(rr, scanning ? "Scanning" : "Refresh", btn)) Refresh();
             if (scanning) UITheme.Spinner(new Rect(rr.x - 34f, rr.center.y - 11f, 22f, 22f), UITheme.Gold);
 
-            bool canJoin = _sel >= 0 && _sel < _lobbies.Count;
+            bool canJoin = _sel >= 0 && _sel < _shown.Count;
             GUI.enabled = canJoin;
             var keepJoin = GUI.backgroundColor;
             if (canJoin) GUI.backgroundColor = UITheme.GoodTint;
             if (UITheme.Button(new Rect(x + w - 154f, by, 130f, 40f), "Join", btn))
-                StartConnect(_lobbies[_sel].handle, _lobbies[_sel].name);
+                StartConnect(_shown[_sel].handle, _shown[_sel].name);
             GUI.backgroundColor = keepJoin;
             GUI.enabled = true;
 

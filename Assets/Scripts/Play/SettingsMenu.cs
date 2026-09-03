@@ -377,7 +377,7 @@ namespace Trickshot
             UITheme.Label(new Rect(fx + fw - 66f, y4, 66f, 28f), Mathf.RoundToInt(uiNext * 100f) + "%", val);
 
             // ---- camera ----
-            float y5 = y4 + 38f;
+            float y5 = y4 + 34f;
             UITheme.Section(new Rect(lx, y5, cw, 20f), "CAMERA");
             float y6 = y5 + 24f;
             UITheme.Label(new Rect(lx, y6, 120f, 28f), "Field of View", lbl);
@@ -389,9 +389,17 @@ namespace Trickshot
             UITheme.Label(new Rect(fx + fw - 66f, y6, 66f, 28f),
                       (fovShown > 0 ? "+" : "") + fovShown, val);
 
+            // ---- gameplay: post-goal replays (drill + set-piece modes; a match never rolls one) ----
+            float y7 = y6 + 34f;
+            UITheme.Section(new Rect(lx, y7, cw, 20f), "GAMEPLAY");
+            float y8 = y7 + 24f;
+            UITheme.Label(new Rect(lx, y8, 120f, 28f), "Replays", lbl);
+            if (UITheme.Button(new Rect(fx, y8, 110f, 28f), GameplaySettings.Replays ? "On" : "Off", btn))
+                GameplaySettings.Replays = !GameplaySettings.Replays;
+
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true, normal = { textColor = UITheme.Faint } };
-            UITheme.Label(new Rect(lx, y6 + 36f, cw, 34f),
-                "Saved on this machine. UI Scale resizes menus and the control banner.", note);
+            UITheme.Label(new Rect(lx, y8 + 32f, cw, 18f),
+                "Saved on this machine. Replays are the post-goal slow-mo outside matches; online, the host's setting decides.", note);
         }
 
         // Rolling credits. CreditsData's list scrolls up on its own like a film's end crawl and

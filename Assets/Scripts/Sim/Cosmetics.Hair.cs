@@ -259,7 +259,8 @@ namespace Trickshot
 
         static void BuildBuzz(Transform head, HairMats m)
         {
-            var c = Color.Lerp(m.Color, Color.black, 0.25f); c.a = 0.9f;
+            // Much darker than the colour swatch: a buzz reads as shadowed scalp, not painted hair.
+            var c = Color.Lerp(m.Color, Color.black, 0.6f); c.a = 0.97f;
             var decal = m.Own(Make.Decal(c, Make.Stipple, 6f, 3f));
             HairShell(head, decal, DecalBuzz);
         }
@@ -381,13 +382,15 @@ namespace Trickshot
         }
 
         // Messy: the ORIGINAL card style, by request. Short, low stiffness, maximum scatter so
-        // tufts poke every direction, over the scalp cap.
+        // tufts poke every direction, over the scalp cap. Roots are rejection-sampled INSIDE the
+        // shared hairline (RootMode.Hairline): the plain Crown mode reaches phi 1.45 all round,
+        // which put one card's root on the right eye.
         static void BuildMessy(Transform head, HairMats m)
         {
             LegacyCrownPatch(head, m.Cap);
             var def = new HairSim.HairDef
             {
-                root = HairSim.RootMode.Crown, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
+                root = HairSim.RootMode.Hairline, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
                 stiffness = 0.32f, flow = new Vector3(0f, 0.5f, 0f), curl = 0.02f, jitter = 0.7f, thickness = 0.05f,
             };
             Sim(head, def, m, HeadR * _cosScale, Quaternion.identity);
@@ -408,11 +411,13 @@ namespace Trickshot
                 Vector3 axis = Tilt(dir, new Vector3(rng.Sym(), rng.Sym(), rng.Sym()), rng.Range(25f, 40f));
                 // Below the crown the ringlets HANG: the helix axis leans toward gravity, so the sides
                 // and nape read as longer curls falling off the head rather than loops lying on it.
-                axis = Vector3.Slerp(axis, Vector3.down, 0.55f * Smooth(0.7f, 1.3f, phi)).normalized;
-                float radius = rng.Range(0.010f, 0.014f);
-                float turns = phi > 1.2f ? 1.6f : rng.Range(2.0f, 2.8f);   // longer ringlets
+                axis = Vector3.Slerp(axis, Vector3.down, 0.8f * Smooth(0.5f, 1.2f, phi)).normalized;
+                float radius = rng.Range(0.012f, 0.016f);
+                // MUCH longer ringlets: 3-4 turns on the very top, 5-7 turns (7-9 cm at a 13 mm
+                // pitch) everywhere else, hanging off the head instead of lying on the shell.
+                float turns = phi < 0.7f ? rng.Range(3.0f, 4.0f) : rng.Range(5.0f, 7.0f);
                 Vector3 centre = dir * (surf - 0.003f) - axis * 0.002f;
-                var path = MeshGen.Helix(centre, axis, radius, 0.011f, turns, 24, rng.Next() * 6.28f);
+                var path = MeshGen.Helix(centre, axis, radius, 0.013f, turns, Mathf.RoundToInt(turns * 10f), rng.Next() * 6.28f);
                 bool tube = i >= 110;
                 if (!tube) ribbons.Add(MeshGen.Ribbon(path, 0.009f, Vector3.zero, wavy, HairSim.AtlasVRoot, HairSim.AtlasVTip, 0.3f));
                 else tubes.Add(MeshGen.Tube(path, rng.Range(0.0035f, 0.004f), 6, false, true));
@@ -518,7 +523,7 @@ namespace Trickshot
 
             // MEDIUM -------------------------------------------------------------------------
             new HairEntry { Name = "Messy", Group = HairGroup.Medium, Extra = BuildMessy, HumanOnlyDef = true, Def = new HairSim.HairDef {
-                root = HairSim.RootMode.Crown, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
+                root = HairSim.RootMode.Hairline, strands = 95, nodes = 4, length = 0.16f, fan = 4, staticToHead = false,
                 stiffness = 0.32f, flow = new Vector3(0f, 0.5f, 0f), curl = 0.02f, jitter = 0.7f, thickness = 0.05f } },
             new HairEntry { Name = "Curly", Group = HairGroup.Medium, Extra = BuildCurly, HumanOnlyDef = true, Def = new HairSim.HairDef {
                 root = HairSim.RootMode.Crown, strands = 110, nodes = 6, length = 0.17f, fan = 4, staticToHead = false,

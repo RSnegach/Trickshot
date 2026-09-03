@@ -414,15 +414,6 @@ namespace Trickshot
                         int result = myScore > theirScore ? 1 : (myScore < theirScore ? -1 : 0);
                         CareerStats.RecordMatchEnd(true, result, mine.goals, mine.assists, mine.shots,
                             mine.tackles, mine.saves, mine.conceded, mine.passes, mine.passesDone, mine.motm);
-                        // Online (ranked drop-in) only - Friendlies never sets onlineRanked, so it
-                        // never touches rank data. No opponent MMR is on the wire (ranks are purely
-                        // local, never synced between peers), so this assumes a symmetric matchup -
-                        // see RecordRankedMatch's own opponentAvgMmr fallback.
-                        if (_s.Config.onlineRanked)
-                        {
-                            CareerStats.RecordRankedMatch(_s.Config.perSide, result, mine.goals);
-                            Achievements.CheckAll();
-                        }
                     }
                 }
                 else if (!ft && _hostFullTime) { _hostFullTime = false; _s.ClearMatchStats(); }

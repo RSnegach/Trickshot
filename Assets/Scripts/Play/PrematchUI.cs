@@ -53,7 +53,7 @@ namespace Trickshot
         static bool    _fkRandom;    // fresh legal spot every attempt
 
         // Match
-        static int _scrimPerSide = 3;                                  // 3 / 5 / 11
+        static int _scrimPerSide = 3;                                  // incl. keeper: 2/3/5 (see ScrimSizes)
         // POSITION, not role. Shirt 0 is the keeper, so "GK" is one button on the position picker
         // rather than a separate two-button role row that could disagree with it. Both are kept
         // because they answer different questions: _scrimShirt is what the sim needs (identity), and
@@ -82,8 +82,9 @@ namespace Trickshot
         int RowCount()
         {
             // Match: team size + position + difficulty + match length picker rows, no goal/ball
-            // sliders. The position grid wraps at PosPerRow shirts and every extra button row costs
-            // exactly one RowH, so this stays an exact count rather than an estimate.
+            // SLIDERS (its goal is the GoalEditor picture, sized separately in DrawSetup exactly as
+            // Striker's is). The position grid wraps at PosPerRow shirts and every extra button row
+            // costs exactly one RowH, so this stays an exact count rather than an estimate.
             if (_mode == GameMode.Match)
                 return 3 + GridRows(Mathf.Max(1, _scrimPerSide), PosPerRow);
 
@@ -120,7 +121,10 @@ namespace Trickshot
         void DrawSetup()
         {
             // Striker's panel is taller than its (zero) slider rows say: it holds the goal picture.
-            float panelH = HeadH + RowCount() * RowH + FootH + (_mode == GameMode.Striker ? GoalEditor.ContentH + 8f : 0f);
+            // Striker's and Match's panels are taller than their slider-row count says: both hold
+            // the goal picture.
+            bool goalPic = _mode == GameMode.Striker || _mode == GameMode.Match;
+            float panelH = HeadH + RowCount() * RowH + FootH + (goalPic ? GoalEditor.ContentH + 8f : 0f);
             float x = MenuScale.Width * 0.5f - PanelW * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.40f, PanelW + 520f);
@@ -147,10 +151,20 @@ namespace Trickshot
             float row = y + HeadH;
             float lx = x + 30f, lw = PanelW - 60f;
 
-            // Match: pickers only (no goal/ball sliders), then Back/Start.
+            // Match: the pickers, then the goal picture (the same GoalEditor control Striker and
+            // the multiplayer host both use), then Back/Start. No ball sliders.
             if (_mode == GameMode.Match)
             {
                 MatchPickers(lx, ref row, lw);
+                // Goal size only: the keeper level shown under the picture is Match's own AI
+                // difficulty ladder, already picked above in MatchPickers, so this passes a throwaway
+                // and ignores what comes back rather than offering a second control that would
+                // silently disagree with the first.
+                float mgw = BaseGoalWidth * _goalWidth, mgh = BaseGoalHeight * _goalHeight;
+                int mlvl = SimConfig.NearestAiLevel(SimConfig.AiLevelAbility[Mathf.Clamp((int)_scrimAi, 0, SimConfig.AiLevelAbility.Length - 1)]);
+                _goalEditor.Draw(new Rect(lx, row + 4f, lw, GoalEditor.ContentH), ref mgw, ref mgh, ref mlvl, framed: false);
+                _goalWidth = mgw / BaseGoalWidth; _goalHeight = mgh / BaseGoalHeight;
+                row += GoalEditor.ContentH + 8f;
                 DrawNav(x, y, panelH);
                 return;
             }
@@ -265,8 +279,16 @@ namespace Trickshot
         // All four are the one LadderPicker the keeper ladder uses. They were four hand-rolled copies
         // of the same button loop, which is also how they came to disagree about button gaps (8 px
         // here, 6 px on the keeper row).
-        static readonly int[]    ScrimSizes     = { 3, 5, 11 };
-        static readonly string[] ScrimSizeNames = { "3 v 3", "5 v 5", "11 v 11" };
+        // The VALUES are roster sizes INCLUDING the keeper (shirt 0 is always the keeper), so
+        // "1 v 1" is perSide 2: a keeper and one outfielder each, the authored {GK, ST} formation.
+        // perSide 1 would be a keeper and NOBODY, which is the shirt invariant every consumer
+        // clamps away (Footballer.PerSide, GameBootstrap's Max(2, ...)).
+        //
+        // Capped at 5 a side to match multiplayer, whose 8-slot board cannot seat two 11-a-side
+        // teams: 11v11 was a mostly-AI match wearing a big number, and having it here but not there
+        // meant the two screens disagreed about what sizes the game offers.
+        static readonly int[]    ScrimSizes     = { 2, 3, 5 };
+        static readonly string[] ScrimSizeNames = { "1 v 1", "3 v 3", "5 v 5" };
         static readonly float[]  ScrimMins      = { 2f, 3f, 5f, 10f };
         static readonly string[] ScrimMinNames  = { "2 min", "3 min", "5 min", "10 min" };
 
@@ -377,8 +399,9 @@ namespace Trickshot
             // and by the AI's aim (Footballer.cs:309), so a stale value mis-sizes all three at once and
             // is a plausible contributor to "most shots go in".
             //
-            // Match has no goal-size picker and is not getting one, so these are canonical
-            // regulation values written to close a leak rather than new settings.
+            // Match DOES have a goal-size picker now (the same GoalEditor picture Striker uses), so
+            // the goal is restored after ApplyMatchStatics below rather than left at the regulation
+            // value that reset writes. Everything else it resets is still the leak-closing behaviour.
             if (_mode == GameMode.Match)
             {
                 SimConfig.MatchPerSide = _scrimPerSide;
@@ -393,6 +416,11 @@ namespace Trickshot
                 // now reset in one place shared with the networked branch, because a second copy of
                 // the list is what let the goal size drift in the first place.
                 SimConfig.ApplyMatchStatics(networked: false);
+                // AFTER the reset, which unconditionally writes the regulation goal: this screen's
+                // picture is a deliberate choice and has to outlive it. (The networked path never
+                // calls ApplyMatchStatics, so the host's goal is safe there for the same reason.)
+                SimConfig.GoalWidth  = BaseGoalWidth  * _goalWidth;
+                SimConfig.GoalHeight = BaseGoalHeight * _goalHeight;
                 return;
             }
 

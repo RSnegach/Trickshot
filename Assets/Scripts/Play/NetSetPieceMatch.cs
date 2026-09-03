@@ -465,6 +465,21 @@ namespace Trickshot
             if (tex != null) b.ragdoll.SetTorsoMaterial(Make.MatTex(tex));
         }
 
+        // A human keeper goes back to his spot on the line for the next kick exactly as the AI
+        // does (Goalkeeper.ResetTo): recover whatever dive/hold he was in, unlock his input and
+        // teleport the body. Only the AI used to be reset; a human stayed wherever the last dive
+        // left him.
+        void ResetHumanKeepers()
+        {
+            foreach (var b in _bodies)
+            {
+                if (b?.keeper == null || b.ragdoll == null) continue;
+                b.keeper.InputLocked = false;
+                b.keeper.ForceRecover();
+                b.ragdoll.ResetTo(SimConfig.KeeperStart, Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up));
+            }
+        }
+
         // ------------------------------------------------------------ turn flow (host)
         // Put shooter `_shooterSlots[idx]` on the spot, enable only their control, ground the
         // wall + keeper, reset the ball, and start the Armed phase.
@@ -503,6 +518,7 @@ namespace Trickshot
             }
             if (_wall != null) _wall.Ground();
             foreach (var b in _bodies) if (b?.ai != null) b.ai.ResetTo(SimConfig.KeeperStart);
+            ResetHumanKeepers();
             _ball.ResetTo(_ballSpot);
             // Re-arm the taker for the new active shooter next HostUpdate; reset the AI auto-kick +
             // the idle safety timer so a fresh shooter always gets a clean attempt.
@@ -615,6 +631,9 @@ namespace Trickshot
             _camTarget = null;
             _replay.Play(SimConfig.ReplaySlowMul);
             Flash("REPLAY  (click to skip)");
+            // Replays off locally while the host rolls one: cast our skip vote straight away (the
+            // replay ends once every human has voted), so an all-off lobby never sits through it.
+            if (!GameplaySettings.Replays) _s.VoteSkip();
         }
         void OnReplayEnded()
         {
@@ -704,7 +723,18 @@ namespace Trickshot
             if (_goalHold > 0f)
             {
                 _goalHold -= Time.deltaTime;
-                if (_goalHold <= 0f) _s.BeginReplay();
+                // A human keeper keeps ticking through the hold with his input locked, so a dive he
+                // was mid-way through lands and he stands up on his own, instead of freezing in the
+                // lay-out with the last MoveInput still sliding him across the box.
+                for (int i = 0; i < _bodies.Length; i++)
+                    if (_bodies[i]?.keeper != null) { _bodies[i].keeper.InputLocked = true; _bodies[i].keeper.Tick(); }
+                if (_goalHold <= 0f)
+                {
+                    // Replays off on the host (Settings > Gameplay): no replay for anyone, the turn
+                    // just advances. On: the usual host-driven replay, AdvanceTurn when it ends.
+                    if (GameplaySettings.Replays) _s.BeginReplay();
+                    else if (_advanceAfterReplay) { _advanceAfterReplay = false; AdvanceTurn(); }
+                }
                 PublishSnapshotIfDue();
                 return;
             }
@@ -939,6 +969,7 @@ namespace Trickshot
             }
             if (_wall != null) _wall.Ground();
             foreach (var kb in _bodies) if (kb?.ai != null) kb.ai.ResetTo(SimConfig.KeeperStart);
+            ResetHumanKeepers();
             _ball.ResetTo(_ballSpot);
             _takerArmed = false;
             _taker.Reset();

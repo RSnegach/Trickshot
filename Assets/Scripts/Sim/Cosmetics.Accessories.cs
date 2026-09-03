@@ -43,11 +43,14 @@ namespace Trickshot
             if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(centre, Vector3.forward);
             side.Normalize();
             Vector3 up2 = Vector3.Cross(side, centre).normalized;
-            // HeadPatch's mapping: yaw about up2, then pitch about side. Note the yaw sign: +u is
-            // toward `side`, which for the face (+Z) is +X, the character's left / viewer's right.
-            Vector3 d = Quaternion.AngleAxis(-t.x / HeadR * Mathf.Rad2Deg, up2) * centre;
-            Vector3 side2 = Quaternion.AngleAxis(-t.x / HeadR * Mathf.Rad2Deg, up2) * side;
-            d = Quaternion.AngleAxis(-t.y / HeadR * Mathf.Rad2Deg, side2) * d;
+            // Yaw about up2, then pitch about side. For a centre on the face (+Z) `side` is -X, so
+            // a POSITIVE yaw about up2 (+Y) is what carries +u toward +X: the character's right,
+            // the outer side of the right eye. (A negative yaw here mirrored every outline.)
+            Vector3 d = Quaternion.AngleAxis(t.x / HeadR * Mathf.Rad2Deg, up2) * centre;
+            Vector3 side2 = Quaternion.AngleAxis(t.x / HeadR * Mathf.Rad2Deg, up2) * side;
+            // Pitch: `side2` is -X on the face, so a POSITIVE angle about it carries +v UP (+Y).
+            // Both signs used to be negative, which turned every outline through 180 degrees.
+            d = Quaternion.AngleAxis(t.y / HeadR * Mathf.Rad2Deg, side2) * d;
             return d.normalized;
         }
         static Vector3 SurfPos(Vector3 dir, float standoff) => dir.normalized * (HeadR + standoff) * _cosScale;
@@ -243,7 +246,7 @@ namespace Trickshot
         /// </summary>
         static void Spectacles(Transform head, Material frame, Material lens, Vector2[] outlineRight, Vector2 centreXY,
                                float rimR, int rimSides, float lensStandoff, float hingeSize, float templeY1, float hookLen,
-                               float[] bridgeYs, float[] browScale = null, Material rimMat = null)
+                               float[] bridgeYs, float[] browScale = null, Material rimMat = null, float hingeUp = 0f)
         {
             rimMat ??= frame;
             Vector3 hingeL = Vector3.zero, hingeR = Vector3.zero, innerL = Vector3.zero, innerR = Vector3.zero;
@@ -257,7 +260,8 @@ namespace Trickshot
                 for (int i = 0; i < outline.Length; i++)
                 {
                     dirs[i] = SurfDir(centre, outline[i]);
-                    if (outline[i].x * side > outline[iOuter].x * side) iOuter = i;
+                    // Hinge: the outermost point, pulled toward the top corner by hingeUp.
+                    if (outline[i].x * side + hingeUp * outline[i].y > outline[iOuter].x * side + hingeUp * outline[iOuter].y) iOuter = i;
                     if (outline[i].x * side < outline[iInner].x * side) iInner = i;
                 }
                 SweptTube(head, rimMat, dirs, lensStandoff, rimR, rimSides, closed: true, radiusScale: browScale);
@@ -300,14 +304,14 @@ namespace Trickshot
         {
             var frame = Own(Make.Mat(m.color, 0.6f));
             Spectacles(h, frame, Lens(new Color(0.85f, 0.92f, 1f), 0.25f, 0.9f), Circle(0.052f), new Vector2(0.08f, 0.02f),
-                       0.003f, 6, 0.011f, 0.008f, 0.03f, 0.03f, new[] { 0.02f });
+                       0.003f, 6, 0.011f, 0.008f, 0.03f, 0.03f, new[] { 0.02f }, hingeUp: 0.35f);
         }
         static void BuildSquareGlasses(Transform h, Material m)
         {
             var frame = Own(Make.Mat(m.color, 0.55f));
             var outline = RoundedPoly(new[] { new Vector2(-0.05f, -0.036f), new Vector2(0.05f, -0.036f), new Vector2(0.05f, 0.036f), new Vector2(-0.05f, 0.036f) }, new[] { 0.016f }, 5);
             Spectacles(h, frame, Lens(new Color(0.85f, 0.92f, 1f), 0.25f, 0.9f), outline, new Vector2(0.08f, 0.02f),
-                       0.0042f, 8, 0.011f, 0.010f, 0.03f, 0.03f, new[] { 0.02f });
+                       0.0042f, 8, 0.011f, 0.010f, 0.035f, 0.03f, new[] { 0.02f }, hingeUp: 1f);
         }
         static void BuildSunglasses(Transform h, Material m)
         {
@@ -317,14 +321,15 @@ namespace Trickshot
             var brow = new float[outline.Length];
             for (int i = 0; i < outline.Length; i++) { float a = Mathf.Atan2(outline[i].y, outline[i].x) * Mathf.Rad2Deg; brow[i] = a > 20f && a < 160f ? 1.4f : 1f; }
             Spectacles(h, frame, Lens(new Color(0.03f, 0.03f, 0.04f), 0.85f, 0.95f), outline, new Vector2(0.082f, 0.02f),
-                       0.005f, 8, 0.011f, 0.010f, 0.03f, 0.03f, new[] { 0.03f }, brow);
+                       0.005f, 8, 0.011f, 0.010f, 0.04f, 0.03f, new[] { 0.03f }, brow, hingeUp: 1f);
         }
         static void BuildAviators(Transform h, Material m)
         {
             // The accessory colour tints the LENS here; the wire frame is fixed gold.
             var lens = Lens(Color.Lerp(m.color, Color.black, 0.55f), 0.80f, 0.95f, 0.3f);
-            Spectacles(h, Gold(), lens, Teardrop(0.098f, 0.088f, -20f), new Vector2(0.082f, 0.015f),
-                       0.0025f, 6, 0.011f, 0.006f, 0.03f, 0.035f, new[] { 0.036f, 0.014f });
+            // Teardrop point down and a little toward the nose; the temples leave the top-outer edge.
+            Spectacles(h, Gold(), lens, Teardrop(0.098f, 0.088f, -12f), new Vector2(0.082f, 0.015f),
+                       0.0025f, 6, 0.011f, 0.006f, 0.035f, 0.035f, new[] { 0.036f, 0.014f }, hingeUp: 0.6f);
         }
         // Visor Shades: the ORIGINAL block build, by request. A wraparound dark band with angled
         // wrap edges, a frame trim above it and two arms.
@@ -355,15 +360,47 @@ namespace Trickshot
         static void BuildEyepatch(Transform h, Material m)
         {
             Vector3 centre = Dir(0.08f, 0.02f, HeadR);
-            var outline = Teardrop(0.100f, 0.112f, -30f, 32);
+            // A shield: flat top, bowed sides, a point toward the cheek. +u is outer (toward the ear).
+            var outline = RoundedPoly(new[] { new Vector2(-0.046f, 0.040f), new Vector2(-0.054f, 0.004f), new Vector2(0f, -0.060f), new Vector2(0.054f, 0.004f), new Vector2(0.046f, 0.040f) },
+                                      new[] { 0.010f, 0.014f, 0.008f, 0.014f, 0.010f }, 5);
             SurfacePatch(h, Own(Make.Mat(new Color(0.06f, 0.06f, 0.07f), 0.15f)), centre, outline, 0.004f);
             var dirs = new Vector3[outline.Length];
             for (int i = 0; i < outline.Length; i++) dirs[i] = SurfDir(centre, outline[i]);
             SweptTube(h, Own(Make.Mat(new Color(0.12f, 0.12f, 0.13f), 0.2f)), dirs, 0.0055f, 0.0015f, 6, closed: true);
-            // Two straps closing a loop at the nape: over the crown and round the temple.
-            Vector3 nape = Dir(0f, -0.06f, -0.19f);
-            SweptTube(h, m, PathDirs(Dir(0.08f, 0.10f, 0.18f), nape, 0.15f, 20), 0.004f, 0.006f, 6);
-            SweptTube(h, m, PathDirs(Dir(0.16f, 0.04f, 0.10f), nape, 0.05f, 20), 0.004f, 0.005f, 6);
+            // ONE strap: from the upper-outer corner the long way round the head (down behind the
+            // ear, low across the nape, up the far side) back to the upper-inner corner. A great
+            // circle through the two corners is exactly the path a strap under tension takes.
+            Vector3 A = SurfDir(centre, new Vector2(0.046f, 0.040f)), B = SurfDir(centre, new Vector2(-0.046f, 0.040f));
+            Vector3 n = Vector3.Cross(A, B).normalized;
+            float gap = Vector3.Angle(A, B);
+            float sign = Vector3.Dot(Quaternion.AngleAxis(5f, n) * A, B) < Vector3.Dot(A, B) ? 1f : -1f;   // head AWAY from B first
+            const int steps = 72;
+            var loop = new Vector3[steps + 1];
+            for (int i = 0; i <= steps; i++) loop[i] = (Quaternion.AngleAxis(sign * (360f - gap) * i / steps, n) * A).normalized;
+            SweptTube(h, m, loop, 0.004f, 0.005f, 6);
+        }
+        /// <summary>A flat plate on the sphere filling a polar outline, built as a GRID mapped into
+        /// the outline (a square's max-norm radius scales to the outline's), so there is no fan pole
+        /// and no degenerate centre. Radial normals; UV = the grid.</summary>
+        static Mesh GridPlateMesh(Vector3 centre, Func<float, float> outlineRad, float proud, int cols, int rows)
+        {
+            centre.Normalize();
+            Vector3 side = Vector3.Cross(centre, Vector3.up); if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(centre, Vector3.forward);
+            side.Normalize();
+            Vector3 up2 = Vector3.Cross(side, centre).normalized;
+            var m = OutwardParam((u, v) =>
+            {
+                float sx = u * 2f - 1f, sy = v * 2f - 1f;
+                float a = Mathf.Atan2(sx, sy);                                  // 0 = up, matches FacePlateMesh
+                float t = Mathf.Max(Mathf.Abs(sx), Mathf.Abs(sy));
+                float rad = outlineRad(a) * t;
+                Vector3 tangent = up2 * Mathf.Cos(a) - side * Mathf.Sin(a);
+                Vector3 d = (centre * Mathf.Cos(rad) + tangent * Mathf.Sin(rad)).normalized;
+                return d * (HeadR + proud);
+            }, cols, rows, wrapU: false);
+            { var vv = m.vertices; var nn = new Vector3[vv.Length]; for (int i = 0; i < vv.Length; i++) nn[i] = vv[i].normalized; m.normals = nn; }
+            Scale(m, _cosScale);
+            return m;
         }
         static void BuildSkiGoggles(Transform h, Material m)
         {
@@ -382,7 +419,7 @@ namespace Trickshot
             var body = FacePlateMesh(centre, Outline, 0.004f, Shell, 56, 8, out var rim);
             Piece(h, body, Own(Make.Mat(m.color, 0.5f)));
             SweptTube(h, Own(Make.Mat(new Color(0.75f, 0.75f, 0.75f), 0.2f)), rim, 0.004f, 0.005f, 8, closed: true);   // foam seal
-            var lens = FacePlateMesh(centre, a => Outline(a) * 0.8f, 0.0215f, null, 56, 3, out _);
+            var lens = GridPlateMesh(centre, a => Outline(a) * 0.8f, 0.0215f, 28, 12);
             Piece(h, lens, Lens(new Color(0.95f, 0.45f, 0.15f), 0.97f, 0.95f, 0.3f), castShadows: false);
             HeadBand(h, m, 0.004f, 52f, 308f, th => new Vector2(0.02f + 0.0175f + 0.006f, 0.02f - 0.0175f + 0.006f), 40);
             SurfBlk(h, Dark(), Dir(Mathf.Sin(250f * Mathf.Deg2Rad), 0.03f / HeadR, Mathf.Cos(250f * Mathf.Deg2Rad)), 0.006f, new Vector3(0.02f, 0.035f, 0.006f));
@@ -396,8 +433,20 @@ namespace Trickshot
             LegacyBlk(h, new Vector3(0.07f, -0.01f, 0.19f), new Vector3(0.09f, 0.045f, 0.018f), m);
             LegacyBlk(h, new Vector3(0.07f, -0.01f, 0.196f), new Vector3(0.07f, 0.035f, 0.012f), Glass());
             LegacyBlk(h, new Vector3(0f, -0.01f, 0.19f), new Vector3(0.04f, 0.015f, 0.015f), m);
-            LegacyBlk(h, new Vector3(-0.14f, 0f, 0.11f), new Vector3(0.02f, 0.018f, 0.15f), new Vector3(6f, 0f, 0f), m);
-            LegacyBlk(h, new Vector3(0.14f, 0f, 0.11f), new Vector3(0.02f, 0.018f, 0.15f), new Vector3(-6f, 0f, 0f), m);
+            // Arms: flush with the sides of the head, from the top-outer corner of each half frame
+            // back to the ear (a swept tube on the sphere), with a short hook down behind the ear.
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 hinge = Dir(side * 0.115f, 0.0125f, 0.19f);
+                Vector3 ear = new Vector3(side * 0.996f, 0f, -0.087f).normalized;
+                ear = new Vector3(ear.x, 0.005f / HeadR, ear.z).normalized;
+                var path = new List<Vector3>(PathDirs(hinge, ear, 0f, 10));
+                for (int k = 1; k <= 4; k++)
+                    path.Add((Quaternion.AngleAxis((0.03f / HeadR) * k / 4f * Mathf.Rad2Deg, Vector3.Cross(ear, Vector3.up).normalized * -1f) * ear).normalized);
+                var pts = new Vector3[path.Count]; var rad = new float[path.Count];
+                for (int i = 0; i < pts.Length; i++) { pts[i] = SurfPos(path[i], Mathf.Lerp(0.012f, 0.005f, Mathf.Clamp01(i / 3f))); rad[i] = 0.007f * _cosScale; }
+                Piece(h, MeshGen.Tube(pts, rad, 6, true, true), m);
+            }
         }
 
         static void LegacyBall(Transform head, Vector3 localPos, Vector3 localScale, Material mat)
@@ -532,8 +581,8 @@ namespace Trickshot
         }
         static void BuildBindi(Transform h, Material m)
         {
-            SurfacePatch(h, Own(Make.Mat(m.color, 0.6f)), Dir(0f, 0.055f, HeadR), Circle(0.0045f, 16), 0.0035f, 2);
-            var gem = MeshGen.Lathe(new[] { new Vector2(0f, -0.002f), new Vector2(0.002f, 0f), new Vector2(0f, 0.002f) }, 10);
+            SurfacePatch(h, Own(Make.Mat(m.color, 0.6f)), Dir(0f, 0.055f, HeadR), Circle(0.0085f, 20), 0.0035f, 2);
+            var gem = MeshGen.Lathe(new[] { new Vector2(0f, -0.0035f), new Vector2(0.0038f, 0f), new Vector2(0f, 0.0035f) }, 12);
             Vector3 n = Dir(0f, 0.055f, HeadR);
             PieceAt(h, gem, Glass(), n * (HeadR + 0.004f), Quaternion.FromToRotation(Vector3.up, n));
         }
@@ -542,11 +591,11 @@ namespace Trickshot
             var parts = new List<Mesh>();
             for (int side = -1; side <= 1; side += 2)
             {
-                Vector3 baseP = new Vector3(side * 0.03f, -0.085f, 0.167f).normalized * 0.187f;
+                Vector3 baseP = new Vector3(side * 0.032f, -0.083f, 0.167f).normalized * 0.187f;
                 Vector3 down = (Quaternion.Euler(12f, 0f, side * -10f) * Vector3.down).normalized;
                 Vector3 fwd = Vector3.forward;
-                var path = new[] { baseP, baseP + down * 0.012f + fwd * 0.0015f, baseP + down * 0.024f };
-                parts.Add(MeshGen.Tube(path, new[] { 0.0045f, 0.0028f, 0.0008f }, 8, false, true));
+                var path = new[] { baseP, baseP + down * 0.018f + fwd * 0.002f, baseP + down * 0.036f };
+                parts.Add(MeshGen.Tube(path, new[] { 0.0068f, 0.0042f, 0.001f }, 10, false, true));
             }
             PieceAt(h, MeshGen.Combine(parts.ToArray()), Ivory(), Vector3.zero, Quaternion.identity);
         }
@@ -554,30 +603,79 @@ namespace Trickshot
         /// on every turn): a beaded tube round the neck opening resting on the chest and back faces.</summary>
         static void BuildChainNecklace(Transform torso, Vector3 dims, Material m)
         {
-            float hw = dims.x * 0.5f, hh = dims.y * 0.5f, hd = dims.z * 0.5f;
-            var ctrl = new List<Vector3>
-            {
-                new Vector3(0f, hh - 0.11f, hd + 0.004f),
-                new Vector3(0.06f, hh - 0.07f, hd + 0.004f),
-                new Vector3(0.135f, hh + 0.003f, hd - 0.02f),
-                new Vector3(0.135f, hh + 0.003f, -hd + 0.02f),
-                new Vector3(0.13f, hh - 0.03f, -(hd + 0.003f)),
-                new Vector3(0f, hh - 0.04f, -(hd + 0.003f)),
-                new Vector3(-0.13f, hh - 0.03f, -(hd + 0.003f)),
-                new Vector3(-0.135f, hh + 0.003f, -hd + 0.02f),
-                new Vector3(-0.135f, hh + 0.003f, hd - 0.02f),
-                new Vector3(-0.06f, hh - 0.07f, hd + 0.004f),
-                new Vector3(0f, hh - 0.11f, hd + 0.004f),
-            };
-            var path = MeshGen.Spline(ctrl.ToArray(), 5);
+            float hh = dims.y * 0.5f, hd = dims.z * 0.5f;
+            var path = MeshGen.Spline(NecklacePath(hh, hd, 0.13f, 0.004f), 5);
             var radii = new float[path.Length];
-            for (int i = 0; i < radii.Length; i++) radii[i] = (i % 2 == 0) ? 0.0035f : 0.0022f;
-            var chain = MeshGen.Tube(path, radii, 8, false, false);
-            var pendant = MeshGen.Extrude(MeshGen.Superellipse(0.020f, 0.020f, 2f, 24), 0.004f, 0.001f);
-            MeshGen.Transform(pendant, new Vector3(0f, hh - 0.135f, hd + 0.006f), Quaternion.identity);
-            var bail = MeshGen.Torus(0.004f, 0.001f, 12, 6); MeshGen.Transform(bail, new Vector3(0f, hh - 0.113f, hd + 0.005f), Quaternion.Euler(0f, 0f, 90f));
-            var clasp = MeshGen.Torus(0.004f, 0.0012f, 12, 6); MeshGen.Transform(clasp, new Vector3(0f, hh - 0.04f, -(hd + 0.004f)), Quaternion.Euler(90f, 0f, 0f));
+            for (int i = 0; i < radii.Length; i++) radii[i] = (i % 2 == 0) ? 0.0056f : 0.0036f;
+            var chain = MeshGen.Tube(path, radii, 10, false, false);
+            var pendant = MeshGen.Extrude(MeshGen.Superellipse(0.028f, 0.028f, 2f, 28), 0.006f, 0.0015f);
+            MeshGen.Transform(pendant, new Vector3(0f, hh - 0.165f, hd + 0.008f), Quaternion.identity);
+            var bail = MeshGen.Torus(0.006f, 0.0016f, 14, 6); MeshGen.Transform(bail, new Vector3(0f, hh - 0.134f, hd + 0.006f), Quaternion.Euler(0f, 0f, 90f));
+            var clasp = MeshGen.Torus(0.006f, 0.0018f, 14, 6); MeshGen.Transform(clasp, new Vector3(0f, hh - 0.04f, -(hd + 0.005f)), Quaternion.Euler(90f, 0f, 0f));
             Piece(torso, MeshGen.Combine(chain, pendant, bail, clasp), m);
+        }
+        /// <summary>Control points of a necklace round the neck opening: down the chest to `frontDrop`
+        /// below the top face, over the shoulders, across the back; `lift` holds it off the faces.</summary>
+        static Vector3[] NecklacePath(float hh, float hd, float frontDrop, float lift)
+        {
+            // Over the shoulders the run sits a full link radius above the top face (it used to sit
+            // 3 mm up with 5.6 mm links, half buried in the shoulders), and it climbs the front and
+            // back faces right to the EDGE before turning across, so the spline never cuts the
+            // corner of the box.
+            float top = 0.006f, edge = lift + 0.004f;
+            return new[]
+            {
+                new Vector3(0f, hh - frontDrop, hd + lift),
+                new Vector3(0.07f, hh - frontDrop + 0.045f, hd + lift),
+                new Vector3(0.12f, hh - 0.025f, hd + lift),
+                new Vector3(0.135f, hh + top, hd + edge),
+                new Vector3(0.14f, hh + top, 0f),
+                new Vector3(0.135f, hh + top, -(hd + edge)),
+                new Vector3(0.13f, hh - 0.03f, -(hd + lift)),
+                new Vector3(0f, hh - 0.045f, -(hd + lift)),
+                new Vector3(-0.13f, hh - 0.03f, -(hd + lift)),
+                new Vector3(-0.135f, hh + top, -(hd + edge)),
+                new Vector3(-0.14f, hh + top, 0f),
+                new Vector3(-0.135f, hh + top, hd + edge),
+                new Vector3(-0.12f, hh - 0.025f, hd + lift),
+                new Vector3(-0.07f, hh - frontDrop + 0.045f, hd + lift),
+                new Vector3(0f, hh - frontDrop, hd + lift),
+            };
+        }
+        /// <summary>Cuban chain: big flat interlocking links on the same path as the chain necklace.
+        /// Alternate links lie flat on the body and stand across it, elongated along the run.</summary>
+        static void BuildCubanChain(Transform torso, Vector3 dims, Material m)
+        {
+            float hh = dims.y * 0.5f, hd = dims.z * 0.5f;
+            var spline = MeshGen.Spline(NecklacePath(hh, hd, 0.15f, 0.006f), 10);
+            // Resample by arc length.
+            const float pitch = 0.024f;
+            var links = new List<Mesh>();
+            float carry = 0f; int k = 0;
+            for (int i = 1; i < spline.Length; i++)
+            {
+                Vector3 a = spline[i - 1], b = spline[i];
+                float seg = (b - a).magnitude;
+                if (seg < 1e-6f) continue;
+                Vector3 T = (b - a) / seg;
+                float d = carry;
+                while (d <= seg)
+                {
+                    Vector3 p = a + T * d;
+                    Vector3 N = new Vector3(p.x, 0f, p.z); N = N.sqrMagnitude > 1e-6f ? N.normalized : Vector3.forward;
+                    N = (N - T * Vector3.Dot(N, T)).normalized;
+                    bool flat = (k & 1) == 0;
+                    Vector3 axis = flat ? N : Vector3.Cross(T, N).normalized;
+                    var link = MeshGen.Torus(0.011f, 0.0038f, 20, 8);
+                    MeshGen.Transform(link, Vector3.zero, Quaternion.identity, new Vector3(1.45f, 1f, 1f));   // elongate along local X
+                    var rot = Quaternion.LookRotation(Vector3.Cross(T, axis), axis);                            // local X -> T, local Y -> axis
+                    MeshGen.Transform(link, p + N * (flat ? 0.004f : 0.011f), rot);
+                    links.Add(link);
+                    k++; d += pitch;
+                }
+                carry = d - seg;
+            }
+            Piece(torso, MeshGen.Combine(links.ToArray()), m);
         }
 
         // ---- the catalog (index 0 = None; order is wire state) --------------------------------
@@ -598,7 +696,7 @@ namespace Trickshot
             new AccessoryEntry { Name = "Ski Goggles",    Build = BuildSkiGoggles, Smoothness = 0.5f },
             new AccessoryEntry { Name = "Reading Glasses", Build = BuildReadingGlasses },
             // "Batman Mask" renamed: a generic cowl with open eye holes and short round ears.
-            new AccessoryEntry { Name = "Vigilante Cowl", Headgear = true, Build = BuildCowl, Smoothness = 0.35f },
+            new AccessoryEntry { Name = "Vigilante",      Headgear = true, Build = BuildCowl, Smoothness = 0.35f },
             new AccessoryEntry { Name = "Hockey Mask",    Build = BuildHockeyMask, Smoothness = 0.55f },
             new AccessoryEntry { Name = "Venetian Mask",  Build = BuildVenetianMask, Smoothness = 0.75f, Metallic = 0.6f },
             new AccessoryEntry { Name = "Gas Mask",       Build = BuildGasMask, Smoothness = 0.25f },
@@ -632,6 +730,9 @@ namespace Trickshot
             new AccessoryEntry { Name = "Sombrero",    Headgear = true, Build = BuildSombrero, Smoothness = 0.05f },
             new AccessoryEntry { Name = "Party Hat",   Headgear = true, Build = BuildPartyHat, Smoothness = 0.1f },
             new AccessoryEntry { Name = "Wizard Hat",  Headgear = true, Build = BuildWizardHat, Smoothness = 0.05f },
+
+            // APPENDED (wire order): a second chest chain.
+            new AccessoryEntry { Name = "Cuban Chain",  Build = (h, m) => { }, BuildBody = BuildCubanChain, Smoothness = 0.85f, Metallic = 0.75f },
         };
     }
 }

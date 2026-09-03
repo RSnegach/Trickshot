@@ -114,9 +114,7 @@ namespace Trickshot
             foreach (var ui in FindObjectsByType<SessionBrowserUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<HostSetupUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<MultiplayerHubUI>()) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<MatchModeUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<OtherModesUI>()) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<OnlineQueueUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<CustomizeUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<SpeciesSelectUI>()) Destroy(ui.gameObject);
         }
@@ -171,26 +169,16 @@ namespace Trickshot
             _menuBg = null;
         }
 
-        // ---- Multiplayer flow: hub -> Match|Other Modes -> host setup / browser / queue -> lobby
-        //      -> networked match. Match splits into Friendlies (host/join with friends, exactly
-        //      the flow every mode used to share) and Online (ranked drop-in, see OnlineQueueUI);
-        //      every other mode keeps the plain host/join split, now under "Other Modes". ----
+        // ---- Multiplayer flow: hub -> Match|Other Modes -> host setup / browser -> lobby
+        //      -> networked match. Match goes STRAIGHT to the host/join screen ("PLAY A MATCH");
+        //      every other mode keeps the same split under "Other Modes". ----
         void ShowMultiplayerHub()
         {
             var go = new GameObject("MultiplayerHubUI");
             go.AddComponent<MultiplayerHubUI>().Init(
-                onMatch:       () => { Destroy(go); ShowMatchMode(); },
+                onMatch:       () => { Destroy(go); ShowMatchSetup(); },
                 onOtherModes:  () => { Destroy(go); ShowOtherModes(); },
                 onBack:        () => { Destroy(go); ShowMainMenu(skipSplash: true); });
-        }
-
-        void ShowMatchMode()
-        {
-            var go = new GameObject("MatchModeUI");
-            go.AddComponent<MatchModeUI>().Init(
-                onFriendlies: () => { Destroy(go); ShowFriendliesSetup(); },
-                onOnline:     () => { Destroy(go); ShowOnlineQueue(); },
-                onBack:       () => { Destroy(go); ShowMultiplayerHub(); });
         }
 
         void ShowOtherModes()
@@ -203,34 +191,28 @@ namespace Trickshot
                 title:  "OTHER MODES");
         }
 
-        // Friendlies reuses the exact same Host/Find screen Other Modes does - only the title and
-        // where Host Setup locks its mode differ.
-        void ShowFriendliesSetup()
+        // Match reuses the exact same Host/Find screen Other Modes does - only the title and
+        // where Host Setup locks its mode differ. The old Friendlies/Online split above this is
+        // gone: there is no ranked drop-in, so Match had exactly one destination and the extra
+        // screen was a menu step that only ever led one way.
+        void ShowMatchSetup()
         {
-            var go = new GameObject("FriendliesUI");
+            var go = new GameObject("MatchSetupUI");
             go.AddComponent<OtherModesUI>().Init(
                 onHost: () => { Destroy(go); ShowHostSetup(GameMode.Match); },
                 onJoin: () => { Destroy(go); ShowSessionBrowser(); },
-                onBack: () => { Destroy(go); ShowMatchMode(); },
-                title:  "FRIENDLIES");
-        }
-
-        void ShowOnlineQueue()
-        {
-            var go = new GameObject("OnlineQueueUI");
-            go.AddComponent<OnlineQueueUI>().Init(
-                onJoinedLobby: () => { Destroy(go); ShowLobby(); },
-                onBack:        () => { Destroy(go); ShowMatchMode(); });
+                onBack: () => { Destroy(go); ShowMultiplayerHub(); },
+                title:  "PLAY A MATCH");
         }
 
         // lockedMode: null shows the picker (Other Modes, Match excluded); a value skips it
-        // entirely and goes straight to that mode's own settings (Friendlies, locked to Match).
+        // entirely and goes straight to that mode's own settings (Match, locked).
         void ShowHostSetup(GameMode? lockedMode = null)
         {
             var go = new GameObject("HostSetupUI");
             go.AddComponent<HostSetupUI>().Init(
                 onCreated: () => { Destroy(go); ShowHostStadium(lockedMode); },
-                onBack:    () => { Destroy(go); if (lockedMode.HasValue) ShowFriendliesSetup(); else ShowOtherModes(); },
+                onBack:    () => { Destroy(go); if (lockedMode.HasValue) ShowMatchSetup(); else ShowOtherModes(); },
                 lockedMode: lockedMode);
         }
 
@@ -243,7 +225,12 @@ namespace Trickshot
             var s = Trickshot.Net.Multiplayer.Session;
             if (s == null) { ShowHostSetup(lockedMode); return; }
             var mode = (GameMode)s.Config.mode;
-            bool goalPanel = mode == GameMode.Striker;
+            // Match sizes its goal here too, on the same widget Striker uses. It does NOT take the
+            // keeper level from this screen the way Striker does: a Match keeper is a roster slot
+            // picked in the lobby (human or per-slot AI), so writing keeperAbility here would
+            // silently overwrite that choice with whatever the goal panel's ladder happened to show.
+            bool goalPanel = mode == GameMode.Striker || mode == GameMode.Match;
+            bool takesKeeper = mode == GameMode.Striker;
             var cfg0 = s.Config;
             float sw = cfg0.goalScale <= 0.01f ? 1f : cfg0.goalScale;
             float sh = cfg0.goalScaleH <= 0.01f ? sw : cfg0.goalScaleH;
@@ -257,9 +244,10 @@ namespace Trickshot
                     cfg.stadium = (byte)StadiumStyle.SelectedIndex;
                     if (goalPanel)
                     {
-                        cfg.goalScale     = ss.GoalW / SimConfig.GoalWidthBase;
-                        cfg.goalScaleH    = ss.GoalH / SimConfig.GoalHeightBase;
-                        cfg.keeperAbility = SimConfig.AiLevelAbility[Mathf.Clamp(ss.KeeperLevel, 0, SimConfig.AiLevelAbility.Length - 1)];
+                        cfg.goalScale  = ss.GoalW / SimConfig.GoalWidthBase;
+                        cfg.goalScaleH = ss.GoalH / SimConfig.GoalHeightBase;
+                        if (takesKeeper)
+                            cfg.keeperAbility = SimConfig.AiLevelAbility[Mathf.Clamp(ss.KeeperLevel, 0, SimConfig.AiLevelAbility.Length - 1)];
                     }
                     s.SetConfig(cfg);
                     Destroy(go); ShowLobby();
@@ -366,14 +354,21 @@ namespace Trickshot
                 SimConfig.PlayerRole =
                     Trickshot.Net.NetSession.ScrimShirtOfSlot(s.LocalSlot) == 0
                     ? SimConfig.MatchRole.Keeper : SimConfig.MatchRole.Outfield;
-                // Canonical goal size, written on EVERY peer. This branch used to leave GoalWidth and
-                // GoalHeight alone while the set-piece and accuracy branches below assign them, and
-                // they are mutable statics - so a host who last played a 1.5x set piece and a client
-                // who did not were building the goal frame and the goal-detection plane at DIFFERENT
-                // sizes in the same match. That is a genuine desync, not just a local mis-size, and it
-                // resolves to "the host and the client disagree about whether that was a goal".
-                SimConfig.GoalWidth  = 7.32f;
-                SimConfig.GoalHeight = 2.44f;
+                // Canonical goal size, written on EVERY peer from the HOST'S config - the host
+                // now sizes a Match goal on the stadium screen, exactly as Striker does. This used
+                // to hardcode 7.32/2.44, which was itself a fix for leaving the mutable statics
+                // alone (a host who last played a 1.5x set piece and a client who did not built the
+                // goal frame and the goal-detection plane at DIFFERENT sizes in the same match - a
+                // real desync that resolves to "the host and the client disagree about whether that
+                // was a goal"). Reading the config keeps that property: it is one number, from one
+                // peer, applied identically everywhere. An unauthored config (0) still falls back to
+                // regulation inside ApplyConfigGoal.
+                //
+                // KeeperAbility is deliberately left alone by the Match path - a Match keeper is a
+                // roster slot (human, or per-slot AI chosen in the lobby), not this screen's ladder.
+                float keepAbility = SimConfig.KeeperAbility;
+                ApplyConfigGoal(cfg);
+                SimConfig.KeeperAbility = keepAbility;
                 SimConfig.BallSpeedMul = 1f;
             }
             else if (mode == GameMode.SetPieces)

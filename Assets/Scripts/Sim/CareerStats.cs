@@ -51,41 +51,14 @@ namespace Trickshot
         public int MatchMOTM;   // times this player was Man of the Match
     }
 
-    /// <summary>One playlist's ranked record: an ELO-style MMR that moves on every result,
-    /// starting every player at the same baseline. Never written by Friendlies or single-player.</summary>
-    [Serializable]
-    public class RankData
-    {
-        public int MatchesPlayed, Wins, Losses, Draws;
-        public float Mmr = 1000f;
-    }
-
-    /// <summary>Online (ranked drop-in) only, one rank PER PLAYLIST - exactly like Rocket League
-    /// tracks 1v1/2v2/3v3 separately, a strong 11v11 record says nothing about a player's 3v3
-    /// record. Kept structurally separate from ModeStats/SP/MP entirely (not nested inside them),
-    /// since rank must never be touched by anything but a ranked match, and a sibling field is
-    /// the cheapest way to guarantee that (no per-call flag to get wrong).</summary>
-    [Serializable]
-    public class OnlineRanks
-    {
-        public RankData ThreeVThree = new RankData();
-        public RankData FiveVFive = new RankData();
-        public RankData ElevenVEleven = new RankData();
-    }
-
     /// <summary>Lifetime stats split by origin: SP (single-player) and MP (networked). Every
     /// mode's stats live in both bags - an MP bag stays at zero for any mode that has no
-    /// networked recording yet, which is expected, not a bug. Rank is separate - see OnlineRanks.</summary>
+    /// networked recording yet, which is expected, not a bug.</summary>
     [Serializable]
     public class CareerStatsData
     {
         public ModeStats SP = new ModeStats();
         public ModeStats MP = new ModeStats();
-        public OnlineRanks Rank = new OnlineRanks();
-        // Online (ranked) only - MP.MatchGoals above counts Friendlies too, and nothing else
-        // tracks a goals total scoped to ranked play alone. Bumped only inside RecordRankedMatch,
-        // same gate as Rank itself. Exists for achievement checks (see Achievements.cs).
-        public int OnlineGoals;
     }
 
     /// <summary>
@@ -128,10 +101,6 @@ namespace Trickshot
             // loads both bags as fresh zeros - no explicit migration needed.
             _data.SP ??= new ModeStats();
             _data.MP ??= new ModeStats();
-            _data.Rank ??= new OnlineRanks();
-            _data.Rank.ThreeVThree ??= new RankData();
-            _data.Rank.FiveVFive ??= new RankData();
-            _data.Rank.ElevenVEleven ??= new RankData();
         }
 
         /// <summary>
@@ -206,65 +175,5 @@ namespace Trickshot
             Save();
         }
 
-        /// <summary>The playlist's rank bucket for a given team size (3/5/11 a side). Anything
-        /// else falls back to 3v3 rather than throwing - a caller passing a bad perSide should
-        /// not crash a match-end hook.</summary>
-        public static RankData RankFor(int perSide) => perSide switch
-        {
-            5 => Data.Rank.FiveVFive,
-            11 => Data.Rank.ElevenVEleven,
-            _ => Data.Rank.ThreeVThree,
-        };
-
-        /// <summary>
-        /// Online (ranked drop-in) only - call in ADDITION to RecordMatchEnd, never in place of
-        /// it, so a ranked match's ordinary lifetime Match stats still count too. result: +1 win,
-        /// 0 draw, -1 loss. An ELO-style update, like Rocket League's MMR: everyone starts at the
-        /// same baseline (RankData.Mmr's 1000 default) and moves by how much the result beat or
-        /// missed what was EXPECTED given the two sides' ratings, not by a fixed amount per win.
-        ///
-        /// opponentAvgMmr is optional because the wire doesn't carry a slot's MMR yet (nothing
-        /// broadcasts it the way appearance/jersey already do) - with none given this falls back
-        /// to an even-matchup assumption (expected = 0.5), which still moves the number up on a
-        /// win and down on a loss, just without weighing how the actual opponents compared. Once
-        /// MMR is synced the same way, pass the real opposing average here and this becomes a
-        /// genuine Elo update with no other change.
-        /// </summary>
-        public static void RecordRankedMatch(int perSide, int result, int goals = 0, float? opponentAvgMmr = null)
-        {
-            var r = RankFor(perSide);
-            r.MatchesPlayed++;
-            if (result > 0) r.Wins++;
-            else if (result < 0) r.Losses++;
-            else r.Draws++;
-            Data.OnlineGoals += goals;
-
-            float actual = result > 0 ? 1f : result < 0 ? 0f : 0.5f;
-            float opp = opponentAvgMmr ?? r.Mmr;
-            float expected = 1f / (1f + Mathf.Pow(10f, (opp - r.Mmr) / 400f));
-            const float K = 32f;
-            r.Mmr += K * (actual - expected);
-            Save();
-        }
-
-        /// <summary>Total ranked wins across every playlist (3v3+5v5+11v11) - for a "win N online
-        /// matches" achievement, which doesn't care which playlist they came from.</summary>
-        public static int TotalOnlineWins()
-            => Data.Rank.ThreeVThree.Wins + Data.Rank.FiveVFive.Wins + Data.Rank.ElevenVEleven.Wins;
-
-        // Division names by MMR, tuned around the 1000 baseline. Simple, visible thresholds -
-        // easy to retune.
-        static readonly (float min, string name)[] RankTiers =
-        {
-            (1500f, "Champion"), (1300f, "Elite"), (1150f, "Gold"), (1000f, "Silver"), (0f, "Bronze"),
-        };
-
-        /// <summary>"Unranked" with no games played yet, else the tier name for the current MMR.</summary>
-        public static string RankTierName(RankData r)
-        {
-            if (r.MatchesPlayed <= 0) return "Unranked";
-            foreach (var (min, name) in RankTiers) if (r.Mmr >= min) return name;
-            return "Bronze";
-        }
     }
 }

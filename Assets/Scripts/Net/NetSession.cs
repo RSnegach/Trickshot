@@ -699,18 +699,20 @@ namespace Trickshot.Net
         }
 
         /// <summary>Short mode line for a browser row. Match carries its team size, since that
-        /// is what tells a joiner how big the game is. An Online (ranked) lobby is prefixed so
-        /// OnlineQueueUI's own search can match on the exact string with no changes to the
-        /// discovery/probe wire format at all - the "mode" field it already carries is enough.</summary>
+        /// is what tells a joiner how big the game is, plus a compact "[LF:...]" tag naming the
+        /// extra roles the host is looking for. Both ride the "mode" string the discovery probe
+        /// already carries, so the browser can filter on either with no wire-format change.</summary>
         public string ModeLabel()
         {
             var mode = (GameMode)Config.mode;
             switch (mode)
             {
                 case GameMode.Match:
-                    int n = Mathf.Max(1, (int)Config.perSide);
-                    string label = "Match " + n + "v" + n;
-                    return Config.onlineRanked ? "Online " + label : label;
+                    // perSide counts the keeper (shirt 0), but the lobby size players talk about
+                    // is the OUTFIELD count - the host setup picker says "1 v 1" for perSide 2 - so
+                    // advertise the same number the host chose, not one more.
+                    int n = Mathf.Max(1, (int)Config.perSide - 1);
+                    return "Match " + n + "v" + n + LookingRoles.Tag(Config.lookingFor);
                 case GameMode.SetPieces: return "Set Pieces";
                 default: return mode.ToString();
             }
@@ -1407,7 +1409,7 @@ namespace Trickshot.Net
                 // into an empty lobby alternate sides instead of both landing on Home (the old
                 // flat 1..6 walk filled every Home shooter before ever touching Away). Ties -
                 // including the very first joiner, 0 vs 0 - prefer Home, matching today's
-                // starting behaviour. Friendlies' position picker can always override this by
+                // starting behaviour. The lobby's position picker can always override this by
                 // hand; this only decides where an unclaimed join FIRST lands.
                 int first = PreferredMatchTeam(), second = 1 - first;
                 granted = GrantWithinTeam(first);

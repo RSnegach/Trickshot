@@ -21,15 +21,6 @@ namespace Trickshot
         string _inviteCode;     // host + direct-IP only: the short code friends paste to join
         float _copiedUntil;     // brief "Copied!" confirmation after the Copy button
 
-        // Online (ranked drop-in) only: when the lobby last became fully ready (AllReady()).
-        // Readying up is still the player's own manual click (same Ready button as Friendlies -
-        // they get to look at the position picker and jersey vote first), but the HOST auto-
-        // starts once every seated human has stayed ready for AutoStartHoldSec straight, instead
-        // of needing someone to also press Start. -1 = not currently all-ready (someone hasn't
-        // clicked Ready yet, a fresh joiner reset it, or nobody's here at all).
-        float _allReadySince = -1f;
-        const float AutoStartHoldSec = 10f;
-
         // Match only: which of the roster/jersey-vote tabs is showing (see DrawLobby).
         bool _showJerseyTab;
 
@@ -77,16 +68,6 @@ namespace Trickshot
             // handling it locally too would tear down twice.
             Multiplayer.Poll();
 
-            if (_s == null || _started || !_s.Config.onlineRanked || !_s.IsHost) return;
-            // A fresh joiner isn't ready yet (same manual click as Friendlies), so AllReady()
-            // goes false the moment they're seated - that's what re-arms the window below,
-            // giving every arrival a fair shot at being seen before the lobby locks.
-            if (!_s.AllReady()) _allReadySince = -1f;
-            else
-            {
-                if (_allReadySince < 0f) _allReadySince = Time.unscaledTime;
-                if (Time.unscaledTime - _allReadySince >= AutoStartHoldSec) _s.StartMatch();
-            }
         }
 
         // Scale the lobby up on big displays (see MenuScale). Wrapped so the early return can't
@@ -477,7 +458,12 @@ namespace Trickshot
             var mode = (GameMode)c.mode;
             string stadium = c.stadium < StadiumStyle.All.Length ? StadiumStyle.All[c.stadium].Name : "?";
             if (mode == GameMode.Match)
-                return $"Match  {c.perSide}v{c.perSide}   {stadium}   {c.matchSec / 60} min";
+            {
+                // perSide counts the keeper; the size players talk about (and the host picker
+                // shows) is the OUTFIELD count, so subtract the keeper - same as NetSession.ModeLabel.
+                int nOut = Mathf.Max(1, c.perSide - 1);
+                return $"Match  {nOut}v{nOut}   {stadium}   {c.matchSec / 60} min";
+            }
             return $"{mode}   {stadium}";
         }
     }
