@@ -59,8 +59,8 @@ namespace Trickshot
             _statKey   = new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleLeft, normal = { textColor = Dim } };
             _statVal   = new GUIStyle { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = Ink } };
             _clock     = new GUIStyle { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink } };
-            _flash     = new GUIStyle { fontSize = 72, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink } };
-            _flashSub  = new GUIStyle { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Dim } };
+            _flash     = new GUIStyle { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink } };
+            _flashSub  = new GUIStyle { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Dim } };
             _bannerBig = new GUIStyle { fontSize = 46, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink } };
             _bannerSub = new GUIStyle { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Gold } };
             _legend    = new GUIStyle { fontSize = LegendFont, alignment = TextAnchor.MiddleLeft, wordWrap = false, normal = { textColor = Dim } };
@@ -206,20 +206,70 @@ namespace Trickshot
             }
         }
 
-        // ================================================================ centre callout
-        // Colour keyed off the text so GOAL / SAVE / MISS read at a glance without the modes
-        // having to agree on anything but the word.
+        // ================================================================ top callout
+        // What KIND of thing a callout is, keyed off its text so the modes only have to agree on
+        // the word. Three outcomes and a neutral:
+        //   Good    - a goal or an ordinary save. Green.
+        //   Epic    - an epic save. Yellow, with a star either side.
+        //   Bad     - everything else that is an OUTCOME: misses, strikes, wide, over, post.
+        //   Neutral - the callouts that are not outcomes at all (the picked cross delivery, the
+        //             replay prompt). Red would tell the player they had failed at something.
+        enum FlashKind { Neutral, Good, Epic, Bad }
+
+        static readonly Color FlashGood    = new Color(0.29f, 0.82f, 0.48f);   // green
+        static readonly Color FlashEpic    = new Color(1.00f, 0.84f, 0.28f);   // yellow
+        static readonly Color FlashBad     = new Color(1.00f, 0.36f, 0.30f);   // red
+        static readonly Color FlashNeutral = new Color(0.78f, 0.82f, 0.90f);   // plain light grey
+
+        // ORDER MATTERS HERE, and every rule below earns its place by a real callout that the
+        // previous ordering got wrong. The tests run most-specific first:
+        //   1. A FAILURE that happens to name a good thing. "STRIKE 2 - EPIC SAVE!" is a lost
+        //      round, not a triumph, and must not come out gold with stars; "NO GOAL" and
+        //      "MISSED THE TARGET" both contain a positive word too.
+        //   2. Informational callouts, before any keyword can claim them.
+        //   3. The epic save, before the plain-save rule swallows it.
+        //   4. Plain good, then plain bad.
+        static FlashKind KindOf(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return FlashKind.Neutral;
+            string t = text.ToUpperInvariant();
+
+            // 1. Failures first. A strike is a lost round whatever else the line says about it.
+            if (t.StartsWith("STRIKE") || t.Contains("NO GOAL") || t.Contains("MISSED")
+                || t.Contains("ALL OUT") || t.Contains(" IS OUT"))
+                return FlashKind.Bad;
+
+            // 2. Not verdicts at all: the picked cross delivery, the replay prompt, and the neutral
+            //    end-of-round lines that report a result rather than judging the player.
+            if (t.StartsWith("CROSS:") || t.Contains("REPLAY") || t.StartsWith("TIE")
+                || t.StartsWith("GAME OVER") || t.StartsWith("+"))
+                return FlashKind.Neutral;
+
+            // 3. Epic, before the plain SAVE rule below can take it.
+            if (t.Contains("EPIC")) return FlashKind.Epic;
+
+            // 4. Good, then bad. "OVER"/"WIDE"/"POST" are ball-missed-the-goal words; GAME OVER is
+            //    already handled above, which is why "OVER" is safe to test for here.
+            if (t.Contains("GOAL") || t.Contains("SAVE") || t.Contains("SCORE")
+                || t.Contains("CLEARED") || t.Contains("ON TARGET") || t.Contains("BLOCK")
+                || t.Contains("WINS") || t.Contains("SURVIVES"))
+                return FlashKind.Good;
+            if (t.Contains("MISS") || t.Contains("WIDE") || t.Contains("OVER")
+                || t.Contains("POST") || t.Contains("OUT"))
+                return FlashKind.Bad;
+
+            return FlashKind.Neutral;
+        }
+
         static Color FlashTint(string text)
         {
-            if (string.IsNullOrEmpty(text)) return Ink;
-            string t = text.ToUpperInvariant();
-            if (t.Contains("EPIC"))  return new Color(1f, 0.55f, 0.15f);   // fiery orange-gold
-            if (t.Contains("GOAL"))  return new Color(1f, 0.84f, 0.28f);   // gold
-            if (t.Contains("SAVE"))  return new Color(0.35f, 0.72f, 1f);   // keeper blue
-            if (t.Contains("BLOCK")) return new Color(0.55f, 0.80f, 1f);   // lighter blue
-            if (t.Contains("MISS"))  return new Color(1f, 0.42f, 0.38f);   // warm red
-            if (t.Contains("WIDE") || t.Contains("OVER") || t.Contains("POST")) return new Color(1f, 0.60f, 0.35f);
-            return Ink;
+            switch (KindOf(text))
+            {
+                case FlashKind.Good: return FlashGood;
+                case FlashKind.Epic: return FlashEpic;
+                case FlashKind.Bad:  return FlashBad;
+                default:             return FlashNeutral;
+            }
         }
 
         // Back-out overshoot: shoots past 1 then settles. The snap is what makes a callout feel
@@ -245,88 +295,116 @@ namespace Trickshot
             if (alpha <= 0f || string.IsNullOrEmpty(text)) return;
             alpha = Mathf.Clamp01(alpha);
 
-            float life = 1f - alpha;                                  // 0 at spawn -> 1 at death
-            float inT  = Mathf.Clamp01(life / 0.16f);                  // punch-in window
-            float outT = Mathf.Clamp01((life - 0.82f) / 0.18f);        // push-out window
-            float scale = Mathf.Lerp(0.70f, 1f, EaseOutBack(inT)) * Mathf.Lerp(1f, 1.09f, outT);
-            float rise  = Mathf.Lerp(18f, 0f, EaseOutCubic(inT));      // settles downward into place
-            // Hold at full opacity, then drop off quickly at the end.
-            float a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(alpha / 0.32f));
-
+            var kind = KindOf(text);
             Color tint = FlashTint(text);
-            const float bandH = 104f;
-            float bandTop = 92f;
-            var band = new Rect(W * 0.06f, bandTop, W * 0.88f, bandH);
+            bool epic = kind == FlashKind.Epic;
 
-            // Scale the whole group about the band centre.
+            float life = 1f - alpha;                                   // 0 at spawn -> 1 at death
+            float inT  = Mathf.Clamp01(life / 0.18f);                  // punch-in window
+            float outT = Mathf.Clamp01((life - 0.84f) / 0.16f);        // fade-out window
+            // A small banner cannot punch as hard as the old full-width one without looking like a
+            // glitch, so the overshoot is gentler and the drift is a short slide DOWN into place.
+            float scale = Mathf.Lerp(0.86f, 1f, EaseOutBack(inT));
+            float rise  = Mathf.Lerp(-14f, 0f, EaseOutCubic(inT)) + outT * -8f;
+            float a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(alpha / 0.30f));
+
+            string label = text.ToUpperInvariant();
+            var content = new GUIContent(label);
+            Vector2 ts = _flash.CalcSize(content);
+
+            // The pill hugs its text, so a one-word callout stays genuinely small. Stars only take
+            // room on an epic save.
+            const float padX = 22f, barH = 34f, starW = 20f;
+            float w = ts.x + padX * 2f + (epic ? starW * 2f + 12f : 0f);
+            w = Mathf.Min(w, W * 0.7f);
+            float x = W * 0.5f - w * 0.5f, y = 16f + rise;
+            var band = new Rect(x, y, w, barH);
+
             var keep = GUI.matrix;
-            var pivot = new Vector2(band.center.x, band.center.y);
-            GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), pivot);
+            GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(band.center.x, band.y));
 
-            // --- bloom behind everything, in the callout's colour ---
-            var bloom = tint; bloom.a = 0.20f * a;
-            UITheme.Glow(new Rect(band.x - 60f, band.y - 44f, band.width + 120f, band.height + 88f), bloom);
+            // Soft bloom in the callout's colour, tight to the pill.
+            var bloom = tint; bloom.a = 0.22f * a;
+            UITheme.Glow(new Rect(band.x - 34f, band.y - 22f, band.width + 68f, band.height + 44f), bloom);
 
-            // --- impact streaks: short horizontal speed lines that fly outward and vanish ---
-            float burst = 1f - Mathf.Clamp01(life / 0.34f);
-            if (burst > 0.001f)
+            // Plate: near-black pill, a coloured edge, and a colour wash so the state reads from
+            // the bar itself rather than only from the word.
+            UITheme.Chip(band, new Color(0.02f, 0.03f, 0.05f, 0.88f * a));
+            var wash = tint; wash.a = 0.16f * a;
+            UITheme.Fill(new Rect(band.x + 1f, band.y + 1f, band.width - 2f, band.height - 2f), wash);
+            var rule = tint; rule.a = 0.95f * a;
+            UITheme.Fill(new Rect(band.x, band.y, band.width, 2f), rule);
+            UITheme.Fill(new Rect(band.x, band.yMax - 2f, band.width, 2f), rule);
+
+            // Stars flanking an epic save, drawn in the band colour.
+            if (epic)
             {
-                var sc = tint; sc.a = 0.55f * burst * a;
-                for (int i = 0; i < 7; i++)
-                {
-                    float t = (i + 0.5f) / 7f;
-                    float sign = (i % 2 == 0) ? 1f : -1f;
-                    float yy = band.y + band.height * t;
-                    float len = Mathf.Lerp(30f, 150f, 1f - burst) * (0.5f + t * 0.9f);
-                    float off = Mathf.Lerp(0f, 90f, 1f - burst);
-                    float xx = sign > 0f ? band.center.x + 130f + off : band.center.x - 130f - off - len;
-                    Fill(new Rect(xx, yy, len, 2f), sc);
-                }
+                var sc = tint; sc.a = a;
+                Star(band.x + padX * 0.5f + starW * 0.5f, band.center.y, 8.5f, sc);
+                Star(band.xMax - padX * 0.5f - starW * 0.5f, band.center.y, 8.5f, sc);
             }
 
-            // --- plate: dark bar with coloured rules top and bottom ---
-            Fill(band, new Color(0f, 0f, 0f, 0.42f * a));
-            var rule = tint; rule.a = 0.85f * a;
-            Fill(new Rect(band.x, band.y, band.width, 2.5f), rule);
-            Fill(new Rect(band.x, band.yMax - 2.5f, band.width, 2.5f), rule);
-            // Rules fade out toward the ends so the bar doesn't read as a hard-edged box.
-            Fill(new Rect(band.x, band.y, 26f, 2.5f), new Color(0f, 0f, 0f, 0.45f * a));
-            Fill(new Rect(band.xMax - 26f, band.y, 26f, 2.5f), new Color(0f, 0f, 0f, 0.45f * a));
-
-            // --- light sweep: a bright wedge that crosses the band once on arrival ---
-            float sweep = Mathf.Clamp01(life / 0.42f);
-            if (sweep < 1f)
-            {
-                float sx = Mathf.Lerp(band.x - 160f, band.xMax, sweep);
-                var sc = new Color(1f, 1f, 1f, 0.10f * a * (1f - sweep));
-                Fill(new Rect(sx, band.y + 2.5f, 90f, band.height - 5f), sc);
-                Fill(new Rect(sx + 90f, band.y + 2.5f, 34f, band.height - 5f), new Color(1f, 1f, 1f, 0.05f * a * (1f - sweep)));
-            }
-
-            // --- the word: heavy dark outline (four offsets) then the coloured face ---
-            var textRect = new Rect(band.x, band.y + rise + (string.IsNullOrEmpty(sub) ? 8f : 2f),
-                                    band.width, 80f);
-            var outline = new Color(0f, 0f, 0f, 0.85f * a);
-            _flash.normal.textColor = outline;
+            // The word: a dark outline, then the coloured face over it.
+            float tx = epic ? band.x + starW + 6f : band.x;
+            float tw = epic ? band.width - (starW + 6f) * 2f : band.width;
+            var textRect = new Rect(tx, band.y, tw, barH);
+            _flash.normal.textColor = new Color(0f, 0f, 0f, 0.8f * a);
             for (int dx = -1; dx <= 1; dx += 2)
                 for (int dy = -1; dy <= 1; dy += 2)
-                    UITheme.Label(new Rect(textRect.x + dx * 2.5f, textRect.y + dy * 2.5f, textRect.width, textRect.height), text, _flash);
-            _flash.normal.textColor = new Color(0f, 0f, 0f, 0.55f * a);
-            UITheme.Label(new Rect(textRect.x + 4f, textRect.y + 5f, textRect.width, textRect.height), text, _flash);
-
+                    UITheme.Label(new Rect(textRect.x + dx * 1.5f, textRect.y + dy * 1.5f, textRect.width, textRect.height), label, _flash);
             var face = tint; face.a = a;
             _flash.normal.textColor = face;
-            UITheme.Label(textRect, text, _flash);
+            UITheme.Label(textRect, label, _flash);
             _flash.normal.textColor = Ink;
 
+            // Optional second line, in its own smaller pill under the first.
             if (!string.IsNullOrEmpty(sub))
             {
-                var sc = Dim; sc.a = a * 0.9f;
-                UITheme.Shadowed(new Rect(band.x, textRect.yMax - 6f, band.width, 22f),
-                                 sub.ToUpperInvariant(), _flashSub, sc, 0.7f, 1.5f);
+                var subC = new GUIContent(sub.ToUpperInvariant());
+                float sw = _flashSub.CalcSize(subC).x + 20f;
+                var sr = new Rect(W * 0.5f - sw * 0.5f, band.yMax + 4f, sw, 20f);
+                UITheme.Chip(sr, new Color(0.02f, 0.03f, 0.05f, 0.80f * a));
+                var scol = Dim; scol.a = a * 0.95f;
+                _flashSub.normal.textColor = scol;
+                UITheme.Label(sr, subC, _flashSub);
+                _flashSub.normal.textColor = Dim;
             }
 
             GUI.matrix = keep;
+        }
+
+        // A five-pointed star, drawn as a fan of triangles from its centre. Used to flank an EPIC
+        // callout. Built from Fill spans rather than a texture so it scales with the banner and
+        // needs no asset.
+        static void Star(float cx, float cy, float r, Color col)
+        {
+            // Scanline fill of the star polygon: for each row, find where the outline crosses it
+            // and fill between the outermost pair. Ten vertices, alternating outer and inner radius.
+            const int pts = 10;
+            var v = new Vector2[pts];
+            for (int i = 0; i < pts; i++)
+            {
+                float ang = (-90f + i * 36f) * Mathf.Deg2Rad;
+                float rad = (i % 2 == 0) ? r : r * 0.42f;
+                v[i] = new Vector2(cx + Mathf.Cos(ang) * rad, cy + Mathf.Sin(ang) * rad);
+            }
+
+            int rows = Mathf.CeilToInt(r * 2f);
+            for (int row = 0; row < rows; row++)
+            {
+                float yy = cy - r + row;
+                float lo = float.MaxValue, hi = float.MinValue;
+                for (int i = 0; i < pts; i++)
+                {
+                    Vector2 p1 = v[i], p2 = v[(i + 1) % pts];
+                    if ((yy < p1.y && yy < p2.y) || (yy >= p1.y && yy >= p2.y)) continue;
+                    float t = (yy - p1.y) / (p2.y - p1.y);
+                    float xx = Mathf.Lerp(p1.x, p2.x, t);
+                    if (xx < lo) lo = xx;
+                    if (xx > hi) hi = xx;
+                }
+                if (hi > lo) Fill(new Rect(lo, yy, hi - lo, 1f), col);
+            }
         }
 
         // ================================================================ player indicator
@@ -571,20 +649,37 @@ namespace Trickshot
         }
 
         // ================================================================ end-of-round card
+        /// <summary>
+        /// The END-OF-ROUND card: still centred and still a full panel, because it ENDS play rather
+        /// than interrupting it - the in-play callouts are the small top banners (see Flash). It
+        /// takes its accent from the same classifier they do, so a win and a knock-out are coloured
+        /// consistently with the callouts that led to them.
+        /// </summary>
         public static void Banner(string big, string sub, string hint)
         {
             const float w = 520f, h = 200f;
             float x = W * 0.5f - w * 0.5f, y = H * 0.5f - h * 0.5f;
             var r = new Rect(x, y, w, h);
 
+            var kind = KindOf(big);
+            Color accent = FlashTint(big);
+            bool epic = kind == FlashKind.Epic;
+
             // Extra darkening behind the card so it reads as the end of play.
             UITheme.Glow(new Rect(r.x - 140f, r.y - 110f, r.width + 280f, r.height + 220f),
                          new Color(0f, 0f, 0f, 0.55f));
-            UITheme.Panel(r, Gold);
+            UITheme.Panel(r, accent);
 
-            UITheme.Shadowed(new Rect(x, y + 30f, w, 54f), big, _bannerBig, Ink, 0.75f, 2.5f);
+            UITheme.Shadowed(new Rect(x, y + 30f, w, 54f), big, _bannerBig, accent, 0.75f, 2.5f);
+            if (epic)
+            {
+                // Same flanking stars the epic callout gets, sized to this card's heading.
+                float half = _bannerBig.CalcSize(new GUIContent(big)).x * 0.5f;
+                Star(W * 0.5f - half - 26f, y + 57f, 13f, accent);
+                Star(W * 0.5f + half + 26f, y + 57f, 13f, accent);
+            }
             if (!string.IsNullOrEmpty(sub))
-                UITheme.Shadowed(new Rect(x, y + 94f, w, 30f), sub, _bannerSub, Gold, 0.7f, 2f);
+                UITheme.Shadowed(new Rect(x, y + 94f, w, 30f), sub, _bannerSub, Ink, 0.7f, 2f);
 
             UITheme.Divider(x + 40f, y + 138f, w - 80f);
             if (!string.IsNullOrEmpty(hint))

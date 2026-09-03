@@ -58,6 +58,12 @@ namespace Trickshot
             return _rest > RestHold || Time.time - TouchTime > TouchTimeout;
         }
 
-        public string Callout() => Epic ? "EPIC SAVE!" : "SAVE!";
+        /// <summary>
+        /// The save verdict. <paramref name="allowEpic"/> false collapses it to a plain SAVE - for
+        /// ACCURACY, where the keeper is scenery the shot has to beat rather than the point of the
+        /// mode: a save there is a strike against the player, so dressing it up as a highlight
+        /// celebrates the wrong side of the outcome.
+        /// </summary>
+        public string Callout(bool allowEpic = true) => (Epic && allowEpic) ? "EPIC SAVE!" : "SAVE!";
     }
 }

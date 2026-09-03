@@ -114,7 +114,7 @@ namespace Trickshot
             foreach (var ui in FindObjectsByType<SessionBrowserUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<HostSetupUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<MultiplayerHubUI>()) Destroy(ui.gameObject);
-            foreach (var ui in FindObjectsByType<OtherModesUI>()) Destroy(ui.gameObject);
+            foreach (var ui in FindObjectsByType<HostOrFindUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<CustomizeUI>()) Destroy(ui.gameObject);
             foreach (var ui in FindObjectsByType<SpeciesSelectUI>()) Destroy(ui.gameObject);
         }
@@ -169,62 +169,49 @@ namespace Trickshot
             _menuBg = null;
         }
 
-        // ---- Multiplayer flow: hub -> Match|Other Modes -> host setup / browser -> lobby
-        //      -> networked match. Match goes STRAIGHT to the host/join screen ("PLAY A MATCH");
-        //      every other mode keeps the same split under "Other Modes". ----
+        // ---- Multiplayer flow: hub (one button per networkable mode) -> that mode's Host/Find
+        //      screen -> host setup / browser -> lobby -> networked match. Picking the mode on the
+        //      hub IS the mode choice: every screen after it is locked to it (Host Setup draws no
+        //      mode picker, the browser lists only that mode's lobbies). The old "Other Modes"
+        //      catch-all with a picker inside Host Setup is gone. ----
         void ShowMultiplayerHub()
         {
             var go = new GameObject("MultiplayerHubUI");
             go.AddComponent<MultiplayerHubUI>().Init(
-                onMatch:       () => { Destroy(go); ShowMatchSetup(); },
-                onOtherModes:  () => { Destroy(go); ShowOtherModes(); },
-                onBack:        () => { Destroy(go); ShowMainMenu(skipSplash: true); });
+                onMode: m  => { Destroy(go); ShowHostOrFind(m); },
+                onBack: () => { Destroy(go); ShowMainMenu(skipSplash: true); });
         }
 
-        void ShowOtherModes()
+        // One mode's Host/Find split, titled with the mode. Back from either destination returns
+        // here, not to the hub, so "host, change your mind, find instead" is one step.
+        void ShowHostOrFind(GameMode mode)
         {
-            var go = new GameObject("OtherModesUI");
-            go.AddComponent<OtherModesUI>().Init(
-                onHost: () => { Destroy(go); ShowHostSetup(); },
-                onJoin: () => { Destroy(go); ShowSessionBrowser(); },
+            var go = new GameObject("HostOrFindUI");
+            go.AddComponent<HostOrFindUI>().Init(
+                onHost: () => { Destroy(go); ShowHostSetup(mode); },
+                onJoin: () => { Destroy(go); ShowSessionBrowser(mode); },
                 onBack: () => { Destroy(go); ShowMultiplayerHub(); },
-                title:  "OTHER MODES");
+                title:  PauseMenu.ModeName(mode).ToUpper());
         }
 
-        // Match reuses the exact same Host/Find screen Other Modes does - only the title and
-        // where Host Setup locks its mode differ. The old Friendlies/Online split above this is
-        // gone: there is no ranked drop-in, so Match had exactly one destination and the extra
-        // screen was a menu step that only ever led one way.
-        void ShowMatchSetup()
-        {
-            var go = new GameObject("MatchSetupUI");
-            go.AddComponent<OtherModesUI>().Init(
-                onHost: () => { Destroy(go); ShowHostSetup(GameMode.Match); },
-                onJoin: () => { Destroy(go); ShowSessionBrowser(); },
-                onBack: () => { Destroy(go); ShowMultiplayerHub(); },
-                title:  "PLAY A MATCH");
-        }
-
-        // lockedMode: null shows the picker (Other Modes, Match excluded); a value skips it
-        // entirely and goes straight to that mode's own settings (Match, locked).
-        void ShowHostSetup(GameMode? lockedMode = null)
+        void ShowHostSetup(GameMode mode)
         {
             var go = new GameObject("HostSetupUI");
             go.AddComponent<HostSetupUI>().Init(
-                onCreated: () => { Destroy(go); ShowHostStadium(lockedMode); },
-                onBack:    () => { Destroy(go); if (lockedMode.HasValue) ShowMatchSetup(); else ShowOtherModes(); },
-                lockedMode: lockedMode);
+                onCreated: () => { Destroy(go); ShowHostStadium(mode); },
+                onBack:    () => { Destroy(go); ShowHostOrFind(mode); },
+                mode:      mode);
         }
 
         // Host, after Create: pick the stadium on the same screen single player uses, and - for a
         // striker match - size the goal and set the AI keeper on the window beside it. Both are
         // written into the session config on the way to the lobby, so every joiner inherits them.
-        // Back ends the just-created session and returns to the host setup.
-        void ShowHostStadium(GameMode? lockedMode)
+        // Back ends the just-created session and returns to the host setup. `mode` is the one
+        // Host Setup was locked to, which is exactly what it wrote into the session config.
+        void ShowHostStadium(GameMode mode)
         {
             var s = Trickshot.Net.Multiplayer.Session;
-            if (s == null) { ShowHostSetup(lockedMode); return; }
-            var mode = (GameMode)s.Config.mode;
+            if (s == null) { ShowHostSetup(mode); return; }
             // Match sizes its goal here too, on the same widget Striker uses. It does NOT take the
             // keeper level from this screen the way Striker does: a Match keeper is a roster slot
             // picked in the lobby (human or per-slot AI), so writing keeperAbility here would
@@ -252,18 +239,19 @@ namespace Trickshot
                     s.SetConfig(cfg);
                     Destroy(go); ShowLobby();
                 },
-                onBack: () => { Destroy(go); Trickshot.Net.Multiplayer.End(); ShowHostSetup(lockedMode); },
+                onBack: () => { Destroy(go); Trickshot.Net.Multiplayer.End(); ShowHostSetup(mode); },
                 goalPanel: goalPanel,
                 goalW: SimConfig.GoalWidthBase * sw, goalH: SimConfig.GoalHeightBase * sh,
                 keeperLevel: SimConfig.NearestAiLevel(cfg0.keeperAbility));
         }
 
-        void ShowSessionBrowser()
+        void ShowSessionBrowser(GameMode mode)
         {
             var go = new GameObject("SessionBrowserUI");
             go.AddComponent<SessionBrowserUI>().Init(
                 onJoined: () => { Destroy(go); ShowLobby(); },
-                onBack:   () => { Destroy(go); ShowMultiplayerHub(); });
+                onBack:   () => { Destroy(go); ShowHostOrFind(mode); },
+                mode:     mode);
         }
 
         void ShowLobby()
@@ -378,10 +366,13 @@ namespace Trickshot
             }
             else if (mode == GameMode.Accuracy)
             {
-                // Same dead-ball knobs as set pieces, plus the wall size + target count.
+                // Goal size, and whether there is a keeper at all. Accuracy has no wall and no
+                // target count any more, and its keeper ABILITY is written per round by the driver
+                // rather than read from the config - so the config only says none-or-ramping, as a
+                // negative keeperAbility (see HostSetupUI).
                 ApplyConfigGoal(cfg);
-                SimConfig.WallCount = cfg.accWallCount;
-                SimConfig.AccuracyTargetCount = Mathf.Max(1, cfg.accTargets);
+                SimConfig.WallCount = 0;
+                SimConfig.AccuracyNoKeeper = cfg.keeperAbility < 0f;
             }
             else if (mode == GameMode.Striker)
             {
@@ -473,16 +464,44 @@ namespace Trickshot
                                 if (PicksSpecies(mode)) ShowSpeciesSelect(mode); else ShowStadiumSelect(mode); });
         }
 
+        // Accuracy forks before the pre-match screen: PRACTICE goes on to it, CHALLENGE has nothing
+        // to configure and starts the run directly. Every other mode goes straight to pre-match.
         void ShowPrematch(GameMode mode)
+        {
+            if (mode == GameMode.Accuracy) { ShowAccuracyModePick(); return; }
+            ShowPrematchPanel(mode);
+        }
+
+        void ShowAccuracyModePick()
+        {
+            var go = new GameObject("AccuracyModeUI");
+            var am = go.AddComponent<AccuracyModeUI>();
+            am.Init(
+                // Both go to the pre-match panel now: it branches on SimConfig.AccuracyPractice
+                // and gives the challenge a cut-down screen (a LOCKED regulation goal, since a
+                // scored run has to be played on one goal, and a keeper yes/no - the only thing
+                // about a challenge that is the player's to choose).
+                onPractice:  () => { Destroy(go); ShowPrematchPanel(GameMode.Accuracy); },
+                onChallenge: () => { Destroy(go); ShowPrematchPanel(GameMode.Accuracy); },
+                onBack:      () => { Destroy(go);
+                                     if (UsesCustomPlayer(GameMode.Accuracy)) ShowCustomize(GameMode.Accuracy);
+                                     else ShowStadiumSelect(GameMode.Accuracy); });
+        }
+
+        void ShowPrematchPanel(GameMode mode)
         {
             var go = new GameObject("PrematchUI");
             var pm = go.AddComponent<PrematchUI>();
             pm.Init(mode,
                 onStart: m => { Destroy(go); BuildMode(m); },
-                // Back goes to the previous screen: Customize for any mode with a customizable
-                // player (all of them now, keeper included), else the stadium picker. Branch here
-                // rather than via AfterStadium, which is a forward-router to Prematch.
-                onBack:  () => { Destroy(go); if (UsesCustomPlayer(mode)) ShowCustomize(mode); else ShowStadiumSelect(mode); });
+                // Back goes to the previous screen: the Practice/Challenge fork for Accuracy (which
+                // is what opened this panel), else Customize for any mode with a customizable player
+                // (all of them now, keeper included), else the stadium picker. Branch here rather
+                // than via AfterStadium, which is a forward-router to Prematch.
+                onBack:  () => { Destroy(go);
+                                 if (mode == GameMode.Accuracy) ShowAccuracyModePick();
+                                 else if (UsesCustomPlayer(mode)) ShowCustomize(mode);
+                                 else ShowStadiumSelect(mode); });
         }
 
         // Tears down the running match (match objects + camera controller) and restores
@@ -602,6 +621,21 @@ namespace Trickshot
             // Single-goal venues use the regulation training pitch footprint. Reset in case a
             // prior Match-mode run repointed PitchLayout at its own field.
             PitchLayout.ResetToTraining();
+
+            // The accuracy CHALLENGE never opens the pre-match screen, so nothing has run
+            // PrematchUI.Apply for it - and the statics still hold whatever the last mode (very
+            // likely an accuracy PRACTICE session, which sizes the goal by hand) left in them. A
+            // scored run has to be played on the regulation goal at standard pace whatever came
+            // before it. This has to happen HERE, above Arena.Build: that is what builds the goal
+            // frame, net and backstops at the current size. Practice keeps what its setup wrote.
+            if (mode == GameMode.Accuracy && !SimConfig.AccuracyPractice)
+            {
+                SimConfig.GoalWidth  = SimConfig.GoalWidthBase;
+                SimConfig.GoalHeight = SimConfig.GoalHeightBase;
+                SimConfig.BallSpeedMul = 1f;
+                SimConfig.StrikerMoveSpeed = SimConfig.StrikerMoveSpeedBase;
+                SimConfig.WallCount = 0;
+            }
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
             // All single-goal modes play on the OPEN full pitch: no boundary walls. The old
@@ -876,10 +910,11 @@ namespace Trickshot
             return keeper;
         }
 
-        // ------------------------------------------------------- Accuracy (free kicks)
-        // Accuracy is a free-kick shooting gallery: a dead ball struck with the SetPieceTaker at
-        // pop-up targets in the goal. Same rig as the free-kick build, except the wall and the
-        // keeper are OPTIONAL (pre-match: wall players 0 = no wall, keeper ability 0 = no keeper).
+        // ------------------------------------------------------- Accuracy (three strikes)
+        // Accuracy is a solo strikes run: one dead-ball free kick per round at a single patrolling
+        // target, from a random spot in the shot band. No wall, and the keeper is ALWAYS
+        // built - his ability is set per round by the driver (starting at 1%), so the ability-0
+        // skip the other dead-ball modes use would leave the run permanently keeperless.
         void BuildAccuracyMode(Transform root, Camera cam, GameCamera gameCam,
                                BallController ball, Arena.Refs arena)
         {
@@ -887,22 +922,41 @@ namespace Trickshot
             dribble.Enabled = false;
             dribble.SetPieceActive = true;   // the parked ball is never magnet-captured to the feet
 
-            // Keeper ability 0 = no goalkeeper at all (open goal, pure target practice).
+            // No keeper asked for (either screen's keeper row): build none at all, in both modes.
+            // PRACTICE otherwise uses the ordinary guard, since its picker's "None" is ability 0.
+            // CHALLENGE otherwise builds unconditionally: its ability is rewritten by
+            // AccuracyGame.BeginRound before every shot, and tier 0 sits right on the build guard's
+            // threshold, so the guard alone would leave the whole run keeperless.
             Goalkeeper keeper = null; ActiveRagdoll keeperRagdoll = null;
-            if (SimConfig.KeeperAbility > 0.001f)
+            if (SimConfig.AccuracyNoKeeper)
+            {
+                SimConfig.KeeperAbility = 0f;
+            }
+            else if (SimConfig.AccuracyPractice)
+            {
                 keeper = BuildAiKeeper(root, ball, out keeperRagdoll);
+            }
+            else
+            {
+                SimConfig.KeeperAbility = SimConfig.AccuracyKeeperAbility(1);
+                keeper = BuildAiKeeper(root, ball, out keeperRagdoll, alwaysBuild: true);
+            }
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
             gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
             ball.SetCamera(gameCam);
             striker.SetCameraYaw(() => gameCam.Yaw, () => gameCam.Pitch);
 
-            // Wall object is always created; AccuracyGame only BUILDS blockers when WallCount > 0.
-            var wall = new DefensiveWall();
             var go = new GameObject("AccuracyGame");
             go.transform.SetParent(root, true);
+            // The challenge end card offers Match Setup and Main Menu: the SAME closures the pause
+            // menu is built with below, so the card is a shortcut to paths that already work.
+            // Match Setup reopens the Practice/Challenge fork (ShowPrematch routes Accuracy there),
+            // which is exactly what the pause menu's own entry does for this mode.
             go.AddComponent<AccuracyGame>()
-              .Configure(GetInput(), ball, striker, ragdoll, keeper, keeperRagdoll, wall, gameCam);
+              .Configure(GetInput(), ball, striker, ragdoll, keeper, keeperRagdoll, gameCam,
+                         onMatchSetup: () => ReturnToMatchSetup(GameMode.Accuracy),
+                         onMainMenu:   ReturnToMainMenu);
 
             LockCursor();
         }

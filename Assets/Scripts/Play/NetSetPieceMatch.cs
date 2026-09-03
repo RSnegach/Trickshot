@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Trickshot.Net;
 
@@ -24,21 +24,48 @@ namespace Trickshot
 
         // ---- ACCURACY mode ----
         // The networked ACCURACY competition is the same dead-ball rig as the set-piece shootout
-        // (keeper slot 0 human/AI/none + shooters taking turns), with three differences:
-        //   * shooters score the POP-UP TARGETS they hit, not goals (see _board);
-        //   * a turn ends on a host-chosen kick count OR a per-turn timer, not a fixed 10 shots;
-        //   * the ball just re-arms after each attempt (there is no goal/save/miss verdict).
+        // (keeper slot 0 human/AI/none + shooters taking turns), running the SAME three-strikes
+        // game as single player (see AccuracyGame) one player at a time:
+        //   * each round is ONE kick from a random spot in the shot band at a single
+        //     patrolling target, and clearing it needs the ball in the goal AND through the target;
+        //   * anything else is a strike, and a shooter is eliminated on their third;
+        //   * difficulty comes from the shooter's OWN round number, so everyone meets the same
+        //     ladder (SimConfig.AccuracyTier and friends) regardless of turn order;
+        //   * an eliminated shooter gets their end screen, then play cycles to the next one.
         // Set by NetAccuracyMatch before Configure, so all the shared netcode below is reused.
+        //
+        // WIRE REUSE: the shootout tally already syncs scored[]/taken[] per slot, so accuracy sends
+        // its score in scored[] and its STRIKES in taken[] rather than growing the packet. That is
+        // also why ShooterDone tests taken[] against AccuracyStrikes.
         public bool AccuracyMode;
         AccuracyBoard _board;          // host: the live target board (authoritative hit detection)
-        int _accKicks = 10;            // kicks per turn when not timed
-        bool _accByTime;
-        float _accTurnSeconds = 60f;
-        float _turnClock;              // host: seconds left in the active shooter's timed turn
-        bool _hitThisKick;             // host: did the live attempt score a target? (also the
-                                       // one-target-per-kick latch - see OnAccuracyScored)
-        float _accReturnTimer;         // host: >0 while waiting to put the ball back at the shooter
-        const float AccuracyReturnDelay = 0.25f;   // ball is back at the feet this long after a kick
+        bool _hitThisKick;             // host: did the live attempt pass through the target? (also
+                                       // the one-target-per-kick latch - see OnAccuracyScored)
+        float _accReturnTimer;         // host: >0 while waiting to start the next round
+        const float AccuracyReturnDelay = 0.9f;   // beat between a resolved shot and the next round
+
+        // Host: the round each shooter is on (1-based), which drives their difficulty. Kept
+        // separate from scored[]/taken[] so it reads clearly; it is always score + strikes + 1.
+        int AccuracyRound(int slot) => _scored[slot] + _taken[slot] + 1;
+
+        // The slot whose END SCREEN is showing, and how long is left on it. Elimination is the only
+        // thing that pauses the rotation, so one timer covers it.
+        byte _accEliminated = 255;
+        const float AccuracyEndScreenHold = 4f;
+
+        // SUDDEN DEATH (host format option). Same three strikes, but the shooters CYCLE one shot at
+        // a time in a shuffled order instead of each playing a whole run out, and the match ends the
+        // moment one player is left standing rather than when everyone has finished.
+        //
+        // The all-out case is the reason a cycle is tracked at all: if the last survivors all take
+        // their third strike within the same cycle there is no last player standing, so that cycle
+        // is VOIDED - the strike it added is given back to everyone who was still alive at the start
+        // of it - and the round replays until it separates them.
+        bool _accSuddenDeath;
+        readonly int[] _accCycleStrikes = new int[NetSession.MaxSlots];  // strikes each had when the cycle began
+        readonly System.Collections.Generic.List<int> _accCycleOrder = new System.Collections.Generic.List<int>();
+        int _accCycleIdx;             // how many of this cycle's shooters have shot
+        uint _accShuffleSeed = 1u;
 
         class Body
         {
@@ -144,13 +171,19 @@ namespace Trickshot
             // the ball physics, and its board is seeded from the config so layouts match.
             if (AccuracyMode)
             {
-                _accByTime = cfg.accTurnByTime;
-                _accKicks = Mathf.Clamp(cfg.accTurnKicks, 1, 100);
-                _accTurnSeconds = Mathf.Clamp(cfg.accTurnSeconds, 10, 120);
+                _accSuddenDeath = cfg.accSuddenDeath;
                 _board = new AccuracyBoard();
                 if (_s.IsHost) _board.Scored += OnAccuracyScored;
-                _board.Build(transform, Mathf.Max(1, cfg.accTargets), cfg.fkSeed | 1u);
-                _board.SpawnAll();
+                // ONE target, and the only host setting is the format: the ladder is the round number.
+                _board.Build(transform, 1, cfg.fkSeed | 1u);
+                _accShuffleSeed = cfg.fkSeed | 1u;   // synced, so every peer shuffles alike
+
+                // The SAME SHOT for every shooter: maxed shooting/control, and every body-derived
+                // baseline evaluated at the default height and weight - so a run measures aim, not
+                // somebody's skill tree or their body sliders. Both override a computed result,
+                // never the saved profile. Cleared in OnDestroy.
+                SkillTree.MaxShootingOverride = true;
+                PlayerProfile.UniformBodyOverride = true;
             }
             _ball.SetPieceShot = true;   // arcadey loft + curl + stat-scaled assist
             _s.MatchEvent += OnMatchEvent;
@@ -169,6 +202,19 @@ namespace Trickshot
 
             var me = _bodies[_localSlot];
             _localIsKeeper = me != null && me.isKeeper;
+
+            // A HUMAN KEEPER in accuracy is handicapped two ways, and both have to wait until the
+            // roster says whether the local player is one:
+            //   1. He cannot SEE the target - it would tell him exactly where the shot has to go,
+            //      which is the shooter's whole problem. Visual only; the trigger stays live and the
+            //      host's board is what scores. Shooters and spectators see it normally.
+            //   2. He moves, dives and lunges at AccuracyKeeperHandicap of normal, because a human
+            //      is otherwise a far better keeper than the AI ladder this mode is balanced around.
+            if (AccuracyMode && _localIsKeeper)
+            {
+                _board?.SetVisualHidden(true);
+                ApplyAccuracyKeeperHandicap();
+            }
             if (me != null && me.ragdoll != null && me.ragdoll.Pelvis != null)
             {
                 // No crosser in this mode (matches single-player Set Pieces/Accuracy), but the real
@@ -195,13 +241,23 @@ namespace Trickshot
             // Defensive wall: built on EVERY peer from the synced points so clients see + can
             // aim around it (the host owns the ball physics + hop; the client wall is a visual/
             // collision stand-in that just sits there). Host also arms the first turn.
-            _wall = new DefensiveWall();
-            _wall.Build(root, _ballSpot, _wallCenter, SimConfig.WallCount);   // host-placed centre
+            // ACCURACY NEVER HAS A WALL. Leaving _wall null is what guarantees it: SimConfig
+            // .WallCount is a shared mutable static and every Build call site below reads it live,
+            // so "it happens to be 0" is a weaker promise than having nothing to build. Every use
+            // of _wall in this file is already null-guarded.
+            if (!AccuracyMode)
+            {
+                _wall = new DefensiveWall();
+                _wall.Build(root, _ballSpot, _wallCenter, SimConfig.WallCount);   // host-placed centre
+            }
             if (_s.IsHost)
             {
                 _ball.ResetTo(_ballSpot);
-                if (_shooterSlots.Count > 0) BeginTurn(0);
-                else { _activeShooter = 255; _over = true; }
+                // Sudden death opens its first shuffled cycle rather than starting on shooter 0,
+                // so the running order is randomised from the very first shot.
+                if (_shooterSlots.Count == 0) { _activeShooter = 255; _over = true; }
+                else if (AccuracyMode && _accSuddenDeath) BeginSuddenDeathCycle();
+                else BeginTurn(0);
                 BroadcastShootout();
             }
 
@@ -347,6 +403,15 @@ namespace Trickshot
         {
             if (tag == "WHISTLE") { AudioManager.Instance?.PlayWhistle(); return; }   // ref call, no HUD splash
             if (tag == "MISS") { AudioManager.Instance?.PlayMissBoosMaybe(); return; }
+            // "ACCOUT:<slot>:<score>" puts up a knocked-out shooter's end screen (see
+            // BroadcastAccuracyOut). It carries data, not a message, so it never goes to Flash.
+            if (tag.StartsWith("ACCOUT:"))
+            {
+                var bits = tag.Split(':');
+                if (bits.Length == 3 && int.TryParse(bits[1], out int slot) && int.TryParse(bits[2], out int sc))
+                    ShowAccuracyOut(slot, sc);
+                return;
+            }
             Flash(tag);
         }
         // Client: 3D kick thud at the host-reported contact point (10 m rolloff, per-player).
@@ -436,10 +501,10 @@ namespace Trickshot
                 // Shooter left: mark finished so the rotation skips them, then remove the body.
                 if (_s.IsHost)
                 {
-                    // Mark BOTH completion conditions. ShooterDone measures a different one per mode,
-                    // and clearing the body is what actually makes it stick (see ShooterDone).
-                    _taken[i] = Mathf.Max(ShotsEach, _accKicks);
-                    _turnPlayed[i] = true;
+                    // Mark the shooter finished so the rotation skips them. Both modes read taken[]
+                    // (shots in set pieces, strikes in accuracy), so one write covers both; clearing
+                    // the body below is what actually makes it stick (see ShooterDone).
+                    _taken[i] = Mathf.Max(ShotsEach, SimConfig.AccuracyStrikes);
                     bool wasActive = i == _activeShooter;
                     if (b.ragdoll != null) Destroy(b.ragdoll.gameObject);
                     _bodies[i] = null;
@@ -499,6 +564,11 @@ namespace Trickshot
                 if (_wall != null) _wall.Build(_root, _ballSpot, _wallCenter, SimConfig.WallCount);
             }
 
+            // Accuracy: pick this round's spot and difficulty FIRST, so the body placement below
+            // uses the real spot. (Doing it after would place everyone against the previous round's
+            // spot and rely on the re-arm to move the shooter back.)
+            if (AccuracyMode) SetUpAccuracyRound();
+
             for (int i = 1; i < NetSession.CrosserSlot; i++)
             {
                 var b = _bodies[i];
@@ -526,15 +596,6 @@ namespace Trickshot
             _taker.Reset();
             _aiKickDelay = Random.Range(0.6f, 1.4f);
             _armedElapsed = 0f;
-            // Accuracy: fresh turn clock + a full board of targets for the new shooter, so every
-            // player gets the same start conditions.
-            if (AccuracyMode)
-            {
-                _turnClock = _accTurnSeconds;
-                _hitThisKick = false;
-                _accReturnTimer = 0f;   // drop any pending ball-return from the previous turn
-                _board?.SpawnAll();
-            }
 
             // Whistle as the shooter is set behind the ball (first turn + each new turn). Host plays
             // locally and broadcasts so every client hears the same ref call.
@@ -542,16 +603,135 @@ namespace Trickshot
             _s.BroadcastEvent("WHISTLE");
         }
 
+        // The between-rounds beat expired. Who shoots next depends on the format: the STRIKES game
+        // keeps the same shooter until they are out, while SUDDEN DEATH always hands on after one
+        // shot. Either way an elimination clears the end screen first.
+        void AccuracyBeatOver()
+        {
+            bool wasEliminated = _accEliminated != 255;
+            _accEliminated = 255;
+            _accReturnTimer = 0f;
+
+            if (!_accSuddenDeath)
+            {
+                // Strikes: the same shooter plays on until their third strike ends their run.
+                if (wasEliminated) AdvanceTurn();
+                else BeginAccuracyRound();
+                return;
+            }
+
+            // Sudden death: one shot per visit, so the turn always moves on.
+            _accCycleIdx++;
+            AdvanceTurn();
+        }
+
+        // End of a full cycle through everyone who was alive when it started. If that cycle wiped
+        // out ALL of them, nobody can be declared last standing, so the cycle is undone and replayed;
+        // otherwise a fresh cycle begins over the survivors.
+        void CloseSuddenDeathCycle()
+        {
+            bool anyAlive = false;
+            for (int i = 0; i < _accCycleOrder.Count; i++)
+                if (!ShooterDone(_accCycleOrder[i])) { anyAlive = true; break; }
+
+            // The replay only makes sense when a cycle wiped out MORE THAN ONE player at once: that
+            // is the case with no last-one-standing to declare. A lone shooter finishing their run
+            // is simply the end of the match.
+            if (!anyAlive && _accCycleOrder.Count > 1)
+            {
+                // Everyone still in went out together: give back the strike this cycle added to
+                // each of them and replay it, so the round decides a winner rather than a draw.
+                for (int i = 0; i < _accCycleOrder.Count; i++)
+                {
+                    int slot = _accCycleOrder[i];
+                    _taken[slot] = _accCycleStrikes[slot];
+                }
+                Announce("ALL OUT - ROUND REPLAYED");
+                BroadcastShootout();
+            }
+
+            BeginSuddenDeathCycle();
+        }
+
+        // Snapshot who is alive, shuffle them, and start the cycle on the first of them. Ends the
+        // match here when only one player is left - that player is the winner.
+        void BeginSuddenDeathCycle()
+        {
+            _accCycleOrder.Clear();
+            for (int i = 0; i < _shooterSlots.Count; i++)
+                if (!ShooterDone(_shooterSlots[i])) _accCycleOrder.Add(_shooterSlots[i]);
+
+            // Last player standing: the match is over. "Standing" needs somebody to have been
+            // knocked DOWN, though - with a lone shooter in the lobby there is nobody to outlast,
+            // so that is played as an ordinary strikes run and ends when their run does, rather
+            // than declaring them the survivor before they have taken a shot.
+            bool soloLobby = _shooterSlots.Count <= 1;
+            if (_accCycleOrder.Count == 0 || (_accCycleOrder.Count == 1 && !soloLobby))
+            {
+                EndShootout();
+                return;
+            }
+
+            // Fisher-Yates on the synced LCG, so the order is the same on every peer and changes
+            // between cycles rather than repeating the first one forever.
+            for (int i = _accCycleOrder.Count - 1; i > 0; i--)
+            {
+                int j = Mathf.Min(i, (int)(NextShuffle() * (i + 1)));
+                int tmp = _accCycleOrder[i]; _accCycleOrder[i] = _accCycleOrder[j]; _accCycleOrder[j] = tmp;
+            }
+
+            for (int i = 0; i < _accCycleOrder.Count; i++)
+                _accCycleStrikes[_accCycleOrder[i]] = _taken[_accCycleOrder[i]];
+
+            _accCycleIdx = 0;
+            BeginTurnForSlot(_accCycleOrder[0]);
+        }
+
+        float NextShuffle()
+        {
+            _accShuffleSeed = _accShuffleSeed * 1664525u + 1013904223u;
+            return (_accShuffleSeed >> 8) / 16777216f;
+        }
+
+        // Sudden death drives the order itself, so it needs to begin a turn by SLOT rather than by
+        // index into _shooterSlots.
+        void BeginTurnForSlot(int slot)
+        {
+            int idx = _shooterSlots.IndexOf(slot);
+            if (idx < 0) { EndShootout(); return; }
+            BeginTurn(idx);
+            BroadcastShootout();
+        }
+
         // Advance to the next live shooter that still has attempts left; end the match if none.
         void AdvanceTurn()
         {
+            // Sudden death runs its own shuffled cycle rather than the round-robin below.
+            if (AccuracyMode && _accSuddenDeath)
+            {
+                while (_accCycleIdx < _accCycleOrder.Count)
+                {
+                    int slot = _accCycleOrder[_accCycleIdx];
+                    // Skip anyone knocked out earlier in this same cycle.
+                    if (!ShooterDone(slot)) { BeginTurnForSlot(slot); return; }
+                    _accCycleIdx++;
+                }
+                CloseSuddenDeathCycle();
+                return;
+            }
+
             for (int step = 1; step <= _shooterSlots.Count; step++)
             {
                 int idx = (_turnIdx + step) % _shooterSlots.Count;
                 if (!ShooterDone(_shooterSlots[idx])) { BeginTurn(idx); BroadcastShootout(); return; }
             }
-            // Everyone finished their 10. Restore the last shooter's ball collision + reset the
-            // taker (no more BeginTurn will run to do it), so nothing leaks if the scene is reused.
+            EndShootout();
+        }
+
+        // Everyone is finished. Restore the last shooter's ball collision + reset the taker (no more
+        // BeginTurn will run to do it), so nothing leaks if the scene is reused.
+        void EndShootout()
+        {
             _takerArmed = false;
             _taker.Reset();
             for (int i = 1; i < NetSession.CrosserSlot; i++)
@@ -576,12 +756,10 @@ namespace Trickshot
             // moves, and the match sat there until the turn clock ran out (or forever, in kicks mode).
             var b = (slot >= 0 && slot < _bodies.Length) ? _bodies[slot] : null;
             if (b == null || !b.isShooter) return true;
-            if (!AccuracyMode) return _taken[slot] >= ShotsEach;
-            if (!_accByTime) return _taken[slot] >= _accKicks;
-            return _turnPlayed[slot];
+            // Accuracy: a shooter is out for good on their third strike (strikes ride in taken[]).
+            if (AccuracyMode) return _taken[slot] >= SimConfig.AccuracyStrikes;
+            return _taken[slot] >= ShotsEach;
         }
-
-        readonly bool[] _turnPlayed = new bool[NetSession.MaxSlots];   // timed accuracy: turn finished
 
         // A target was struck during the active shooter's live attempt: bank the points to that
         // shooter and flash it to every peer. Host only (its board is authoritative); the tally
@@ -589,10 +767,11 @@ namespace Trickshot
         void OnAccuracyScored(int points, int index)
         {
             if (_activeShooter >= NetSession.MaxSlots) return;
-            // ONE target per kick: ignore further triggers once this attempt has scored, so a ball
-            // rolling around the goal mouth can't collect extra targets off a single shot.
+            // ONE target per kick: ignore further triggers once this attempt has hit, so a ball
+            // rolling around the goal mouth can't re-trigger off a single shot. This only LATCHES -
+            // the round is graded in ResolveAttempt, because hitting the target scores nothing
+            // without the goal to go with it.
             if (_hitThisKick) return;
-            _scored[_activeShooter] += points;
             _hitThisKick = true;
             // No BroadcastShootout here: taken[] hasn't moved yet, and broadcasting scored[] alone
             // desyncs OnShootoutUpdated's per-attempt delta (it'd see dt=0 now, then dt=1/dg=0 at
@@ -760,24 +939,13 @@ namespace Trickshot
 
             if (!_over) HostTickAttempt();
 
-            // Accuracy: keep the target board popping, and run the TIMED turn clock. The clock only
-            // ends the turn between kicks (in the Armed phase) so a shot already in flight always
-            // gets to score first.
-            if (AccuracyMode && !_over)
+            // Accuracy: run the beat between rounds. ONE timer covers both cases - it is simply
+            // set longer when the shot that just resolved knocked a player out, because that wait
+            // is their END SCREEN. What happens when it expires is decided by who is still in.
+            if (AccuracyMode && !_over && _accReturnTimer > 0f)
             {
-                _board?.Tick(Time.deltaTime);
-                // Post-attempt ball return: hold briefly, then put the ball + shooter back on the
-                // spot for the next kick.
-                if (_accReturnTimer > 0f)
-                {
-                    _accReturnTimer -= Time.deltaTime;
-                    if (_accReturnTimer <= 0f) ReArmAccuracyKick();
-                }
-                if (_accByTime && _activeShooter != 255)
-                {
-                    _turnClock -= Time.deltaTime;
-                    if (_turnClock <= 0f && _phase == Phase.Armed) EndActiveTurn();
-                }
+                _accReturnTimer -= Time.deltaTime;
+                if (_accReturnTimer <= 0f) AccuracyBeatOver();
             }
 
             PublishSnapshotIfDue();
@@ -925,25 +1093,46 @@ namespace Trickshot
         // when the hold/replay ends (OnReplayEnded).
         void ResolveAttempt(bool goal)
         {
-            _taken[_activeShooter]++;
-
-            // ---- ACCURACY: no goal/save verdict and no replay between kicks. Points were already
-            // banked per target as they were struck; use the free-kick audio rules (a scored kick
-            // reacts like a goal, a blank kick like a miss), then either re-arm for this shooter's
-            // next kick or hand the turn on.
+            // ---- ACCURACY: grade the round. Clearing it needs BOTH halves - in the goal and
+            // through the target - and every other outcome is a strike, a scored goal that missed
+            // the disc included. No replay between rounds; the strike tally IS the verdict.
+            //
+            // The shared taken[]++ below is deliberately NOT run first here: in this mode taken[]
+            // counts STRIKES, so a cleared round must not touch it.
             if (AccuracyMode)
             {
-                if (goal) AudioManager.Instance?.OnSetPieceGoal(_activeShooter);
-                else { if (_save.Touched) Announce(_save.Callout()); AudioManager.Instance?.OnSetPieceMiss(_activeShooter); }
+                // TERSE callouts, matching single player: the outcome and nothing else. The round
+                // number and the strike pips are both already on the accuracy board, which is up
+                // for the whole match - so spelling them out again in a 1.6 s pill only made the
+                // line too long to read before it faded.
+                if (goal)
+                {
+                    _scored[_activeShooter]++;
+                    Announce("GOAL");
+                    AudioManager.Instance?.OnSetPieceGoal(_activeShooter);
+                }
+                else
+                {
+                    _taken[_activeShooter]++;
+                    Announce("STRIKE " + _taken[_activeShooter]);
+                    AudioManager.Instance?.OnSetPieceMiss(_activeShooter);
+                }
+                _board?.HideAll();
                 BroadcastShootout();
-                bool kicksDone = !_accByTime && _taken[_activeShooter] >= _accKicks;
-                if (kicksDone) { EndActiveTurn(); return; }
-                // Ball returns to the shooter's feet a beat (AccuracyReturnDelay) after the attempt
-                // resolves, rather than snapping back instantly. Settle holds until the timer fires.
+
+                // Third strike: hold on this shooter's end screen before the turn moves on.
+                bool out_ = _taken[_activeShooter] >= SimConfig.AccuracyStrikes;
+                if (out_)
+                {
+                    _accEliminated = (byte)_activeShooter;
+                    BroadcastAccuracyOut(_activeShooter, _scored[_activeShooter]);
+                }
                 _phase = Phase.Settle;
-                _accReturnTimer = AccuracyReturnDelay;
+                _accReturnTimer = out_ ? AccuracyEndScreenHold : AccuracyReturnDelay;
                 return;
             }
+
+            _taken[_activeShooter]++;
 
             if (goal) { _scored[_activeShooter]++; Announce("GOAL!"); }
             else if (_save.Touched) Announce(_save.Callout());
@@ -953,8 +1142,44 @@ namespace Trickshot
             _goalHold = SimConfig.ReplayHold;   // brief live hold, then replay, then AdvanceTurn
         }
 
-        // Accuracy: put the ball back on the spot for the SAME shooter's next kick (targets stay up
-        // and keep re-popping), without the turn rotation or the replay hold.
+        // Accuracy: choose the active shooter's round - a fresh random spot in the band, a target
+        // sized and paced for their tier, and a keeper set to match. Difficulty comes from THEIR own
+        // round number, so turn order never changes how hard a round is. Placing the bodies against
+        // the new spot is the caller's job.
+        void SetUpAccuracyRound()
+        {
+            _hitThisKick = false;
+            _accReturnTimer = 0f;
+            if (_activeShooter >= NetSession.MaxSlots) return;
+
+            int round = AccuracyRound(_activeShooter);
+            SimConfig.KeeperAbility = SimConfig.AccuracyKeeperAbility(round);
+            // The spot is host-authoritative and rides the snapshot like any other body position,
+            // so clients need no seed of their own for it.
+            _ballSpot = RandomAccuracySpot();
+            _board?.SpawnPatrol(SimConfig.AccuracyTargetRadius(round), SimConfig.AccuracyTargetSpeed(round));
+        }
+
+        // Accuracy: start the SAME shooter's next round mid-turn (the strikes format, where a run
+        // continues until the third strike). BeginTurn does its own placement, so this is the only
+        // path that has to move the bodies itself.
+        void BeginAccuracyRound()
+        {
+            SetUpAccuracyRound();
+            ReArmAccuracyKick();
+        }
+
+        // A spot inside the D - the same band single player uses (see AccuracyGame.RandomSpot).
+        // The far edge is an ARC, so x comes first and the depth is drawn against that column's own
+        // reach (SimConfig.AccuracySpotFarAt).
+        Vector3 RandomAccuracySpot()
+        {
+            float x = Random.Range(-SimConfig.AccuracySpotHalfW, SimConfig.AccuracySpotHalfW);
+            float dist = Random.Range(SimConfig.AccuracySpotNear, SimConfig.AccuracySpotFarAt(x));
+            return new Vector3(x, SimConfig.BallRadius, SimConfig.GoalCenter.z - dist);
+        }
+
+        // Put the ball + shooter on the current _ballSpot and re-arm the taker.
         void ReArmAccuracyKick()
         {
             var b = _activeShooter < NetSession.MaxSlots ? _bodies[_activeShooter] : null;
@@ -983,12 +1208,6 @@ namespace Trickshot
             _s.BroadcastEvent("WHISTLE");
         }
 
-        // Accuracy: mark the active shooter's turn finished and move on.
-        void EndActiveTurn()
-        {
-            if (_activeShooter < NetSession.MaxSlots) _turnPlayed[_activeShooter] = true;
-            AdvanceTurn();
-        }
 
         void PublishSnapshotIfDue()
         {
@@ -1121,6 +1340,14 @@ namespace Trickshot
                    && Mathf.Abs(c.x) <= halfW - r && c.y >= r && c.y <= SimConfig.GoalHeight - r;
         }
 
+        // Accuracy: slow the LOCAL human keeper's every movement. Set on the local peer only -
+        // it scales that client's own controller, and the host re-simulates from the input it
+        // sends, so a slower body produces slower input and no second write is needed.
+        void ApplyAccuracyKeeperHandicap()
+        {
+            SimConfig.HumanKeeperSpeedMul = SimConfig.AccuracyKeeperHandicap;
+        }
+
         // Slot 0 is the keeper: its ragdoll, and whether it is mid big-reach right now (human
         // keeper or AI Clanker - both get EPIC SAVE, the callout is about the stop, not who made it).
         ActiveRagdoll KeeperRagdoll() => _bodies[0] != null ? _bodies[0].ragdoll : null;
@@ -1135,6 +1362,28 @@ namespace Trickshot
         // Broadcast a callout AND flash it locally: BroadcastEvent only fires MatchEvent on clients,
         // so without the local flash the host is the one player who never sees its own verdict.
         void Announce(string tag) { _s.BroadcastEvent(tag); Flash(tag); }
+
+        // A shooter is out. Every peer shows the same end screen for AccuracyEndScreenHold, so the
+        // player who just went out sees their own final score and everyone else sees whose run
+        // ended. The slot + score ride in the event tag - the shootout tally that follows carries
+        // the same numbers, but this is what tells a client to put the CARD up at all.
+        void BroadcastAccuracyOut(int slot, int score)
+        {
+            string tag = "ACCOUT:" + slot + ":" + score;
+            _s.BroadcastEvent(tag);
+            ShowAccuracyOut(slot, score);
+        }
+
+        // Local end-screen state (host and clients both, via the event above).
+        int _accOutSlot = -1, _accOutScore;
+        float _accOutUntil;
+
+        void ShowAccuracyOut(int slot, int score)
+        {
+            _accOutSlot = slot;
+            _accOutScore = score;
+            _accOutUntil = Time.unscaledTime + AccuracyEndScreenHold;
+        }
 
         static void LockCursor() => GameInput.CaptureCursor(true);
 
@@ -1152,6 +1401,65 @@ namespace Trickshot
             }
             if (_ball != null) { _ball.SetPieceShot = false; if (_ball.Rb != null) _ball.Rb.isKinematic = false; }
             if (_board != null) { _board.Scored -= OnAccuracyScored; _board.Teardown(); _board = null; }
+            // These are GLOBAL statics this mode borrowed, so they have to go back or the next mode
+            // inherits maxed shooting, a uniform body and a slowed keeper.
+            SkillTree.MaxShootingOverride = false;
+            PlayerProfile.UniformBodyOverride = false;
+            SimConfig.HumanKeeperSpeedMul = SimConfig.HumanKeeperSpeedBase;
+        }
+
+        /// <summary>
+        /// The winning slot from the synced tally, or -1 when nobody can be crowned (a tie, or a
+        /// board with nothing on it). Split out of WinnerText so the accuracy results card and the
+        /// one-line banner cannot disagree about who won - they now ask the same question once.
+        /// </summary>
+        int WinnerSlot()
+        {
+            var st = _s.LatestShootout;
+            if (st.scored == null) return -1;
+
+            // SUDDEN DEATH is won by SURVIVING, not by scoring: the winner is whoever still has a
+            // strike left. (A cycle that eliminates everyone at once is replayed rather than ending
+            // the match - see CloseSuddenDeathCycle - so there is normally exactly one.)
+            if (AccuracyMode && _accSuddenDeath)
+            {
+                int alive = 0, aliveSlot = -1;
+                for (int i = 1; i < NetSession.CrosserSlot; i++)
+                {
+                    if (_bodies[i] == null || !_bodies[i].isShooter) continue;
+                    int tk = i < st.taken.Length ? st.taken[i] : 0;
+                    if (tk < SimConfig.AccuracyStrikes) { alive++; aliveSlot = i; }
+                }
+                if (alive == 1) return aliveSlot;
+                // No survivor at all only happens if the match was ended some other way (everyone
+                // left, say); fall through to the highest score on the board rather than claiming
+                // a winner. (Nothing in this mode tracks a high score - see DrawAccuracyBoard.)
+            }
+
+            int best = -1;
+            for (int i = 0; i < st.scored.Length; i++) best = Mathf.Max(best, st.scored[i]);
+            int winners = 0, winSlot = -1;
+            for (int i = 0; i < st.scored.Length; i++)
+            {
+                // "Played at all" is what taken[] proved in set pieces, where it counts SHOTS. In
+                // accuracy it counts STRIKES, and a player can finish a run without ever taking one
+                // - so there it has to be the roster that says who was playing.
+                bool played = AccuracyMode
+                            ? (i > 0 && i < NetSession.CrosserSlot && _bodies[i] != null && _bodies[i].isShooter)
+                            : st.taken[i] > 0;
+                if (played && st.scored[i] == best) { winners++; winSlot = i; }
+            }
+            return winners == 1 ? winSlot : -1;
+        }
+
+        /// <summary>Best score on the board, or 0 for an empty one.</summary>
+        int BestScore()
+        {
+            var st = _s.LatestShootout;
+            if (st.scored == null) return 0;
+            int best = 0;
+            for (int i = 0; i < st.scored.Length; i++) best = Mathf.Max(best, st.scored[i]);
+            return best;
         }
 
         // Winner text from the synced tally (works on host + client via _s.LatestShootout).
@@ -1159,14 +1467,18 @@ namespace Trickshot
         {
             var st = _s.LatestShootout;
             if (st.scored == null) return "FULL TIME";
-            int best = -1;
-            for (int i = 0; i < st.scored.Length; i++) best = Mathf.Max(best, st.scored[i]);
-            int winners = 0, winSlot = -1;
-            for (int i = 0; i < st.scored.Length; i++)
-                if (st.taken[i] > 0 && st.scored[i] == best) { winners++; winSlot = i; }
-            if (winners != 1) return "TIE  (" + best + ")";
-            // Accuracy is scored in target POINTS (no per-shot denominator).
-            if (AccuracyMode) return RosterName(winSlot) + " WINS  (" + best + " pts)";
+
+            int winSlot = WinnerSlot();
+            int best = BestScore();
+            if (winSlot < 0) return "TIE  (" + best + ")";
+
+            // Sudden death is survived, not won on points - and the survivor's own score is the
+            // number worth printing beside it.
+            if (AccuracyMode && _accSuddenDeath)
+                return RosterName(winSlot) + " SURVIVES  (" +
+                       (winSlot < st.scored.Length ? st.scored[winSlot] : 0) + ")";
+            // Accuracy is scored in ROUNDS CLEARED (no per-shot denominator).
+            if (AccuracyMode) return RosterName(winSlot) + " WINS  (" + best + ")";
             return RosterName(winSlot) + " WINS  (" + best + "/" + ShotsEach + ")";
         }
 
@@ -1197,10 +1509,13 @@ namespace Trickshot
                 : "HOLD Space power   Mouse aim   WASD spin   V ball cam");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
-            // Timed accuracy turns: show the active shooter's clock (host owns it, so only the host
-            // has the live value; clients read the turn from the scoreboard instead).
-            if (AccuracyMode && _accByTime && _s.IsHost && !over && _activeShooter != 255)
-                Hud.Clock(Mathf.Max(0f, _turnClock), urgent: _turnClock <= 10f);
+            // A knocked-out shooter's END SCREEN, shown on every peer for AccuracyEndScreenHold
+            // (see BroadcastAccuracyOut). It sits where the turn clock used to: this mode has no
+            // clock, and an elimination is the thing worth interrupting the HUD for.
+            if (AccuracyMode && !over && _accOutSlot >= 0 && Time.unscaledTime < _accOutUntil)
+                Hud.Banner(RosterName(_accOutSlot) + " IS OUT",
+                           "Score: " + _accOutScore,
+                           _accSuddenDeath ? "Last one standing wins" : "Next player up");
 
             DrawScoreboard(st);
             DrawPowerMeter();
@@ -1234,12 +1549,12 @@ namespace Trickshot
             for (int i = 1; i < NetSession.CrosserSlot; i++) if (_bodies[i] != null && _bodies[i].isShooter) rows++;
             if (rows == 0) { if (st.over) DrawWinnerBanner(); return; }
 
-            // How many attempts this FORMAT gives each shooter. 0 = unbounded (a timed accuracy turn
-            // ends on the clock, not on a kick count). The board used to draw a ten-pip strip in every
-            // mode, because ShotsEach was the only count it knew: in Accuracy that is simply the wrong
-            // number - the host can set 1 to 100 kicks - and the pips also read as goal/miss, which
-            // Accuracy does not have, since one kick there banks a variable number of target points.
-            int attempts = AccuracyMode ? (_accByTime ? 0 : _accKicks) : ShotsEach;
+            // Accuracy reads as a per-player CARD (name, score, strikes under the name) rather than
+            // the shootout's column grid, so it draws its own rows.
+            if (AccuracyMode) { DrawAccuracyBoard(st, rows); return; }
+
+            // What the right-hand strip counts: set pieces pip their ten shots.
+            int attempts = ShotsEach;
             bool pips = attempts > 0 && attempts <= 12;   // beyond that a pip is a sliver; use a bar
 
             float pad = 12f, headH = 34f, colH = 17f, rowH = 34f, w = 340f;
@@ -1247,11 +1562,7 @@ namespace Trickshot
             float panelH = headH + colH + rows * rowH + pad * 2f;
 
             // Themed card + gold section header (Hud.Card draws the header bar and its divider).
-            Hud.Card(new Rect(x - pad, y - pad, w + pad * 2f, panelH),
-                     AccuracyMode
-                         ? (_accByTime ? "ACCURACY   " + _accTurnSeconds.ToString("0") + "s each"
-                                       : "ACCURACY   " + _accKicks + " kicks each")
-                         : "SHOOTOUT   best of " + ShotsEach);
+            Hud.Card(new Rect(x - pad, y - pad, w + pad * 2f, panelH), "SHOOTOUT   best of " + ShotsEach);
 
             var nameSt  = Hud.RowName;
             var goalsSt = Hud.RowValue;
@@ -1265,13 +1576,11 @@ namespace Trickshot
                 if (_bodies[i] != null && _bodies[i].isShooter && i < st.scored.Length)
                     best = Mathf.Max(best, st.scored[i]);
 
-            // Column labels. Accuracy banks POINTS off targets and set pieces count GOALS, so the
-            // score column is named for what it actually holds in this mode.
             float cScoreX = x + w * 0.44f, cScoreW = w * 0.15f;
             float cTakenX = x + w * 0.59f, cTakenW = w * 0.14f;
             float progX   = x + w * 0.75f, progW  = w * 0.25f;
             float cy = y - pad + headH;
-            UITheme.Label(new Rect(cScoreX, cy, cScoreW, colH), AccuracyMode ? "PTS" : "GLS", colSt);
+            UITheme.Label(new Rect(cScoreX, cy, cScoreW, colH), "GLS", colSt);
             UITheme.Label(new Rect(cTakenX, cy, cTakenW, colH), "KCK", colSt);
 
             float ry = cy + colH;
@@ -1302,18 +1611,14 @@ namespace Trickshot
                 float py = ry + (rowH - 10f) * 0.5f;
                 if (pips)
                 {
-                    // One pip per attempt. Set pieces know whether each one went in, so green/red
-                    // tells the whole story. Accuracy does not - a kick banks 0..n points - so the
-                    // strip there just shows kicks used against kicks left.
+                    // One pip per attempt, green if it went in and red if it did not.
                     float gap = 3f, pipW = (progW - gap * (attempts - 1)) / attempts;
                     for (int s = 0; s < attempts; s++)
                     {
-                        Color pc = AccuracyMode
-                                 ? (s < tk ? UITheme.Gold : cEmpty)
-                                 : (s < sc ? cGoal : (s < tk ? cMiss : cEmpty));
+                        Color pc = s < sc ? cGoal : (s < tk ? cMiss : cEmpty);
                         var pr = new Rect(progX + s * (pipW + gap), py, pipW, 10f);
                         UITheme.Fill(pr, pc);
-                        if (!AccuracyMode && s < sc)
+                        if (s < sc)
                             UITheme.Fill(new Rect(pr.x, pr.y, pr.width, 1f), new Color(1f, 1f, 1f, 0.35f));
                     }
                 }
@@ -1330,10 +1635,294 @@ namespace Trickshot
             if (st.over) DrawWinnerBanner();
         }
 
+        // ACCURACY board: one shared card listing every shooter - their name with their STRIKES
+        // as pips directly underneath it, and their score on the right. Nothing else: this is the
+        // whole state of the game, and there is no high score in multiplayer (that is a
+        // single-player career stat, and a session best would just be the leader's score again).
+        //
+        // Everything here comes off the synced ShootoutState, so every peer draws the identical
+        // board - it is one shared scoreboard, not a per-player view.
+        void DrawAccuracyBoard(ShootoutState st, int rows)
+        {
+            // At FULL TIME the results card carries every figure this board does, from the same
+            // tally, and the two overlap at any window narrower than the design width. Hand the
+            // screen over rather than draw both.
+            if (st.over) { DrawWinnerBanner(); return; }
+
+            Color cActive = new Color(0.16f, 0.32f, 0.52f, 0.55f);
+            Color cMiss   = UITheme.Red;
+            Color cEmpty  = new Color(1f, 1f, 1f, 0.14f);
+
+            const float pad = 12f, headH = 34f, colH = 17f, rowH = 46f, w = 340f;
+            float x = Hud.W - w - 22f, y = 84f;
+            float panelH = headH + colH + rows * rowH + pad * 2f;
+
+            Hud.Card(new Rect(x - pad, y - pad, w + pad * 2f, panelH),
+                     _accSuddenDeath ? "SUDDEN DEATH" : "STRIKES");
+
+            var nameSt = Hud.RowName;
+            var scoreSt = Hud.RowValue;
+            var colSt = new GUIStyle(GUI.skin.label)
+            { fontSize = 11, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Faint } };
+
+            float cy = y - pad + headH;
+            UITheme.Label(new Rect(x + w * 0.66f, cy, w * 0.30f, colH), "SCORE", colSt);
+
+            float ry = cy + colH;
+            for (int i = 1; i < NetSession.CrosserSlot; i++)
+            {
+                if (_bodies[i] == null || !_bodies[i].isShooter) continue;
+
+                int sc = i < st.scored.Length ? st.scored[i] : 0;
+                int tk = i < st.taken.Length ? st.taken[i] : 0;
+                bool active = i == _activeShooter && !st.over;
+                bool out_ = tk >= SimConfig.AccuracyStrikes;
+
+                // Lit band plus a gold spine on whoever is up, instead of a text arrow.
+                if (active)
+                {
+                    UITheme.Fill(new Rect(x - pad, ry, w + pad * 2f, rowH), cActive);
+                    UITheme.Fill(new Rect(x - pad, ry, 2.5f, rowH), UITheme.Gold);
+                }
+                else UITheme.Divider(x, ry + rowH - 1f, w);
+
+                // Name on the top line, score right-aligned against it.
+                UITheme.Label(new Rect(x, ry + 2f, w * 0.66f, 24f), "  " + RosterName(i), nameSt);
+                UITheme.Label(new Rect(x + w * 0.66f, ry + 2f, w * 0.30f, 24f), sc.ToString(), scoreSt);
+
+                // Strikes UNDER the name: one pip per strike, red once spent. Disc, not Dot - Dot
+                // wraps its square fill in a glow that bleeds into the neighbouring pips.
+                const float dotR = 5.5f, gap = 7f;
+                float dx = x + 12f, dy = ry + 32f;
+                for (int k = 0; k < SimConfig.AccuracyStrikes; k++)
+                    UITheme.Disc(new Rect(dx + k * (dotR * 2f + gap), dy - dotR, dotR * 2f, dotR * 2f),
+                                 k < tk ? cMiss : cEmpty);
+
+                // Knocked out: dim the whole row so who is still in reads at a glance. Drawn LAST so
+                // it covers the row's own text rather than sitting under it.
+                if (out_)
+                    UITheme.Fill(new Rect(x - pad, ry, w + pad * 2f, rowH), new Color(0f, 0f, 0f, 0.45f));
+
+                ry += rowH;
+            }
+            // No full-time branch here: this method returns early when st.over (see the top), so
+            // reaching the end of the row loop means the match is still live.
+        }
+
         void DrawWinnerBanner()
         {
+            // ACCURACY gets a full results card - the mode has a per-player score AND a strike
+            // count, and a one-line banner could only ever name the winner. Set pieces keep the
+            // shared card, where the scoreboard beside it already tells the whole story.
+            if (AccuracyMode) { DrawAccuracyResults(); return; }
             // The shared end-of-round card, so full time looks the same in every mode.
             Hud.Banner(WinnerText(), null, null);
+        }
+
+        // ------------------------------------------------------------ accuracy results card
+        // FULL TIME in multiplayer accuracy: the winner large at the top with a crown against
+        // their name, then everyone else beneath them, all showing the same two figures (rounds
+        // cleared and strikes spent). It covers the screen on its own scrim rather than sitting
+        // beside the live board - the board is drawn from the same tally and would only repeat it,
+        // and at anything narrower than the design width the two overlap.
+        //
+        // Everything here reads the SYNCED ShootoutState, so every peer draws the identical card.
+        // There are no buttons: the net protocol has no match reset (GameBootstrap leaves both the
+        // restart and the setup callbacks null in multiplayer), so the pause menu's End Match /
+        // Main Menu remains the only honest way out and this card must not pretend otherwise.
+        static GUIStyle _resHdr, _resName, _resKey, _resVal, _resSmallName, _resSmallVal, _resTie;
+        void DrawAccuracyResults()
+        {
+            var st = _s.LatestShootout;
+            if (st.scored == null) { Hud.Banner(WinnerText(), null, null); return; }
+
+            EnsureResultStyles();
+
+            int winSlot = WinnerSlot();
+
+            // Everyone who played, best first. Score descending, then FEWER strikes first - a
+            // player who matched a score without spending as many strikes finished the cleaner run.
+            var rows = new List<int>();
+            for (int i = 1; i < NetSession.CrosserSlot; i++)
+                if (_bodies[i] != null && _bodies[i].isShooter) rows.Add(i);
+            rows.Sort((a, b) =>
+            {
+                // The crowned winner always leads, whatever the sort would otherwise say: in
+                // sudden death the survivor can be outscored by somebody they outlasted.
+                if (a == winSlot) return -1;
+                if (b == winSlot) return 1;
+                int sa = ScoreOf(st, a), sb = ScoreOf(st, b);
+                if (sa != sb) return sb.CompareTo(sa);
+                return StrikesOf(st, a).CompareTo(StrikesOf(st, b));
+            });
+
+            float w = Mathf.Min(560f, Hud.W - 80f);
+            float headH = winSlot >= 0 ? 150f : 118f;
+            float rowH = 54f;
+            int others = Mathf.Max(0, rows.Count - (winSlot >= 0 ? 1 : 0));
+            float h = headH + others * rowH + 46f;
+            float x = Hud.W * 0.5f - w * 0.5f, y = Mathf.Max(24f, Hud.H * 0.5f - h * 0.5f);
+
+            UITheme.Scrim(Hud.W, Hud.H, 0.6f, w + 220f);
+            UITheme.Panel(new Rect(x, y, w, h), UITheme.Gold);
+
+            // Header: the format, so a card kept on screen still says which game was played.
+            UITheme.Label(new Rect(x, y + 12f, w, 20f),
+                          _accSuddenDeath ? "FULL TIME  ·  SUDDEN DEATH" : "FULL TIME  ·  THREE STRIKES",
+                          _resHdr);
+
+            float cy = y + 38f;
+
+            if (winSlot >= 0)
+            {
+                // THE WINNER, given the room the result deserves: a crown, their name, and their
+                // two figures at a size nothing else on the card competes with.
+                var band = new Rect(x + 16f, cy, w - 32f, 96f);
+                UITheme.Glow(band, new Color(1f, 0.82f, 0.29f, 0.16f));
+                UITheme.Fill(band, new Color(1f, 0.82f, 0.29f, 0.08f));
+                UITheme.Fill(new Rect(band.x, band.y, 3f, band.height), UITheme.Gold);
+
+                // No tag line under the name: the header above already names the format and the
+                // crown already says they won, so it only restated both. The name is centred in the
+                // band's height now that nothing sits under it.
+                Crown(band.x + 30f, band.y + 30f, 15f, UITheme.Gold);
+                UITheme.Shadowed(new Rect(band.x + 54f, band.y + 28f, band.width - 70f, 40f),
+                                 RosterName(winSlot), _resName, UITheme.Ink, 0.7f, 2f);
+
+                // The two figures, right-aligned so the losers' own figures line up under them.
+                Figures(band.xMax - 210f, band.y + 14f, 210f, ScoreOf(st, winSlot), StrikesOf(st, winSlot),
+                        _resVal, _resKey, big: true);
+                cy = band.yMax + 12f;
+            }
+            else
+            {
+                // Nobody to crown: a tie on the top score. Say so where the winner would have been,
+                // CENTRED - _resName is left-aligned for a name sitting beside a crown, which would
+                // run this headline off the card's left edge.
+                // Centred both ways: _resTie is MiddleCenter for the horizontal, and the box spans
+                // the FULL 68 this branch advances cy by, so the line also sits in the middle of the
+                // space the card reserved for it (a shorter box left it sitting high).
+                UITheme.Shadowed(new Rect(x, cy, w, 68f), "TIE  (" + BestScore() + ")",
+                                 _resTie, UITheme.Ink, 0.7f, 2f);
+                cy += 68f;
+            }
+
+            UITheme.Divider(x + 20f, cy, w - 40f);
+            cy += 8f;
+
+            // Everyone else, in the same shape at a smaller size.
+            for (int k = 0; k < rows.Count; k++)
+            {
+                int slot = rows[k];
+                if (slot == winSlot) continue;
+
+                var r = new Rect(x + 16f, cy, w - 32f, rowH);
+                if (slot == _localSlot)
+                {
+                    // The local player's own row, marked the way the live board marks the active
+                    // shooter - a lit band and a spine, not a different text colour.
+                    UITheme.Fill(r, new Color(0.16f, 0.32f, 0.52f, 0.45f));
+                    UITheme.Fill(new Rect(r.x, r.y, 2.5f, r.height), Hud.SlotColor(slot));
+                }
+
+                UITheme.Label(new Rect(r.x + 14f, r.y + 4f, r.width - 230f, 30f),
+                              RosterName(slot), _resSmallName);
+                Figures(r.xMax - 210f, r.y + 6f, 210f, ScoreOf(st, slot), StrikesOf(st, slot),
+                        _resSmallVal, _resKey, big: false);
+
+                UITheme.Divider(r.x, r.yMax, r.width);
+                cy += rowH;
+            }
+
+            Hud.Legend("Esc  pause menu");
+        }
+
+        static int ScoreOf(ShootoutState st, int slot)
+            => st.scored != null && slot < st.scored.Length ? st.scored[slot] : 0;
+        static int StrikesOf(ShootoutState st, int slot)
+            => st.taken != null && slot < st.taken.Length ? st.taken[slot] : 0;
+
+        // One player's two figures: rounds cleared, and strikes spent out of the allowance. Drawn
+        // as a pair so the winner's block and a loser's row cannot drift apart.
+        static void Figures(float x, float y, float w, int score, int strikes,
+                            GUIStyle valSt, GUIStyle keySt, bool big)
+        {
+            float half = w * 0.5f;
+            float valH = big ? 44f : 30f;
+            UITheme.Shadowed(new Rect(x, y, half, valH), score.ToString(), valSt, UITheme.Ink, 0.6f, 2f);
+            UITheme.Shadowed(new Rect(x + half, y, half, valH),
+                             strikes + "/" + SimConfig.AccuracyStrikes, valSt,
+                             strikes >= SimConfig.AccuracyStrikes ? UITheme.Red : UITheme.Ink, 0.6f, 2f);
+            UITheme.Label(new Rect(x, y + valH, half, 16f), "CLEARED", keySt);
+            UITheme.Label(new Rect(x + half, y + valH, half, 16f), "STRIKES", keySt);
+        }
+
+        // A crown, scanline-filled from UITheme.Fill spans the way Hud.Star draws its star - there
+        // is no vector helper in the IMGUI layer and no icon asset for one.
+        //
+        // Drawn as the CLASSIC silhouette rather than three separate spikes: a solid band, and
+        // above it one polygon whose outline zig-zags down into two V notches and back up, so the
+        // points share their bases the way a real crown's do. Same even-odd scanline fill
+        // MenuIcons.FillPoly uses for its baked icons, but straight into IMGUI space.
+        static void Crown(float cx, float cy, float r, Color col)
+        {
+            float w = r * 2f, h = r * 1.6f;
+            float left = cx - r, top = cy - h * 0.5f, bottom = top + h;
+            float bandTop = bottom - h * 0.30f;
+
+            // Band across the base.
+            UITheme.Fill(new Rect(left, bandTop, w, bottom - bandTop), col);
+
+            // Points: left tip, notch, tall centre tip, notch, right tip - closed along the band.
+            float notchY = top + h * 0.42f;
+            float sideTop = top + h * 0.16f;   // outer points sit a little below the centre one
+            var pts = new float[]
+            {
+                left,          bandTop,
+                left,          sideTop,
+                left + w*0.25f, notchY,
+                cx,            top,
+                left + w*0.75f, notchY,
+                left + w,      sideTop,
+                left + w,      bandTop,
+            };
+
+            int rows = Mathf.CeilToInt(bandTop - top);
+            var xs = new List<float>(8);
+            for (int i = 0; i < rows; i++)
+            {
+                float yy = top + i + 0.5f;
+                xs.Clear();
+                for (int p = 0; p < pts.Length; p += 2)
+                {
+                    float ax = pts[p], ay = pts[p + 1];
+                    int q = (p + 2) % pts.Length;
+                    float bx = pts[q], by = pts[q + 1];
+                    // Half-open crossing test, so a vertex on the scanline counts exactly once.
+                    if ((ay <= yy && by > yy) || (by <= yy && ay > yy))
+                        xs.Add(ax + (yy - ay) / (by - ay) * (bx - ax));
+                }
+                xs.Sort();
+                for (int k = 0; k + 1 < xs.Count; k += 2)
+                    UITheme.Fill(new Rect(xs[k], top + i, xs[k + 1] - xs[k], 1f), col);
+            }
+        }
+
+        static void EnsureResultStyles()
+        {
+            if (_resHdr != null) return;
+            _resHdr       = new GUIStyle { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
+            _resName      = new GUIStyle { fontSize = 30, alignment = TextAnchor.MiddleLeft,   normal = { textColor = UITheme.Ink } };
+            _resKey       = new GUIStyle { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Faint } };
+            _resVal       = new GUIStyle { fontSize = 38, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
+            _resSmallName = new GUIStyle { fontSize = 18, alignment = TextAnchor.MiddleLeft,   normal = { textColor = UITheme.Ink } };
+            _resSmallVal  = new GUIStyle { fontSize = 24, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
+            _resTie       = new GUIStyle { fontSize = 30, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Ink } };
+            // Real bold cut on everything large, as the rest of the HUD does.
+            UIFont.Heavy(_resName);
+            UIFont.Heavy(_resVal);
+            UIFont.Heavy(_resSmallVal);
+            UIFont.Heavy(_resTie);
         }
     }
 }
