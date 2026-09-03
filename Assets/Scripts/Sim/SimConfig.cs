@@ -89,6 +89,18 @@ namespace Trickshot
         // Sideways velocity of the keeper's LMB/RMB reflex save (KeeperController.BeginSave). Cut 20%
         // from 7: the lunge carried him far enough sideways that a save near one post left him past the
         // other, and the reach was covering ground the dive is supposed to be for.
+        /// <summary>
+        /// Scales a HUMAN keeper's every movement: strafe, jump, dive and lunge. 1 = normal.
+        /// Accuracy sets it to 0.75 for a human in goal - the dive/lunge constants below are const
+        /// (a shared balance contract the AI keeper reads too), so the handicap is applied at the
+        /// point of use rather than by rewriting them.
+        /// </summary>
+        public static float HumanKeeperSpeedMul = 1f;
+        public const float HumanKeeperSpeedBase = 1f;
+        /// <summary>Accuracy's handicap: a human is otherwise a far better keeper than the AI
+        /// ladder the mode is balanced around.</summary>
+        public const float AccuracyKeeperHandicap = 0.75f;
+
         public const float KeeperSaveLunge = 5.6f;
         public const float KeeperSaveReleaseTime = 0.12f; // brief settle after release before standing
         // Minimum time a single-button lunge must play out before recovery can begin. This is the
@@ -500,9 +512,119 @@ namespace Trickshot
         public const float AiKeeperLowDiveUp = 1.6f;      // small upward pop on a low dive (stays low)
 
         // ---- Challenge modes (set from their pre-match screens) ----
-        // Accuracy: round length and how many targets are up at once.
-        public static float AccuracySeconds = 90f;
-        public static int   AccuracyTargetCount = 4;
+        // Accuracy: a STRIKES run, not a timed round. Each shot is its own turn from a random spot
+        // in the shot band below, and the single target patrols the goal face; the shot has to
+        // both go in AND hit the target. Three failures ends the run.
+        //
+        // Difficulty is a pure function of the round number, in TIERS of AccuracyRoundsPerTier: the
+        // target shrinks and speeds up, and the keeper - who starts hopeless on purpose - climbs to
+        // AccuracyKeeperMax by AccuracyMaxTier. Nothing here is a player setting any more, so there
+        // are no round-time / target-count knobs to configure.
+        public const int   AccuracyStrikes       = 3;
+        public const int   AccuracyRoundsPerTier = 10;
+        public const int   AccuracyMaxTier       = 9;      // round 91+; tier stops climbing here
+        public const float AccuracyTierShrink    = 0.9f;   // target size per tier (10% smaller)
+        public const float AccuracyTierSpeedUp   = 1.1f;   // target speed per tier (10% faster)
+        public const float AccuracyKeeperMin     = 0.01f;  // rounds 1-10: "literally 1 out of 100"
+        public const float AccuracyKeeperMax     = 0.70f;  // round 91+: 70% of insane ability
+        public const float AccuracyTargetRadius0 = 0.85f;  // tier-0 target radius (large)
+        public const float AccuracyTargetSpeed0  = 1.6f;   // tier-0 patrol speed, m/s (slow)
+        // Shot spot band, measured from the goal line: the front edge of the 18-yard box out to the
+        // far edge of the D. The D is the arc of PenaltyArcRadius about the penalty spot, so its
+        // apex - the deepest point of the band, on the centre line - is PenaltySpotDist + radius,
+        // and it curves back to meet the box edge at its two ends. AccuracySpotFarAt() is what
+        // honours that curve; AccuracySpotFar is only its apex, for sizing.
+        public const float PenaltySpotDist  = 11f;
+        public const float PenaltyArcRadius = 9.15f;
+        public const float AccuracySpotNear = PenaltyBoxDepth;                        // 16.5m, edge of the 18
+        public const float AccuracySpotFar  = PenaltySpotDist + PenaltyArcRadius;     // 20.15m, the D's apex
+
+        /// <summary>
+        /// How far out the band reaches at a given x, in metres from the goal line: the D's arc,
+        /// which is only at its deepest (AccuracySpotFar) on the centre line and shrinks back to the
+        /// box edge as x approaches the arc's ends. Beyond the arc's reach the band has no depth at
+        /// all, so this returns the near edge and the spot sits on the 18-yard line.
+        ///
+        /// Taking the apex as a flat far edge would put spots outside the D near the posts, which is
+        /// exactly the ground this band is meant to exclude.
+        /// </summary>
+        public static float AccuracySpotFarAt(float x)
+        {
+            float dx = Mathf.Abs(x);
+            if (dx >= PenaltyArcRadius) return AccuracySpotNear;
+            // Depth of the arc behind the penalty spot at this x.
+            float back = Mathf.Sqrt(PenaltyArcRadius * PenaltyArcRadius - dx * dx);
+            return Mathf.Max(AccuracySpotNear, PenaltySpotDist + back);
+        }
+
+        /// <summary>
+        /// Half-width of the band: where the D's ARC MEETS the 18-yard line, not the arc's full
+        /// radius. Past this point the arc is already inside the box, so the band has no depth and
+        /// every spot there would be pinned exactly on the box edge - about a fifth of them, all in
+        /// a line, if the radius were used instead.
+        ///
+        /// Solving PenaltySpotDist + sqrt(r^2 - x^2) = PenaltyBoxDepth gives x = sqrt(r^2 - (box -
+        /// spot)^2), which is 7.31m for the regulation numbers.
+        /// </summary>
+        public static readonly float AccuracySpotHalfW =
+            Mathf.Sqrt(Mathf.Max(0f, PenaltyArcRadius * PenaltyArcRadius
+                                     - (PenaltyBoxDepth - PenaltySpotDist) * (PenaltyBoxDepth - PenaltySpotDist)));
+
+        /// <summary>Difficulty tier (0-based) for a 1-based accuracy round number.</summary>
+        public static int AccuracyTier(int round) =>
+            Mathf.Clamp((Mathf.Max(1, round) - 1) / AccuracyRoundsPerTier, 0, AccuracyMaxTier);
+
+        /// <summary>Target radius for a round: shrinks AccuracyTierShrink per tier.</summary>
+        public static float AccuracyTargetRadius(int round) =>
+            AccuracyTargetRadius0 * Mathf.Pow(AccuracyTierShrink, AccuracyTier(round));
+
+        /// <summary>Target patrol speed for a round: AccuracyTierSpeedUp per tier.</summary>
+        public static float AccuracyTargetSpeed(int round) =>
+            AccuracyTargetSpeed0 * Mathf.Pow(AccuracyTierSpeedUp, AccuracyTier(round));
+
+        /// <summary>Keeper ability for a round: AccuracyKeeperMin at tier 0 climbing evenly to
+        /// AccuracyKeeperMax at AccuracyMaxTier (7% of the scale per tier) - or 0 flat when the
+        /// player asked for no keeper, since this is re-applied every round and would otherwise
+        /// put one back.</summary>
+        public static float AccuracyKeeperAbility(int round) =>
+            AccuracyNoKeeper ? 0f
+            : Mathf.Lerp(AccuracyKeeperMin, AccuracyKeeperMax, AccuracyTier(round) / (float)AccuracyMaxTier);
+
+        // ---- Accuracy: PRACTICE vs CHALLENGE ----
+        // CHALLENGE is the scored game: random spot every round, the tier ladder above, three
+        // strikes, and the career high score. PRACTICE is the same shot with none of that - you
+        // place the ball yourself (and can re-place it mid-session with the map on M), pick the
+        // keeper, and dial the target's size and speed by hand. Nothing in practice is scored.
+        public static bool AccuracyPractice = false;
+
+        /// <summary>
+        /// NO KEEPER: an open goal, in any accuracy mode. Set from the Challenge fork and the
+        /// multiplayer host screen; PRACTICE expresses the same thing through its keeper picker's
+        /// own "None" step, and reads back into this so the two stay in agreement.
+        ///
+        /// It has to be a flag rather than just "ability 0", because in Challenge the ability is
+        /// REWRITTEN every round from the tier ladder - anything the player set would be gone on
+        /// the next shot. AccuracyKeeperAbility honours it, so the ladder itself returns 0.
+        /// </summary>
+        public static bool AccuracyNoKeeper = false;
+
+        // Practice target settings, both 0-1 across the RANGE THE CHALLENGE COVERS, so the two modes
+        // can never drift apart: the slider ends are the challenge's own extremes.
+        //   Speed 0 parks the target; 1 is the round-91+ pace.
+        //   Size  0 is the round-91+ (smallest) target; 1 is the round 1-10 (largest) one.
+        public static float AccuracyPracticeSpeed01 = 0.35f;
+        public static float AccuracyPracticeSize01  = 1f;
+
+        /// <summary>Practice target speed, m/s. 0 parks it (AccuracyTarget then stays put).</summary>
+        public static float AccuracyPracticeSpeed() =>
+            Mathf.Lerp(0f, AccuracyTargetSpeed(AccuracyMaxTier * AccuracyRoundsPerTier + 1),
+                       Mathf.Clamp01(AccuracyPracticeSpeed01));
+
+        /// <summary>Practice target radius, metres: the challenge's smallest at 0, largest at 1.</summary>
+        public static float AccuracyPracticeRadius() =>
+            Mathf.Lerp(AccuracyTargetRadius(AccuracyMaxTier * AccuracyRoundsPerTier + 1),
+                       AccuracyTargetRadius(1),
+                       Mathf.Clamp01(AccuracyPracticeSize01));
         // Free Kick / Penalty: where the dead ball sits and the defensive wall setup.
         public static float FreeKickDistance = 20f;    // metres out from goal for a free kick
         public static bool  PenaltyMode = false;        // true = penalty spot, no wall
@@ -526,7 +648,10 @@ namespace Trickshot
         // Keeper mode: fixed continuous cadence, and a snappy resolve so callouts
         // don't hold up the next ball. 3s leaves room to actually get back on your line
         // and reset your feet between shots; at 2s the drill outran the keeper.
-        public const float KeeperServeInterval = 3f;
+        // Settable from the keeper-mode pre-match screen (it was a const 3s for everyone). The Base
+        // is what the slider and Reset All return to.
+        public const float KeeperServeIntervalBase = 3f;
+        public static float KeeperServeInterval = KeeperServeIntervalBase;
         public const float KeeperResolveTime = 0.4f;
 
         // ---- Pre-match match settings (set from PrematchUI) ----

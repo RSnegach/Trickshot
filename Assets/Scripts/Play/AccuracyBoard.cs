@@ -51,11 +51,49 @@ namespace Trickshot
             }
         }
 
+        /// <summary>
+        /// Single PATROLLING target for a strikes-mode round: slot 0 only, at `radius`, launched
+        /// from a random spot on the goal face at `speed` on a random heading. Any other slots are
+        /// hidden, so the same pool serves both this and the multi-target gallery.
+        ///
+        /// The heading is kept away from the horizontal and the vertical (a target sliding exactly
+        /// along one axis never uses the other, which makes a round far easier than its tier says),
+        /// and the start spot is inset by the radius so the disc opens fully inside the frame.
+        /// </summary>
+        public void SpawnPatrol(float radius, float speed)
+        {
+            if (_targets == null || _count < 1) return;
+            for (int i = 1; i < _count; i++) { _targets[i].Hide(); _respawn[i] = 0f; }
+
+            var b = AccuracyTarget.PatrolBounds(radius);
+            var pos = new Vector3(Mathf.Lerp(b.xMin, b.xMax, Rand()),
+                                  Mathf.Lerp(b.yMin, b.yMax, Rand()),
+                                  SimConfig.GoalCenter.z);
+
+            _respawn[0] = 0f;
+            _targets[0].Spawn(pos, radius, PatrolColor, 1);
+            // One of the four diagonal quadrants, jittered: never within 20 degrees of an axis.
+            float dir = 90f * Mathf.Floor(Rand() * 4f) + Mathf.Lerp(20f, 70f, Rand());
+            _targets[0].SetDrift(speed, dir);
+        }
+
+        /// <summary>The strikes-mode target's colour. One target, one value, so it does not need
+        /// the gallery's white/yellow/red value tiers - it reads as "the" target.</summary>
+        static readonly Color PatrolColor = new Color(1f, 0.85f, 0.1f);
+
         /// <summary>Pop every slot fresh (round start).</summary>
         public void SpawnAll()
         {
             if (_targets == null) return;
             for (int i = 0; i < _count; i++) { _respawn[i] = 0f; SpawnAt(i); }
+        }
+
+        /// <summary>Hide every target's DISC but keep its trigger - see AccuracyTarget
+        /// .SetVisualHidden. Sticky across respawns, so it is set once when the board is built.</summary>
+        public void SetVisualHidden(bool hidden)
+        {
+            if (_targets == null) return;
+            for (int i = 0; i < _count; i++) _targets[i].SetVisualHidden(hidden);
         }
 
         /// <summary>Hide every target (round over / between turns).</summary>

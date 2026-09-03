@@ -25,10 +25,15 @@ namespace Trickshot
         public int KeeperShotsFaced;
 
         // ---- Accuracy ----
+        // Two BESTS, because beating a keeper is a different game from an open goal and one number
+        // covering both would only ever show the open-goal run. AccuracyBestScore is the WITH-keeper
+        // best; it keeps its old name so an existing save file's high score stays attached to the
+        // harder mode (JsonUtility leaves the new field at 0, which is the right starting point).
         public int AccuracyRoundsPlayed;
         public int AccuracyKicks;
         public int AccuracyTargetsHit;
-        public int AccuracyBestScore;
+        public int AccuracyBestScore;         // with a keeper
+        public int AccuracyBestScoreNoKeeper; // open goal
         public long AccuracyTotalScore;
 
         // ---- Free Kick / Penalty ----
@@ -140,13 +145,24 @@ namespace Trickshot
         // ---- Accuracy (single-player only) ----
         public static void RecordAccuracyKick() { Data.SP.AccuracyKicks++; Save(); }
         public static void RecordAccuracyTargetHit() { Data.SP.AccuracyTargetsHit++; Save(); }
-        public static void RecordAccuracyRoundEnd(int score)
+        /// <summary>End of a scored accuracy run. `noKeeper` picks which of the two bests it can
+        /// beat - an open-goal run never touches the with-keeper record.</summary>
+        public static void RecordAccuracyRoundEnd(int score, bool noKeeper)
         {
             Data.SP.AccuracyRoundsPlayed++;
             Data.SP.AccuracyTotalScore += score;
-            if (score > Data.SP.AccuracyBestScore) Data.SP.AccuracyBestScore = score;
+            if (noKeeper)
+            {
+                if (score > Data.SP.AccuracyBestScoreNoKeeper) Data.SP.AccuracyBestScoreNoKeeper = score;
+            }
+            else if (score > Data.SP.AccuracyBestScore) Data.SP.AccuracyBestScore = score;
             Save();
         }
+
+        /// <summary>The best that applies to a run of this kind - what its HUD shows and what it
+        /// is trying to beat.</summary>
+        public static int AccuracyBest(bool noKeeper) =>
+            noKeeper ? Data.SP.AccuracyBestScoreNoKeeper : Data.SP.AccuracyBestScore;
 
         // ---- Free Kick / Penalty (single-player only) ----
         public static void RecordFreeKickAttempt() { Data.SP.FreeKickAttempts++; Save(); }

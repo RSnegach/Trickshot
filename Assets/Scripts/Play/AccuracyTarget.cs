@@ -3,16 +3,19 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// A single pop-up accuracy target: a bright emissive disc that sits in the plane of
-    /// the goal mouth (z = SimConfig.GoalCenter.z) with a glowing rim halo behind it. The
-    /// ball scores by passing through a trigger collider sized to the disc.
+    /// A single accuracy target: a bright emissive disc that sits in the plane of the goal mouth
+    /// (z = SimConfig.GoalCenter.z) with a glowing rim halo behind it. The ball scores by passing
+    /// through a trigger collider sized to the disc.
     ///
-    /// Colour encodes value (white 1, yellow 2, red 3); smaller discs are placed toward
-    /// the corners and are worth more. The visual container gently pulses and bobs so the
-    /// target reads as "popped up", and pops larger for a beat on a hit before hiding.
+    /// PATROL. Set a velocity with <see cref="SetDrift"/> and the target travels the goal face and
+    /// reflects off all four edges, DVD-logo style, keeping its whole disc inside the mouth. The
+    /// bounce is a pure reflection at constant speed, so a round's difficulty is exactly the speed
+    /// and radius it was given and never decays. A zero drift leaves it parked, which is what the
+    /// static menu-scene vignettes want.
     ///
-    /// The AccuracyGame driver owns a fixed pool of these, wires OnHit, and re-spawns a
-    /// fresh one at a new random spot a short delay after each hit.
+    /// The visual container gently pulses so the target reads as live, and pops larger for a beat
+    /// on a hit before hiding. Bobbing is only applied to a PARKED target - a patrolling one is
+    /// already moving, and adding a bob on top would put its visual off its own trigger.
     /// </summary>
     public class AccuracyTarget : MonoBehaviour
     {
@@ -45,6 +48,29 @@ namespace Trickshot
         float _phase;
         float _flash;
 
+        // Patrol velocity in the goal plane (x, y); zero = parked. Speed is held constant and only
+        // the direction flips on a bounce.
+        Vector2 _drift;
+
+        /// <summary>Send this target patrolling at `speed` m/s in a direction `dirDeg` degrees off
+        /// the horizontal. Speed 0 parks it. Call after Spawn.</summary>
+        public void SetDrift(float speed, float dirDeg)
+        {
+            if (speed <= 0f) { _drift = Vector2.zero; return; }
+            float a = dirDeg * Mathf.Deg2Rad;
+            _drift = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * speed;
+        }
+
+        /// <summary>The bounds the disc CENTRE may occupy: the goal mouth inset by the disc radius,
+        /// so the whole face stays inside the frame. Shared with the drivers that seed a start spot.</summary>
+        public static Rect PatrolBounds(float radius)
+        {
+            float halfW = Mathf.Max(0.05f, SimConfig.GoalWidth * 0.5f - radius);
+            float yLo = radius;
+            float yHi = Mathf.Max(yLo + 0.01f, SimConfig.GoalHeight - radius);
+            return Rect.MinMaxRect(-halfW, yLo, halfW, yHi);
+        }
+
         /// <summary>Place this target at pos (in the goal-mouth plane), size it, colour it
         /// for its value, and show it. Rebuilds nothing after the first call.</summary>
         public void Spawn(Vector3 pos, float radius, Color color, int points)
@@ -57,6 +83,7 @@ namespace Trickshot
             _baseScale = Vector3.one * _radius;
             _phase = Random.value * Mathf.PI * 2f;   // desync the pulse between targets
             _flash = 0f;
+            _drift = Vector2.zero;                   // parked until the caller sets a patrol
 
             transform.position = pos;
 
@@ -80,8 +107,23 @@ namespace Trickshot
         {
             _shown = true;
             _col.enabled = true;
-            SetRenderers(true);
+            SetRenderers(!_visualHidden);
         }
+
+        /// <summary>
+        /// Hide the DISC while leaving the trigger live - for a human keeper in multiplayer
+        /// accuracy, who must not be able to read where the shot has to go. Scoring is unaffected:
+        /// the collider is what scores, and it is the host's copy that counts anyway.
+        ///
+        /// Latched separately from Show/Hide because the board re-Shows the target every round, so
+        /// a one-off SetRenderers(false) would be undone on the next spawn.
+        /// </summary>
+        public void SetVisualHidden(bool hidden)
+        {
+            _visualHidden = hidden;
+            if (_shown) SetRenderers(!hidden);
+        }
+        bool _visualHidden;
 
         public void Hide()
         {
@@ -149,7 +191,41 @@ namespace Trickshot
             _phase += Time.deltaTime * PulseRate;
             float s = 1f + Mathf.Sin(_phase) * PulseAmount;
             _visual.localScale = _baseScale * s;
-            _visual.localPosition = new Vector3(0f, Mathf.Sin(_phase * 0.5f) * BobAmount, 0f);
+            // Only a PARKED target bobs: a patrolling one already moves, and a bob on top would
+            // separate the disc the player aims at from the trigger that scores it.
+            _visual.localPosition = _drift == Vector2.zero
+                ? new Vector3(0f, Mathf.Sin(_phase * 0.5f) * BobAmount, 0f)
+                : Vector3.zero;
+
+            if (_drift != Vector2.zero) Patrol(Time.deltaTime);
+        }
+
+        // DVD-logo travel across the goal face: advance, then reflect off whichever edges were
+        // crossed. The position is CLAMPED as well as reflected, so a target can never be left
+        // outside the mouth by a long frame (which would otherwise flip it every frame at the edge
+        // and pin it there).
+        void Patrol(float dt)
+        {
+            var b = PatrolBounds(_radius);
+            Vector3 p = transform.position;
+            float x = p.x + _drift.x * dt;
+            float y = p.y + _drift.y * dt;
+
+            if (x < b.xMin) { x = b.xMin; _drift.x = Mathf.Abs(_drift.x); }
+            else if (x > b.xMax) { x = b.xMax; _drift.x = -Mathf.Abs(_drift.x); }
+            if (y < b.yMin) { y = b.yMin; _drift.y = Mathf.Abs(_drift.y); }
+            else if (y > b.yMax) { y = b.yMax; _drift.y = -Mathf.Abs(_drift.y); }
+
+            transform.position = new Vector3(x, y, p.z);
+        }
+
+        // Make.Glow allocates a Material per call and destroying a GameObject never frees one,
+        // so a target that is rebuilt (the menu scenes respawn theirs on every hover) would leak
+        // a pair every time.
+        void OnDestroy()
+        {
+            if (_faceMat != null) Destroy(_faceMat);
+            if (_haloMat != null) Destroy(_haloMat);
         }
 
         void OnTriggerEnter(Collider other)

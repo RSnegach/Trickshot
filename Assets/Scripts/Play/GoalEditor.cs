@@ -12,6 +12,13 @@ namespace Trickshot
     ///
     /// Draw-only: it edits the three values it is handed and says whether they changed. Applying
     /// them to a live match (statics, the rebuilt goal, the wire) is GoalSetup.Apply.
+    ///
+    /// TWO SHAPES, so the single-player setup screens all look alike (the practice screen is the
+    /// reference layout: goal picture, then the keeper row, then whatever that mode adds):
+    ///   PRACTICE  - the goal is draggable and the keeper row is the five-step ladder.
+    ///   CHALLENGE - `locked` freezes the goal at regulation (no handles, no Default button) and
+    ///               `KeeperYesNo` reduces the row to Yes/No, because a challenge's difficulty is
+    ///               the mode's own ladder and the only real question is whether a keeper is there.
     /// </summary>
     public class GoalEditor
     {
@@ -39,9 +46,22 @@ namespace Trickshot
         // keeps running, and a fresh GUIStyle per label per OnGUI pass is garbage at frame rate.
         static GUIStyle _titleSt, _lblSt, _smallBtnSt, _readSt, _readLSt, _klblSt, _kBtnSt, _kBtnSelSt;
 
-        public bool Draw(Rect p, ref float width, ref float height, ref int keeperLevel, bool framed = true)
+        /// <summary>The keeper row's shape: the five-step difficulty ladder, or a plain Yes/No.
+        /// Yes/No stores its answer in the SAME keeperLevel int - 0 is None either way, and any
+        /// other value is "there is a keeper" - so no caller needs a second field.</summary>
+        public enum KeeperRow { Ladder, YesNo }
+
+        /// <summary>Yes on a Yes/No row maps to this rung of the ladder, so a caller that later
+        /// reads the level back gets a sensible ability rather than a bare 1.</summary>
+        public const int YesLevel = 2;   // Normal
+
+        public bool Draw(Rect p, ref float width, ref float height, ref int keeperLevel,
+                         bool framed = true, bool locked = false, KeeperRow keeperRow = KeeperRow.Ladder)
         {
             float w0 = width, h0 = height; int k0 = keeperLevel;
+            // Locked: the goal IS regulation, whatever it was handed. A challenge is played on one
+            // goal so its scores mean the same thing every run.
+            if (locked) { width = SimConfig.GoalWidthBase; height = SimConfig.GoalHeightBase; }
             width  = Mathf.Clamp(width,  MinW, MaxW);
             height = Mathf.Clamp(height, MinH, MaxH);
 
@@ -61,8 +81,10 @@ namespace Trickshot
 
             // Default: the regulation goal. The keeper is deliberately not reset by it - "default
             // goal dimensions" is what it says.
+            // Both edit affordances - the Default button and the drag handles - are absent when
+            // the goal is locked, so nothing on screen invites an edit that would be ignored.
             var smallBtn = _smallBtnSt ??= new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
-            if (UITheme.Button(new Rect(p.xMax - inset - 96f, p.y + (framed ? 12f : 0f), 96f, 28f), "Default", smallBtn))
+            if (!locked && UITheme.Button(new Rect(p.xMax - inset - 96f, p.y + (framed ? 12f : 0f), 96f, 28f), "Default", smallBtn))
             { width = SimConfig.GoalWidthBase; height = SimConfig.GoalHeightBase; }
 
             // ---- the picture ----
@@ -78,7 +100,7 @@ namespace Trickshot
             float groundY = box.yMax - 26f;                       // the goal line: never moves
             float cx = box.x + labelRoom + pad + usable * 0.5f;    // the goal stays centred on its line
 
-            HandleDrag(cx, groundY, scale, ref width, ref height);
+            if (!locked) HandleDrag(cx, groundY, scale, ref width, ref height);
 
             float halfPx = width * 0.5f * scale, hPx = height * scale;
             float lx = cx - halfPx, rx = cx + halfPx, topY = groundY - hPx;
@@ -103,11 +125,15 @@ namespace Trickshot
             GUI.DrawTexture(new Rect(rx - 2f, topY, 4f, hPx), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(lx - 2f, topY - 2f, rx - lx + 4f, 4f), Texture2D.whiteTexture);
 
-            // Handles: corners and the three movable edges (the goal line is not one).
-            GUI.color = UITheme.Gold;
-            Handle(lx, topY); Handle(rx, topY);
-            Handle(lx, (topY + groundY) * 0.5f); Handle(rx, (topY + groundY) * 0.5f); Handle(cx, topY);
-            GUI.color = pc;
+            // Handles: corners and the three movable edges (the goal line is not one). None when
+            // the goal is locked - there is nothing to grab.
+            if (!locked)
+            {
+                GUI.color = UITheme.Gold;
+                Handle(lx, topY); Handle(rx, topY);
+                Handle(lx, (topY + groundY) * 0.5f); Handle(rx, (topY + groundY) * 0.5f); Handle(cx, topY);
+                GUI.color = pc;
+            }
 
             // Readouts: height beside the crossbar on the left, width under the left post.
             var read = _readSt ??= new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = UITheme.Ink } };
@@ -115,28 +141,49 @@ namespace Trickshot
             var readL = _readLSt ??= new GUIStyle(read) { alignment = TextAnchor.MiddleLeft };
             UITheme.Label(new Rect(lx - 2f, groundY + 4f, 90f, 20f), width.ToString("0.00") + " m", readL);
 
-            // The keeper: 1.8 m tall at this scale, feet on the goal line, standing just outside the
-            // right post. He moves ONLY sideways with the post - never up, never resized.
-            DrawKeeper(rx + 0.35f * scale, groundY, scale);
+            // (The keeper figure is drawn at the END of this method - see the note there.)
 
-            // ---- goalkeeper difficulty, under the goal ----
+            // ---- goalkeeper, under the goal ----
             float ky = box.yMax + (framed ? 10f : 14f);
             var klbl = _klblSt ??= new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = UITheme.Ink } };
             UITheme.Label(new Rect(p.x + inset, ky, 120f, 22f), "Goalkeeper:", klbl);
-            var names = SimConfig.AiLevelNames;
+
+            // Ladder: the five named difficulties. Yes/No: two buttons over the same int, where 0
+            // is None and YesLevel is "there is one". The two rows are drawn by one loop so they
+            // stay identical in size, spacing and hit area.
+            var names = keeperRow == KeeperRow.YesNo
+                      ? YesNoNames
+                      : SimConfig.AiLevelNames;
             float bx = p.x + inset, bw = p.width - inset * 2f, each = (bw - 6f * (names.Length - 1)) / names.Length;
             for (int i = 0; i < names.Length; i++)
             {
-                bool sel = i == keeperLevel;
+                // Yes/No's buttons are [No, Yes] and map to levels 0 and YesLevel.
+                int level = keeperRow == KeeperRow.YesNo ? (i == 0 ? 0 : YesLevel) : i;
+                bool sel = keeperRow == KeeperRow.YesNo
+                         ? (i == 0 ? keeperLevel <= 0 : keeperLevel > 0)
+                         : i == keeperLevel;
                 var st = sel
                     ? (_kBtnSelSt ??= new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold, normal = { textColor = UITheme.Gold } })
                     : (_kBtnSt ??= new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Normal });
                 if (UITheme.Toggle(new Rect(bx + i * (each + 6f), ky + 24f, each, 28f), names[i], sel, st))
-                    keeperLevel = i;
+                    keeperLevel = level;
             }
+
+            // The keeper: 1.8 m tall at this scale, feet on the goal line, standing just outside the
+            // right post. He moves ONLY sideways with the post - never up, never resized. Absent
+            // when there is no keeper, so the picture shows the goal the player will really shoot
+            // at; level 0 is "None" on the ladder AND "No" on the yes/no row (the two share this
+            // int), so one test covers both.
+            //
+            // Drawn HERE, after the row above, rather than with the rest of the picture: the row is
+            // what changes keeperLevel, so drawing the figure before it would show the PREVIOUS
+            // answer for the rest of the pass on the frame the player clicks.
+            if (keeperLevel > 0) DrawKeeper(rx + 0.35f * scale, groundY, scale);
 
             return !Mathf.Approximately(width, w0) || !Mathf.Approximately(height, h0) || keeperLevel != k0;
         }
+
+        static readonly string[] YesNoNames = { "No", "Yes" };
 
         static void Handle(float x, float y)
             => GUI.DrawTexture(new Rect(x - 4f, y - 4f, 8f, 8f), Texture2D.whiteTexture);

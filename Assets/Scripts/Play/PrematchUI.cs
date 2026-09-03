@@ -35,10 +35,13 @@ namespace Trickshot
         readonly GoalEditor _goalEditor = new GoalEditor();   // Striker: the goal picture (edits _goalWidth/_goalHeight)
         static float _keeperAbility = 0.5f, _strikerSpeed = 1f;   // striker
         static float _shotDifficulty = 0.5f, _keeperSpeed = 1f, _keeperJump = 1f;      // keeper
+        static float _keeperServeInterval = SimConfig.KeeperServeIntervalBase;         // keeper: seconds between shots
+        // Accuracy practice: target speed + size, both 0-100 over the challenge's own range.
+        static float _accPracticeSpeed = SimConfig.AccuracyPracticeSpeed01 * 100f;
+        static float _accPracticeSize  = SimConfig.AccuracyPracticeSize01 * 100f;
 
         // ---- Challenge-mode raw settings ----
-        static float _accuracySeconds = 90f;
-        static float _accuracyTargets = 4f;
+        // (Accuracy has none: its difficulty is the round number - see SimConfig.AccuracyTier.)
         static bool  _penaltyMode = false;
         static float _freeKickDistance = 20f;
         static float _wallCount = 4f;
@@ -93,17 +96,19 @@ namespace Trickshot
             // the in-match cross map, and its striker speed is fixed. Every other mode: goal width +
             // height + shot speed.
             if (_mode == GameMode.Striker) return 0;
+            // Accuracy: the goal picture carries the goal size and the keeper in BOTH modes (sized
+            // separately in DrawSetup, like Striker's). PRACTICE adds the two target sliders under
+            // it; the CHALLENGE adds nothing - its target and its keeper's strength are the round
+            // ladder's, and the only choice it offers is whether there is a keeper at all.
+            if (_mode == GameMode.Accuracy) return SimConfig.AccuracyPractice ? 2 : 0;
             int n = 3;
-            if (_mode == GameMode.Goalkeeper) n += 3;
+            if (_mode == GameMode.Goalkeeper) n += 4;   // difficulty + speed + jump + shot interval
             else
             {
                 n += 1; // striker speed
                 n += 1; // keeper ability (every mode in this branch can carry an AI keeper)
-                // Accuracy: time + targets + wall count. The spot and the wall are PLACED on the
-                // map panel now, so the distance/wall-distance/wall-offset rows are gone.
-                if (_mode == GameMode.Accuracy)  n += 3;
                 // Free kick: penalty toggle (+ wall players; spot + wall are placed on the map panel)
-                else if (_mode == GameMode.FreeKick)  n += _penaltyMode ? 1 : 2;
+                if (_mode == GameMode.FreeKick)  n += _penaltyMode ? 1 : 2;
             }
             return n;
         }
@@ -123,8 +128,15 @@ namespace Trickshot
             // Striker's panel is taller than its (zero) slider rows say: it holds the goal picture.
             // Striker's and Match's panels are taller than their slider-row count says: both hold
             // the goal picture.
-            bool goalPic = _mode == GameMode.Striker || _mode == GameMode.Match;
-            float panelH = HeadH + RowCount() * RowH + FootH + (goalPic ? GoalEditor.ContentH + 8f : 0f);
+            bool goalPic = _mode == GameMode.Striker || _mode == GameMode.Match
+                        || _mode == GameMode.Accuracy;   // practice: the same goal + keeper control
+            // FootH reserves a band for Back/Start - but DrawNav pins those to the SCREEN bottom,
+            // not to the panel, so that band is empty plate. Accuracy is where it reads worst (the
+            // challenge screen ends right after the keeper row and the goal picture is the last
+            // thing in it), so it closes the gap; the other modes keep the height they were laid
+            // out against.
+            float foot = _mode == GameMode.Accuracy ? 18f : FootH;
+            float panelH = HeadH + RowCount() * RowH + foot + (goalPic ? GoalEditor.ContentH + 8f : 0f);
             float x = MenuScale.Width * 0.5f - PanelW * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.40f, PanelW + 520f);
@@ -139,13 +151,20 @@ namespace Trickshot
             // the Reset All button and stop it wrapping.
             var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = UITheme.Ink }, wordWrap = false, clipping = TextClipping.Overflow };
             UITheme.Shadowed(new Rect(x + 30f, y + 14f, PanelW - 160f, 44f),
-                             _mode.ToString().ToUpper() + " - SETUP", title, UITheme.Ink, 0.75f, 2f);
+                             (_mode == GameMode.Accuracy
+                                  ? (SimConfig.AccuracyPractice ? "ACCURACY - PRACTICE" : "ACCURACY - CHALLENGE")
+                                  : _mode.ToString().ToUpper() + " - SETUP"),
+                             title, UITheme.Ink, 0.75f, 2f);
             // Short gold stub under the wordmark, then a hairline closing the header band.
             UITheme.Fill(new Rect(x + 30f, y + 52f, 54f, 2.5f), UITheme.Gold);
             UITheme.Divider(x + 30f, y + HeadH - 12f, PanelW - 60f);
 
+            // Reset All restores the sliders this screen owns. The accuracy CHALLENGE has no
+            // sliders - its one control is the keeper Yes/No, which Reset All does not touch - so
+            // the button would do nothing visible there.
             var smallBtn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            if (UITheme.Button(new Rect(x + PanelW - 130f, y + 20f, 110f, 30f), "Reset All", smallBtn))
+            bool showReset = !(_mode == GameMode.Accuracy && !SimConfig.AccuracyPractice);
+            if (showReset && UITheme.Button(new Rect(x + PanelW - 130f, y + 20f, 110f, 30f), "Reset All", smallBtn))
                 ResetAll();
 
             float row = y + HeadH;
@@ -169,7 +188,54 @@ namespace Trickshot
                 return;
             }
 
-            if (_mode == GameMode.Striker)
+            // ACCURACY owns its whole screen, in the layout every single-player setup screen
+            // follows: the goal picture, the keeper row under it, then whatever the mode adds.
+            //   PRACTICE  - draggable goal, the five-step keeper ladder, the two target sliders,
+            //               and the placement map on the right.
+            //   CHALLENGE - the SAME picture but LOCKED at regulation (a scored run is played on
+            //               one goal, so a score means the same thing every time) and a keeper
+            //               Yes/No, since its strength is the round ladder's to set. Nothing else:
+            //               no target sliders, no map - those are what make it a challenge.
+            if (_mode == GameMode.Accuracy)
+            {
+                bool practice = SimConfig.AccuracyPractice;
+
+                // Open on whatever was last chosen, so the keeper row agrees with the flag; from
+                // here the picture's row is the authority and writes back in Apply().
+                if (SimConfig.AccuracyNoKeeper && _keeperAbility > 0.001f) _keeperAbility = 0f;
+
+                float agw = BaseGoalWidth * _goalWidth, agh = BaseGoalHeight * _goalHeight;
+                int alvl = SimConfig.NearestAiLevel(_keeperAbility);
+                _goalEditor.Draw(new Rect(lx, row + 4f, lw, GoalEditor.ContentH), ref agw, ref agh, ref alvl,
+                                 framed: false, locked: !practice,
+                                 keeperRow: practice ? GoalEditor.KeeperRow.Ladder
+                                                     : GoalEditor.KeeperRow.YesNo);
+                // Store the size back only when it was EDITABLE. A locked picture hands back the
+                // regulation goal whatever it was given, and _goalWidth/_goalHeight are static and
+                // shared with practice - so writing it here would silently reset a goal the player
+                // had sized in practice just by looking at the challenge screen. The challenge is
+                // played on regulation regardless (GameBootstrap forces it before Arena.Build).
+                if (practice) { _goalWidth = agw / BaseGoalWidth; _goalHeight = agh / BaseGoalHeight; }
+                _keeperAbility = SimConfig.AiLevelAbility[alvl];
+                row += GoalEditor.ContentH + 8f;
+
+                if (practice)
+                {
+                    // 0-100 across the CHALLENGE's own range, so practice can never ask for a target
+                    // the challenge would never show: speed 0 parks it and 100 is round-91+ pace;
+                    // size 0 is the challenge's smallest target and 100 its largest.
+                    _accPracticeSpeed = RawSlider(lx, ref row, lw, "Target speed", _accPracticeSpeed, 0f, 100f, "0", "");
+                    _accPracticeSize  = RawSlider(lx, ref row, lw, "Target size",  _accPracticeSize,  0f, 100f, "0", "");
+                }
+
+                // RETURN, like the Match branch above: falling through to the shared chains below
+                // would add a Striker speed slider and a SECOND keeper picker (disagreeing with the
+                // goal picture's own), and put more rows in the panel than RowCount() sizes it for.
+                DrawPlacementPanel(x, y);
+                DrawNav(x, y, panelH);
+                return;
+            }
+            else if (_mode == GameMode.Striker)
             {
                 // The goal as a picture you drag to size, with the keeper's difficulty under it -
                 // the identical control the multiplayer host gets (GoalEditor), embedded here. It
@@ -198,28 +264,19 @@ namespace Trickshot
                 _shotDifficulty = Slider(lx, ref row, lw, "Shot difficulty", _shotDifficulty, 0f,   1f, 0.5f);
                 _keeperSpeed    = Slider(lx, ref row, lw, "Keeper speed",    _keeperSpeed,    0.5f, 1.8f, 1f);
                 _keeperJump     = Slider(lx, ref row, lw, "Keeper jump height", _keeperJump,  0.6f, 1.6f, 1f);
+                // How often the server fires. The drill is a continuous loop, so this is the whole
+                // pace of the mode: at the low end shots arrive before you are back on your line.
+                _keeperServeInterval = RawSlider(lx, ref row, lw, "Shot interval", _keeperServeInterval,
+                                                 1f, 8f, "0.0", "s");
             }
             else
             {
                 _strikerSpeed = Slider(lx, ref row, lw, "Striker speed", _strikerSpeed, 0.5f, 1.8f, 1f);
-                // Every mode down here can carry an AI keeper, so this picker is shared: free kicks
-                // and the accuracy gallery both read it (None = no keeper is built at all, an open
-                // goal).
+                // Free kicks / set pieces only - accuracy returns above, and picks its keeper on the
+                // goal picture instead. None = no keeper is built at all.
                 _keeperAbility = KeeperPicker(lx, ref row, lw, "Keeper", _keeperAbility);
 
-                if (_mode == GameMode.Accuracy)
-                {
-                    // Accuracy is a free-kick shooting gallery, so it carries the free-kick furniture
-                    // too - but the spot and the wall are PLACED on the map panel to the right, the
-                    // same control the multiplayer host uses, so only the wall SIZE is a number here.
-                    // The old distance / wall distance / wall offset sliders described the same three
-                    // degrees of freedom the map already covers, and described them blindly: you
-                    // dialled numbers and found out where the kick actually was once the match built.
-                    _accuracySeconds = RawSlider(lx, ref row, lw, "Round time", _accuracySeconds, 30f, 180f, "0", "s");
-                    _accuracyTargets = RawSlider(lx, ref row, lw, "Targets up", _accuracyTargets, 1f, 8f, "0", "");
-                    _wallCount    = RawSlider(lx, ref row, lw, "Wall players (0 = no wall)", _wallCount, 0f, 6f, "0", "");
-                }
-                else if (_mode == GameMode.FreeKick)
+                if (_mode == GameMode.FreeKick)
                 {
                     // The spot and the wall are PLACED on the map panel (right of this one) instead of
                     // being dialed in with distance/offset sliders. Only the wall size is a number.
@@ -229,18 +286,21 @@ namespace Trickshot
                 }
             }
 
-            // Both dead-ball modes get the same placement panel the multiplayer host uses, drawn on
-            // the right (the stat card owns the left). A penalty is a fixed spot with no wall, so
-            // there is nothing to place for one.
-            if (PlacesSetPiece())
-            {
-                if (!_fkInit) { SetPieceMap.DefaultPlacement(out _fkBall, out _fkWall); _fkInit = true; }
-                SetPieceMap.DrawSetupPanel(x + PanelW + 16f, y, 300f, 300f,
-                                           ref _fkBall, ref _fkWall, ref _fkEdit, ref _fkRandom,
-                                           "Random spot each attempt.");
-            }
-
+            DrawPlacementPanel(x, y);
             DrawNav(x, y, panelH);
+        }
+
+        // The placement panel the multiplayer host uses, drawn to the RIGHT of the settings panel
+        // (the stat card owns the left). A penalty is a fixed spot with no wall, so there is nothing
+        // to place for one; accuracy practice places a ball but has no wall at all.
+        void DrawPlacementPanel(float x, float y)
+        {
+            if (!PlacesSetPiece()) return;
+            if (!_fkInit) { SetPieceMap.DefaultPlacement(out _fkBall, out _fkWall); _fkInit = true; }
+            SetPieceMap.DrawSetupPanel(x + PanelW + 16f, y, 300f, 300f,
+                                       ref _fkBall, ref _fkWall, ref _fkEdit, ref _fkRandom,
+                                       "Random spot each attempt.",
+                                       showWall: _mode != GameMode.Accuracy);
         }
 
         // Player attribute card: radar chart + numeric stat list, from the current build.
@@ -386,8 +446,10 @@ namespace Trickshot
 
         // Which modes place their own dead ball. Accuracy joined Free Kick here so both dead-ball
         // modes are set up through the identical map instead of one map and one set of sliders.
-        bool PlacesSetPiece() => _mode == GameMode.Accuracy
-                             || (_mode == GameMode.FreeKick && !_penaltyMode);
+        // Accuracy PRACTICE places its ball here; the CHALLENGE picks a fresh random spot in the
+        // shot band (SimConfig.AccuracySpotNear/Far) every round, so it shows no map at all.
+        bool PlacesSetPiece() => (_mode == GameMode.FreeKick && !_penaltyMode)
+                              || (_mode == GameMode.Accuracy && SimConfig.AccuracyPractice);
 
         // Map the sliders onto SimConfig values.
         void Apply()
@@ -428,9 +490,10 @@ namespace Trickshot
 
             SimConfig.GoalWidth  = BaseGoalWidth  * _goalWidth;
             SimConfig.GoalHeight = BaseGoalHeight * _goalHeight;
-            // Every mode EXCEPT Striker still dials shot speed here (Striker's lives on the cross
-            // map), matching which modes actually draw the slider in DrawSetup.
-            if (_mode != GameMode.Striker) SimConfig.BallSpeedMul = _ballSpeed;
+            // Every mode that DRAWS the shot-speed slider writes it here; Striker's lives on the
+            // cross map and accuracy practice has no such slider, so neither writes a stale value.
+            if (_mode != GameMode.Striker && _mode != GameMode.Accuracy)
+                SimConfig.BallSpeedMul = _ballSpeed;
 
             if (_mode == GameMode.Striker)
             {
@@ -442,11 +505,46 @@ namespace Trickshot
                 SimConfig.KeeperAbility    = _keeperAbility;
                 SimConfig.StrikerMoveSpeed = BaseStrikerSpeed;
             }
+            else if (_mode == GameMode.Accuracy)
+            {
+                // PRACTICE only - the challenge never opens this screen. The keeper comes off the
+                // goal picture's keeper row - a None..Insane ladder in practice, a Yes/No in the
+                // challenge - and both answer "no keeper" as ability 0.
+                SimConfig.StrikerMoveSpeed = BaseStrikerSpeed;
+                SimConfig.KeeperAbility    = _keeperAbility;
+                // One write for both screens, so the ladder's "None" and the yes/no row's "No"
+                // cannot end up disagreeing with the flag the round ladder reads.
+                SimConfig.AccuracyNoKeeper = _keeperAbility <= 0.001f;
+                SimConfig.WallCount        = 0;   // accuracy never has a wall
+
+                if (SimConfig.AccuracyPractice)
+                {
+                    // Target size/pace are practice's alone, stored 0-1 across the challenge's range.
+                    SimConfig.AccuracyPracticeSpeed01 = _accPracticeSpeed / 100f;
+                    SimConfig.AccuracyPracticeSize01  = _accPracticeSize / 100f;
+
+                    // The ball spot is whatever was placed on the map to the right; it is a real
+                    // placement, so the driver reads it exactly as free-kick mode does.
+                    if (!_fkInit) { SetPieceMap.DefaultPlacement(out _fkBall, out _fkWall); _fkInit = true; }
+                    SimConfig.SetPiecePlaced      = true;
+                    SimConfig.SetPieceBallSpot    = _fkBall;
+                    SimConfig.SetPieceWallCenter  = _fkWall;
+                    SimConfig.SetPieceRandomSpots = _fkRandom;
+                }
+                else
+                {
+                    // The challenge picks its own spot every round; a placement left over from a
+                    // practice session must not follow it in.
+                    SimConfig.SetPiecePlaced      = false;
+                    SimConfig.SetPieceRandomSpots = false;
+                }
+            }
             else if (_mode == GameMode.Goalkeeper)
             {
                 SimConfig.ShotDifficulty    = _shotDifficulty;
                 SimConfig.KeeperStrafeSpeed = BaseKeeperSpeed * _keeperSpeed;
                 SimConfig.KeeperJumpVel     = BaseKeeperJump * _keeperJump;
+                SimConfig.KeeperServeInterval = _keeperServeInterval;
             }
             else
             {
@@ -456,8 +554,6 @@ namespace Trickshot
                 // with an auto-crosser is Striker, and its cadence lives on the cross map now.
                 // One keeper slider covers all of these modes (0 = no keeper is built at all).
                 SimConfig.KeeperAbility    = _keeperAbility;
-                SimConfig.AccuracySeconds  = _accuracySeconds;
-                SimConfig.AccuracyTargetCount = Mathf.RoundToInt(_accuracyTargets);
                 SimConfig.PenaltyMode      = _penaltyMode;
                 SimConfig.FreeKickDistance = _freeKickDistance;
                 SimConfig.WallCount        = Mathf.RoundToInt(_wallCount);
@@ -569,7 +665,8 @@ namespace Trickshot
             // to clear them too or the two halves of "everything back to default" disagree.
             CrossMap.ResetSession();
             _keeperAbility = _shotDifficulty = 0.5f;
-            _accuracySeconds = 90f; _accuracyTargets = 4f;
+            _keeperServeInterval = SimConfig.KeeperServeIntervalBase;
+            _accPracticeSpeed = 35f; _accPracticeSize = 100f;
             _penaltyMode = false; _freeKickDistance = 20f;
             _wallCount = 4f; _wallDistance = 9.15f; _wallOffset = 0f;
             _fkInit = false; _fkEdit = 0; _fkRandom = false;

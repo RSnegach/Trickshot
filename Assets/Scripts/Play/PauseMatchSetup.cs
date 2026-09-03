@@ -13,8 +13,12 @@ namespace Trickshot
     /// the keeper read the statics every frame and Arena rebuilds the goal's frame in place. Hosting,
     /// the values ride the match config to every client.
     ///
-    /// OTHER MODES keep their live-safe sliders - SimConfig statics the running sim re-reads every
-    /// frame (or every serve/shot), so moving one takes effect immediately with nothing to rebuild:
+    /// ACCURACY has no live settings at all (see RowsFor), so its Match Setup entry goes straight
+    /// back to the full pre-match flow - the Practice/Challenge fork - rather than opening a card.
+    ///
+    /// THE REMAINING MODES keep their live-safe sliders - SimConfig statics the running sim re-reads
+    /// every frame (or every serve/shot), so moving one takes effect immediately with nothing to
+    /// rebuild:
     ///
     ///   Shot speed        BallSpeedMul       -> BallController.LaunchTo, per launch
     ///   Keeper ability    KeeperAbility      -> Goalkeeper, per decision
@@ -39,6 +43,8 @@ namespace Trickshot
         public static bool HasLiveSettings(GameMode mode) => mode == GameMode.Striker || RowsFor(mode) > 0;
 
         // Row count per mode, so the card is sized to its content (same idea as PrematchUI.RowCount).
+        // 0 means "nothing live-tunable": HasLiveSettings then reports false and PauseMenu sends
+        // Match Setup straight to the full pre-match screen instead of opening an empty card.
         static int RowsFor(GameMode mode)
         {
             switch (mode)
@@ -46,6 +52,13 @@ namespace Trickshot
                 case GameMode.Striker:    return 0;   // the goal window instead (see DrawStriker)
                 case GameMode.Goalkeeper: return 4;   // shot speed, shot difficulty, keeper speed, keeper jump
                 case GameMode.Match:      return 0;   // team size / position / AI level all need a rebuild
+                // Accuracy has NO live-tunable settings, and the three generic ones this used to
+                // offer were all wrong for it: shot speed and striker speed are not part of the mode
+                // (a dead-ball taker with a fixed run-up), and its keeper ability is owned by the
+                // round ladder in Challenge and by the goal picture in Practice - so a slider here
+                // would be overwritten on the next round, or would silently disagree with the
+                // picker that set it. Its real settings are the Practice/Challenge screens.
+                case GameMode.Accuracy:   return 0;
                 default:                  return 3;   // shot speed, striker speed, keeper ability
             }
         }

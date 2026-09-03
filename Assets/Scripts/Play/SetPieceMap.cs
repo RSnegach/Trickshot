@@ -38,7 +38,8 @@ namespace Trickshot
 
         // Draw the map into `rect`. ballSpot/wallPos are world points (y ignored); a click moves
         // the one `editing` selects. Returns true if a marker moved this frame.
-        public static bool Draw(Rect rect, ref Vector3 ballSpot, ref Vector3 wallPos, int editing)
+        public static bool Draw(Rect rect, ref Vector3 ballSpot, ref Vector3 wallPos, int editing,
+                                bool showWall = true)
         {
             var prev = GUI.color;
             float t = Time.unscaledTime;
@@ -102,21 +103,25 @@ namespace Trickshot
                 e.Use();
             }
 
-            // Draw both markers; the one being edited pulses brighter.
+            // Draw the markers; the one being edited pulses brighter. A caller with no wall shows
+            // neither the wall marker nor the line to it.
             DrawMarker(rect, ballSpot, Gold, editing == 0, t, "BALL");
-            DrawMarker(rect, wallPos, WallCol, editing == 1, t, "WALL");
+            if (showWall)
+            {
+                DrawMarker(rect, wallPos, WallCol, editing == 1, t, "WALL");
 
-            // Faint dotted line from ball to wall.
-            GUI.color = new Color(1f, 1f, 1f, 0.3f);
-            var a = WorldToMap(rect, ballSpot); var b = WorldToMap(rect, wallPos);
-            DrawDottedLine(a, b, 4f);
-            GUI.color = prev;
+                // Faint dotted line from ball to wall.
+                GUI.color = new Color(1f, 1f, 1f, 0.3f);
+                var a = WorldToMap(rect, ballSpot); var b = WorldToMap(rect, wallPos);
+                DrawDottedLine(a, b, 4f);
+                GUI.color = prev;
+            }
 
             // Live hover reticle following the mouse.
             if (hovering && e.type == EventType.Repaint)
             {
                 float hp = 0.5f + 0.5f * Mathf.Sin(t * 7f);
-                Color hc = editing == 1 ? WallCol : Gold;
+                Color hc = showWall && editing == 1 ? WallCol : Gold;
                 DrawReticle(e.mousePosition, 9f + hp * 3f, new Color(hc.r, hc.g, hc.b, 0.5f), false);
             }
 
@@ -161,10 +166,15 @@ namespace Trickshot
         // one box `w` wide and `h + 108` tall at (px, py). Living here means multiplayer and single
         // player place a free kick with the identical control. The ref args are the caller's
         // placement state; `randomTip` is the line shown while random spots are on.
+        /// <param name="showWall">false hides the Ball/Wall selector and the wall marker, for a
+        /// caller that has no wall to place (accuracy practice). The selector is then pinned to the
+        /// ball, so the map still takes clicks.</param>
         public static void DrawSetupPanel(float px, float py, float w, float h,
                                           ref Vector3 ballSpot, ref Vector3 wallPos,
-                                          ref int editing, ref bool random, string randomTip)
+                                          ref int editing, ref bool random, string randomTip,
+                                          bool showWall = true)
         {
+            if (!showWall) editing = 0;   // nothing else to edit; keep clicks landing on the ball
             UITheme.Panel(new Rect(px, py, w, h + 108f), UITheme.Gold);
             UITheme.Title(new Rect(px, py + 8f, w, 26f), "FREE KICK SETUP", 18);
 
@@ -186,17 +196,20 @@ namespace Trickshot
             var selOn = new GUIStyle(sel); selOn.normal.textColor = UITheme.Gold;
             GUI.enabled = !random;
             // Themed toggles (tinted plate + gold underline), so the bullet prefix is redundant.
-            if (UITheme.Toggle(new Rect(px + 16f, py + 72f, (w - 40f) * 0.5f, 28f), "Ball", editing == 0, editing == 0 ? selOn : sel)) editing = 0;
-            if (UITheme.Toggle(new Rect(px + 24f + (w - 40f) * 0.5f, py + 72f, (w - 40f) * 0.5f, 28f), "Wall", editing == 1, editing == 1 ? selOn : sel)) editing = 1;
+            // Both are still ALLOCATED when there is no wall - a control that comes and goes between
+            // the layout and repaint passes shifts every id after it - just drawn off-screen.
+            float selY = showWall ? py + 72f : -4000f;
+            if (UITheme.Toggle(new Rect(px + 16f, selY, (w - 40f) * 0.5f, 28f), "Ball", editing == 0, editing == 0 ? selOn : sel)) editing = 0;
+            if (UITheme.Toggle(new Rect(px + 24f + (w - 40f) * 0.5f, selY, (w - 40f) * 0.5f, 28f), "Wall", editing == 1, editing == 1 ? selOn : sel)) editing = 1;
 
             var mapRect = new Rect(px + 16f, py + 108f, w - 32f, h - 74f);
-            Draw(mapRect, ref ballSpot, ref wallPos, editing);
+            Draw(mapRect, ref ballSpot, ref wallPos, editing, showWall);
             GUI.enabled = true;
 
             var tip = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Dim } };
             UITheme.Label(new Rect(px, py + h + 78f, w, 20f), random
                 ? randomTip
-                : "Click the map to place the " + (editing == 1 ? "wall" : "ball") + ".", tip);
+                : "Click the map to place the " + (showWall && editing == 1 ? "wall" : "ball") + ".", tip);
         }
 
         // world <-> map: x across the width (touchline to touchline), z from the goal line (map top)

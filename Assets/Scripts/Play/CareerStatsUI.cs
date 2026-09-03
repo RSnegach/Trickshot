@@ -149,7 +149,8 @@ namespace Trickshot
                 ("Rounds played", sp.AccuracyRoundsPlayed.ToString(), mp.AccuracyRoundsPlayed.ToString()),
                 ("Kicks taken", sp.AccuracyKicks.ToString(), mp.AccuracyKicks.ToString()),
                 ("Targets hit", sp.AccuracyTargetsHit.ToString(), mp.AccuracyTargetsHit.ToString()),
-                ("Best score", sp.AccuracyBestScore.ToString(), mp.AccuracyBestScore.ToString()),
+                ("Best score (keeper)", sp.AccuracyBestScore.ToString(), mp.AccuracyBestScore.ToString()),
+                ("Best score (open goal)", sp.AccuracyBestScoreNoKeeper.ToString(), mp.AccuracyBestScoreNoKeeper.ToString()),
                 ("Average score", Avg(sp.AccuracyTotalScore, sp.AccuracyRoundsPlayed), Avg(mp.AccuracyTotalScore, mp.AccuracyRoundsPlayed)),
             };
         }
