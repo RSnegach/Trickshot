@@ -74,6 +74,10 @@ namespace Trickshot
             // Only ever reachable from Phase.Hub (the Settings button in the top-right corner).
             if (_settingsOpen && _settings != null)
             {
+                // The overlay draws INSTEAD of the phase below, so a Single Player grid would keep
+                // a scene live (and the menu's slow-mo applied) behind a panel nobody can see. It
+                // is rebuilt when the overlay closes.
+                CloseSoloGrid();
                 _settings.Draw(() => _settingsOpen = false);
                 MenuScale.End();
                 return;
@@ -121,6 +125,15 @@ namespace Trickshot
 
             float marginX = MenuScale.Width * 0.05f;
 
+            // A Friends/Achievements flyout is MODAL over this screen. Its rect is worked out
+            // before anything else is drawn, because the cards below have to be disabled for the
+            // pass in which it is open: IMGUI hands a click to the first control that claims it,
+            // and the flyout is drawn LAST, so an enabled card under it would take the press first
+            // - which is what let an "x" in a panel corner also trigger the card behind it.
+            Rect flyout = FlyoutRect(marginX, out bool flyoutOpen);
+            bool wasEnabled = GUI.enabled;
+            if (flyoutOpen) GUI.enabled = false;
+
             // 110 wide: "SETTINGS" clips at the old 90 in 12 pt bold, and the origin moves by the
             // same 20 so the button stays flush to the right margin.
             var settingsBtn = new GUIStyle(GUI.skin.button) { fontSize = 12, fontStyle = FontStyle.Bold, stretchWidth = false };
@@ -149,66 +162,101 @@ namespace Trickshot
                 "Career Stats", "Track your progress over time"))
                 _phase = Phase.CareerStats;
 
-            DrawCornerTabs(marginX);
+            GUI.enabled = wasEnabled;
+
+            DrawCornerTabs(marginX, flyout);
         }
 
         // Small Friends/Achievements chips in the bottom-right corner - the only place on this
         // screen they belong, per the request ("the first screen after clicking any button to
         // continue"). Flyouts open UPWARD from the chip so they never run off the bottom edge.
-        void DrawCornerTabs(float marginX)
+        const float ChipW = 150f, ChipH = 40f, ChipGap = 10f;
+        const float PanelW = 320f, PanelH = 260f;
+
+        /// <summary>
+        /// Where the open flyout sits, and whether one is open at all. Split out of DrawCornerTabs
+        /// because DrawHub needs the rect BEFORE it draws the cards the flyout covers (see there).
+        /// Returns an empty rect when nothing is open - which is also the right "hole" to hand
+        /// UITheme.ClickBlocker, since it is then never called.
+        /// </summary>
+        Rect FlyoutRect(float marginX, out bool open)
         {
-            const float chipW = 150f, chipH = 40f, chipGap = 10f;
-            const float panelW = 320f, panelH = 260f;
-            float chipY = MenuScale.Height - 24f - chipH;
-            float achX = MenuScale.Width - marginX - chipW;
-            float frX = achX - chipGap - chipW;
+            open = _showFriends || _showAchievements;
+            if (!open) return new Rect();
+
+            float chipY = MenuScale.Height - 24f - ChipH;
+            float achX = MenuScale.Width - marginX - ChipW;
+            float frX = achX - ChipGap - ChipW;
+            float x = _showFriends ? frX : achX + ChipW - PanelW;
+            return new Rect(x, chipY - PanelH - 10f, PanelW, PanelH);
+        }
+
+        void DrawCornerTabs(float marginX, Rect flyout)
+        {
+            float chipY = MenuScale.Height - 24f - ChipH;
+            float achX = MenuScale.Width - marginX - ChipW;
+            float frX = achX - ChipGap - ChipW;
 
             var chipBtn = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold };
 
-            if (UITheme.Toggle(new Rect(frX, chipY, chipW, chipH), "FRIENDS", _showFriends, chipBtn, UITheme.GoodTint))
+            // Eat every click that misses the open panel, so nothing behind it responds and a
+            // click-away closes it. The two live regions are the panel itself and the chip strip:
+            // both are drawn AFTER this, and the chips have to stay clickable because a second
+            // press on the lit chip is how the panel closes.
+            //
+            // Called UNCONDITIONALLY, with a full-screen hole when nothing is open: a control that
+            // comes and goes between the layout and repaint passes shifts every control id after
+            // it, and the chips and the panel are both after it.
+            var chipStrip = new Rect(frX, chipY, ChipW * 2f + ChipGap, ChipH);
+            var whole = new Rect(0f, 0f, MenuScale.Width, MenuScale.Height);
+            bool clickedAway = UITheme.ClickBlocker(MenuScale.Width, MenuScale.Height,
+                                                    flyout.width > 0f ? flyout : whole, chipStrip);
+
+            if (UITheme.Toggle(new Rect(frX, chipY, ChipW, ChipH), "FRIENDS", _showFriends, chipBtn, UITheme.GoodTint))
             {
                 _showFriends = !_showFriends;
                 if (_showFriends) { _showAchievements = false; FriendsPanelUI.OnOpened(); }
             }
-            if (UITheme.Toggle(new Rect(achX, chipY, chipW, chipH), "ACHIEVEMENTS", _showAchievements, chipBtn, UITheme.GoodTint))
+            if (UITheme.Toggle(new Rect(achX, chipY, ChipW, ChipH), "ACHIEVEMENTS", _showAchievements, chipBtn, UITheme.GoodTint))
             {
                 _showAchievements = !_showAchievements;
                 if (_showAchievements) _showFriends = false;
             }
 
             if (_showFriends)
-                FriendsPanelUI.Draw(new Rect(frX, chipY - panelH - 10f, panelW, panelH), () => _showFriends = false);
+                FriendsPanelUI.Draw(flyout, () => _showFriends = false);
             if (_showAchievements)
-                AchievementsPanelUI.Draw(new Rect(achX + chipW - panelW, chipY - panelH - 10f, panelW, panelH), () => _showAchievements = false);
+                AchievementsPanelUI.Draw(flyout, () => _showAchievements = false);
+
+            if (clickedAway) { _showFriends = false; _showAchievements = false; }
         }
 
-        // Consolidates what used to be two separate things (the top-level Striker/Goalkeeper
-        // buttons, and the old "Mode" submenu's 5 entries) into one flat list under the Single
-        // Player card. Every row still calls the same Choose(GameMode) unchanged.
+        // Every solo mode as a large panel with a live scene of that mode playing inside it. The
+        // grid, the paging and the scenes are shared with the Multiplayer hub (see ModeGrid); this
+        // screen only owns which modes are listed and what a pick does.
+        static readonly GameMode[] SoloModes =
+        {
+            GameMode.Striker, GameMode.Goalkeeper, GameMode.Match,
+            GameMode.Accuracy, GameMode.FreeKick,
+        };
+        ModeGrid _soloGrid;
+        static int _soloPage;
+
         void DrawSinglePlayer()
         {
-            UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.26f, 720f, 0.30f, 0f);
+            _soloGrid ??= new ModeGrid("SINGLE PLAYER", SoloModes, transform, _soloPage);
+            var picked = _soloGrid.Draw(out bool back);
+            _soloPage = _soloGrid.Page;
+            if (picked.HasValue) { CloseSoloGrid(); Choose(picked.Value); }
+            else if (back) { CloseSoloGrid(); _phase = Phase.Hub; }
+        }
 
-            // Two columns x 3 rows, since Freeplay/TimeTrial's removal dropped this from 8 entries
-            // to 6 - kept the same tested two-column shape (a single column of 8 measurably
-            // clipped the title against MenuScale.Height's real, UI-Scale-shrunk size) rather than
-            // risking an untested single-column-of-6 against the same constraint.
-            float w = 320f, h = 52f, gap = 16f, colGap = 40f;
-            float totalH = h * 3f + gap * 2f;
-            float cy = MenuScale.Height * 0.5f - totalH * 0.5f;
-            float cxL = MenuScale.Width * 0.5f - (w * 2f + colGap) * 0.5f;
-            float cxR = cxL + w + colGap;
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
-
-            UITheme.Title(new Rect(0, cy - 78f, MenuScale.Width, 60f), "SINGLE PLAYER", 40, showRule: false);
-
-            if (UITheme.Button(new Rect(cxL, cy, w, h), "Striker", btn)) Choose(GameMode.Striker);
-            if (UITheme.Button(new Rect(cxL, cy + (h + gap), w, h), "Goalkeeper", btn)) Choose(GameMode.Goalkeeper);
-            if (UITheme.Button(new Rect(cxL, cy + (h + gap) * 2f, w, h), "Match", btn)) Choose(GameMode.Match);
-
-            if (UITheme.Button(new Rect(cxR, cy, w, h), "Accuracy", btn)) Choose(GameMode.Accuracy);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap), w, h), "Free Kick / Penalty", btn)) Choose(GameMode.FreeKick);
-            if (UITheme.Button(new Rect(cxR, cy + (h + gap) * 2f, w, h), "Back", btn)) _phase = Phase.Hub;
+        // Stop simulating the moment the screen is left: Destroy is deferred to end of frame, so a
+        // grid left alive would keep a scene running behind the next screen.
+        void CloseSoloGrid()
+        {
+            _soloGrid?.Teardown();
+            _soloGrid = null;
         }
 
         // Career Stats / Zoo: an honest placeholder, not fabricated data - see the class doc.
@@ -229,12 +277,15 @@ namespace Trickshot
         {
             _chosen = true;
             enabled = false;
+            CloseSoloGrid();        // synchronous: the callback below builds the next screen NOW
+
             _onChoose?.Invoke(m);   // may destroy this object; do nothing after
         }
 
         void OnDestroy()
         {
             _settings?.Dispose();   // abort any in-flight rebind so the op isn't orphaned
+            CloseSoloGrid();        // and never leave a menu scene simulating behind the next screen
         }
     }
 }
