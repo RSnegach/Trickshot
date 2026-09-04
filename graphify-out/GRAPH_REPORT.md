@@ -1,16 +1,16 @@
 # Graph Report - Trickshot  (2026-09-04)
 
 ## Corpus Check
-- 266 files · ~3,096,817 words
+- 266 files · ~3,100,273 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7306 nodes · 18764 edges · 306 communities (290 shown, 14 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 1773 edges (avg confidence: 0.82)
+- 7326 nodes · 18802 edges · 321 communities (298 shown, 20 thin omitted)
+- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 1775 edges (avg confidence: 0.82)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dbc51ed8`
+- Built from commit: `dbded4e4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -29,39 +29,39 @@
 - .BeardAnnulus
 - Species
 - CupDirector
-- KeeperController
+- Goalkeeper
 - Material
 - .RouteMessage
 - MenuIcons
 - CupRoundDriver
 - DirectIpTransport.cs (direct-IP UDP)
-- MenuScene
+- DeadBallScene
 - com.unity.modules.jsonserialize
 - ActiveRagdoll
 - NetSession
 - BuildAll
 - MatchProbe
-- GameMode
+- MenuSceneStage
 - NetSetPieceMatch
 - PauseMenu
 - Passing
 - NetStrikerMatch
 - AtomicFileWriter
 - Emote
-- .TestBrackets
+- CupPhase
 - .Transform
-- .Rect
+- CupLobbyUI
 - AnatomySim
-- RoundLine
+- CupSide
 - NetEndpoint
 - com.unity.modules.uielements
 - com.unity.modules.physics
 - com.unity.modules.imageconversion
-- .Setup
+- .BuildBodies
 - QuickChatFeed
 - CosmeticGallery
 - CrossMap
-- FreeKickGame
+- DefensiveWall
 - SetPieceTaker
 - HairSim
 - INetTransport
@@ -75,14 +75,14 @@
 - com.unity.modules.androidjni
 - MatchGame
 - IStrikerInput
-- CupPlayer
+- KeeperController
 - Sniper
 - com.unity.modules.imgui
 - com.unity.modules.animation
 - com.unity.modules.audio
 - dependencies
 - .Notify
-- .Button
+- .Rect
 - ScriptedInput
 - graphify knowledge graph
 - NetMessages.cs
@@ -90,8 +90,8 @@
 - TailnetDiscovery
 - dependencies
 - Trickshot (3D trick-shot football prototype)
-- .HatPiece
-- Multiplayer
+- MenuScene
+- SessionBrowserUI
 - Hair Strand Texture Atlas
 - LobbyProbe
 - DisplaySettings
@@ -104,39 +104,39 @@
 - Soviet Emblem Sprite
 - CrosserControl
 - MsgType
-- .DrawBrowser
+- Camera
 - .TestBytes
 - CupSpots
 - ReliableChannel
 - PlayerProfile
 - PlayerPreview
 - Hud
-- .Label
+- LobbyUI
 - SetPieceMap
 - .Build
 - InviteFriendsUI
 - .Build
-- MatchConfig
-- .Box
+- Striker
+- SurroundBuilder
 - .Build
-- Claude handoff - Trickshot Cup final verification pass
+- Claude handoff - Trickshot (2026-09-04)
 - Gait
 - MenuBackground
-- Celebration
+- EmotePose
 - BallController
 - skyprep.py
 - com.unity.nuget.newtonsoft-json
 - Turf
 - StadiumStyle
-- RoundPhase
+- RoundAuthority
 - com.unity.modules.screencapture
-- GameManager
+- MonoBehaviour
 - .SlotSubMenu
 - com.unity.modules.unitywebrequest
-- CupOrderUI
+- .Label
 - AudioManager
 - CupBody
-- .Empty
+- Crowd
 - BallController.cs
 - NotificationToastUI
 - .BuildGoal
@@ -144,11 +144,11 @@
 - TitleGlyph
 - CupBotTaker
 - GameBootstrap
-- SeededRng
+- CareerStatsUI
 - SteamTransport
 - .Place
 - .Piece
-- FlashKind
+- CupResultsUI
 - postprep.py
 - CareerStats
 - Striker
@@ -159,9 +159,9 @@
 - AccuracyBoard
 - GameInput
 - CupRequestKind
-- Bone
+- BodyLayout
 - Achievements
-- MonoBehaviour
+- Goal
 - ShotType
 - PrematchUI
 - AssetImportRules
@@ -175,17 +175,17 @@
 - horse_mane
 - CupTrophyLift
 - face_props_jewelry
-- ReplaySystem
+- Bone
 - Live mode-panel scenes (Single Player / Multiplayer submenus)
 - human_hair
 - wf6-polish.js
 - CupEntrant
-- Phase
+- FreeKickGame
 - CupSpectatorView
 - CupPodium
 - ElephantTex
-- .Draw
-- HairMats
+- .Divider
+- .AttachMane
 - AdultQuiz
 - GameCamera
 - CupNationTable
@@ -195,9 +195,10 @@
 - elephant
 - CupLocalInput
 - .Draw
+- CupByteWriter
 - 0Wsi-ygmiIX
 - 14ZGcuiRJ9d
-- .IsValid
+- CupLoadingUI
 - 1TJPsi4VIT
 - 2Givq4Q3YTH
 - 2uKEHjO_QL0
@@ -241,7 +242,7 @@
 - XLysBbtilu
 - YchMXfQNU0
 - yYdsPoULg1
-- .TickNetPass
+- .CallForPass
 - CupRoundState
 - CrosserSetupMsg
 - eyewear
@@ -255,25 +256,25 @@
 - .CaptureCursor
 - CupCameraRig
 - Downloaded cosmetic assets
-- AnimState
+- CupNations
 - CupCoinToss
 - .BuildVenetianMask
 - compile-check.sh
 - sheet.py
-- MenuScale
+- .Begin
 - ChargeGate
-- CupNet
+- CupPlayer
 - Knockdown
-- Touch
+- KeeperScene
 - ScrimPos
 - Comb
 - StudioSplash
 - LocalTransport
-- .DrawBand
-- KeeperGame
-- .OnGUI
-- CupResultsUI
-- .OnGUI
+- Goalkeeper
+- .ResetTo
+- CupScene
+- CupRoundSetup
+- .Box
 - Perms
 - Stage
 - Vector3
@@ -292,37 +293,50 @@
 - 7. Choreography and cameras
 - 2. Shared rules
 - 9. Technical architecture
-- CupConfetti
+- SeededRng
 - AiDifficulty
 - PassKind
-- .SetLocalInput
+- AnimState
 - Mode
 - wf5-review.js
-- CoinFace
-- InputFrame
-- .SetMode
+- .BuildEar
+- Celebration
 - Tab
 - Trickshot Cup - builder notes (codebase facts verified 2026-09-03)
-- CupSide
-- ShotBand
+- CupHud
+- CupEmoteWheel
 - Program.cs
 - 8. Endings
+- .Pose
+- .BeginTurn
+- .Update
 - H2HLocal
+- Playlist
+- Stage
+- .Play
+- .ValidateNations
 - Phase
 - Trickshot Cup build - orchestration runbook
 - Phase
-- Band
+- SetPieceSpin
+- State
+- State
 - CupBracketView.cs
 - wf2b-editor-solo.js
 - wf3-endings.js
 - wf3b-editor-endings.js
 - wf4-multiplayer.js
+- Reason
 - wf1-foundations.js
 - wf2-solo.js
+- Outcome
+- Phase
+- Phase
+- StadiumSelectUI
 
 ## God Nodes (most connected - your core abstractions)
 1. `CupDirector` - 342 edges
-2. `CupRoundDriver` - 281 edges
+2. `CupRoundDriver` - 282 edges
 3. `ActiveRagdoll` - 258 edges
 4. `Material` - 227 edges
 5. `Trickshot` - 214 edges
@@ -355,31 +369,31 @@
 - **Active-ragdoll bicycle-kick mechanic** — readme_activeragdoll, readme_ragdollpose, readme_kickdetector, readme_jointmath, readme_bicycle_kick [INFERRED 0.85]
 - **Host-authoritative frame loop (poll, input, snapshot)** — multiplayer_multiplayer, multiplayer_netsession, multiplayer_netmessages, multiplayer_host_authoritative [INFERRED 0.85]
 
-## Communities (306 total, 14 thin omitted)
+## Communities (321 total, 20 thin omitted)
 
 ### Community 0 - "Cosmetics"
 Cohesion: 0.10
-Nodes (23): AccessoryEntry, Collider, Color, Func, GameObject, List, Mesh, Renderer (+15 more)
+Nodes (24): AccessoryEntry, Collider, Color, Func, GameObject, List, Mesh, Quaternion (+16 more)
 
 ### Community 1 - "JerseyDesigns"
 Cohesion: 0.11
 Nodes (24): Action, Color32, Dictionary, IReadOnlyList, List, Texture2D, List, List (+16 more)
 
 ### Community 2 - "SimConfig"
-Cohesion: 0.12
-Nodes (13): AiDifficulty, ScrimPos, Color, Vector2, Vector3, AiTuning, MatchRole, Keeper (+5 more)
+Cohesion: 0.10
+Nodes (12): AiDifficulty, ScrimPos, Color, Vector2, Vector3, AiTuning, MatchRole, Keeper (+4 more)
 
 ### Community 3 - "Dribble"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (10): Action, Collider, Vector3, Dribble, CaptureRadius, Carrying, CloseControl, Holder (+2 more)
 
 ### Community 4 - "Crosser"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (19): Collider, Renderer, Transform, Vector3, AimReticle, Active, TargetPoint, Quaternion (+11 more)
 
 ### Community 5 - "DirectIpTransport"
 Cohesion: 0.10
-Nodes (16): Action, ConcurrentQueue, data, Dictionary, from, Func, IPEndPoint, List (+8 more)
+Nodes (15): Action, ConcurrentQueue, data, Dictionary, from, Func, IPEndPoint, List (+7 more)
 
 ### Community 6 - "SkillTree"
 Cohesion: 0.09
@@ -391,7 +405,7 @@ Nodes (4): Color32, Dictionary, Texture2D, SkillIcons
 
 ### Community 8 - "Trickshot"
 Cohesion: 0.04
-Nodes (3): AchievementsPanelUI, Trickshot.Net, Trickshot
+Nodes (5): AchievementsPanelUI, GoalSetup, KeeperLevel, Trickshot.Net, Trickshot
 
 ### Community 9 - "Transform"
 Cohesion: 0.11
@@ -406,20 +420,20 @@ Cohesion: 0.21
 Nodes (7): BoxCollider, Func, GameObject, Mesh, Transform, Vector2, Vector3
 
 ### Community 12 - "Species"
-Cohesion: 0.12
+Cohesion: 0.14
 Nodes (12): BodyPlan, Biped, Quadruped, HeaderAction, Biped, Species, Current, SpeciesAxis (+4 more)
 
 ### Community 13 - "CupDirector"
 Cohesion: 0.02
-Nodes (74): HashSet, CupDirector, CoopKeeperLeft, CoopOrderComplete, CoopReelSpinning, IReadOnlyList, List, Transform (+66 more)
+Nodes (74): HashSet, CupDirector, CoopKeeperLeft, CoopOrderComplete, CoopReelSpinning, IReadOnlyList, List, Vector3 (+66 more)
 
-### Community 14 - "KeeperController"
-Cohesion: 0.05
-Nodes (37): Band, Func, Quaternion, Renderer, Vector3, Goalkeeper, Body, HasBall (+29 more)
+### Community 14 - "Goalkeeper"
+Cohesion: 0.06
+Nodes (25): Band, Func, Quaternion, Renderer, Vector3, Band, High, Jump (+17 more)
 
 ### Community 15 - "Material"
-Cohesion: 0.14
-Nodes (10): Material, Color, Shader, Texture2D, JerseyFaces, Chest, Flank, Make (+2 more)
+Cohesion: 0.10
+Nodes (17): Material, Color, BoxCollider, Color, HairMats, Cap, Cards, Tuft (+9 more)
 
 ### Community 16 - ".RouteMessage"
 Cohesion: 0.22
@@ -431,27 +445,27 @@ Nodes (4): Color32, Dictionary, Texture2D, MenuIcons
 
 ### Community 18 - "CupRoundDriver"
 Cohesion: 0.02
-Nodes (76): Transform, CupRoundDriver, Ball, SimulatesBodies, Vector3, Vector3, Dictionary, List (+68 more)
+Nodes (75): Transform, CupRoundDriver, Ball, SimulatesBodies, Vector3, Preserve, Vector3, Dictionary (+67 more)
 
 ### Community 19 - "DirectIpTransport.cs (direct-IP UDP)"
 Cohesion: 0.09
 Nodes (25): Direct-IP UDP transport path (LAN / Tailscale), DirectIpTransport.cs (direct-IP UDP), Facepunch.Steamworks, Footballer, INetTransport.cs (transport seam), LocalTransport.cs (in-process loopback), Multiplayer.cs (global entry), NetEndpoint.cs (+17 more)
 
-### Community 20 - "MenuScene"
-Cohesion: 0.03
-Nodes (44): Vector3, AccuracyScene, Aim, HoldSeconds, Color, Mesh, Quaternion, Vector3 (+36 more)
+### Community 20 - "DeadBallScene"
+Cohesion: 0.08
+Nodes (16): Vector3, AccuracyScene, Aim, HoldSeconds, Quaternion, Vector3, DeadBallScene, Aim (+8 more)
 
 ### Community 21 - "com.unity.modules.jsonserialize"
 Cohesion: 0.33
 Nodes (6): dependencies, depth, source, version, com.unity.modules.jsonserialize, com.unity.modules.jsonserialize
 
 ### Community 22 - "ActiveRagdoll"
-Cohesion: 0.06
-Nodes (31): Rigidbody, Bounds, BoxCollider, CapsuleCollider, Collider, ConfigurableJoint, Dictionary, IReadOnlyList (+23 more)
+Cohesion: 0.05
+Nodes (34): Bounds, BoxCollider, CapsuleCollider, Collider, ConfigurableJoint, Dictionary, IReadOnlyList, List (+26 more)
 
 ### Community 23 - "NetSession"
 Cohesion: 0.03
-Nodes (49): appr, JerseyChunkMsg, LobbySlot, NetRole, Crosser, Entrant, Keeper, Shooter (+41 more)
+Nodes (50): appr, JerseyChunkMsg, LobbySlot, MatchConfig, NetRole, Crosser, Entrant, Keeper (+42 more)
 
 ### Community 24 - "BuildAll"
 Cohesion: 0.12
@@ -461,25 +475,25 @@ Nodes (8): Action, MenuItem, BuildAll, ZipEnabled, Plat, BuildTarget, Plat, Type
 Cohesion: 0.14
 Nodes (9): List, Vector3, MatchProbe, Overlay, ProbeTackle, Ai, Human, Slide (+1 more)
 
-### Community 26 - "GameMode"
-Cohesion: 0.08
-Nodes (21): Dictionary, List, RenderTexture, Vector3, MenuSceneStage, Panel, List, ModeGrid (+13 more)
+### Community 26 - "MenuSceneStage"
+Cohesion: 0.13
+Nodes (9): Dictionary, IList, Light, List, RenderTexture, Vector3, MenuSceneStage, Panel (+1 more)
 
 ### Community 27 - "NetSetPieceMatch"
-Cohesion: 0.08
-Nodes (10): Transform, NetAccuracyMatch, Color, List, Rigidbody, ShootoutState, Transform, Vector3 (+2 more)
+Cohesion: 0.10
+Nodes (10): ShootoutState, Color, GUIStyle, List, ShootoutState, NetSetPieceMatch, Phase, Armed (+2 more)
 
 ### Community 28 - "PauseMenu"
 Cohesion: 0.09
 Nodes (19): CreditsData, Entry, Kind, Gap, Heading, Line, Strong, Sub (+11 more)
 
 ### Community 29 - "Passing"
-Cohesion: 0.13
-Nodes (8): List, Vector3, Bar, AnyArmed, Option, Passing, Option, PassKind
+Cohesion: 0.12
+Nodes (9): Bar, List, Vector3, Bar, AnyArmed, Option, Passing, Option (+1 more)
 
 ### Community 30 - "NetStrikerMatch"
 Cohesion: 0.08
-Nodes (14): Body, Texture2D, Goalkeeper, ai, Crosser, List, name, slot (+6 more)
+Nodes (14): Body, State, ai, Crosser, List, name, Rigidbody, slot (+6 more)
 
 ### Community 31 - "AtomicFileWriter"
 Cohesion: 0.25
@@ -489,28 +503,28 @@ Nodes (4): Dictionary, AtomicFileWriter, Job, Job
 Cohesion: 0.05
 Nodes (39): Emote, Backflip, Bow, Charleston, Cheer, Clap, Crip, Dab (+31 more)
 
-### Community 33 - ".TestBrackets"
-Cohesion: 0.13
-Nodes (11): ArgumentException, IList, Action, StringBuilder, CupSelfTest, CupSelfTestException, Exception, humanName (+3 more)
+### Community 33 - "CupPhase"
+Cohesion: 0.08
+Nodes (19): Transform, CupPhase, Bracket, CoinToss, Ended, GameOver, Interstitial, Loading (+11 more)
 
 ### Community 34 - ".Transform"
 Cohesion: 0.10
-Nodes (16): MeshFilter, MeshRenderer, MeshFilter, MeshRenderer, Quaternion, Mesh, Transform, Vector2 (+8 more)
+Nodes (19): ArgumentException, MeshFilter, MeshFilter, MeshRenderer, MeshFilter, MeshRenderer, Transform, GameObject (+11 more)
 
-### Community 35 - ".Rect"
-Cohesion: 0.06
-Nodes (15): Color, CupUiKit, Action, Event, GUIStyle, List, CupLobbyUI, BracketOpen (+7 more)
+### Community 35 - "CupLobbyUI"
+Cohesion: 0.11
+Nodes (11): Color, CupUiKit, Action, Event, GUIStyle, List, CupLobbyUI, BracketOpen (+3 more)
 
 ### Community 36 - "AnatomySim"
 Cohesion: 0.20
 Nodes (10): CapsuleCollider, Collider, Color, GameObject, Transform, Vector3, AnatomySim, Erect01 (+2 more)
 
-### Community 37 - "RoundLine"
-Cohesion: 0.08
-Nodes (16): KickRecord, Scored, IList, List, CupRoundRules, RoundLine, Count, GoalsA (+8 more)
+### Community 37 - "CupSide"
+Cohesion: 0.06
+Nodes (28): IList, KickRecord, Scored, IList, List, CupRoundRules, RoundLine, Count (+20 more)
 
 ### Community 38 - "NetEndpoint"
-Cohesion: 0.21
+Cohesion: 0.24
 Nodes (4): IPAddress, IPEndPoint, List, NetEndpoint
 
 ### Community 39 - "com.unity.modules.uielements"
@@ -525,29 +539,29 @@ Nodes (6): dependencies, depth, source, version, com.unity.modules.physics, com.
 Cohesion: 0.18
 Nodes (11): dependencies, depth, source, version, dependencies, depth, source, version (+3 more)
 
-### Community 42 - ".Setup"
-Cohesion: 0.08
-Nodes (20): Color, Color32, Dictionary, GameObject, List, Quaternion, Texture2D, Vector3 (+12 more)
+### Community 42 - ".BuildBodies"
+Cohesion: 0.15
+Nodes (13): Color, Color32, Dictionary, GameObject, List, Quaternion, Texture2D, Vector3 (+5 more)
 
 ### Community 43 - "QuickChatFeed"
-Cohesion: 0.11
-Nodes (8): Line, List, Queue, Line, QuickChatFeed, AnyOpen, EscapeOwned, Typing
+Cohesion: 0.09
+Nodes (10): Line, Dictionary, ChatCensor, List, Queue, Line, QuickChatFeed, AnyOpen (+2 more)
 
 ### Community 44 - "CosmeticGallery"
 Cohesion: 0.14
 Nodes (12): GameObject, IEnumerable, IEnumerator, Light, Renderer, RenderTexture, Texture2D, Vector3 (+4 more)
 
 ### Community 45 - "CrossMap"
-Cohesion: 0.12
-Nodes (17): State, Color, GUIStyle, Rect, Vector2, Vector3, CrossMap, BottomZ (+9 more)
+Cohesion: 0.13
+Nodes (19): Result, Color, GUIStyle, Rect, Vector2, Vector3, CrossMap, BottomZ (+11 more)
 
-### Community 46 - "FreeKickGame"
-Cohesion: 0.07
-Nodes (27): CapsuleCollider, Collider, GameObject, IReadOnlyList, List, PhysicsMaterial, Quaternion, Rigidbody (+19 more)
+### Community 46 - "DefensiveWall"
+Cohesion: 0.14
+Nodes (13): CapsuleCollider, Collider, GameObject, IReadOnlyList, List, PhysicsMaterial, Quaternion, Rigidbody (+5 more)
 
 ### Community 47 - "SetPieceTaker"
-Cohesion: 0.06
-Nodes (30): Action, Func, Quaternion, SetPieceSpin, Vector2, Vector3, Commit, SetPieceTaker (+22 more)
+Cohesion: 0.09
+Nodes (21): Action, Func, Quaternion, SetPieceSpin, Vector2, Vector3, Commit, SetPieceTaker (+13 more)
 
 ### Community 48 - "HairSim"
 Cohesion: 0.08
@@ -566,16 +580,16 @@ Cohesion: 0.15
 Nodes (13): com.unity.modules.hierarchycore, dependencies, depth, source, version, dependencies, depth, source (+5 more)
 
 ### Community 52 - "NetCodec"
-Cohesion: 0.16
-Nodes (5): PlayerAppearance, NetCodec, NetWriter, BinaryWriter, MemoryStream
+Cohesion: 0.14
+Nodes (6): PlayerAppearance, NetCodec, NetWriter, Vector3, BinaryWriter, MemoryStream
 
 ### Community 53 - ".Mount"
 Cohesion: 0.13
-Nodes (18): Anchor, Collider, GameObject, MeshRenderer, Transform, Vector3, Bounds, Collider (+10 more)
+Nodes (19): Anchor, Collider, GameObject, MeshRenderer, Transform, Vector3, Bounds, Collider (+11 more)
 
 ### Community 54 - "NetMatch"
-Cohesion: 0.11
-Nodes (7): Bar, Refs, Rigidbody, Transform, Vector3, Body, NetMatch
+Cohesion: 0.13
+Nodes (5): StatRow, Refs, Transform, Vector3, NetMatch
 
 ### Community 55 - "AccuracyTarget"
 Cohesion: 0.13
@@ -590,16 +604,16 @@ Cohesion: 0.40
 Nodes (5): dependencies, depth, source, version, com.unity.modules.androidjni
 
 ### Community 58 - "MatchGame"
-Cohesion: 0.07
-Nodes (19): Dictionary, Func, HashSet, List, Vector3, MatchGame, AwayScore, ClockRemaining (+11 more)
+Cohesion: 0.06
+Nodes (20): Dictionary, Func, HashSet, List, Vector3, MatchGame, AwayScore, ClockRemaining (+12 more)
 
 ### Community 59 - "IStrikerInput"
 Cohesion: 0.07
 Nodes (27): Vector2, IStrikerInput, CloseControlHeld, CrossPressed, EmoteId, Fresh, JumpHeld, JumpPressed (+19 more)
 
-### Community 60 - "CupPlayer"
-Cohesion: 0.13
-Nodes (15): GUIStyle, IEnumerable, IList, List, Rect, CupBracketView, Layout, CupPlayer (+7 more)
+### Community 60 - "KeeperController"
+Cohesion: 0.10
+Nodes (15): IPlayerController, Func, Quaternion, Vector2, Vector3, KeeperController, Body, Hands (+7 more)
 
 ### Community 61 - "Sniper"
 Cohesion: 0.28
@@ -621,29 +635,29 @@ Nodes (5): dependencies, depth, source, version, com.unity.modules.audio
 Cohesion: 0.17
 Nodes (11): dependencies, depth, source, version, dependencies, depth, source, version (+3 more)
 
-### Community 67 - ".Button"
-Cohesion: 0.08
-Nodes (33): GUIStyle, Rect, Vector2, GUIStyle, GUIStyle, Color, GUIStyle, Matrix4x4 (+25 more)
+### Community 67 - ".Rect"
+Cohesion: 0.06
+Nodes (36): Color, Color, Event, Action, Rect, GUIStyle, Action, GUIStyle (+28 more)
 
 ### Community 68 - "ScriptedInput"
-Cohesion: 0.06
-Nodes (30): Vector2, ScriptedInput, CloseControlHeld, CrossPressed, EmoteId, Fresh, JumpHeld, JumpPressed (+22 more)
+Cohesion: 0.07
+Nodes (27): Vector2, ScriptedInput, CloseControlHeld, CrossPressed, EmoteId, Fresh, JumpHeld, JumpPressed (+19 more)
 
 ### Community 69 - "graphify knowledge graph"
 Cohesion: 0.24
 Nodes (10): community structure, god nodes, graphify-out/graph.json, graphify-out/GRAPH_REPORT.md, graphify knowledge graph, graphify explain command, graphify path command, graphify query command (+2 more)
 
 ### Community 70 - "NetMessages.cs"
-Cohesion: 0.09
-Nodes (17): Quaternion, Vector3, BodyState, CupCoinBits, CupPlayerRow, CupPlayerStatus, CupStreamBody, CupStreamBodyFlags (+9 more)
+Cohesion: 0.07
+Nodes (22): Quaternion, CupCoinBits, CupPlayerRow, CupPlayerStatus, CupRequestMsg, CupStreamBody, CupStreamBodyFlags, CupStreamMsg (+14 more)
 
 ### Community 71 - "com.unity.ext.nunit"
 Cohesion: 0.17
 Nodes (12): com.unity.ext.nunit, com.unity.test-framework, dependencies, depth, source, version, dependencies, depth (+4 more)
 
 ### Community 72 - "TailnetDiscovery"
-Cohesion: 0.14
-Nodes (17): Action, ConcurrentQueue, IPAddress, IPEndPoint, List, Reason, NoCli, NoPeers (+9 more)
+Cohesion: 0.16
+Nodes (13): Action, ConcurrentQueue, IPAddress, IPEndPoint, List, TailnetDiscovery, HasTailnet, LastReason (+5 more)
 
 ### Community 73 - "dependencies"
 Cohesion: 0.17
@@ -653,13 +667,13 @@ Nodes (12): com.unity.modules.physics2d, dependencies, depth, hash, source, vers
 Cohesion: 0.22
 Nodes (9): Trickshot Multiplayer Framework, Host-authoritative model, Set Pieces mode (free-kick shootout), Unity 6000.4.1f1 editor version, Bicycle kick trick, GameBootstrap, GameCamera.cs, KickDetector.cs (+1 more)
 
-### Community 75 - ".HatPiece"
-Cohesion: 0.32
-Nodes (5): GameObject, Mesh, Transform, Vector2, Vector3
-
-### Community 76 - "Multiplayer"
+### Community 75 - "MenuScene"
 Cohesion: 0.12
-Nodes (9): RuntimeInitializeOnLoadMethod, Multiplayer, IsActive, IsClient, IsHost, Session, SteamLinked, NetPumpRunner (+1 more)
+Nodes (11): Collider, Color, List, Quaternion, Renderer, Rigidbody, Transform, Vector3 (+3 more)
+
+### Community 76 - "SessionBrowserUI"
+Cohesion: 0.09
+Nodes (13): RuntimeInitializeOnLoadMethod, Multiplayer, IsActive, IsClient, IsHost, Session, SteamLinked, NetPumpRunner (+5 more)
 
 ### Community 77 - "Hair Strand Texture Atlas"
 Cohesion: 0.38
@@ -698,24 +712,24 @@ Cohesion: 0.60
 Nodes (5): Hammer and Sickle, Soviet Emblem Sprite, Five-Pointed Star, Team Emblem / Logo, Soviet Union Symbolism
 
 ### Community 87 - "CrosserControl"
-Cohesion: 0.07
-Nodes (25): Stage, Approach, Bounce, Done, Flick, Flight, Hold, Collider (+17 more)
+Cohesion: 0.09
+Nodes (17): Collider, Transform, CrosserBubble, Func, Vector3, CrosserControl, Acc01, InStance (+9 more)
 
 ### Community 88 - "MsgType"
 Cohesion: 0.07
-Nodes (28): MsgType, AssignSlot, BallKick, CastJerseyVote, CrosserSetup, CupRequest, CupRoundState, CupState (+20 more)
+Nodes (26): MsgType, AssignSlot, BallKick, CastJerseyVote, CrosserSetup, CupRequest, CupRoundState, CupState (+18 more)
 
-### Community 89 - ".DrawBrowser"
-Cohesion: 0.21
-Nodes (4): Action, List, SessionBrowserUI, Filtering
+### Community 89 - "Camera"
+Cohesion: 0.20
+Nodes (8): Transform, NetAccuracyMatch, Camera, Refs, Renderer, Rigidbody, Texture2D, Transform
 
 ### Community 90 - ".TestBytes"
-Cohesion: 0.13
-Nodes (8): List, CupByteReader, More, Position, Remaining, CupByteWriter, Count, FormatException
+Cohesion: 0.24
+Nodes (5): CupByteReader, More, Position, Remaining, FormatException
 
 ### Community 91 - "CupSpots"
 Cohesion: 0.08
-Nodes (14): Transform, Collider, CupRoundState, List, Vector3, List, Quaternion, Vector3 (+6 more)
+Nodes (13): Collider, CupRoundState, List, Vector3, List, Quaternion, Vector3, CupSpots (+5 more)
 
 ### Community 92 - "ReliableChannel"
 Cohesion: 0.19
@@ -723,67 +737,67 @@ Nodes (8): Dictionary, List, Queue, Pending, ReliableChannel, CumAck, HasUnacked
 
 ### Community 93 - "PlayerProfile"
 Cohesion: 0.03
-Nodes (59): Color, label, Texture2D, PlayerProfile, AgilityStat, AirFlipMul, Bias, BicycleSkill01 (+51 more)
+Nodes (58): label, Texture2D, PlayerProfile, AgilityStat, AirFlipMul, Bias, BicycleSkill01, BodyHeightScale (+50 more)
 
 ### Community 94 - "PlayerPreview"
-Cohesion: 0.10
-Nodes (12): Color, GameObject, Light, Quaternion, Rect, Renderer, Texture2D, Vector3 (+4 more)
+Cohesion: 0.09
+Nodes (13): Color, GameObject, Light, Quaternion, Rect, Renderer, Texture2D, Vector3 (+5 more)
 
 ### Community 95 - "Hud"
 Cohesion: 0.07
-Nodes (20): Result, e, name, Color, GUIStyle, List, Rect, Vector2 (+12 more)
+Nodes (24): Color, GUIStyle, List, Rect, Vector2, Vector3, FlashKind, Bad (+16 more)
 
-### Community 96 - ".Label"
-Cohesion: 0.11
-Nodes (8): Action, GUIStyle, Vector3, HostSetupUI, Action, Color, LobbyUI, GUIStyle
+### Community 96 - "LobbyUI"
+Cohesion: 0.25
+Nodes (3): Action, Color, LobbyUI
 
 ### Community 97 - "SetPieceMap"
-Cohesion: 0.23
+Cohesion: 0.22
 Nodes (10): Color, Random, Rect, Vector2, Vector3, SetPieceMap, BottomZ, HalfW (+2 more)
 
 ### Community 98 - ".Build"
-Cohesion: 0.33
-Nodes (8): Collider, Color, PhysicsMaterial, Transform, Vector3, StadiumBuilder, CornerPylonScale, Side
+Cohesion: 0.21
+Nodes (13): IEnumerable, Quaternion, Vector3, Seat, Collider, Color, PhysicsMaterial, Transform (+5 more)
 
 ### Community 99 - "InviteFriendsUI"
 Cohesion: 0.08
-Nodes (21): Action, List, SteamFriendInfo, SteamFriendsAPI, Available, CanInvite, CurrentLobbyId, Action (+13 more)
+Nodes (18): Action, List, SteamFriendInfo, SteamFriendsAPI, Available, CanInvite, CurrentLobbyId, List (+10 more)
 
 ### Community 100 - ".Build"
 Cohesion: 0.37
 Nodes (4): Collider, Transform, Vector3, PitchBuilder
 
-### Community 101 - "MatchConfig"
-Cohesion: 0.14
-Nodes (10): LookingRole, Cameraman, None, Referee, Sniper, LookingRoles, MatchConfig, CupFormat (+2 more)
+### Community 101 - "Striker"
+Cohesion: 0.12
+Nodes (10): Striker, Collision, KickDetector, Quaternion, Vector3, StrikerScene, Bar, Rigidbody (+2 more)
 
-### Community 102 - ".Box"
-Cohesion: 0.22
-Nodes (10): Paint, Collider, Color, Texture2D, Transform, Vector3, SurroundBuilder, BowlHalfX (+2 more)
+### Community 102 - "SurroundBuilder"
+Cohesion: 0.21
+Nodes (9): Collider, Color, Texture2D, Transform, Vector3, SurroundBuilder, BowlHalfX, BowlHalfZ (+1 more)
 
 ### Community 103 - ".Build"
-Cohesion: 0.20
-Nodes (12): GoalFrame, PhysicsMaterial, Collider, MeshFilter, MeshRenderer, PhysicsMaterial, Renderer, Transform (+4 more)
+Cohesion: 0.24
+Nodes (11): PhysicsMaterial, Collider, MeshFilter, MeshRenderer, PhysicsMaterial, Renderer, Transform, Vector3 (+3 more)
 
-### Community 104 - "Claude handoff - Trickshot Cup final verification pass"
-Cohesion: 0.20
-Nodes (9): Claude handoff - Trickshot Cup final verification pass, Cross-fixer contradiction check, Current task, Findings re-verified this pass (I read the code; I did not trust the reports), In-editor work still owed, Rules that still apply here, Still open - deliberately not fixed, Verification state - what has actually been run (+1 more)
+### Community 104 - "Claude handoff - Trickshot (2026-09-04)"
+Cohesion: 0.25
+Nodes (7): Build artefacts, Claude handoff - Trickshot (2026-09-04), Ground rules that bit during this work, Open issues, all documented and deliberate, Verification state - read this literally, What is owed next, in order, Where things stand
 
 ### Community 105 - "Gait"
 Cohesion: 0.31
 Nodes (4): Vector3, Gait, Profile, Profile
 
 ### Community 106 - "MenuBackground"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (22): Func, List, Mesh, MeshFilter, MeshRenderer, Transform, Vector3, FlexNet (+14 more)
 
-### Community 107 - "Celebration"
-Cohesion: 0.11
-Nodes (12): Emote, Emote, Action, e, HashSet, name, Vector3, Celebration (+4 more)
+### Community 107 - "EmotePose"
+Cohesion: 0.28
+Nodes (3): Action, Vector3, EmotePose
 
 ### Community 108 - "BallController"
-Cohesion: 0.06
-Nodes (27): SetPieceSpin, Collision, Rigidbody, SphereCollider, Vector3, BallController, DribbleCarrier, DribbleHold (+19 more)
+Cohesion: 0.09
+Nodes (19): SetPieceSpin, Collision, Rigidbody, SphereCollider, Vector3, BallController, DribbleCarrier, DribbleHold (+11 more)
 
 ### Community 109 - "skyprep.py"
 Cohesion: 0.26
@@ -801,27 +815,27 @@ Nodes (4): Color, Dictionary, Texture2D, Turf
 Cohesion: 0.15
 Nodes (11): Color, Vector3, StadiumStyle, Active, FirstPickable, SelectedIndex, Surroundings, Flags (+3 more)
 
-### Community 113 - "RoundPhase"
-Cohesion: 0.10
-Nodes (16): RoundAuthority, Client, Host, Local, RoundPhase, Armed, Decided, Idle (+8 more)
+### Community 113 - "RoundAuthority"
+Cohesion: 0.40
+Nodes (4): RoundAuthority, Client, Host, Local
 
 ### Community 114 - "com.unity.modules.screencapture"
 Cohesion: 0.33
 Nodes (6): com.unity.modules.screencapture, dependencies, depth, source, version, com.unity.modules.screencapture
 
-### Community 115 - "GameManager"
-Cohesion: 0.10
-Nodes (10): Transform, Vector3, GameManager, CrossMapEscapeOwned, SaveWatch, Armed, Epic, Touched (+2 more)
+### Community 115 - "MonoBehaviour"
+Cohesion: 0.06
+Nodes (17): Mode, NetPump, Transform, Vector3, GameManager, CrossMapEscapeOwned, List, Quaternion (+9 more)
 
 ### Community 116 - ".SlotSubMenu"
-Cohesion: 0.15
+Cohesion: 0.11
 Nodes (8): Color, SlotKind, Skin, StyleA, StyleB, StyleC, Color, SpeciesCosmetics
 
 ### Community 117 - "com.unity.modules.unitywebrequest"
 Cohesion: 0.33
 Nodes (6): com.unity.modules.unitywebrequest, dependencies, depth, source, version, com.unity.modules.unitywebrequest
 
-### Community 118 - "CupOrderUI"
+### Community 118 - ".Label"
 Cohesion: 0.11
 Nodes (11): Action, Color, Event, GUIStyle, List, Rect, Vector2, CupOrderUI (+3 more)
 
@@ -830,20 +844,20 @@ Cohesion: 0.08
 Nodes (15): AudioClip, Dictionary, GUIStyle, IEnumerator, RuntimeInitializeOnLoadMethod, Vector3, AudioManager, Instance (+7 more)
 
 ### Community 120 - "CupBody"
-Cohesion: 0.08
-Nodes (24): Transform, CupBody, Alive, GroundPos, IsHuman, Pelvis, Action, Collider (+16 more)
+Cohesion: 0.10
+Nodes (18): Transform, CupBody, Alive, GroundPos, IsHuman, Pelvis, Action, Collider (+10 more)
 
-### Community 121 - ".Empty"
-Cohesion: 0.12
-Nodes (15): Collider, Color, Renderer, Transform, Vector3, Crowd, FanCount, CrowdCheer (+7 more)
+### Community 121 - "Crowd"
+Cohesion: 0.17
+Nodes (7): Color, Renderer, Transform, Vector3, Crowd, FanCount, CrowdCheer
 
 ### Community 123 - "NotificationToastUI"
 Cohesion: 0.33
 Nodes (4): List, NotificationToastUI, Toast, Toast
 
 ### Community 124 - ".BuildGoal"
-Cohesion: 0.18
-Nodes (13): Goal, GoalSetup, KeeperLevel, Refs, Collider, MeshFilter, MeshRenderer, PhysicsMaterial (+5 more)
+Cohesion: 0.21
+Nodes (12): Goal, GoalFrame, Refs, Collider, MeshFilter, MeshRenderer, PhysicsMaterial, Renderer (+4 more)
 
 ### Community 125 - "grassprep.py"
 Cohesion: 0.60
@@ -855,15 +869,15 @@ Nodes (4): Color32, Texture2D, TitleGlyph, K
 
 ### Community 127 - "CupBotTaker"
 Cohesion: 0.05
-Nodes (35): Vector2, CupBotTaker, Armed, Charging, CloseControlHeld, CrossPressed, Delay, EmoteId (+27 more)
+Nodes (34): Vector2, CupBotTaker, Armed, Charging, CloseControlHeld, CrossPressed, Delay, EmoteId (+26 more)
 
 ### Community 128 - "GameBootstrap"
-Cohesion: 0.11
-Nodes (11): Camera, GameObject, Light, Refs, Renderer, Rigidbody, RuntimeInitializeOnLoadMethod, Texture2D (+3 more)
+Cohesion: 0.09
+Nodes (17): Action, HostOrFindUI, GameMode, Accuracy, FreeKick, Goalkeeper, Match, SetPieces (+9 more)
 
-### Community 129 - "SeededRng"
-Cohesion: 0.20
-Nodes (3): IList, SeededRng, Seed
+### Community 129 - "CareerStatsUI"
+Cohesion: 0.14
+Nodes (6): Action, label, CareerStatsUI, Cat, mp, sp
 
 ### Community 131 - "SteamTransport"
 Cohesion: 0.11
@@ -874,23 +888,23 @@ Cohesion: 0.22
 Nodes (8): GameObject, Mesh, MeshFilter, MeshRenderer, Transform, Vector2, Vector3, Landform
 
 ### Community 133 - ".Piece"
-Cohesion: 0.19
-Nodes (11): Renderer, BoxCollider, MeshFilter, MeshRenderer, Mesh, Rect, Transform, Vector2 (+3 more)
+Cohesion: 0.31
+Nodes (7): MeshFilter, MeshRenderer, Mesh, Rect, Transform, Vector2, Vector3
 
-### Community 134 - "FlashKind"
-Cohesion: 0.40
-Nodes (5): FlashKind, Bad, Epic, Good, Neutral
+### Community 134 - "CupResultsUI"
+Cohesion: 0.16
+Nodes (9): Action, GUIStyle, CupResultsMode, Champions, GameOver, Summary, CupResultsUI, EscapeOwned (+1 more)
 
 ### Community 136 - "CareerStats"
-Cohesion: 0.06
-Nodes (20): Action, label, CareerStatsUI, Cat, Accuracy, Cup, FreeKick, Friends (+12 more)
+Cohesion: 0.14
+Nodes (7): List, CareerStats, Data, FilePath, CareerStatsData, ModeStats, NationCups
 
 ### Community 137 - "Striker"
 Cohesion: 0.05
 Nodes (26): Collider, Func, Vector3, Striker, Acrobat, FacingForward, HasLookAim, IsBusy (+18 more)
 
 ### Community 138 - "CupReferee"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (9): Quaternion, Transform, Vector3, CupReferee, Alive, Celeb, Mark, MarkFacing (+1 more)
 
 ### Community 139 - ".DriveTowardRotation"
@@ -911,30 +925,30 @@ Nodes (6): Color, Transform, Vector3, AccuracyBoard, Count, Rect
 
 ### Community 143 - "GameInput"
 Cohesion: 0.04
-Nodes (45): Transform, Action, RebindingOperation, Vector2, GameInput, BallCamPressed, CloseControlHeld, CrossHeld (+37 more)
+Nodes (45): Action, RebindingOperation, Vector2, GameInput, BallCamPressed, CamViewPressed, CloseControlHeld, CrossHeld (+37 more)
 
 ### Community 144 - "CupRequestKind"
-Cohesion: 0.11
-Nodes (17): CupRequestKind, CallCoin, CaptainDecides, Continue, LiveRow, Loaded, PickNation, PlayAgain (+9 more)
+Cohesion: 0.12
+Nodes (16): CupRequestKind, CallCoin, CaptainDecides, Continue, LiveRow, Loaded, PickNation, PlayAgain (+8 more)
 
-### Community 145 - "Bone"
-Cohesion: 0.06
-Nodes (41): Vector3, BodyLayout, BodyLayoutDef, ParentByBone, BoneSpec, ColliderKind, Box, CapsuleY (+33 more)
+### Community 145 - "BodyLayout"
+Cohesion: 0.10
+Nodes (23): Vector3, BodyLayout, BodyLayoutDef, ParentByBone, BoneSpec, ColliderKind, Box, CapsuleY (+15 more)
 
 ### Community 146 - "Achievements"
 Cohesion: 0.20
 Nodes (11): Func, List, AchievementDef, AchievementKind, LeaderboardTop, StatThreshold, Achievements, FilePath (+3 more)
 
-### Community 147 - "MonoBehaviour"
-Cohesion: 0.11
-Nodes (11): NetPump, Action, Collider, Goal, Action, HostOrFindUI, NetBackstop, SpeciesSelectUI (+3 more)
+### Community 147 - "Goal"
+Cohesion: 0.33
+Nodes (3): Action, Collider, Goal
 
 ### Community 148 - "ShotType"
 Cohesion: 0.25
 Nodes (7): ShotType, Bicycle, DivingHeader, Header, Normal, ThirdLeg, Volley
 
 ### Community 149 - "PrematchUI"
-Cohesion: 0.17
+Cohesion: 0.19
 Nodes (5): Action, GUIStyle, ScrimPos, Vector3, PrematchUI
 
 ### Community 151 - "Category"
@@ -947,39 +961,39 @@ Nodes (5): Role, Crosser, Goalkeeper, Sniper, Striker
 
 ### Community 153 - "CupStage"
 Cohesion: 0.04
-Nodes (22): IReadOnlyList, List, CupBracket, Champion, CurrentStage, IsComplete, CupRound, LoserEntrant (+14 more)
+Nodes (32): IReadOnlyList, List, CupBracket, Champion, CurrentStage, IsComplete, CupRound, LoserEntrant (+24 more)
 
 ### Community 154 - "PitchLayout"
-Cohesion: 0.10
-Nodes (19): IEnumerable, Quaternion, Vector3, PitchLayout, AttackGoalLineZ, FarGoalLineZ, HalfWidth, PitchCenterZ (+11 more)
+Cohesion: 0.12
+Nodes (14): PitchLayout, AttackGoalLineZ, FarGoalLineZ, HalfWidth, PitchCenterZ, RowDepth, RowRise, StandBaseHeight (+6 more)
 
 ### Community 155 - "PeerId"
-Cohesion: 0.14
+Cohesion: 0.11
 Nodes (7): NetChannel, Reliable, ReliableBulk, Unreliable, PeerId, IsValid, IEquatable
 
 ### Community 156 - "AccuracyGame"
-Cohesion: 0.10
-Nodes (10): Action, Random, Vector3, AccuracyGame, MapEscapeOwned, Round, Phase, Armed (+2 more)
+Cohesion: 0.12
+Nodes (6): Action, Random, Vector3, AccuracyGame, MapEscapeOwned, Round
 
 ### Community 157 - "MenuUI"
-Cohesion: 0.18
-Nodes (5): Action, Rect, Action, Rect, MenuUI
+Cohesion: 0.11
+Nodes (11): Action, Rect, Action, Rect, List, ModeGrid, Page, Pages (+3 more)
 
 ### Community 158 - "horse_mane"
 Cohesion: 0.12
 Nodes (16): 00 Bald (index 0) -> B_regenerate [S], 01 Buzz -> REMOVE [S], 02 Crew Cut -> B_regenerate [S], 03 Spiky -> REMOVE [S], 04 Fringe -> B_regenerate [S], 05 Mohawk -> B_regenerate [S], 06 Messy -> B_regenerate [S], 07 Curly -> REMOVE [S] (+8 more)
 
 ### Community 159 - "CupTrophyLift"
-Cohesion: 0.06
-Nodes (26): Quaternion, Action, Color, Emote, GUIStyle, IList, IReadOnlyList, List (+18 more)
+Cohesion: 0.07
+Nodes (25): Action, Color, Emote, GUIStyle, IList, IReadOnlyList, List, Quaternion (+17 more)
 
 ### Community 160 - "face_props_jewelry"
 Cohesion: 0.13
 Nodes (15): Bindi -> B_regenerate [S], Chain Necklace -> B_regenerate [L], Cigar -> B_regenerate [M], Dangle Earrings -> B_regenerate [M], Eyebrow Piercing -> B_regenerate [S], face_props_jewelry, Hoop Earrings -> B_regenerate [S], Lollipop -> B_regenerate [M] (+7 more)
 
-### Community 161 - "ReplaySystem"
-Cohesion: 0.17
-Nodes (9): List, Quaternion, Rigidbody, Transform, Vector3, Frame, ReplaySystem, IsPlaying (+1 more)
+### Community 161 - "Bone"
+Cohesion: 0.10
+Nodes (18): euler, Vector3, Bone, CalfL, CalfR, Count, FootL, FootR (+10 more)
 
 ### Community 162 - "Live mode-panel scenes (Single Player / Multiplayer submenus)"
 Cohesion: 0.15
@@ -997,37 +1011,37 @@ Nodes (14): all, byFile, FILES, FINDINGS, fixes, fixPrompt(), groups, LENSES (+6
 Cohesion: 0.18
 Nodes (8): CupEntrant, Code, DisplayName, IsHuman, Name, Nation, Strength, WasHuman
 
-### Community 166 - "Phase"
-Cohesion: 0.50
-Nodes (4): Phase, Armed, Live, Settle
+### Community 166 - "FreeKickGame"
+Cohesion: 0.19
+Nodes (5): Collider, Random, Vector3, FreeKickGame, Outcome
 
 ### Community 167 - "CupSpectatorView"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (11): Dictionary, List, Transform, CupSpectatorView, Active, EscapeOwned, Instance, PuppetCount (+3 more)
 
 ### Community 168 - "CupPodium"
-Cohesion: 0.05
-Nodes (40): GUIStyle, CupEmoteWheel, AnyOpen, Page, Action, Color, e, Emote (+32 more)
+Cohesion: 0.06
+Nodes (35): Action, Color, e, GUIStyle, IReadOnlyList, List, Mesh, name (+27 more)
 
 ### Community 169 - "ElephantTex"
 Cohesion: 0.24
 Nodes (8): Color, Func, Texture2D, ElephantTex, Damask, Ear, Tusk, Weave
 
-### Community 170 - ".Draw"
-Cohesion: 0.08
-Nodes (20): GUIStyle, Rect, Vector2, GoalEditor, MaxH, MaxW, MinH, MinW (+12 more)
+### Community 170 - ".Divider"
+Cohesion: 0.07
+Nodes (24): GUIStyle, Rect, Vector2, GoalEditor, MaxH, MaxW, MinH, MinW (+16 more)
 
-### Community 171 - "HairMats"
-Cohesion: 0.18
-Nodes (11): Color, HairMats, Cap, Cards, Tuft, Action, HairDef, List (+3 more)
+### Community 171 - ".AttachMane"
+Cohesion: 0.31
+Nodes (6): Action, HairDef, List, Transform, Vector3, ManeEntry
 
 ### Community 172 - "AdultQuiz"
 Cohesion: 0.50
 Nodes (3): AdultQuiz, Q, Q
 
 ### Community 173 - "GameCamera"
-Cohesion: 0.12
-Nodes (14): Func, Transform, Vector3, GameCamera, BallCam, KeeperLookDownFraction, KeeperLookYaw, Pitch (+6 more)
+Cohesion: 0.08
+Nodes (21): Transform, Func, Quaternion, Transform, Vector3, GameCamera, BallCam, FollowView (+13 more)
 
 ### Community 174 - "CupNationTable"
 Cohesion: 0.13
@@ -1038,7 +1052,7 @@ Cohesion: 0.15
 Nodes (13): Beret (human_acc_34) -> B_regenerate [M], Bucket Hat (human_acc_30) -> B_regenerate [M], Cap (human_acc_29) -> A_download [M], Cowboy Hat (human_acc_33) -> A_download [M], Fedora (human_acc_31) -> A_download [M], hats, Headband (human_acc_36) -> KEEP [S], Party Hat (human_acc_39) -> B_regenerate [M] (+5 more)
 
 ### Community 176 - "SettingsMenu"
-Cohesion: 0.10
+Cohesion: 0.09
 Nodes (14): action, Dictionary, label, Keybinds, Current, QuickChat, Slots, Action (+6 more)
 
 ### Community 177 - "HorseDecals"
@@ -1051,11 +1065,15 @@ Nodes (13): eleph_ears_00_plain -> B_regenerate [L], eleph_ears_01_notched -> B_
 
 ### Community 179 - "CupLocalInput"
 Cohesion: 0.07
-Nodes (30): Func, Vector2, CupLocalInput, CloseControlHeld, CrossPressed, EmoteId, Fresh, Gated (+22 more)
+Nodes (29): Func, Vector2, CupLocalInput, CloseControlHeld, CrossPressed, EmoteId, Fresh, Gated (+21 more)
 
 ### Community 180 - ".Draw"
-Cohesion: 0.20
-Nodes (8): Tab, Color, GUIStyle, List, MatchStatsUI, Tab, Away, Home
+Cohesion: 0.16
+Nodes (10): Tab, Color, GUIStyle, List, MatchStatsUI, Tab, Away, Home (+2 more)
+
+### Community 181 - "CupByteWriter"
+Cohesion: 0.18
+Nodes (3): List, CupByteWriter, Count
 
 ### Community 182 - "0Wsi-ygmiIX"
 Cohesion: 0.18
@@ -1065,9 +1083,9 @@ Nodes (11): 0Wsi-ygmiIX, author, author_slug, bytes, glb, id, license, license_u
 Cohesion: 0.18
 Nodes (11): 14ZGcuiRJ9d, author, author_slug, bytes, glb, id, license, license_url (+3 more)
 
-### Community 184 - ".IsValid"
-Cohesion: 0.08
-Nodes (11): Color, GUIStyle, CupIntroCard, Visible, Color, GUIStyle, CupLoadingUI, Covering (+3 more)
+### Community 184 - "CupLoadingUI"
+Cohesion: 0.20
+Nodes (6): GUIStyle, CupLoadingUI, Covering, HideRequested, MinElapsed, Visible
 
 ### Community 185 - "1TJPsi4VIT"
 Cohesion: 0.18
@@ -1241,17 +1259,9 @@ Nodes (11): YchMXfQNU0, author, author_slug, bytes, glb, id, license, license_ur
 Cohesion: 0.18
 Nodes (11): yYdsPoULg1, author, author_slug, bytes, glb, id, license, license_url (+3 more)
 
-### Community 228 - ".TickNetPass"
-Cohesion: 0.18
-Nodes (3): Queue, CallLimiter, Bar
-
 ### Community 229 - "CupRoundState"
-Cohesion: 0.24
-Nodes (3): List, CupRoundState, ScoreLine
-
-### Community 230 - "CrosserSetupMsg"
-Cohesion: 0.15
-Nodes (3): CrosserSetupMsg, Dictionary, ChatCensor
+Cohesion: 0.18
+Nodes (4): CupRoundState, List, CupRoundState, ScoreLine
 
 ### Community 231 - "eyewear"
 Cohesion: 0.20
@@ -1262,8 +1272,8 @@ Cohesion: 0.20
 Nodes (10): horse_mark_01_star -> B_regenerate [S], horse_mark_02_blaze -> B_regenerate [M], horse_mark_03_snip -> B_regenerate [S], horse_mark_04_stockings -> B_regenerate [M], horse_mark_05_dappled -> B_regenerate [M], horse_markings_tack, horse_tack_01_bridle -> B_regenerate [L], horse_tack_02_halter -> B_regenerate [M] (+2 more)
 
 ### Community 233 - "CustomizeUI"
-Cohesion: 0.08
-Nodes (14): Stage, Action, Color32, Dictionary, Func, GUIStyle, IEnumerator, Rect (+6 more)
+Cohesion: 0.09
+Nodes (13): Action, Color32, Dictionary, Func, GUIStyle, IEnumerator, Rect, Texture2D (+5 more)
 
 ### Community 234 - "human_facial"
 Cohesion: 0.22
@@ -1274,56 +1284,56 @@ Cohesion: 0.29
 Nodes (6): Batman Mask (human_acc_10) -> rename 'Vigilante Cowl' -> B_regenerate [M], Gas Mask (human_acc_13) -> B_regenerate [L], Hockey Mask (human_acc_11) -> B_regenerate [M], masks, Venetian Mask (human_acc_12) -> B_regenerate [M], Welding Mask (human_acc_14) -> A_download [M]
 
 ### Community 237 - "CupDebugCapture"
-Cohesion: 0.13
-Nodes (9): Func, List, StringBuilder, CupDebugCapture, Clock, Instance, Job, Probe (+1 more)
+Cohesion: 0.07
+Nodes (21): Func, List, StringBuilder, CupDebugCapture, Clock, Instance, Job, Probe (+13 more)
 
 ### Community 238 - "Cosmetics/manifest.json"
 Cohesion: 0.33
 Nodes (5): 3enxGxYxEKF, author, author_slug, id, title
 
 ### Community 239 - ".CaptureCursor"
-Cohesion: 0.04
-Nodes (28): Action, Transform, CupBracketScreen, Elapsed, First, OnElapsed, Seconds, TimerRunning (+20 more)
+Cohesion: 0.05
+Nodes (24): Action, CupBracketScreen, Elapsed, First, OnElapsed, Seconds, TimerRunning, UpTo (+16 more)
 
 ### Community 240 - "CupCameraRig"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (13): Quaternion, Vector2, CupCameraRig, CamFov, CamPos, CamRot, CinematicDone, Current (+5 more)
 
 ### Community 241 - "Downloaded cosmetic assets"
 Cohesion: 0.40
 Nodes (4): CC0 (public domain, no attribution required), CC-BY 3.0 (ATTRIBUTION REQUIRED), Downloaded cosmetic assets, Packs (downloaded separately, not in manifest.json)
 
-### Community 242 - "AnimState"
-Cohesion: 0.22
-Nodes (9): AnimState, Dive, Down, Idle, Jump, Kick, KickL, Run (+1 more)
+### Community 242 - "CupNations"
+Cohesion: 0.21
+Nodes (5): Color, List, Texture2D, CupNations, Count
 
 ### Community 243 - "CupCoinToss"
-Cohesion: 0.11
-Nodes (19): Action, GameObject, GUIStyle, Mesh, MeshFilter, MeshRenderer, Quaternion, Vector3 (+11 more)
+Cohesion: 0.06
+Nodes (26): Action, Color, GameObject, GUIStyle, List, Mesh, MeshRenderer, Quaternion (+18 more)
 
 ### Community 244 - ".BuildVenetianMask"
-Cohesion: 0.21
+Cohesion: 0.20
 Nodes (8): Color32, Dictionary, Func, Mesh, Texture2D, Transform, Vector3, MaskArt
 
-### Community 247 - "MenuScale"
-Cohesion: 0.22
-Nodes (7): Matrix4x4, MenuScale, Active, Factor, Height, UserScale, Width
+### Community 247 - ".Begin"
+Cohesion: 0.09
+Nodes (16): Action, GUIStyle, Rect, CupSetupUI, GUIStyle, Action, GUIStyle, Rect (+8 more)
 
 ### Community 248 - "ChargeGate"
 Cohesion: 0.07
 Nodes (27): Vector2, ChargeGate, CloseControlHeld, CrossPressed, EmoteId, Fresh, JumpHeld, JumpPressed (+19 more)
 
-### Community 249 - "CupNet"
-Cohesion: 0.09
-Nodes (6): List, IList, List, CupNet, CupResultRow, CupStateMsg
+### Community 249 - "CupPlayer"
+Cohesion: 0.07
+Nodes (12): CupPlayer, Active, Alive, DisplayName, HasPicked, InCup, IsSpectating, IList (+4 more)
 
 ### Community 250 - "Knockdown"
-Cohesion: 0.16
-Nodes (5): Vector3, Knockdown, Beaten, Down, Strk
+Cohesion: 0.18
+Nodes (7): Knockdown, Beaten, Down, Strk, Quaternion, Vector3, MatchScene
 
-### Community 251 - "Touch"
-Cohesion: 0.29
-Nodes (7): Touch, Carry, Contact, Keeper, Pass, Shot, Tackle
+### Community 251 - "KeeperScene"
+Cohesion: 0.15
+Nodes (11): Touch, Carry, Contact, Keeper, Pass, Shot, Tackle, Quaternion (+3 more)
 
 ### Community 252 - "ScrimPos"
 Cohesion: 0.17
@@ -1341,25 +1351,25 @@ Nodes (3): Action, GUIStyle, StudioSplash
 Cohesion: 0.12
 Nodes (14): LobbyInfo, Action, data, Dictionary, from, Func, List, Queue (+6 more)
 
-### Community 256 - ".DrawBand"
-Cohesion: 0.43
-Nodes (4): Color, List, Rect, Vector2
+### Community 256 - "Goalkeeper"
+Cohesion: 0.16
+Nodes (10): Cat, Accuracy, Cup, FreeKick, Friends, Goalkeeper, Match, Overall (+2 more)
 
-### Community 257 - "KeeperGame"
-Cohesion: 0.17
-Nodes (4): KeeperGame, Vector3, ShotServer, JustFired
+### Community 257 - ".ResetTo"
+Cohesion: 0.09
+Nodes (9): KeeperGame, SaveWatch, Armed, Touched, TouchSpeed, TouchTime, Vector3, ShotServer (+1 more)
 
-### Community 258 - ".OnGUI"
-Cohesion: 0.52
-Nodes (4): Action, GUIStyle, Rect, AccuracyModeUI
+### Community 258 - "CupScene"
+Cohesion: 0.14
+Nodes (8): Color, Mesh, Quaternion, Vector3, CupScene, Aim, HoldSeconds, Lofted
 
-### Community 259 - "CupResultsUI"
-Cohesion: 0.05
-Nodes (31): CupPhase, Bracket, CoinToss, Ended, GameOver, Interstitial, Loading, Lobby (+23 more)
+### Community 259 - "CupRoundSetup"
+Cohesion: 0.10
+Nodes (12): List, CupStatsLedger, Attached, Row, AnyKeeping, AnyTaking, List, Transform (+4 more)
 
-### Community 260 - ".OnGUI"
-Cohesion: 0.52
-Nodes (4): Action, GUIStyle, Rect, CupSetupUI
+### Community 260 - ".Box"
+Cohesion: 0.30
+Nodes (8): Collider, CapsuleCollider, Collider, GameObject, MeshFilter, Renderer, Transform, Vector3
 
 ### Community 261 - "Perms"
 Cohesion: 0.29
@@ -1370,11 +1380,11 @@ Cohesion: 0.40
 Nodes (5): Stage, Body, Jersey, Name, Skill
 
 ### Community 263 - "Vector3"
-Cohesion: 0.20
+Cohesion: 0.29
 Nodes (6): Action, Func, IList, Vector3, CupShot, EndAngle
 
 ### Community 264 - "CupPenaltyCam"
-Cohesion: 0.14
+Cohesion: 0.11
 Nodes (13): Quaternion, Vector3, CupPenaltyCam, BallSpot, Fov, GoalCenter, GoalPlaneZ, Latched (+5 more)
 
 ### Community 265 - ".Set"
@@ -1402,8 +1412,8 @@ Cohesion: 0.16
 Nodes (12): GameObject, Mesh, Quaternion, Renderer, Transform, Vector2, Vector3, CupTrophy (+4 more)
 
 ### Community 272 - "CupText"
-Cohesion: 0.05
-Nodes (14): CupCareer, Transform, CupLaunch, SoloFormat, Transform, Color, CupFormat, FreeKicks (+6 more)
+Cohesion: 0.06
+Nodes (16): CupCareer, Action, Transform, Transform, CupLaunch, SoloFormat, Transform, Color (+8 more)
 
 ### Community 273 - "Axis"
 Cohesion: 0.18
@@ -1429,9 +1439,9 @@ Nodes (9): 2.1 A round, 2.2 The stage ramp (AI strength), 2.3 The human keeper, 
 Cohesion: 0.25
 Nodes (8): 9.1 New code (all under `Assets/Scripts/Cup/`), 9.2 Reuse map, 9.3 Net topology per style, 9.4 Wire, 9.5 Session and match lifecycle (the biggest structural change), 9.6 Statics hygiene, 9.7 Career and achievements, 9. Technical architecture
 
-### Community 279 - "CupConfetti"
-Cohesion: 0.18
-Nodes (10): Color, Mesh, MeshFilter, MeshRenderer, Texture2D, Transform, Vector3, CupConfetti (+2 more)
+### Community 279 - "SeededRng"
+Cohesion: 0.10
+Nodes (14): Transform, Color, Mesh, MeshFilter, MeshRenderer, Texture2D, Transform, Vector3 (+6 more)
 
 ### Community 280 - "AiDifficulty"
 Cohesion: 0.33
@@ -1441,9 +1451,9 @@ Nodes (6): AiDifficulty, Easy, Hard, Insane, None, Normal
 Cohesion: 0.50
 Nodes (4): PassKind, Air, Chip, Ground
 
-### Community 282 - ".SetLocalInput"
-Cohesion: 0.12
-Nodes (3): InputFrame, Snapshot, Snapshot
+### Community 282 - "AnimState"
+Cohesion: 0.07
+Nodes (21): Snapshot, InputFrame, Vector2, Vector3, AnimState, Dive, Down, Idle (+13 more)
 
 ### Community 283 - "Mode"
 Cohesion: 0.33
@@ -1453,13 +1463,13 @@ Nodes (6): Mode, Celebrate, Deject, Lineup, None, Walk
 Cohesion: 0.15
 Nodes (11): all, byFile, FILES, FINDINGS, groups, LENSES, loads, meta (+3 more)
 
-### Community 285 - "CoinFace"
-Cohesion: 0.18
-Nodes (4): CoinFace, Heads, Tails, CoinFaces
+### Community 285 - ".BuildEar"
+Cohesion: 0.27
+Nodes (4): Inner, Mesh, Vector2, Vector3
 
-### Community 286 - "InputFrame"
-Cohesion: 0.40
-Nodes (3): Vector2, InputFrame, Sticky
+### Community 286 - "Celebration"
+Cohesion: 0.20
+Nodes (8): Emote, e, HashSet, name, Celebration, CurrentEmote, Playing, Progress01
 
 ### Community 288 - "Tab"
 Cohesion: 0.40
@@ -1469,21 +1479,33 @@ Nodes (5): Tab, Audio, Credits, Keybindings, Quickchat
 Cohesion: 0.22
 Nodes (8): Cup: fixed decisions (see the design doc for the rest), Dead-ball gameplay (existing parts to reuse), Ground rules for every builder, Menus / UI kit, Mode registration (existing), Networking (existing), Persistence, Trickshot Cup - builder notes (codebase facts verified 2026-09-03)
 
-### Community 290 - "CupSide"
+### Community 290 - "CupHud"
 Cohesion: 0.06
-Nodes (18): Color, GUIStyle, List, CupHud, CanVoteReplay, Driver, LocalCelebration, LocalFreed (+10 more)
+Nodes (15): e, name, Color, GUIStyle, List, CupHud, CanVoteReplay, Driver (+7 more)
 
-### Community 291 - "ShotBand"
-Cohesion: 0.50
-Nodes (4): ShotBand, Chip, Drive, Placed
+### Community 291 - "CupEmoteWheel"
+Cohesion: 0.22
+Nodes (4): GUIStyle, CupEmoteWheel, AnyOpen, Page
 
 ### Community 293 - "8. Endings"
 Cohesion: 0.67
 Nodes (3): 8.1 Podium (Solo, Head to Head), 8.2 Trophy lift (Co-op win), 8. Endings
 
+### Community 294 - ".Pose"
+Cohesion: 0.28
+Nodes (3): Vector3, KickSwing, LocalFoot
+
 ### Community 297 - "H2HLocal"
 Cohesion: 0.33
 Nodes (6): H2HLocal, Done, Loading, None, Playing, Toss
+
+### Community 298 - "Playlist"
+Cohesion: 0.25
+Nodes (6): AudioClip, Playlist, Count, Current, Track, Song
+
+### Community 299 - "Stage"
+Cohesion: 0.29
+Nodes (7): Stage, Approach, Bounce, Done, Flick, Flight, Hold
 
 ### Community 302 - "Phase"
 Cohesion: 0.33
@@ -1497,9 +1519,17 @@ Nodes (5): Contents, How to resume (exactly), Owner decisions made after the des
 Cohesion: 0.40
 Nodes (5): Phase, Attack, Defend, Loose, Restart
 
-### Community 305 - "Band"
-Cohesion: 0.40
-Nodes (5): Band, High, Jump, Low, Mid
+### Community 306 - "SetPieceSpin"
+Cohesion: 0.33
+Nodes (6): SetPieceSpin, CurveLeft, CurveRight, Knuckle, None, TopSpin
+
+### Community 307 - "State"
+Cohesion: 0.33
+Nodes (6): State, Diving, Holding, Ready, Saving, Stumble
+
+### Community 308 - "State"
+Cohesion: 0.33
+Nodes (6): State, Charging, Idle, Runup, Settle, Struck
 
 ### Community 310 - "wf2b-editor-solo.js"
 Cohesion: 0.50
@@ -1517,25 +1547,41 @@ Nodes (3): FILES, meta, REPORT
 Cohesion: 0.50
 Nodes (3): FILES, meta, REPORT
 
+### Community 314 - "Reason"
+Cohesion: 0.40
+Nodes (5): Reason, NoCli, NoPeers, Ok, TailnetDown
+
+### Community 317 - "Outcome"
+Cohesion: 0.40
+Nodes (5): Outcome, Blocked, Goal, Miss, Save
+
+### Community 318 - "Phase"
+Cohesion: 0.50
+Nodes (4): Phase, Armed, Cooldown, Live
+
+### Community 319 - "Phase"
+Cohesion: 0.50
+Nodes (4): Phase, Armed, Cooldown, Live
+
 ## Knowledge Gaps
-- **2142 isolated node(s):** `ZipEnabled`, `id`, `title`, `author`, `author_slug` (+2137 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2709 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **2148 isolated node(s):** `ZipEnabled`, `id`, `title`, `author`, `author_slug` (+2143 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2718 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `CupDirector` connect `CupDirector` to `GameBootstrap`, `CupResultsUI`, `Trickshot`, `Material`, `CupText`, `CupRequestKind`, `CupRoundDriver`, `GameInput`, `MonoBehaviour`, `NetSession`, `CupStage`, `.SetLocalInput`, `CoinFace`, `CupTrophyLift`, `CupSide`, `.Rect`, `CupSpectatorView`, `CupPodium`, `H2HLocal`, `.Setup`, `GameCamera`, `.IsValid`, `CupPlayer`, `.Notify`, `NetMessages.cs`, `Footballer`, `NetInputSource`, `CustomizeUI`, `BallController`, `.CaptureCursor`, `CupCameraRig`, `RoundPhase`, `CupCoinToss`, `CupOrderUI`, `CupNet`, `.BuildGoal`?**
-  _High betweenness centrality (0.135) - this node is a cross-community bridge._
-- **Why does `CupRoundDriver` connect `CupRoundDriver` to `SeededRng`, `CupResultsUI`, `Trickshot`, `CupReferee`, `CupDirector`, `MonoBehaviour`, `ActiveRagdoll`, `NetSession`, `CupStage`, `.SetLocalInput`, `CoinFace`, `CupTrophyLift`, `ReplaySystem`, `CupSide`, `RoundLine`, `.Setup`, `QuickChatFeed`, `FreeKickGame`, `SetPieceTaker`, `CupLocalInput`, `.Announce`, `.IsValid`, `IStrikerInput`, `.Notify`, `NetMessages.cs`, `NetInputSource`, `CupSpots`, `CupBody`, `CupRoundState`, `BallController`, `CupDebugCapture`, `CupCameraRig`, `RoundPhase`, `CupCoinToss`, `GameManager`, `ChargeGate`, `CupBotTaker`?**
-  _High betweenness centrality (0.114) - this node is a cross-community bridge._
-- **Why does `ActiveRagdoll` connect `ActiveRagdoll` to `Cosmetics`, `KeeperGame`, `SimConfig`, `Dribble`, `Crosser`, `.Piece`, `GameBootstrap`, `Vector3`, `Trickshot`, `Striker`, `.SetPoseOverride`, `CupReferee`, `Species`, `.BeardAnnulus`, `KeeperController`, `CupTrophy`, `Material`, `Bone`, `CupRoundDriver`, `MonoBehaviour`, `MenuScene`, `NetSetPieceMatch`, `AccuracyGame`, `Passing`, `NetStrikerMatch`, `CupTrophyLift`, `.SetMode`, `ReplaySystem`, `.Transform`, `AnatomySim`, `.Setup`, `HairMats`, `CosmeticGallery`, `GameCamera`, `FreeKickGame`, `SetPieceTaker`, `HairSim`, `NetMatch`, `MatchGame`, `Sniper`, `ScriptedInput`, `Footballer`, `CrosserControl`, `CupSpots`, `PlayerPreview`, `Hud`, `Gait`, `MenuBackground`, `Celebration`, `BallController`, `CupCameraRig`, `GameManager`, `CupBody`, `Knockdown`?**
-  _High betweenness centrality (0.112) - this node is a cross-community bridge._
+- **Why does `CupDirector` connect `CupDirector` to `CupRoundSetup`, `CupResultsUI`, `Trickshot`, `Material`, `CupRequestKind`, `CupText`, `CupRoundDriver`, `GameInput`, `NetSession`, `CupStage`, `AnimState`, `CupTrophyLift`, `CupPhase`, `CupHud`, `CupLobbyUI`, `CupSide`, `CupSpectatorView`, `CupPodium`, `H2HLocal`, `GameCamera`, `CupLoadingUI`, `.Notify`, `.Rect`, `NetMessages.cs`, `Footballer`, `NetInputSource`, `Camera`, `BallController`, `CupDebugCapture`, `.CaptureCursor`, `CupCameraRig`, `CupCoinToss`, `MonoBehaviour`, `.Label`, `CupPlayer`, `.BuildGoal`?**
+  _High betweenness centrality (0.126) - this node is a cross-community bridge._
+- **Why does `CupRoundDriver` connect `CupRoundDriver` to `.ResetTo`, `CupRoundSetup`, `Trickshot`, `CupReferee`, `CupDirector`, `ActiveRagdoll`, `SeededRng`, `NetSession`, `CupStage`, `AnimState`, `CupTrophyLift`, `CupHud`, `CupSide`, `.BuildBodies`, `QuickChatFeed`, `DefensiveWall`, `SetPieceTaker`, `.NetHostTick`, `CupLocalInput`, `IStrikerInput`, `.Notify`, `NetInputSource`, `.TestBytes`, `CupSpots`, `CupBody`, `CupRoundState`, `BallController`, `CupDebugCapture`, `CupCameraRig`, `RoundAuthority`, `CupCoinToss`, `MonoBehaviour`, `ChargeGate`?**
+  _High betweenness centrality (0.119) - this node is a cross-community bridge._
+- **Why does `ActiveRagdoll` connect `ActiveRagdoll` to `Goalkeeper`, `.ResetTo`, `SimConfig`, `Dribble`, `Crosser`, `CupScene`, `Cosmetics`, `.Piece`, `CupPenaltyCam`, `Striker`, `.SetPoseOverride`, `CupReferee`, `Trickshot`, `Species`, `Goalkeeper`, `CupTrophy`, `Material`, `BodyLayout`, `CupRoundDriver`, `.BeardAnnulus`, `DeadBallScene`, `AccuracyGame`, `Passing`, `Celebration`, `.Clear`, `NetStrikerMatch`, `Bone`, `.Transform`, `.BuildEar`, `AnatomySim`, `FreeKickGame`, `.BeginTurn`, `.Update`, `.Pose`, `.BuildBodies`, `.AttachMane`, `CosmeticGallery`, `SetPieceTaker`, `HairSim`, `NetMatch`, `MatchGame`, `KeeperController`, `Sniper`, `MenuScene`, `Footballer`, `CrosserControl`, `Camera`, `CupSpots`, `PlayerPreview`, `Hud`, `Striker`, `Gait`, `MenuBackground`, `EmotePose`, `BallController`, `CupCameraRig`, `MonoBehaviour`, `CupBody`, `Knockdown`, `KeeperScene`?**
+  _High betweenness centrality (0.103) - this node is a cross-community bridge._
 - **What connects `ZipEnabled`, `id`, `title` to the rest of the system?**
-  _2142 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2148 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Cosmetics` be split into smaller, more focused modules?**
-  _Cohesion score 0.1039426523297491 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.09846547314578005 - nodes in this community are weakly interconnected._
 - **Should `JerseyDesigns` be split into smaller, more focused modules?**
   _Cohesion score 0.10998632010943912 - nodes in this community are weakly interconnected._
 - **Should `SimConfig` be split into smaller, more focused modules?**
-  _Cohesion score 0.11692307692307692 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0967741935483871 - nodes in this community are weakly interconnected._

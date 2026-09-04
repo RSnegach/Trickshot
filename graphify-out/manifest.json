@@ -1,8 +1,8 @@
 {
   "Assets/Scripts/Input/GameInput.cs": {
-    "mtime": 1788365279.814484,
-    "seen": 1788365336.9434223,
-    "ast_hash": "b0836aebe0ce681bc89f4ba26b7335c1",
+    "mtime": 1788558286.4083927,
+    "seen": 1788564362.6585562,
+    "ast_hash": "f814dbd199471dbaa95bd10085d3798b",
     "semantic_hash": ""
   },
   "Assets/Scripts/Input/IStrikerInput.cs": {
@@ -12,9 +12,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Input/Keybinds.cs": {
-    "mtime": 1788365279.816504,
-    "seen": 1788365336.9434223,
-    "ast_hash": "4e42019c1395239db3e1fd8d982f91dd",
+    "mtime": 1788558276.065817,
+    "seen": 1788564362.6585562,
+    "ast_hash": "a545f3d08fa5897251fc6c03b8ad57d0",
     "semantic_hash": ""
   },
   "Assets/Scripts/Input/NetInputSource.cs": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/AccuracyGame.cs": {
-    "mtime": 1788489599.9978032,
-    "seen": 1788498194.8290133,
-    "ast_hash": "18bcf8e321f1826307894454c082b7f9",
+    "mtime": 1788558489.896737,
+    "seen": 1788564362.6585562,
+    "ast_hash": "cffc27bfb8c409467b0b869d117b6f1b",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/AccuracyTarget.cs": {
@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/CrossMap.cs": {
-    "mtime": 1788337401.4822948,
-    "seen": 1788337439.0205367,
-    "ast_hash": "3babdc76e1f785a813fb871fc64e07f3",
+    "mtime": 1788562665.158587,
+    "seen": 1788564362.6585562,
+    "ast_hash": "ed488161433d91f70c9973fb2cbcfa9d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Crosser.cs": {
@@ -174,21 +174,21 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/FreeKickGame.cs": {
-    "mtime": 1788489599.7733588,
-    "seen": 1788498194.8290133,
-    "ast_hash": "cdf4ac837b5be3f65dc97e3aaad83bf3",
+    "mtime": 1788558489.9052646,
+    "seen": 1788564362.6585562,
+    "ast_hash": "825f828dadd5e57d0c1ca7976a56c6ac",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/GameCamera.cs": {
-    "mtime": 1788491300.5061004,
-    "seen": 1788498194.8290133,
-    "ast_hash": "fee3fa90ffa2e793b6030e5142196b56",
+    "mtime": 1788559016.904712,
+    "seen": 1788564362.6585562,
+    "ast_hash": "938d56f675a68ae69b0fe1387a62a26d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/GameManager.cs": {
-    "mtime": 1788489599.5604782,
-    "seen": 1788498194.8290133,
-    "ast_hash": "57aae390a71b2a97efaa64c5801cac0c",
+    "mtime": 1788562972.922235,
+    "seen": 1788564362.6585562,
+    "ast_hash": "d24af5232ae941990e3e11ce6658dbb9",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Goal.cs": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Hud.cs": {
-    "mtime": 1788497055.4906566,
-    "seen": 1788498194.8290133,
-    "ast_hash": "638eb2f5b83ac0cfeda9af8d9ba490d6",
+    "mtime": 1788562827.601691,
+    "seen": 1788564362.6585562,
+    "ast_hash": "33f7106239f4d7199a808e3de8683cda",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/IPlayerController.cs": {
@@ -288,15 +288,15 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/KeeperController.cs": {
-    "mtime": 1788511919.6079242,
-    "seen": 1788514399.3029745,
-    "ast_hash": "cdba891ed19c339af51f98d7b29d67a2",
+    "mtime": 1788561992.35653,
+    "seen": 1788564362.6585562,
+    "ast_hash": "4405129da7ee96a0982f7274c35a019f",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/KeeperGame.cs": {
-    "mtime": 1788489599.6698287,
-    "seen": 1788498194.8290133,
-    "ast_hash": "abc4270707bb9aacd1bf5b4cdefe8f28",
+    "mtime": 1788559034.9441788,
+    "seen": 1788564362.6585562,
+    "ast_hash": "22749cc6d5492925517a48f6faad2477",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/KickDetector.cs": {
@@ -342,15 +342,15 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetSetPieceMatch.cs": {
-    "mtime": 1788489599.3162866,
-    "seen": 1788498194.8290133,
-    "ast_hash": "bc2f39d127616f4ca559e4e825742e08",
+    "mtime": 1788559034.946928,
+    "seen": 1788564362.6585562,
+    "ast_hash": "11d4bdb91ff8ab57cda1540356231d1d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetStrikerMatch.cs": {
-    "mtime": 1788489599.4403527,
-    "seen": 1788498194.8290133,
-    "ast_hash": "4f9ead485cfa8a0a26ec8bce3713465d",
+    "mtime": 1788559034.9479349,
+    "seen": 1788564362.6585562,
+    "ast_hash": "e7b627c2d6fc046eed069ea94f4264ce",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/PauseMenu.cs": {
@@ -438,9 +438,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/Striker.cs": {
-    "mtime": 1788407474.4177282,
-    "seen": 1788409431.6429098,
-    "ast_hash": "6c0fd917801978e347a9d4ed9829c8ad",
+    "mtime": 1788562938.0066442,
+    "seen": 1788564362.6585562,
+    "ast_hash": "cbd45cf77ee360e2d479fc1ff71ef940",
     "semantic_hash": ""
   },
   "Assets/Scripts/Ragdoll/ActiveRagdoll.cs": {
@@ -480,9 +480,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/GameBootstrap.cs": {
-    "mtime": 1788495071.085916,
-    "seen": 1788498194.8290133,
-    "ast_hash": "78e88223fb6026f681c25493c334812e",
+    "mtime": 1788561876.8466313,
+    "seen": 1788564362.6585562,
+    "ast_hash": "77e019cfbbfcae9c96cfaadd09f4946a",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/Make.cs": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/SimConfig.cs": {
-    "mtime": 1788420103.1106415,
-    "seen": 1788420522.442083,
-    "ast_hash": "13c19829e7e76c6f1edb97dcbfb0a39d",
+    "mtime": 1788562966.352386,
+    "seen": 1788564362.6585562,
+    "ast_hash": "d799917f650d4762567a949ab4e899b9",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/SkillTree.cs": {
@@ -588,9 +588,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1788539026.0808873,
-    "seen": 1788539288.6878362,
-    "ast_hash": "38e6bd8d015f3360f8a52dcb0a205218",
+    "mtime": 1788564260.544156,
+    "seen": 1788564362.6585562,
+    "ast_hash": "c3b50bbb92e4e680ca0867f0b44a768a",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/HairSim.cs": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/SaveWatch.cs": {
-    "mtime": 1788417839.505133,
-    "seen": 1788418010.961056,
-    "ast_hash": "660b754706b3c67b1b40d3fbb022c1de",
+    "mtime": 1788562756.534482,
+    "seen": 1788564362.6585562,
+    "ast_hash": "9ebab84df26b4b24e34d59a13d15073a",
     "semantic_hash": ""
   },
   "Assets/Scripts/Ragdoll/Gait.cs": {
@@ -1044,15 +1044,15 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MatchGame.cs": {
-    "mtime": 1788489599.8817282,
-    "seen": 1788498194.8290133,
-    "ast_hash": "099327ed2dfabc3b459fce9b00bc3efb",
+    "mtime": 1788561925.1769783,
+    "seen": 1788564362.6585562,
+    "ast_hash": "365b8624011caab6e420354db3db52c3",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/NetMatch.cs": {
-    "mtime": 1788489599.196941,
-    "seen": 1788498194.8290133,
-    "ast_hash": "5c90f28f593fc5cb88bba17e24a96ebd",
+    "mtime": 1788561898.224759,
+    "seen": 1788564362.6585562,
+    "ast_hash": "b0b9b68f7e928db8ea8ff4690af80064",
     "semantic_hash": ""
   },
   "Assets/Scripts/Sim/MatchArena.cs": {
@@ -2466,9 +2466,9 @@
     "semantic_hash": ""
   },
   "docs/claude-handoff.md": {
-    "mtime": 1788539138.0994034,
-    "seen": 1788539288.6878362,
-    "ast_hash": "f9c92b4cc5585dbb08b98bbf9840b773",
+    "mtime": 1788564329.3270996,
+    "seen": 1788564362.6585562,
+    "ast_hash": "c5d0a143e886ae8fcd05a5cc57e334d3",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/InviteFriendsUI.cs": {
@@ -2520,9 +2520,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupCameraRig.cs": {
-    "mtime": 1788507847.697631,
-    "seen": 1788508307.515271,
-    "ast_hash": "081978f747867e22443909f5a901ee28",
+    "mtime": 1788559034.9494462,
+    "seen": 1788564362.6585562,
+    "ast_hash": "f7bff7a443af7b841c6087469d10dc2b",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupCareer.cs": {
@@ -2670,9 +2670,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupRoundDriver.Scene.cs": {
-    "mtime": 1788535252.383895,
-    "seen": 1788536189.830713,
-    "ast_hash": "34fe0acdfc7745e81646e003c06d9dca",
+    "mtime": 1788559034.9499586,
+    "seen": 1788564362.6585562,
+    "ast_hash": "c9db156a7545b596d6c25febdeaa4d9b",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupRoundDriver.cs": {
@@ -2694,9 +2694,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupSelfTest.cs": {
-    "mtime": 1788535795.0741942,
-    "seen": 1788536189.830713,
-    "ast_hash": "1f7c524d335710d1d5597849bb21a383",
+    "mtime": 1788563013.1001718,
+    "seen": 1788564362.6585562,
+    "ast_hash": "fc0af2846e7113a30bb214d3051fb653",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupSelfTestMenu.cs": {
@@ -2724,9 +2724,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupTypes.cs": {
-    "mtime": 1788537614.0968466,
-    "seen": 1788539288.6878362,
-    "ast_hash": "2473860c0ec94277543a55bcc5420223",
+    "mtime": 1788562884.2235055,
+    "seen": 1788564362.6585562,
+    "ast_hash": "847fae1638b00cb740d3b3b70ffb08ee",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/NationPickerUI.cs": {

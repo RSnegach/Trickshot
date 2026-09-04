@@ -13,7 +13,8 @@ Rules:
 Workflow
 - Compile check without the editor: the open editor holds `Temp/UnityLockfile`, so batchmode is out. `dotnet <sdk>/Roslyn/bincore/csc.dll -target:library -langversion:9.0 -recurse:Assets/Scripts/*.cs` referencing every `Editor/Data/Managed/UnityEngine/UnityEngine*.dll`, `Editor/Data/NetStandard/ref/2.1.0/netstandard.dll` and `Library/ScriptAssemblies/Unity.InputSystem.dll` builds the whole runtime assembly (Unity 6000.4.1f1 under `C:/Program Files/Unity/Hub/Editor`). Steam code is behind `TRICKSHOT_STEAM`, so no Steamworks reference is needed.
 - Just run `bash docs/compile-check.sh` - it already resolves `<sdk>` (the DOTNET sdk, `C:/Program Files/dotnet/sdk/<ver>/Roslyn/bincore/csc.dll`, NOT anything under Unity's `Editor/Data`) and passes every reference. Build the argument list through a RESPONSE FILE or quote each `-r:`; an unquoted `$REFS` splits on the space in "Program Files" and reports every reference as a missing SOURCE file (`error CS2001`).
-- Scripts are CRLF (`core.autocrlf=true`); keep them CRLF when writing files programmatically.
+- Scripts are CRLF (`core.autocrlf=true`); keep them CRLF when writing files programmatically. A Workflow SCRIPT is the exception: the approval dialog refuses a `.js` containing CR, so leave those LF.
+- Multi-agent review passes here have twice produced a confidently-worded finding whose PRESCRIBED FIX was a regression (flipping the arm-clamp signs would have broken 25 of 38 emotes; a serial-latch for the Head to Head wave would have wiped the round state mid-wave). The diagnosis was right both times and the mechanism wrong. Tell fixers to verify each finding against the code and to SKIP with an explanation rather than apply a fix they cannot stand behind - and read the skips, they are where the value is.
 - "Add to ideas" means a bullet under `## Ideas so far` in `DESIGN_NOTES.md`, ending with its "just an idea, not being built yet" line. Record it; don't build it.
 - Cosmetic renders: in play mode `Trickshot.CosmeticGallery.Begin(@"<dir>", "<filter>")` (filter = job id prefix, e.g. `horse_mark`), then `python docs/cosmetics-before/sheet.py <dir> <sheetdir>`. Stop play mode before `refresh_unity` (a domain reload in play throws unrelated FlexNet errors). The kinematic-velocity console errors during capture are pre-existing and harmless.
 
@@ -23,6 +24,13 @@ Verifying UI in the editor
 - Unity does NOT see externally-written files on its own; `refresh_unity` reports `refresh_triggered: false`. Force it with `AssetDatabase.Refresh(ForceUpdate)` + `CompilationPipeline.RequestScriptCompilation()`, and check `external_changes_dirty` in `mcpforunity://editor/state` - a reload that started before the write needs a SECOND refresh.
 - A console error whose line number does not match the file on disk is a STALE compile from before the write landed, not a real error.
 - This catches what a compile pass cannot: an unreadable HUD row, a mis-sized panel. A clean `csc` build says nothing about layout.
+
+Camera views (all modes)
+- `GameCamera.View` = Third / First / Front, cycled by the CamView bind (T) and wired through the optional last argument of `SetFollow` / `SetKeeperFollow`. The ORBIT is shared by all three: `_yaw`/`_pitch` stay the body's facing, the shot aim and the yaw that goes on the wire, so switching view cannot change steering or desync a networked player - only the eye position and the look target move.
+- A view change is a CUT (`_viewCut` snaps position and zeroes the smoothing velocity), or a 180-degree swing sweeps the lens through the body.
+- First person reads `SetEyeHeightSource` (fall back: a standing human) so a scaled or non-human body looks out of its own head; the eye is pushed `FirstEyeForward` along the view to clear the head collider and the 0.3 m near plane.
+- A KEEPER's Front view is a spectating vantage only: it stands between him and the shooter, so it YIELDS to Third while a shot is inbound (ball in front, inside `KeeperFrontYieldRange`, and closing measured against the previous frame's distance - the camera holds a Transform, not the BallController) and returns on its own. Do not make it playable.
+- The cup's penalty camera and the keeper cone are NOT affected: `CupPenaltyCam` re-places the lens every frame and owns it outright, and `Mode.KeeperFollow` keeps its own clamped look cone.
 
 Goalkeeper mode
 - `SimConfig.KeeperServeInterval` is a settable static (was a const), driven by the pre-match "Shot interval" slider and read live by `ShotServer.Tick`; `KeeperServeIntervalBase` is the default Reset All returns to.
