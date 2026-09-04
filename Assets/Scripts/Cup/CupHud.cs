@@ -343,43 +343,20 @@ namespace Trickshot
             Hud.Stat(ref p, "Nation", nation);
         }
 
+        /// <summary>
+        /// The taker's power meter, and nothing else. The kick clock is deliberately INVISIBLE
+        /// (owner's call): no dial, no countdown number and no depleting frame, so the taker judges
+        /// the moment off the pitch rather than off the HUD. The clock still runs - CupTuning.KickClock
+        /// seconds from the whistle, then the weak auto-shot - it simply is not drawn anywhere.
+        /// </summary>
         void DrawMeterAndClock()
         {
             if (!_driver.LocalIsTaker) return;
             var taker = _driver.Taker;
-            bool haveMeter = taker != null;
-            float meter = haveMeter ? taker.Meter : 0f;
-            bool charging = haveMeter && taker.IsCharging;
-            bool ring = _driver.Phase == RoundPhase.Armed && _driver.KickClockRemaining > 0f
-                        && _driver.KickClockRemaining <= CupTuning.KickClockRing;
-            if (!ring && !(haveMeter && charging)) return;
+            if (taker == null || !taker.IsCharging) return;
 
             var mr = new Rect((Hud.W - MeterW) * 0.5f, Hud.H - 92f, MeterW, MeterH);
-            float remaining = _driver.KickClockRemaining;
-            float frac = Mathf.Clamp01(remaining / CupTuning.KickClockRing);
-            Color ringCol = Color.Lerp(UITheme.Red, UITheme.Gold, frac);
-
-            if (ring)
-            {
-                // The frame around the meter depletes with the clock and reddens as it runs out.
-                // This is the ONLY clock the taker sees - there is no dial and no number.
-                var frame = new Rect(mr.x - 5f, mr.y - 5f, mr.width + 10f, mr.height + 10f);
-                UITheme.Glow(new Rect(frame.x - 18f, frame.y - 14f, frame.width + 36f, frame.height + 28f),
-                             new Color(ringCol.r, ringCol.g, ringCol.b, 0.10f + 0.12f * (1f - frac)));
-                var faint = new Color(1f, 1f, 1f, 0.10f);
-                UITheme.Fill(new Rect(frame.x, frame.y, frame.width, 2f), faint);
-                UITheme.Fill(new Rect(frame.x, frame.yMax - 2f, frame.width, 2f), faint);
-                UITheme.Fill(new Rect(frame.x, frame.y, 2f, frame.height), faint);
-                UITheme.Fill(new Rect(frame.xMax - 2f, frame.y, 2f, frame.height), faint);
-                float lit = frame.width * frac;
-                UITheme.Fill(new Rect(frame.x, frame.y, lit, 2f), ringCol);
-                UITheme.Fill(new Rect(frame.xMax - lit, frame.yMax - 2f, lit, 2f), ringCol);
-            }
-
-            Hud.Meter(mr, haveMeter && charging ? meter : 0f, haveMeter && charging ? "POWER  (release to shoot)" : null);
-
-            // No clock dial and no countdown number (owner's call): the depleting frame above is the
-            // whole tell. A taker who wants to know the exact second is watching the HUD, not the ball.
+            Hud.Meter(mr, taker.Meter, "POWER  (release to shoot)");
         }
 
         void DrawSkipTexts()

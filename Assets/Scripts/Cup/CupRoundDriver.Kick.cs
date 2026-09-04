@@ -44,7 +44,13 @@ namespace Trickshot
         // Cup-only beats that are not gameplay tuning (CupTuning holds the designed ones).
         const float PlacingSettle = 0.45f;    // a snapped body settles this long before the raise
         const float AiWalkTimeout = 8f;       // an AI walk-in that never arrives is cut to the spot
-        const float RunUpGrace = 3f;          // a committed run-up gets this past the clock before the watchdog fires
+        // An attempt already under way at the clock's expiry (charging with a real hold, running up,
+        // striking or settling) gets this long past the clock to resolve before the watchdog steps
+        // in. It has to cover the slowest legal finish - a full-power release, the run-up and the
+        // swing - or the watchdog would still cut off the very shot it is meant to be waiting for.
+        // Generous on purpose: the cost of waiting is a beat of dead time, the cost of cutting in is
+        // a scored goal wiped and replaced with a miss.
+        const float AttemptGrace = 6f;
         const float WalkBackFallback = 1.4f;  // no choreography attached: the classic callout beat instead of a walk
         const float DecidedRaiseAt = 0.15f;   // the full-time raise starts this far into Decided
 
@@ -604,13 +610,20 @@ namespace Trickshot
                 return;
             }
 
-            // The kick clock (design 2.1): CupTuning.KickClock from the whistle, then the existing weak auto-shot.
-            // A run-up already committed gets a short grace to finish on its own (the launch is a
-            // frame or two away); a taker still charging - or a human who never engaged - fires now.
+            // The kick clock (design 2.1): CupTuning.KickClock from the whistle, then the weak auto-shot.
+            //
+            // A SHOT ALREADY UNDER WAY IS NEVER CUT OFF. AutoLaunch resets the ball to the spot and
+            // fires its own weak shot, so firing it over a live attempt destroys the real kick - a
+            // ball on its way in is scored as the substitute's miss. `AttemptInFlight` covers the
+            // whole attempt including a genuine charge, because a player who releases on the last
+            // tick of the clock is still Charging on the frame it reaches zero, with the strike a
+            // frame or two away. Only a taker who never engaged is timed out at zero; anyone mid
+            // attempt gets AttemptGrace to resolve, and the ball's own flight is then judged by the
+            // Live phase (which has its own approach test and CupTuning.LiveHardCap backstop).
             if (!_autoLaunched && KickClockRemaining <= 0f)
             {
-                bool committed = _takerArmed && (_taker.Phase == SetPieceTaker.State.Runup || _taker.Phase == SetPieceTaker.State.Struck);
-                if (!committed || PhaseTime >= CupTuning.KickClock + RunUpGrace) AutoLaunch();
+                bool inFlight = _takerArmed && _taker.AttemptInFlight;
+                if (!inFlight || PhaseTime >= CupTuning.KickClock + AttemptGrace) AutoLaunch();
             }
         }
 

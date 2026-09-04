@@ -201,14 +201,15 @@ namespace Trickshot
         // ---- the round ----------------------------------------------------------------------
         /// <summary>Regulation kicks per side; level after these means sudden death.</summary>
         public const int KicksEach = 5;
-        /// <summary>Seconds the taker has from the whistle before the weak auto-shot fires.</summary>
-        public const float KickClock = 30f;
         /// <summary>
-        /// The last N seconds of the kick clock deplete the frame around the power meter. There is
-        /// no clock dial or countdown number any more (owner's call): the frame is the only tell,
-        /// so the taker reads urgency without a timer face to stare at.
+        /// Seconds the taker has from the whistle before the weak auto-shot fires. The clock is
+        /// INVISIBLE by design (owner's call): nothing draws a dial, a number or a warning as it
+        /// runs down, so this is a pure gameplay deadline and the taker judges the moment off the
+        /// pitch. It still crosses the wire in CupRoundState for the auto-shot to fire on the
+        /// authority. There is deliberately no "ring" constant beside it - a warning window with
+        /// nothing rendering it would read as a knob that moves something.
         /// </summary>
-        public const float KickClockRing = 5f;
+        public const float KickClock = 30f;
         /// <summary>Power of the existing weak auto-shot the kick clock fires (AutoLaunch(0.6)).</summary>
         public const float AutoLaunchPower = 0.6f;
 

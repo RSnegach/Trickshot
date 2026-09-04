@@ -80,6 +80,24 @@ namespace Trickshot
         /// <summary>Playing the kick itself: planted beside the ball and swinging, or following
         /// through. What a networked puppet should show as a kick (not the run-in, which is a run).</summary>
         public bool Swinging => (_state == State.Runup && _plantTime > 0f) || _state == State.Struck;
+        /// <summary>
+        /// A REAL attempt is under way and must be allowed to finish - the taker is charging with a
+        /// genuine hold behind it, running up, striking, or settling after the strike.
+        ///
+        /// This is the test a TIMED shooting mode's expiry watchdog must use before it fires a
+        /// substitute shot: a player who releases in the last moments of the clock is still
+        /// <see cref="State.Charging"/> on the frame the clock hits zero, and the strike is a frame
+        /// or two away. Cutting in there resets the ball to its spot and fires the weak shot INSTEAD
+        /// of the real one, so a kick that was about to cross the line is scored as the substitute's
+        /// miss. Expiry should only fire when this is false (nobody ever engaged); once it is true,
+        /// wait for the attempt to resolve under whatever absolute cap the mode keeps.
+        ///
+        /// A sub-threshold tap does NOT count: <see cref="HasCharged"/> is cleared when a press
+        /// shorter than SimConfig.SetPieceMinChargeTime is released, so a player who brushes the
+        /// key and never really charges still times out.
+        /// </summary>
+        public bool AttemptInFlight => _state == State.Runup || _state == State.Struck
+                                       || _state == State.Settle || (_state == State.Charging && _charged);
         /// <summary>Which foot this attempt kicks with (resolved at Begin).</summary>
         public bool LeftFooted => _leftFooted;
 

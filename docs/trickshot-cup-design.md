@@ -56,9 +56,11 @@ A round is one bracket match between two nations. Penalties and Free Kicks use t
   format average 8 kicks, not 10.
 - **Sudden death.** Level after 5 each: pairs of kicks until one scores and the other does not.
   Each pair is one more kick per side, alternating in the same order.
-- **Kick clock.** The taker has 30 s from the whistle (`CupTuning.KickClock`). The last 5 s deplete
-  the frame around the power meter; there is no clock dial and no countdown number. Expiry auto-fires a weak shot (the
-  existing `AutoLaunch(0.6)` watchdog). The keeper has no clock.
+- **Kick clock.** The taker has 30 s from the whistle (`CupTuning.KickClock`). It is never drawn:
+  no dial, no countdown number and no warning as it runs down. Expiry auto-fires a weak shot (the
+  existing `AutoLaunch(0.6)` watchdog) ONLY if nobody engaged: a shot already under way at
+  expiry - including a charge released on the last tick - is always allowed to finish and be
+  judged normally (`SetPieceTaker.AttemptInFlight`). The keeper has no clock.
 - **Verdicts.** GOAL, SAVED, MISS. A free kick stopped by the wall reads SAVED too, never
   "blocked". Free kicks and penalties use the same goal test (`BallFullyInGoal`, identical bodies
   in `FreeKickGame` and `NetSetPieceMatch`). No EPIC SAVE tier in the cup (same reasoning as
@@ -356,7 +358,8 @@ through `UIFont.Heavy`, hover = plate + gold glow, sizes against `MenuScale.Widt
   red / empty at 0.14 alpha; sudden-death pips append).
 - **Role panel** top-left (`Hud.PanelStart("TRICKSHOT CUP", 3)`): Stage, You ("Taking" /
   "Keeping" / "In the lineup" / "Watching Alice"), Nation.
-- **Kick clock ring** around the power meter for the last 5 s.
+- **No kick clock on the HUD at all** - the clock runs but is never drawn (no dial, no number,
+  no warning); the power meter is the only thing under the taker's shot.
 - **Callouts** through `Hud.Flash`: GOAL / SAVED / MISS (a wall stop is SAVED), and HEADS / TAILS
   after the toss. The round-end line through `Hud.Banner`: "BRAZIL WIN 4-2" / "KNOCKED OUT 2-3". `Hud.KindOf`
   gains "KNOCKED OUT" in the failure tier (rule 1), "HEADS"/"TAILS" in the informational tier and
@@ -855,9 +858,9 @@ MCP (play mode, reflection navigation, `ScreenCapture`) before the next; MP path
 19. Replay-skip voters are every human with a body in the round; spectators never vote.
 20. In multiplayer, Esc frees the cursor and cuts the local player's input while the overlay is
     up; the kick clock keeps running.
-21. The kick clock is 30 s (raised from the designed 12 s on the owner's call, 2026-09-04), the
-    last 5 s depleting the meter frame, then the existing weak auto-shot. There is deliberately
-    NO clock dial and no countdown number: the frame is the only tell.
+21. The kick clock is 30 s (raised from the designed 12 s on the owner's call, 2026-09-04), then
+    the existing weak auto-shot. It is INVISIBLE: no dial, no countdown number and no five-second
+    warning. The taker judges the moment off the pitch, not off the HUD.
 22. Terminology: a **round** is one match between two nations (never "tie"); the five bracket
     levels are **stages** (Round of 32, Round of 16, Quarter-finals, Semi-finals, Final).
 23. A free kick stopped by the wall reads SAVED, not "blocked".
