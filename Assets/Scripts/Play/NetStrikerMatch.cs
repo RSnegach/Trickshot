@@ -196,7 +196,7 @@ namespace Trickshot
                 // (KeeperLookYaw) and turns his body to it, so body + camera stay in lock-step.
                 _cam.SetKeeperFollow(me.ragdoll.Pelvis.transform,
                                      () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
-                                     () => _input.Look, () => _input.Scroll);
+                                     () => _input.Look, () => _input.Scroll, () => _input.CamViewPressed);
             }
             else
             {

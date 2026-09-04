@@ -128,7 +128,7 @@ namespace Trickshot
                 if (_localIsKeeper)
                     _cam.SetKeeperFollow(me.ragdoll.Pelvis.transform,
                                          () => Quaternion.LookRotation(KeeperFace(_localSlot), Vector3.up),
-                                         () => _input.Look);
+                                         () => _input.Look, null, () => _input.CamViewPressed);
                 else
                 {
                     _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, null, () => _input.CamViewPressed);

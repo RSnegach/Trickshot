@@ -1077,7 +1077,7 @@ namespace Trickshot
             if (Rig != null) { Rig.KeeperView(b.Ragdoll); return; }
             var cam = Setup.GameCam;
             if (cam == null) return;
-            cam.SetKeeperFollow(b.Pelvis, () => CupSpots.KeeperFacing, LocalLook, LocalScroll);
+            cam.SetKeeperFollow(b.Pelvis, () => CupSpots.KeeperFacing, LocalLook, LocalScroll, LocalViewToggle);
         }
 
         void CamLineup(CupBody b)

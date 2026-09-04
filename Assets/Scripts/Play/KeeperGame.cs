@@ -39,7 +39,7 @@ namespace Trickshot
             // same cone yaw and turns his body to it, so body + camera stay in lock-step.
             _cam.SetKeeperFollow(_keeperRagdoll.Pelvis.transform,
                                  () => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up),
-                                 () => _input.Look);
+                                 () => _input.Look, null, () => _input.CamViewPressed);
             _keeper.SetLookYawSource(() => _cam.KeeperLookYaw);
             EnterWaiting(SimConfig.ServeFirstDelay);
         }

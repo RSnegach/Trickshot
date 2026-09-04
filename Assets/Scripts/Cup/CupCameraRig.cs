@@ -241,7 +241,7 @@ namespace Trickshot
             Transform pivot = body != null && body.Pelvis != null ? body.Pelvis.transform : null;
             _gameCam.ClearLookClamp();
             _gameCam.FreezeLook = false;
-            _gameCam.SetKeeperFollow(pivot, KeeperFacing, LookSource, ScrollSource);
+            _gameCam.SetKeeperFollow(pivot, KeeperFacing, LookSource, ScrollSource, ViewToggleSource);
             _pen.Clear();
             _view = View.Delegate;
         }

@@ -112,18 +112,55 @@ namespace Trickshot
         /// <summary>Keeper camera: sits behind the keeper looking in his facing
         /// direction (out toward the pitch), with a slight clamped mouse look.</summary>
         public void SetKeeperFollow(Transform target, System.Func<Quaternion> facingSource, System.Func<Vector2> lookSource,
-                                    System.Func<float> scrollSource = null)
+                                    System.Func<float> scrollSource = null, System.Func<bool> viewToggleSource = null)
         {
             _followTarget = target;
             _facingSource = facingSource;
             _lookSource = lookSource;
             if (scrollSource != null) _scrollSource = scrollSource;
+            if (viewToggleSource != null) _viewToggleSource = viewToggleSource;
             _keeperLookYaw = 0f;
             _keeperLookPitch = 0f;
+            _keeperFrontYield = false;
+            _keeperBallDist = float.MaxValue;
             _mode = Mode.KeeperFollow;
         }
 
         float _keeperLookYaw, _keeperLookPitch;
+        bool _keeperFrontYield;   // the keeper's Front view is standing aside for a live shot
+
+        /// <summary>How far out a ball still counts as "near" the keeper, so a yielded Front view holds (m).</summary>
+        public const float KeeperFrontHoldRange = 22f;
+        /// <summary>Inside this the ball is committed at him and Front must already have yielded (m).</summary>
+        public const float KeeperFrontYieldRange = 16f;
+
+        /// <summary>
+        /// A shot is genuinely coming at the keeper: the ball is in front of him (the side he
+        /// faces), within <see cref="KeeperFrontYieldRange"/>, and closing. Position-based rather
+        /// than velocity-based because this camera is handed a Transform, not the BallController -
+        /// and closing is measured from the previous frame's distance, so a ball sitting on a
+        /// penalty spot never trips it.
+        /// </summary>
+        bool KeeperShotInbound(Vector3 pivot, Vector3 fwd)
+        {
+            if (_ball == null) return false;
+            Vector3 toBall = _ball.position - pivot;
+            float ahead = Vector3.Dot(toBall, fwd);          // + = on the side he faces
+            float dist = toBall.magnitude;
+            bool closing = dist < _keeperBallDist - 0.02f;   // moved at least 2 cm nearer this frame
+            _keeperBallDist = dist;
+            return ahead > 0f && dist < KeeperFrontYieldRange && closing;
+        }
+
+        /// <summary>The ball is still around the keeper, so a yielded Front view keeps holding.</summary>
+        bool KeeperBallNear(Vector3 pivot, Vector3 fwd)
+        {
+            if (_ball == null) return false;
+            Vector3 toBall = _ball.position - pivot;
+            return Vector3.Dot(toBall, fwd) > -2f && toBall.magnitude < KeeperFrontHoldRange;
+        }
+
+        float _keeperBallDist = float.MaxValue;
 
         /// <summary>Keeper camera yaw within its cone (deg). The keeper reads this and
         /// turns his body to it, so the body and the camera stay in lock-step.</summary>
@@ -403,11 +440,27 @@ namespace Trickshot
             _keeperLookPitch = Mathf.Clamp(_keeperLookPitch - look.y * SimConfig.KeeperCamLookSpeed,
                                            -SimConfig.KeeperCamLookPitch, SimConfig.KeeperCamLookPitch);
 
+            if (_viewToggleSource != null && !FreezeLook && _viewToggleSource()) CycleView();
+
             Quaternion facing = _facingSource != null ? _facingSource() : Quaternion.identity;
             // Apply the look offset around the fixed forward base.
             Quaternion viewRot = facing * Quaternion.Euler(_keeperLookPitch, _keeperLookYaw, 0f);
             Vector3 fwd = viewRot * Vector3.forward;
             Vector3 pivot = _followTarget.position;
+
+            // FRONT is a spectating vantage for a keeper: it stands on the SHOOTER's side, so a
+            // ball in its last few metres would be behind the lens - sight of the ball lost exactly
+            // when the save is made. It yields to Third the moment a shot is genuinely inbound and
+            // stays yielded until the ball is dead or back upfield, so the view can never cost a
+            // goal; the player's chosen view is remembered and returns on its own.
+            View view = _view;
+            if (view == View.Front)
+            {
+                if (KeeperShotInbound(pivot, fwd)) _keeperFrontYield = true;
+                else if (!KeeperBallNear(pivot, fwd)) _keeperFrontYield = false;
+                if (_keeperFrontYield) view = View.Third;
+            }
+            else _keeperFrontYield = false;
 
             // The 3.0m height was sized against the base 2.44m goal. Set Pieces lets the host scale
             // the goal up to 1.5x (GameBootstrap.cs, cfg.goalScale), and this camera is one of that
@@ -416,13 +469,48 @@ namespace Trickshot
             // behind. Scale with it so the camera always sits proportionally above whatever goal is
             // actually built; at the base 2.44m height this is exactly the old fixed 3.0m.
             float heightScale = SimConfig.GoalHeight / 2.44f;
-            Vector3 desired = pivot - fwd * 5.5f + Vector3.up * (3.0f * heightScale);
-            if (desired.y < 0.8f) desired.y = 0.8f;
-            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.18f, Mathf.Infinity, dt);
 
-            Vector3 lookAt = pivot + fwd * 4f + Vector3.up * 0.9f;
-            Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
-            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-8f * dt));
+            Vector3 desired, lookAt;
+            switch (view)
+            {
+                case View.First:
+                    // The keeper's own eyes, looking out along his look cone at the shot. No
+                    // goal-height scaling: this is his head, not a vantage above the bar.
+                    desired = pivot + Vector3.up * EyeHeight() + fwd * FirstEyeForward;
+                    lookAt = desired + fwd * 10f;
+                    break;
+                case View.Front:
+                    // Mirrored to the shooter's side, looking BACK at him. Same distance and
+                    // height as the default, so the framing matches.
+                    desired = pivot + fwd * 5.5f + Vector3.up * (3.0f * heightScale);
+                    lookAt = pivot + Vector3.up * 0.9f;
+                    break;
+                default:
+                    desired = pivot - fwd * 5.5f + Vector3.up * (3.0f * heightScale);
+                    lookAt = pivot + fwd * 4f + Vector3.up * 0.9f;
+                    break;
+            }
+            if (view != View.First && desired.y < 0.8f) desired.y = 0.8f;
+
+            if (_viewCut)
+            {
+                // A view change is a cut: snap, or the lens sweeps through the keeper.
+                _viewCut = false;
+                _velPos = Vector3.zero;
+                _cam.transform.position = desired;
+                _cam.transform.rotation = Quaternion.LookRotation((lookAt - desired).normalized, Vector3.up);
+            }
+            else
+            {
+                _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.18f, Mathf.Infinity, dt);
+            }
+
+            Vector3 toLook = lookAt - _cam.transform.position;
+            if (toLook.sqrMagnitude > 1e-6f)
+            {
+                Quaternion want = Quaternion.LookRotation(toLook.normalized, Vector3.up);
+                _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-8f * dt));
+            }
             _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(60f), 1f - Mathf.Exp(-5f * dt));
         }
 

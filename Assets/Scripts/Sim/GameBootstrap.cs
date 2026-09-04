@@ -1237,7 +1237,8 @@ namespace Trickshot
                 // 5th arg (goal Transform) is only used by the unused Broadcast cam; pass null.
                 gameCam.Init(_cam, ball.transform, humanKeeperRag.Pelvis.transform, null, null);
                 gameCam.SetKeeperFollow(humanKeeperRag.Pelvis.transform,
-                    () => Quaternion.LookRotation(new Vector3(0f, 0f, 1f), Vector3.up), () => GetInput().Look);
+                    () => Quaternion.LookRotation(new Vector3(0f, 0f, 1f), Vector3.up), () => GetInput().Look,
+                    null, () => GetInput().CamViewPressed);
                 humanKeeperCtrl.SetLookYawSource(() => gameCam.KeeperLookYaw);
             }
             else
