@@ -9,7 +9,7 @@ namespace Trickshot
     ///
     ///   Intro (3 s card) -> Placing (taker to the spot + run-up, keeper to the line, lineups and
     ///   referee to marks; an AI taker walks in) -> WhistleRaise (0.4 s) -> Armed (the kick clock,
-    ///   12 s, then the weak auto-shot) -> Live (the attempt state machine both existing drivers
+    ///   CupTuning.KickClock, then the weak auto-shot) -> Live (the attempt state machine both existing drivers
     ///   share) -> Verdict (GOAL / SAVED / MISS, recorded under the rules, 1.3 s hold so the ball
     ///   settles on the recording) -> Scored (the scorer's 5 s free window, scorer-only skip) or
     ///   WalkBack (the shooter walks to the lineup, up to 3.5 s) -> the replay of a goal or a save
@@ -604,7 +604,7 @@ namespace Trickshot
                 return;
             }
 
-            // The kick clock (design 2.1): 12 s from the whistle, then the existing weak auto-shot.
+            // The kick clock (design 2.1): CupTuning.KickClock from the whistle, then the existing weak auto-shot.
             // A run-up already committed gets a short grace to finish on its own (the launch is a
             // frame or two away); a taker still charging - or a human who never engaged - fires now.
             if (!_autoLaunched && KickClockRemaining <= 0f)

@@ -7,7 +7,7 @@ namespace Trickshot
     /// The round driver's LEAVER seam (design 10, Head to Head: "a leaver mid-round forfeits
     /// nothing: the round finishes with AI on their side"). A human who drops out of a
     /// host-simulated round leaves two bodies behind driven by a NetInputSource nobody feeds any
-    /// more - a taker who never charges (the 12 s clock fires the weak auto-shot) and a keeper who
+    /// more - a taker who never charges (the kick clock fires the weak auto-shot) and a keeper who
     /// stands still. <see cref="HandSlotToAi"/> turns that side into an ordinary AI side in
     /// place: the shooter body gets a CupBotTaker (the real charge / run-up / strike at the
     /// stage's strength), the gloved body a Goalkeeper brain, the setup forgets the human slot so

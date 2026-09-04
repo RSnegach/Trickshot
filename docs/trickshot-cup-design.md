@@ -56,8 +56,8 @@ A round is one bracket match between two nations. Penalties and Free Kicks use t
   format average 8 kicks, not 10.
 - **Sudden death.** Level after 5 each: pairs of kicks until one scores and the other does not.
   Each pair is one more kick per side, alternating in the same order.
-- **Kick clock.** The taker has 12 s from the whistle (`ArmedIdleTimeout`, already 12 s in the net
-  driver). The last 5 s show a ring around the power meter. Expiry auto-fires a weak shot (the
+- **Kick clock.** The taker has 30 s from the whistle (`CupTuning.KickClock`). The last 5 s deplete
+  the frame around the power meter; there is no clock dial and no countdown number. Expiry auto-fires a weak shot (the
   existing `AutoLaunch(0.6)` watchdog). The keeper has no clock.
 - **Verdicts.** GOAL, SAVED, MISS. A free kick stopped by the wall reads SAVED too, never
   "blocked". Free kicks and penalties use the same goal test (`BallFullyInGoal`, identical bodies
@@ -163,7 +163,7 @@ the default height and weight, still looking like themselves. Both are cleared i
 | Loading card before a round | at least 1.5 s; in MP also the "everyone loaded" barrier, 10 s timeout |
 | Round intro card (nations, stage, first kick) | 3 s |
 | Referee's whistle raise, before EVERY whistle | 0.4 s, then the whistle plays |
-| Kick clock | 12 s, then the existing weak auto-shot |
+| Kick clock | 30 s, then the existing weak auto-shot |
 | Scored: shooter's free run-and-emote window | 5 s; the scorer may click to skip it for everyone |
 | Missed/saved: walk back to the lineup | up to 3.5 s, camera covers it |
 | Won the round: whole lineup free to move and emote | 5 s; the scorer (or the keeper who made the winning save) may click to skip |
@@ -502,7 +502,7 @@ AI bodies).
 Coin toss (round start, 7.1)
   -> Intro card (3 s)
   -> Place: taker to the spot (+3 m run-up), keeper to the line, lineups and referee to marks
-  -> Referee raises, whistle, Armed (kick clock 12 s)
+  -> Referee raises, whistle, Armed (kick clock 30 s)
   -> Live (strike) -> verdict
   -> GOAL: shooter free run + emote, 5 s, scorer may click to skip (replay after)
      MISS/SAVED: walk-back cinematic, up to 3.5 s (replay after, save only)
@@ -855,8 +855,9 @@ MCP (play mode, reflection navigation, `ScreenCapture`) before the next; MP path
 19. Replay-skip voters are every human with a body in the round; spectators never vote.
 20. In multiplayer, Esc frees the cursor and cuts the local player's input while the overlay is
     up; the kick clock keeps running.
-21. The kick clock stays as first designed: 12 s, the last 5 s on a ring, then the existing weak
-    auto-shot.
+21. The kick clock is 30 s (raised from the designed 12 s on the owner's call, 2026-09-04), the
+    last 5 s depleting the meter frame, then the existing weak auto-shot. There is deliberately
+    NO clock dial and no countdown number: the frame is the only tell.
 22. Terminology: a **round** is one match between two nations (never "tie"); the five bracket
     levels are **stages** (Round of 32, Round of 16, Quarter-finals, Semi-finals, Final).
 23. A free kick stopped by the wall reads SAVED, not "blocked".

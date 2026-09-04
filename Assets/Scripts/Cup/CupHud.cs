@@ -54,7 +54,7 @@ namespace Trickshot
         bool _wheelOpen;
         bool _votedThisReplay, _replayWas;
 
-        static GUIStyle _skip, _ringNum;
+        static GUIStyle _skip;
 
         /// <summary>The round being drawn (null between rounds).</summary>
         public CupRoundDriver Driver => _driver;
@@ -361,8 +361,8 @@ namespace Trickshot
 
             if (ring)
             {
-                // The frame around the meter depletes with the clock and reddens; the dial to its
-                // left counts the seconds. Both in the same colour so they read as one clock.
+                // The frame around the meter depletes with the clock and reddens as it runs out.
+                // This is the ONLY clock the taker sees - there is no dial and no number.
                 var frame = new Rect(mr.x - 5f, mr.y - 5f, mr.width + 10f, mr.height + 10f);
                 UITheme.Glow(new Rect(frame.x - 18f, frame.y - 14f, frame.width + 36f, frame.height + 28f),
                              new Color(ringCol.r, ringCol.g, ringCol.b, 0.10f + 0.12f * (1f - frac)));
@@ -378,23 +378,8 @@ namespace Trickshot
 
             Hud.Meter(mr, haveMeter && charging ? meter : 0f, haveMeter && charging ? "POWER  (release to shoot)" : null);
 
-            if (ring) DrawClockDial(mr.x - 32f, mr.center.y, remaining, frac, ringCol);
-        }
-
-        static void DrawClockDial(float cx, float cy, float remaining, float frac, Color col)
-        {
-            const float r = 16f;
-            const int segs = 30;
-            UITheme.Disc(new Rect(cx - r - 7f, cy - r - 7f, (r + 7f) * 2f, (r + 7f) * 2f), new Color(0.02f, 0.03f, 0.05f, 0.88f));
-            int lit = Mathf.CeilToInt(frac * segs);
-            for (int i = 0; i < segs; i++)
-            {
-                float a = (i / (float)segs) * Mathf.PI * 2f;   // from the top, clockwise
-                float px = cx + Mathf.Sin(a) * r, py = cy - Mathf.Cos(a) * r;
-                bool on = i < lit;
-                UITheme.Disc(new Rect(px - 2f, py - 2f, 4f, 4f), on ? col : new Color(1f, 1f, 1f, 0.12f));
-            }
-            UITheme.Shadowed(new Rect(cx - 20f, cy - 11f, 40f, 22f), Mathf.CeilToInt(remaining).ToString(), _ringNum, col, 0.7f, 1.5f);
+            // No clock dial and no countdown number (owner's call): the depleting frame above is the
+            // whole tell. A taker who wants to know the exact second is watching the HUD, not the ball.
         }
 
         void DrawSkipTexts()
@@ -545,7 +530,6 @@ namespace Trickshot
         {
             if (_skip != null) return;
             _skip = new GUIStyle { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = UITheme.Gold } };
-            _ringNum = new GUIStyle { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Hud.Ink } };
         }
 
         void OnDestroy()
