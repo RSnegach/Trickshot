@@ -1469,9 +1469,13 @@ namespace Trickshot
             // Broadcast score bug: team blocks either side of the score, clock underneath.
             Hud.Scoreboard("HOME", UITheme.Blue, _homeScore, _awayScore, "AWAY", UITheme.Red, _clock);
 
-            string help = _role == SimConfig.MatchRole.Keeper
-                ? "Keeper:  A/D move   Space/LMB/RMB dive   E/Q throw   Reset: R"
-                : "WASD move   LMB/RMB shoot   E pass   Q loft   X chip   C tackle   B emote   V ball cam   R reset"
+            // A keeper who has left his own box is an outfielder until he returns, so he gets the
+            // outfield legend - the controls really did change under him.
+            bool keeperRoaming = _role == SimConfig.MatchRole.Keeper
+                                 && _humanKeeper != null && _humanKeeper.Roaming;
+            string help = _role == SimConfig.MatchRole.Keeper && !keeperRoaming
+                ? "Keeper:  WASD move   Space/LMB/RMB dive   E/Q throw   T view   R reset"
+                : "WASD move   LMB/RMB shoot   E pass   Q loft   X chip   C tackle   B emote   V ball cam   T view   R reset"
                   + Keybinds.ThirdLegHint(PlayerProfile.Appearance.Adult);
             // Shared banner renderer: it shrinks the font and wraps if the line would run off
             // the right edge, so the controls stay readable and fully on-screen at any resolution.

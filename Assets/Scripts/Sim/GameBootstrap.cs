@@ -1234,6 +1234,24 @@ namespace Trickshot
                 // Distribute into THIS pitch. The default is the 24 x 34 training arena, which on an
                 // 11-a-side Match mode (68 x 104) would clamp every play-out to the same short punt.
                 humanKeeperCtrl.AimBounds = new Vector2(arena.halfWidth - 1f, arena.halfLength - 1f);
+
+                // ROAMING: outside his OWN box he plays as an outfielder, so the body carries a real
+                // Striker (with its kick detectors and dribble, like any footballer) that the keeper
+                // hands control to. Only his own area makes him a keeper - up for a corner at the
+                // other end he is a striker like anyone else.
+                var kStriker = kGo.AddComponent<Striker>();
+                kStriker.Init(GetInput(), humanKeeperRag);
+                kStriker.ControlEnabled = false;   // the KeeperController owns him in the box
+                AttachKickDetectors(humanKeeperRag, kStriker, ball);
+                var kDribble = kGo.AddComponent<Dribble>();
+                kDribble.Init(GetInput(), kStriker, humanKeeperRag, ball);
+                kStriker.SetDribble(kDribble);
+                kDribble.Enabled = true;   // a roaming keeper carries the ball like an outfielder
+                humanKeeperCtrl.Roam = kStriker;
+                humanKeeperCtrl.BoxHalfWidth = Mathf.Min(SimConfig.PenaltyBoxWidth * 0.5f, arena.halfWidth);
+                // His own goal is the AWAY goal here (he was built at that end defending it).
+                humanKeeperCtrl.SetOwnGoalLine(arena.awayGoalCenter.z);
+                humanKeeperCtrl.BoxDepth = Mathf.Min(SimConfig.PenaltyBoxDepth, arena.halfLength * 0.6f);
                 // 5th arg (goal Transform) is only used by the unused Broadcast cam; pass null.
                 gameCam.Init(_cam, ball.transform, humanKeeperRag.Pelvis.transform, null, null);
                 gameCam.SetKeeperFollow(humanKeeperRag.Pelvis.transform,

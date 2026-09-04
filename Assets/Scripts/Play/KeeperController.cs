@@ -4,7 +4,11 @@ namespace Trickshot
 {
     /// <summary>
     /// Player-controlled goalkeeper (an active ragdoll with arms). Faces out toward the
-    /// pitch and stays on the line.
+    /// pitch. He may shuffle the FULL WIDTH of the pitch - there is no lateral leash any more,
+    /// only the touchline - and in a match he may leave his area entirely: see <see cref="Roam"/>,
+    /// which hands the body to a Striker outside HIS OWN box and takes it back when he returns.
+    /// Only his own area makes him a keeper, so a keeper up for a corner at the far end plays as
+    /// an outfielder, and he has no hands outside it.
     ///
     /// Controls:
     ///  - A / D .................. strafe sideways (and W/S in/out) for positioning.
@@ -46,6 +50,92 @@ namespace Trickshot
         public Vector2 AimBounds = new Vector2(SimConfig.FieldWidth * 0.45f, SimConfig.FieldLength * 0.45f);
         System.Func<float> _lookYaw;   // camera cone yaw (deg); the body turns to match
         float _shufflePhase;           // procedural shuffle-step cadence while moving
+
+        // ---- roaming (his own box is the only place he is a keeper) -----------------------------
+        /// <summary>
+        /// The Striker that drives this same body when he leaves HIS OWN box, or null to keep him a
+        /// keeper everywhere (the training modes, where there is one goal and no upfield to roam to).
+        ///
+        /// Handing the body between two controllers rather than teaching one of them the other's
+        /// job: they already gate cleanly (<see cref="Striker.ControlEnabled"/> and
+        /// <see cref="InputLocked"/>), Match already builds a keeper body with both attached, and a
+        /// keeper who is outfield should feel EXACTLY like an outfielder rather than like a keeper
+        /// with wider limits.
+        /// </summary>
+        public Striker Roam;
+
+        /// <summary>
+        /// Half-width and depth of HIS OWN penalty area, and the z of his own goal line. Only his
+        /// own box makes him a keeper: in the opponent's box he is up for a corner and stays a
+        /// striker, which is why this is a signed test against his own line rather than "any box".
+        /// </summary>
+        public float BoxHalfWidth = SimConfig.PenaltyBoxWidth * 0.5f;
+        public float BoxDepth = SimConfig.PenaltyBoxDepth;
+
+        /// <summary>
+        /// He is inside his OWN penalty area. His own goal is behind him, at -<see cref="_outZ"/>,
+        /// so the box runs from his goal line inward by <see cref="BoxDepth"/>; the far end of the
+        /// pitch never satisfies it however far he roams.
+        /// </summary>
+        public bool InOwnBox
+        {
+            get
+            {
+                if (_ragdoll == null || _ragdoll.Pelvis == null) return true;
+                Vector3 p = _ragdoll.Pelvis.position;
+                if (Mathf.Abs(p.x) > BoxHalfWidth) return false;
+                // Distance from his own goal line, measured up the pitch (positive = toward halfway).
+                float fromLine = (p.z - OwnGoalLineZ) * _outZ;
+                return fromLine >= -1f && fromLine <= BoxDepth;
+            }
+        }
+
+        /// <summary>
+        /// The z of the goal he defends. Defaults to the regulation half-length, but a Match arena
+        /// is sized by the team count (a 3-a-side pitch is far shorter), so those modes SET it from
+        /// the real arena - otherwise the box would be measured from a goal line that is not there
+        /// and a keeper standing on his own line would read as outfield.
+        /// </summary>
+        public float OwnGoalLineZ { get; set; } = -1f * (SimConfig.FieldLength * 0.5f);
+
+        /// <summary>Set the defended goal line from the arena (call after Init, which fixes his facing).</summary>
+        public void SetOwnGoalLine(float z) => OwnGoalLineZ = z;
+
+        /// <summary>True while the Striker is driving this body (he is outfield). Read by the HUD / the ball rules.</summary>
+        public bool Roaming { get; private set; }
+
+        /// <summary>
+        /// Hand the body to whichever controller owns this zone. Called at the top of every Tick,
+        /// so a keeper who runs out of his box becomes an outfielder on that frame and a keeper
+        /// again the moment he steps back in.
+        /// </summary>
+        void UpdateZone()
+        {
+            if (Roam == null) { Roaming = false; return; }
+            bool roam = !InOwnBox;
+            if (roam == Roaming) return;
+            Roaming = roam;
+            Roam.ControlEnabled = roam;
+            if (roam)
+            {
+                // Leaving the box drops the ball, and it has to be explicit: KeeperHands.Tick only
+                // runs the claim cooldown, so without this he would carry a ball pinned to his chest
+                // up the pitch. It is also the real rule - a keeper may not carry the ball out of
+                // his own area - and it puts the ball at his feet for the Striker that is about to
+                // take over. Drop() clears the carry collision and the dribble carrier.
+                _hands.Drop();
+                _state = State.Ready;
+                _ragdoll.ClearPoseOverrides();
+                _ragdoll.MoveInput = Vector3.zero;
+            }
+            else
+            {
+                // Back in the box: face out again, since the Striker will have been turning him
+                // freely and the keeper's facing is a cone about his own goal.
+                _facing = Quaternion.LookRotation(_faceDir, Vector3.up);
+                _ragdoll.FacingRotation = _facing;
+            }
+        }
 
         State _state = State.Ready;
         Vector3[] _airPose;   // pose held while in the air (Dive or Jump)
@@ -112,6 +202,9 @@ namespace Trickshot
                 _faceDir = -SimConfig.KeeperFaceDir;
                 _outZ = 1f;
             }
+            // His own goal line follows the end he was built at. A Match arena overrides this with
+            // its real goal z (SetOwnGoalLine) because that pitch is sized by the team count.
+            OwnGoalLineZ = -_outZ * (SimConfig.FieldLength * 0.5f);
             // Keeper faces out toward the pitch; the body turns within a cone to match
             // the camera look (SetLookYawSource).
             _facing = Quaternion.LookRotation(_faceDir, Vector3.up);
@@ -138,6 +231,18 @@ namespace Trickshot
         public void Tick()
         {
             if (_ragdoll.Pelvis == null) return;
+
+            // Who owns the body this frame? Outside his own box the Striker does, and the keeper
+            // does nothing at all - no pose, no facing, no move input - or the two would fight over
+            // the same ragdoll every frame. The hands still tick so the claim cooldown runs down
+            // while he is upfield (the ball itself was dropped at the handover).
+            UpdateZone();
+            if (Roaming)
+            {
+                _hands.Tick(Time.deltaTime);
+                return;
+            }
+
             _ragdoll.ClearPoseOverrides();
             _hands.Tick(Time.deltaTime);
             bool grounded = _ragdoll.IsGrounded;
@@ -363,11 +468,15 @@ namespace Trickshot
             Vector3 vel = right * (dir * SimConfig.KeeperStrafeSpeed * hcap)
                         + fwd * (fb * SimConfig.KeeperStrafeSpeed * hcap);
 
-            // Clamp lateral shuffle to a window around centre (x only).
+            // NO LATERAL LEASH. He used to be pinned within a 4.2 m window about centre (the
+            // retired SimConfig.KeeperStrafeXLimit),
+            // which is narrower than his own six-yard box; he may now shuffle the full width of the
+            // pitch, and run anywhere at all once he leaves his box (the Striker takes over there -
+            // see UpdateZone). The only stop is the touchline itself, so he cannot walk off the
+            // world in a mode whose arena is smaller than the ball's aim bounds.
             float x = _ragdoll.Pelvis.position.x;
-            if ((x > SimConfig.KeeperStrafeXLimit && vel.x > 0f) ||
-                (x < -SimConfig.KeeperStrafeXLimit && vel.x < 0f))
-                vel.x = 0f;
+            float edge = Mathf.Max(1f, AimBounds.x);
+            if ((x > edge && vel.x > 0f) || (x < -edge && vel.x < 0f)) vel.x = 0f;
 
             // Held on his line before the strike: drop the component toward the pitch once he is
             // on or past the line (he can still step BACK onto it and shuffle sideways).
@@ -567,13 +676,16 @@ namespace Trickshot
 
         // Gather a loose ball if there is one to gather.
         //
-        // The only zone rule is his own half. The AI needs a radius around its goal because it roams;
-        // a human is pinned to his line by his legs and KeeperStrafeXLimit, and KeeperHands.CanClaim
-        // already demands the ball be within arm's reach of his chest, so a radius here would add
-        // nothing except a dependence on GoalCenter that a resized match pitch would break.
+        // HANDS ONLY IN HIS OWN BOX. He used to be leashed to his line, so his reach could never
+        // stray far from goal and his own half was rule enough; now that he may run the length of
+        // the pitch, the real rule has to be stated - outside his own area he has no hands at all,
+        // and a ball at his feet is played with them or blocked with his body like anyone else's.
+        // Tested on HIS position rather than the ball's, exactly as the laws read: what matters is
+        // where the keeper is when he handles it.
         bool TryClaim()
         {
             if (_ball == null || _ragdoll.Pelvis == null) return false;
+            if (Roam != null && !InOwnBox) return false;                // outfield: no handling at all
             if (_ball.transform.position.z * OutZ > 0f) return false;   // upfield of halfway: not his to handle
             // Rejected claim -> parry. Without this the tighter gate would leave a shot bobbling off
             // his capsules on restitution alone, which is exactly the ball-through-the-keeper feel.

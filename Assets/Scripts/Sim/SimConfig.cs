@@ -73,7 +73,6 @@ namespace Trickshot
         // Keeper stands on the line facing OUT toward the pitch (-Z).
         public static readonly Vector3 KeeperFaceDir = new Vector3(0f, 0f, -1f);
         public static float KeeperStrafeSpeed = KeeperStrafeSpeedBase;  // A/D strafe + W/S move speed (pre-match slider)
-        public const float KeeperStrafeXLimit = 4.2f;  // how far off centre he can shuffle
 
         // Keeper look cone: the camera pans within this yaw and the body turns to match,
         // so he faces where the mouse points within a limited cone.

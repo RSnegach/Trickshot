@@ -254,6 +254,18 @@ namespace Trickshot
                         kc.AimBounds = new Vector2(_arena.halfWidth - 1f, _arena.halfLength - 1f);
                         kc.SetLookYawSource(isLocal ? (System.Func<float>)(() => _cam.KeeperLookYaw)
                                                     : (() => b.netInput != null ? b.netInput.LookYaw : 0f));
+                        // ROAMING: outside his OWN box the Striker built above drives this body, so
+                        // it must read the SAME input source as the keeper does (a remote keeper's
+                        // frames come off the wire, not this machine's device) or he would roam on
+                        // the host's keyboard. The zone test is his own area only: at the far end he
+                        // is up for a corner and stays an outfielder.
+                        if (!isLocal && b.netInput != null) { striker.Init(b.netInput, ragdoll); dribble.Init(b.netInput, striker, ragdoll, _ball); }
+                        kc.Roam = striker;
+                        dribble.Enabled = true;
+                        kc.BoxHalfWidth = Mathf.Min(SimConfig.PenaltyBoxWidth * 0.5f, _arena.halfWidth);
+                        // The end he defends, from the real arena (a small pitch's goals are nearer).
+                        kc.SetOwnGoalLine(team == 0 ? _arena.homeGoalCenter.z : _arena.awayGoalCenter.z);
+                        kc.BoxDepth = Mathf.Min(SimConfig.PenaltyBoxDepth, _arena.halfLength * 0.6f);
                         b.keeper = kc;
                     }
                     else
@@ -297,6 +309,17 @@ namespace Trickshot
                         // HOST runs this slot's keeper from the wire, E/Q included, and streams it back.
                         var kc = go.AddComponent<KeeperController>(); kc.Init(_input, ragdoll);
                         kc.SetLookYawSource(() => _cam.KeeperLookYaw);
+                        // ROAMING must be predicted with the SAME zone rule the host applies, or the
+                        // client's own body would keep shuffling as a keeper while the host had
+                        // already handed it to the Striker, and every step outfield would be
+                        // reconciled back. The zone is pure geometry off his own goal line, so both
+                        // peers derive it identically and nothing about it goes on the wire.
+                        // Dribbling stays off here for the same reason as the outfield path below.
+                        striker.SetInput(_input);
+                        kc.Roam = striker;
+                        kc.SetOwnGoalLine(team == 0 ? _arena.homeGoalCenter.z : _arena.awayGoalCenter.z);
+                        kc.BoxHalfWidth = Mathf.Min(SimConfig.PenaltyBoxWidth * 0.5f, _arena.halfWidth);
+                        kc.BoxDepth = Mathf.Min(SimConfig.PenaltyBoxDepth, _arena.halfLength * 0.6f);
                         b.keeper = kc;
                     }
                     else
