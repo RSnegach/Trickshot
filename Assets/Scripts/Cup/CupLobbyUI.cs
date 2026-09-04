@@ -29,6 +29,7 @@ namespace Trickshot
         const float RowH = 46f;            // design 6.3: rows of 46 px
         const float SimRowH = 24f;
         const float SimHeadH = 34f;
+        const float SimRowFade = 0.18f;    // one result row's fade-in, once its RowStagger turn comes
         static readonly Color BracketBackdrop = new Color(0.05f, 0.06f, 0.09f, 1f);   // opaque plate behind the View Bracket overlay
         const float FooterH = 72f;         // DrawNav's band: buttons at Height - 72
 
@@ -84,6 +85,15 @@ namespace Trickshot
         readonly List<CupPlayer> _rows = new List<CupPlayer>();
         readonly List<CupRound> _simRounds = new List<CupRound>();
 
+        // Stage-complete reveal (design 3.7): the simulated result rows fade in one after another,
+        // CupTuning.RowStagger apart. The clock starts when the set of finished AI rounds first
+        // appears for a stage and is re-latched when the stage changes or another round lands, so
+        // rebuilding _simRounds every frame (Update) does not restart the reveal. Unscaled time, or
+        // a Solo pause would freeze the reveal half-drawn.
+        float _simShownAt = -100f;
+        int _simShownCount = -1;
+        CupStage? _simShownStage;
+
         static GUIStyle _titleSt, _nameSt, _statusSt, _btnSt, _rowBtnSt, _simCodeSt, _simScoreSt, _gateSt, _confirmTitleSt, _confirmBtnSt;
 
         void Init(CupDirector director)
@@ -137,6 +147,12 @@ namespace Trickshot
             {
                 var ai = b.AiRounds(_director.Stage);
                 for (int i = 0; i < ai.Count; i++) if (ai[i].Done) _simRounds.Add(ai[i]);
+            }
+            if (_simRounds.Count != _simShownCount || _simShownStage != _director.Stage)
+            {
+                _simShownCount = _simRounds.Count;
+                _simShownStage = _director.Stage;
+                _simShownAt = Time.unscaledTime;
             }
         }
 
@@ -221,7 +237,8 @@ namespace Trickshot
                     for (int i = c * simRowsN; i < Mathf.Min(_simRounds.Count, (c + 1) * simRowsN); i++)
                     {
                         float rh = SimRowHFor(_simRounds[i]);
-                        DrawSimRow(_simRounds[i], b, px + 24f + c * colW, y, colW, rh, 1f);
+                        float ra = Mathf.Clamp01((Time.unscaledTime - _simShownAt - i * CupTuning.RowStagger) / SimRowFade);
+                        DrawSimRow(_simRounds[i], b, px + 24f + c * colW, y, colW, rh, ra);
                         y += rh;
                     }
                 }
@@ -466,15 +483,21 @@ namespace Trickshot
                 fire = () => _bracketOpen = true;
 
             // Customize: appearance only, through whoever owns the customize path. Disabled with
-            // no handler, and while the local round is on (the body is in use).
+            // no handler, and while the local round is on (the body is in use). A greyed button
+            // with no reason reads as a broken screen, so it carries the same hint the Ready
+            // button does - "not yet available" when no flow set OnCustomizeRequested (both Solo
+            // and Head to Head leave it null today), "your round is still on" while playing.
             bool localPlaying = me != null && me.Playing;
+            var cr = new Rect(w * 0.5f + 8f, by, bw, bh);
             GUI.enabled = outerEnabled && OnCustomizeRequested != null && !localPlaying;
-            if (UITheme.Button(new Rect(w * 0.5f + 8f, by, bw, bh), CupText.Customize, _btnSt))
+            if (UITheme.Button(cr, CupText.Customize, _btnSt))
             {
                 var cb = OnCustomizeRequested;
                 fire = () => cb?.Invoke();
             }
             GUI.enabled = outerEnabled;
+            if (OnCustomizeRequested == null) UITheme.Hint(new Rect(cr.x - 60f, cr.y - 22f, cr.width + 60f, 18f), "not yet available", TextAnchor.MiddleRight);
+            else if (localPlaying) UITheme.Hint(new Rect(cr.x - 60f, cr.y - 22f, cr.width + 60f, 18f), CupText.YourRoundStillOn, TextAnchor.MiddleRight);
 
             // Ready (Solo: Continue). Disabled while the local round is on ("your round is still
             // on") and once eliminated (the director keeps the eliminated ready).

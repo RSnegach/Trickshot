@@ -16,12 +16,22 @@ namespace Trickshot
     /// Draws in its own OnGUI at a depth ABOVE the director's screens and the HUD, because it is a
     /// cover: whatever is being built or torn down beneath it stays out of sight, including the
     /// previous round's last frame. It fades out over <see cref="FadeSeconds"/> once released.
+    ///
+    /// The one thing it must NOT cover is the pause menu, which draws at IMGUI's default depth 0 and
+    /// so would sit behind this card's opaque scrim - a menu the player opened and cannot see, with
+    /// invisible live buttons. While <see cref="PauseMenu.Paused"/> the card therefore drops BEHIND
+    /// the menu (depth 1) rather than hiding: an early return would lift the cover off a half-built
+    /// round, which is the one thing this card exists to prevent. The condition only ever changes in
+    /// PauseMenu.Update, never between an OnGUI Layout and Repaint pass, and the card allocates no
+    /// controls, so nothing can shift under it.
     /// </summary>
     public sealed class CupLoadingUI : MonoBehaviour
     {
         public const float FadeSeconds = 0.25f;
         /// <summary>IMGUI depth: in front of the director's screens (0) and the HUD.</summary>
         public const int GuiDepth = -1;
+        /// <summary>IMGUI depth while the pause menu is up: behind it (the menu draws at the default 0).</summary>
+        public const int PausedGuiDepth = 1;
         const float PlateW = 420f, PlateH = 180f, Flag = 48f;
 
         CupDirector _director;
@@ -88,7 +98,7 @@ namespace Trickshot
         void OnGUI()
         {
             if (!_visible) return;
-            GUI.depth = GuiDepth;
+            GUI.depth = PauseMenu.Paused ? PausedGuiDepth : GuiDepth;
             MenuScale.Begin();
             try { Draw(); }
             finally { MenuScale.End(); }

@@ -79,7 +79,13 @@ namespace Trickshot
         // ---- local tunables (feel; the designed beats are in CupTuning) ------------------------
         /// <summary>The "HEAD TO HEAD - up next" card the two participants see before their round (s).</summary>
         public const float HeadToHeadInterstitialSeconds = 3f;
-        /// <summary>Host: a wave round whose owner stopped playing without a result arriving is simulated after this (s).</summary>
+        /// <summary>
+        /// Host: a wave round whose owner stopped playing without a result arriving is simulated
+        /// after this (s). It covers the SILENT case only - a crash, or a peer that went quiet
+        /// short of the roster noticing. A result the host actually received and REFUSED needs no
+        /// wait at all: H2HRoundResultRefused settles that round on the next watchdog pass, so the
+        /// reporting player is not left staring at a finished round for ten seconds.
+        /// </summary>
         public const float HeadToHeadResultGrace = 10f;
         /// <summary>Host: a wave still unfinished after this long is settled by the sim (s). Longer than any real round.</summary>
         public const float HeadToHeadWaveCap = 480f;
@@ -125,6 +131,7 @@ namespace Trickshot
         float _h2hWaveStartedAt;
         readonly Dictionary<int, float> _h2hOwnerStoppedAt = new Dictionary<int, float>();
         readonly HashSet<int> _h2hOwnerSeenPlaying = new HashSet<int>();
+        readonly HashSet<int> _h2hOwnerRefused = new HashSet<int>();
         readonly HashSet<int> _h2hLeftSeen = new HashSet<int>();
 
         // ==========================================================================================
@@ -342,6 +349,7 @@ namespace Trickshot
             _h2hWaveStartedAt = Time.unscaledTime;
             _h2hOwnerStoppedAt.Clear();
             _h2hOwnerSeenPlaying.Clear();
+            _h2hOwnerRefused.Clear();
             if (_h2hWaveRounds.Count == 0)
             {
                 // Nothing to play in parallel (every surviving human is drawn against another
@@ -824,11 +832,24 @@ namespace Trickshot
         }
 
         /// <summary>
+        /// Host: the owner's report for a wave round was REFUSED (the rules, the wrong first
+        /// kicker, a round the host simulates itself). The refusal is immediate and knowable, so
+        /// the round does not wait out HeadToHeadResultGrace - the next watchdog pass simulates it
+        /// and the owner follows through NetApplyResult. Only the silent case needs the timeout.
+        /// Called from the CupRequest.RoundResult handler; a no-op outside a Head to Head wave.
+        /// </summary>
+        void H2HRoundResultRefused(int ownerSlot)
+        {
+            if (Style != CupStyle.HeadToHead || !IsAuthority || ownerSlot < 0) return;
+            _h2hOwnerRefused.Add(ownerSlot);
+        }
+
+        /// <summary>
         /// Host: a wave round whose owner's row stopped reading Playing without a result following
-        /// within HeadToHeadResultGrace (a report the rules refused, a crash short of the roster
-        /// noticing) is settled by the sim, as is everything left after HeadToHeadWaveCap. The
-        /// first result wins (ApplyRoundResult refuses a Done round), so a late report cannot flip
-        /// a stage that has moved on.
+        /// within HeadToHeadResultGrace (a crash short of the roster noticing) is settled by the
+        /// sim, as is a round whose report was refused outright (H2HRoundResultRefused, no wait)
+        /// and everything left after HeadToHeadWaveCap. The first result wins (ApplyRoundResult
+        /// refuses a Done round), so a late report cannot flip a stage that has moved on.
         /// </summary>
         void H2HWaveWatchdog()
         {
@@ -840,7 +861,7 @@ namespace Trickshot
                 if (r == null || !r.Ready || r.Done) continue;
                 int owner = H2HOwnerOf(r);
                 var p = owner >= 0 ? PlayerAt(owner) : null;
-                bool settle = capped;
+                bool settle = capped || (owner >= 0 && _h2hOwnerRefused.Contains(owner));
                 if (p != null && p.Active && owner != LocalSlot)
                 {
                     if (p.Playing)
@@ -856,7 +877,9 @@ namespace Trickshot
                     }
                 }
                 if (!settle) continue;
-                CupLog.Warn("Head to Head: no result for " + CupStages.Short(r.Stage) + " #" + r.Index + " from slot " + owner + " - simulating it");
+                bool refused = owner >= 0 && _h2hOwnerRefused.Remove(owner);
+                CupLog.Warn("Head to Head: " + (refused ? "refused result" : "no result") + " for " + CupStages.Short(r.Stage)
+                            + " #" + r.Index + " from slot " + owner + " - simulating it");
                 CupSim.Simulate(r, Bracket, CupSim.StreamFor(Bracket, r));
                 RefreshPlayersFromBracket();
                 Notify();

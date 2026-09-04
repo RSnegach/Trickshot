@@ -50,6 +50,7 @@ namespace Trickshot
         CupSpectatorView _spectator;
         int _spectatingShown = -1;
         int _stopSpectateSentFor = -1;   // the target a forced StopSpectating was already sent for (NetTickSpectate)
+        float _unspectateSentAt = -100f; // a client's local unspectate, held against a stale echo (NetApplyPlayers)
         uint _streamSeq;
         float _streamAccum;
         // Client: the local round's live row.
@@ -203,6 +204,13 @@ namespace Trickshot
             if (_netHost) _net.ResetAllSlotInputs();
             _net.ReplayVotesExternal = false;
             _liveSentAt = -100f;
+            _unspectateSentAt = -100f;
+        }
+
+        /// <summary>Start the grace window that holds a client's local unspectate against a stale CupState echo (see NetApplyPlayers).</summary>
+        void NetMarkUnspectateSent()
+        {
+            _unspectateSentAt = Time.unscaledTime;
         }
 
         /// <summary>A client leaving on purpose tells the host first (CupRequest.Quit); the host applies the leave at once.</summary>
@@ -326,6 +334,7 @@ namespace Trickshot
                     if (p.Entrant < 0 || !round.Involves(p.Entrant))
                     {
                         CupLog.Warn("CupDirector: slot " + slot + " reported a round it is not in - refused");
+                        H2HRoundResultRefused(slot);
                         break;
                     }
                     var owned = CupStages.IsValid(round.Stage) && round.Index >= 0 && round.Index < CupStages.RoundsIn(round.Stage)
@@ -336,6 +345,7 @@ namespace Trickshot
                         // owner's machine) is ever reported; a human-vs-human round is the host's
                         // own simulation and its participants have no result to send.
                         CupLog.Warn("CupDirector: slot " + slot + " reported a round the host simulates itself - refused");
+                        H2HRoundResultRefused(slot);
                         break;
                     }
                     if (!NetFirstKickerAgrees(round, p))
@@ -347,9 +357,15 @@ namespace Trickshot
                         // come from that toss; the wave watchdog settles the round by the sim.
                         CupLog.Warn("CupDirector: slot " + slot + " reported " + CupStages.Short(round.Stage) + " #" + round.Index
                                     + " with a first kicker the coin did not produce - refused");
+                        H2HRoundResultRefused(slot);
                         break;
                     }
-                    ApplyRoundResult(round);
+                    // ApplyRoundResult logs the reason on every refusal (already decided, entrants
+                    // differ, no first kicker, or CupRoundRules.Validate's err). A refusal is
+                    // settled at once by the watchdog rather than after HeadToHeadResultGrace; the
+                    // "already decided" case is the one exception - that round is Done, so the
+                    // watchdog skips it and nothing is simulated twice.
+                    if (!ApplyRoundResult(round)) H2HRoundResultRefused(slot);
                     break;
                 }
                 case CupRequestKind.Loaded:
@@ -540,7 +556,18 @@ namespace Trickshot
                 p.Left = (row.status & CupPlayerStatus.Left) != 0;
                 p.Loaded = (row.status & CupPlayerStatus.Loaded) != 0;
                 p.Spectated = (row.status & CupPlayerStatus.Spectated) != 0;
-                p.SpectatingSlot = row.spectating == 255 ? -1 : row.spectating;
+                // The local spectate row: Esc cleared it here already (StopSpectating) and the
+                // request is in flight, so a CupState sent before the host saw it must not put the
+                // view back up for a round trip. Held only until the echo agrees, or for
+                // LiveRowEchoGrace - the host stays the authority on everyone's row including ours.
+                int echoSpectating = row.spectating == 255 ? -1 : row.spectating;
+                bool pendingUnspectate = local && echoSpectating >= 0
+                                         && now - _unspectateSentAt < CupNet.LiveRowEchoGrace;
+                if (!pendingUnspectate)
+                {
+                    p.SpectatingSlot = echoSpectating;
+                    if (local && echoSpectating < 0) _unspectateSentAt = -100f;   // the echo agrees: drop the latch
+                }
 
                 // The local live row: while THIS machine simulates the local round, or right
                 // after it reported a change, its own numbers are fresher than the host's echo.

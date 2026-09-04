@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Trickshot
 {
@@ -30,6 +31,28 @@ namespace Trickshot
         static int _page;
         static GUIStyle _label, _arrow, _hint;
 
+        // ---- Escape ownership ------------------------------------------------------------------
+        // The wheel's open flag lives in each OWNER (CupHud, CupPodium, CupTrophyLift each hold
+        // their own `ref bool`), so there is no single field CupEscape can read. This mirrors it as
+        // an EXPIRING stamp rather than a count: an owner republishes "open" every frame it is
+        // open, and the stamp lapses on its own the moment nobody does. That matters because none
+        // of the three closes its wheel in OnDestroy - a reference count would leak on a torn-down
+        // podium and swallow Escape for the rest of the session, whereas a stale stamp heals in
+        // two frames. The same window also holds ownership for one frame past a deliberate close,
+        // exactly as QuickChatFeed does: the owner closes inside its Update and PauseMenu's raw key
+        // read of that same press can land in the same frame or the next one.
+        const float OwnFor = 0.2f;
+        static float _openAt = -100f;
+
+        /// <summary>Any cup emote wheel is open (or was within the last frame) - see CupEscape.Owned.</summary>
+        public static bool AnyOpen => Time.unscaledTime - _openAt < OwnFor;
+
+        /// <summary>An owner republishes its open wheel every frame; the stamp lapses when nobody does.</summary>
+        public static void KeepAlive(bool open)
+        {
+            if (open) _openAt = Time.unscaledTime;
+        }
+
         /// <summary>The page showing (persists across opens, like the match wheels).</summary>
         public static int Page
         {
@@ -40,12 +63,38 @@ namespace Trickshot
         /// <summary>Open or close the wheel; frees the cursor while open and captures it on close.</summary>
         public static void SetOpen(ref bool open, bool value)
         {
+            KeepAlive(open || value);   // a close still owns Escape for OwnFor
             open = value;
             GameInput.CaptureCursor(!value);
         }
 
+        /// <summary>
+        /// The owner's Escape handler: closes an open wheel and returns true when it did. Call it
+        /// once per Update from every owner, BEFORE anything else reads Escape. PauseMenu skips
+        /// its own open on the same press because CupEscape.Owned reads AnyOpen, which stays true
+        /// for one frame past the close - so the wheel is dismissed and the menu does not appear.
+        /// Re-captures the cursor like any other close (the wheel, not the menu, took it).
+        /// </summary>
+        public static bool CloseOnEscape(ref bool open)
+        {
+            if (!open || !EscapePressed()) return false;
+            SetOpen(ref open, false);
+            return true;
+        }
+
+        /// <summary>Escape went down this frame. Here so an owner needing ForceClosed semantics (the podium and the lift keep a free cursor) does not repeat the raw read.</summary>
+        public static bool EscapePressed()
+        {
+            var kb = Keyboard.current;
+            return kb != null && kb.escapeKey.wasPressedThisFrame;
+        }
+
         /// <summary>Close without touching the cursor (the pause menu took it).</summary>
-        public static void ForceClosed(ref bool open) => open = false;
+        public static void ForceClosed(ref bool open)
+        {
+            KeepAlive(open);
+            open = false;
+        }
 
         /// <summary>
         /// Draw the wheel while <paramref name="open"/>; returns the emote picked this pass (or null).

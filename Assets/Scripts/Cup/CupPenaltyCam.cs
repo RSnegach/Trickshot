@@ -3,10 +3,12 @@ using UnityEngine;
 namespace Trickshot
 {
     /// <summary>
-    /// The FIFA-style penalty camera (design 7.9): behind the taker on the ball-to-goal axis, close and
-    /// low, with the vertical FOV SOLVED from the camera-to-goal distance and the window's aspect so
-    /// the goal is big in the frame - the posts at about <see cref="CupTuning.PenaltyCamPostFrac"/>
-    /// and 1 - that of the frame width when the taker looks at the goal centre.
+    /// The FIFA-style penalty camera (design 7.9): behind the taker on the ball-to-goal axis, with the
+    /// vertical FOV SOLVED from the camera-to-goal distance and the window's aspect so the goal is
+    /// big in the frame. <see cref="CupTuning.PenaltyCamPostFrac"/> is the framing TARGET for the
+    /// posts (that fraction of the frame width in from each edge, looking at the goal centre); the
+    /// ball rule below overrides it at the shipped placement - see the FOV paragraph for what the
+    /// frame really looks like.
     ///
     /// Aiming is unchanged: GameCamera's yaw/pitch are still the aim (SetPieceTaker.LookAimPoint
     /// from the ball spot), and the mouse looks around as normal within the clamp the rig installs
@@ -20,20 +22,27 @@ namespace Trickshot
     /// than parallel to the aim ray) is what lets the camera stand a little to the side of the axis
     /// without the aim drifting off centre by the parallax.
     ///
-    /// Why a side offset at all: a run-up of <see cref="CupTuning.RunUpDistance"/> (3 m) puts the
-    /// taker's charging stance at exactly <see cref="CupTuning.PenaltyCamBack"/> (3 m) behind the
-    /// ball - inside the camera. The rig latches the stand-off at least <see cref="MinBehindTaker"/>
-    /// behind the taker, and <see cref="SideOffset"/> steps the camera off his shoulder so his back
-    /// does not fill the middle of the frame (where the goal is) for the whole charge. Both are
-    /// (tune) values, as the design flags the whole placement.
+    /// WHERE IT ACTUALLY STANDS: 7 m behind the ball on the axis, 2.4 m up, centred.
+    /// <see cref="CupTuning.PenaltyCamBack"/> (3 m) is only a FLOOR and never wins - the latch takes
+    /// Max(PenaltyCamBack, takerBehind + <see cref="MinBehindTaker"/>), and a run-up of
+    /// <see cref="CupTuning.RunUpDistance"/> (3 m) plus MinBehindTaker (4 m) is 7 m every time. Any
+    /// smaller stand-off would put the camera inside the taker's charging stance.
+    /// <see cref="SideOffset"/> is 0: an offset off one shoulder read as an asymmetric frame, and
+    /// <see cref="CamHeight"/> 2.4 m already lifts the line to the goal clear of his head, so his
+    /// back never fills the middle of the frame. All three are (tune) values, as the design flags
+    /// the whole placement.
     ///
     /// The FOV solve honours the post framing first, then WIDENS if that framing would drop the
     /// ball out of the bottom of the frame in the reference pose (looking at the goal centre): a
-    /// penalty camera that cannot see the ball is broken however big the goal looks. With the
-    /// design's 3 m / 1.5 m placement the ball rule wins at every aspect (the ball sits ~24 deg
-    /// under the goal line from that close), which lands the posts nearer 35% / 65% than 11% / 89%;
-    /// a lower, further camera (e.g. 6 m back, 0.9 m high) lets the post rule win. Worked numbers
-    /// are in the C2 build report; the levers are the CupTuning constants and the two here.
+    /// penalty camera that cannot see the ball is broken however big the goal looks. At the shipped
+    /// 7 m / 2.4 m the ball rule still wins - it solves 32.0 deg against the post rule's narrower
+    /// answer - so the outer post lands about 30% / 70% of the frame width at 16:9 (24% / 76% at
+    /// 4:3, 35% / 65% at 21:9) rather than the 11% / 89% target, with the ball sitting exactly on
+    /// its <see cref="BallMarginFrac"/> margin above the bottom edge. Nothing clamps: 32.0 sits well
+    /// inside <see cref="MinFov"/>..<see cref="MaxFov"/>. Closing that gap means a LOWER camera (the
+    /// ball's depression angle is what widens the solve), which costs the clearance over the taker's
+    /// head - that trade is the reason for the numbers above. Read the live figure off
+    /// <see cref="OuterPostFrac"/>; the levers are the CupTuning constants and the ones here.
     /// </summary>
     public sealed class CupPenaltyCam
     {

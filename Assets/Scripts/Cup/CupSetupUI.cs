@@ -48,8 +48,10 @@ namespace Trickshot
             if (Card(new Rect(cx, top + cardH + gap, cardW, cardH), CupText.FreeKicksName.ToUpperInvariant()))
                 fire = () => _onPick?.Invoke(CupFormat.FreeKicks);
 
-            var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
-            if (UITheme.Button(new Rect(w * 0.5f - 90f, top + total + 22f, 180f, 42f), "Back", btn))
+            // Cached, not built per pass: OnGUI runs several times a frame, and every other cup
+            // screen keeps its styles in statics (the card's _titleSt right below does the same).
+            _backSt ??= new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };
+            if (UITheme.Button(new Rect(w * 0.5f - 90f, top + total + 22f, 180f, 42f), "Back", _backSt))
                 fire = () => _onBack?.Invoke();
 
             // Esc = Back. A key event allocates no control, so handling it here cannot shift ids
@@ -68,7 +70,7 @@ namespace Trickshot
         // A panel carrying ONE big centred word, clickable as a whole. The control is allocated
         // LAST and unconditionally, exactly as UITheme.ModeCard does it: adding or removing controls
         // between the layout and repaint passes desynchronises IMGUI's ids and breaks every click.
-        static GUIStyle _titleSt;
+        static GUIStyle _titleSt, _backSt;
         static bool Card(Rect r, string title)
         {
             var e = Event.current;

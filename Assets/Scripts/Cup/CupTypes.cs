@@ -281,8 +281,22 @@ namespace Trickshot
         public const float ScoredCutSeconds = 0.3f;
         /// <summary>The walk-back cinematic after a miss/save is cut off at this long.</summary>
         public const float WalkBackMax = 3.5f;
-        /// <summary>Walking speed of the shooter on the walk-back (m/s).</summary>
-        public const float WalkSpeed = 1.6f;
+        /// <summary>
+        /// Walking speed of the shooter on the walk-back (m/s).
+        ///
+        /// SIZED AGAINST THE WALK, not chosen for its own sake: the cinematic is supposed to end on
+        /// the arrival (design 7.5, "a cut to a wide shot from behind the lineup as they arrive"),
+        /// so the longest walk must fit inside WalkBackMax or the cut always hides a snap instead.
+        /// The penalty spot is GoalCenter.z - PenaltyDistance (11) and LineupZ is
+        /// GoalCenter.z - PenaltyBoxDepth (16.5) - LineupBehindBox (1), so the walk is 6.5 m of z
+        /// against LineupX (6) plus up to two LineupSpacing (0.62) steps of x for the outermost
+        /// slot in a five-body line: sqrt(7.24^2 + 6.5^2) = 9.73 m, needing 2.78 m/s to arrive in
+        /// 3.5 s. 2.85 leaves a small margin over the outermost mark and still reads as a brisk
+        /// walk rather than a jog. Raise this, not WalkBackMax: the 3.5 s beat is a pacing decision
+        /// in design 2.7's timing table, while the pace is only ever a consequence of the geometry.
+        /// (The earlier 1.6 needed 6.1 s and never once reached the line.)
+        /// </summary>
+        public const float WalkSpeed = 2.85f;
         /// <summary>The first (low tracking) shot of the walk-back two-shot sequence.</summary>
         public const float WalkBackTrackShot = 1.5f;
         /// <summary>Won the round: the whole lineup is free to move and emote this long (skippable by the scorer / winning keeper).</summary>
@@ -347,10 +361,24 @@ namespace Trickshot
         public const float CoinCamDistance = 6f;
         public const float CoinCamHeight = 1.6f;
         public const float CoinCamFov = 55f;
-        /// <summary>Penalty camera: behind the taker on the ball-to-goal line. (tune)</summary>
+        /// <summary>
+        /// Penalty camera: the FLOOR on how far behind the ball the camera stands (m), on the
+        /// ball-to-goal line.
+        ///
+        /// CupPenaltyCam OWNS the effective placement, and this floor never wins: the rig takes
+        /// Max(PenaltyCamBack, takerBehind + CupPenaltyCam.MinBehindTaker), and with the taker at
+        /// RunUpDistance (3 m) behind the ball and MinBehindTaker 4 m that is 7 m every time. The
+        /// height is owned outright by CupPenaltyCam.CamHeight (2.4 m); there is deliberately no
+        /// PenaltyCamHeight here any more, because a constant with no reader looks like a tuning
+        /// knob and moves nothing. Tune the rig's two constants, not this one.
+        /// </summary>
         public const float PenaltyCamBack = 3f;
-        public const float PenaltyCamHeight = 1.5f;
-        /// <summary>The posts sit at this fraction and (1 - this) of the frame width when looking at the goal centre.</summary>
+        /// <summary>
+        /// The framing TARGET: the posts sit at this fraction and (1 - this) of the frame width when
+        /// looking at the goal centre. It is a target, not a guarantee - keeping the ball in frame is
+        /// the hard rule and wins at the real 7 m / 2.4 m placement, which lands the outer post
+        /// nearer 31% / 69% (see CupPenaltyCam's Solve).
+        /// </summary>
         public const float PenaltyCamPostFrac = 0.11f;
         /// <summary>Penalty camera look clamp so the goal never leaves the frame (degrees).</summary>
         public const float PenaltyCamYawLimit = 25f;
@@ -393,6 +421,37 @@ namespace Trickshot
         public const int SimMaxSuddenDeathPairs = 10;
         /// <summary>Share of simulated non-goals recorded as SAVED (the rest are MISS) - pip flavour only.</summary>
         public const float SimSaveShare = 0.55f;
+
+        /// <summary>
+        /// The hard ceiling on the number of kicks in ANY round's line - played as well as
+        /// simulated - and therefore a WIRE bound, not a gameplay preference.
+        ///
+        /// Every played round rides CupState as its full kick line (3 + ceil(n/2) bytes each, 31
+        /// rounds), and CupState goes out on NetChannel.Reliable, which DirectIpTransport never
+        /// fragments: one payload, one datagram. The codec writes the kick count as a u8, so an
+        /// unbounded line is bounded only at 255, which puts the worst-case CupState at about
+        /// 4.2 KB - IP-fragmented and, off loopback, likely dropped outright, which would silently
+        /// stall every client's model. It is also reachable from OUTSIDE: a modified or buggy
+        /// client can report any 255-kick line through CupRequest.RoundResult, whose 1 KB payload
+        /// admits it easily. Sudden death is genuinely unbounded in the rules (pairs continue while
+        /// both score) and a Round-of-32 keeper sits at ability 0.20, so long lines are not only a
+        /// hostile case.
+        ///
+        /// The value is the one CupSim has always used for the same reason - 2 * KicksEach for the
+        /// regulation kicks plus 2 * SimMaxSuddenDeathPairs - so a played line and a simulated one
+        /// can never disagree about what lengths are legal. At this cap the worst-case CupState is
+        /// about 876 B, inside the ~1.2 KB single-datagram budget.
+        ///
+        /// ENFORCED AT BOTH ENDS:
+        ///   * a longer REPORTED line is refused - CupRoundRules.Validate takes this as its
+        ///     maxKicks and both wire seams pass it (the host's CupDirector.ApplyRoundResult, which
+        ///     CupLog.Warns and lets the wave watchdog settle the round, and a client's
+        ///     CupRoundDriver.ApplyState, which keeps its local line); and
+        ///   * the LIVE round cannot grow past it - CupRoundDriver.CapOutcome overrides the last
+        ///     allowed kick's outcome when the pair would otherwise be level, so the line always
+        ///     ends DECIDED (the bracket's SetResult accepts nothing else).
+        /// </summary>
+        public const int MaxKicksInLine = KicksEach * 2 + SimMaxSuddenDeathPairs * 2;
 
         // ---- nations -------------------------------------------------------------------------
         /// <summary>Strength range of the nation table (hidden flavour; biases CupSim only).</summary>

@@ -48,6 +48,8 @@ namespace Trickshot
         public const float WalkInSpeedMul = 1.35f;
         /// <summary>Seconds a walk-in may take before its speed is raised to make it (far free-kick spots become a jog).</summary>
         public const float WalkInBudget = 4f;
+        /// <summary>The walk-back solves its speed to arrive this long BEFORE CupTuning.WalkBackMax, so the rig's cut shows him arriving rather than covering a snap.</summary>
+        public const float WalkBackArriveSlack = 0.3f;
         /// <summary>An AI scorer's run before his emote (m/s, s).</summary>
         public const float ScorerRunSpeed = 4.2f;
         public const float ScorerRunSeconds = 1.2f;
@@ -230,6 +232,14 @@ namespace Trickshot
         /// The beaten shooter turns and walks to his lineup slot at walking pace while the rig runs
         /// the two-shot (design 7.5). `onArrived` is the driver's cue for the next cut; the driver
         /// cuts at CupTuning.WalkBackMax regardless, and the cut hides any snap.
+        ///
+        /// The pace is sized against THIS walk, the way OnAiTakerToSpot sizes the walk-in: the
+        /// cinematic is meant to end on the arrival (design 7.5), so a mark further out than
+        /// CupTuning.WalkSpeed reaches in the budget is walked faster rather than never reached.
+        /// WalkSpeed is the floor - a short walk keeps its brisk-walk pace - and the derivation in
+        /// its doc comment covers a FIVE-body line; an 8-strong Co-op lineup puts the outermost
+        /// mark 10.4 m away (3.7 s at 2.85), which is what this solve absorbs. The 0.3 s of slack
+        /// lands the arrival before the cut instead of on it.
         /// </summary>
         public void OnWalkBack(CupRoundDriver driver, CupBody shooter, Action onArrived)
         {
@@ -237,7 +247,9 @@ namespace Trickshot
             if (!Movable(shooter)) { onArrived?.Invoke(); return; }
             if (_rig != null) _rig.WalkBackView(shooter.Ragdoll, shooter.LineupMark, CupTuning.WalkBackMax);
             var body = shooter;
-            Walk(body, body.LineupMark, CupTuning.WalkSpeed, body.LineupFacing, CupTuning.WalkBackMax, true, () =>
+            float dist = Vector3.Distance(body.GroundPos, body.LineupMark);
+            float speed = Mathf.Max(CupTuning.WalkSpeed, dist / Mathf.Max(0.5f, CupTuning.WalkBackMax - WalkBackArriveSlack));
+            Walk(body, body.LineupMark, speed, body.LineupFacing, CupTuning.WalkBackMax, true, () =>
             {
                 // Back in the line: the arms go round the shoulders again, him included.
                 EnterLineup(LineupOf(body.Side, body), body.Side);

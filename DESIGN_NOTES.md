@@ -250,6 +250,9 @@ asymmetric/short-session modes and a progression layer, not just the main match 
   Not scoped beyond this — just an idea, not being built yet.
   **Update 2026-09-03:** renamed **Trickshot Cup** and planned in full (Solo / Head to Head /
   Co-op, every screen, wire and lifecycle) in `docs/trickshot-cup-design.md`. Still not built.
+  **Update 2026-09-04:** built across four phases in `Assets/Scripts/Cup/` (all three styles,
+  ProtocolVersion 8) — compile-clean and passing the pure self-test, but NOT yet run in the
+  editor or on loopback; see `docs/claude-handoff.md` for the verification steps still owed.
 
 ## Open questions (not answered yet)
 

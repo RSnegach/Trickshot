@@ -145,6 +145,23 @@ namespace Trickshot
         bool _wheelOpen, _wheelWasOpen, _wasPaused;
         int _nextVirtual = CupRoundState.AiBodyIdBase;
 
+        /// <summary>One button on the podium's row: the label, what it does, and whether it is the
+        /// destructive one (UITheme.Button's `bad` tint).</summary>
+        struct Btn
+        {
+            public string Label;
+            public Action Act;
+            public bool Bad;
+        }
+
+        // The button row is a MODEL, latched in Update and only iterated by OnGUI - the shape
+        // CupLobbyUI._rows and CupResultsUI._tabs already use. Building it inside the GUI pass
+        // allocated three lists plus a closure each on EVERY pass (several per frame) on the one
+        // cup screen that is deliberately a long dwell, and derived the CONTROL COUNT from live
+        // state inside the pass, which is exactly what IMGUI forbids.
+        readonly List<Btn> _buttons = new List<Btn>();
+        bool _rowSolo, _rowAuthority, _rowBuilt;
+
         static GUIStyle _titleStyle, _buttonStyle, _waitStyle;
 
         // ==========================================================================================
@@ -380,12 +397,32 @@ namespace Trickshot
                 var rag = b.Ragdoll;
                 rag.BecomeDisplayBody();
                 rag.DisplayPose(pos, facing, 0f, 0f, CupPoses.LoserPose(variant));
-                // A posed puppet needs no solver: stop the component (the menu vignettes' rule),
-                // or seven idle bodies keep paying full balance cost behind a static pose.
+                // A posed puppet needs no solver - but BecomeDisplayBody stops NONE of the three
+                // components that keep integrating (the menu vignettes' rule): ActiveRagdoll's own
+                // FixedUpdate, HairSim and AnatomySim each run off their own clock. A human loser
+                // carries both cosmetic sims (BuildHuman passes an appearance), and in Head to Head
+                // every other connected human stands here, so leaving them live costs up to seven
+                // full cosmetic solves behind a static pose - on the one screen already paying for
+                // 200 confetti quads and an orbiting camera.
                 rag.enabled = false;
+                FreezeSims(rag);
                 if (Ball != null) Ball.IgnoreBody(rag, true);
                 _bodies.Add(b);
             }
+        }
+
+        /// <summary>
+        /// The cosmetic sims a display body still runs on its own clock (see the menu scenes'
+        /// MenuScene.SetSims): hair has no teleport handling and would drift off a posed body, and
+        /// the anatomy sim integrates regardless of whether the bones move.
+        /// </summary>
+        static void FreezeSims(ActiveRagdoll rag)
+        {
+            if (rag == null) return;
+            var hair = rag.GetComponentsInChildren<HairSim>(true);
+            for (int i = 0; i < hair.Length; i++) if (hair[i] != null) hair[i].enabled = false;
+            var anat = rag.GetComponentsInChildren<AnatomySim>(true);
+            for (int i = 0; i < anat.Length; i++) if (anat[i] != null) anat[i].enabled = false;
         }
 
         struct Cand
@@ -470,6 +507,8 @@ namespace Trickshot
 
         void Update()
         {
+            CupEmoteWheel.KeepAlive(_wheelOpen);   // Escape ownership, republished while open
+            RefreshButtons();
             bool paused = PauseMenu.Paused;
             // PauseMenu.Resume re-captures the cursor unconditionally; the podium wants it free.
             if (_wasPaused && !paused) GameInput.CaptureCursor(false);
@@ -479,6 +518,10 @@ namespace Trickshot
                 CupEmoteWheel.ForceClosed(ref _wheelOpen);   // the menu owns the cursor now
                 _wheelWasOpen = false;
             }
+            // Escape closes the WHEEL rather than opening the pause menu behind it (CupEscape.Owned
+            // reads CupEmoteWheel.AnyOpen, so PauseMenu skips the same press). ForceClosed, not
+            // SetOpen: the podium keeps a free cursor, and the line below would only undo a capture.
+            if (!paused && _wheelOpen && CupEmoteWheel.EscapePressed()) CupEmoteWheel.ForceClosed(ref _wheelOpen);
             // A pick closed the wheel inside its draw and CAPTURED the cursor (its own contract):
             // free it again, the podium is a pointer screen.
             if (_wheelWasOpen && !_wheelOpen) GameInput.CaptureCursor(false);
@@ -574,6 +617,38 @@ namespace Trickshot
         // UI (own OnGUI): the CHAMPIONS strip, the hint, the buttons after the delay, the wheel
         // ==========================================================================================
 
+        /// <summary>
+        /// Rebuild the button row when (and only when) the style or the authority flag moves. Solo
+        /// and an authoritative MP peer get three buttons; a client gets End Match alone and the
+        /// "waiting for host" line.
+        /// </summary>
+        void RefreshButtons()
+        {
+            bool solo = Director == null || Director.Style == CupStyle.Solo;
+            bool authority = Director == null || Director.IsAuthority;
+            if (_rowBuilt && solo == _rowSolo && authority == _rowAuthority) return;
+            _rowSolo = solo;
+            _rowAuthority = authority;
+            _rowBuilt = true;
+            _buttons.Clear();
+            if (solo)
+            {
+                _buttons.Add(new Btn { Label = CupText.NewCup, Act = () => Director?.PlayAgain() });
+                _buttons.Add(new Btn { Label = CupText.Continue, Act = () => _onContinue?.Invoke() });
+                _buttons.Add(new Btn { Label = CupText.MainMenu, Act = () => Director?.QuitToMenu(), Bad = true });
+            }
+            else if (authority)
+            {
+                _buttons.Add(new Btn { Label = CupText.PlayAgain, Act = () => Director?.PlayAgain() });
+                _buttons.Add(new Btn { Label = CupText.Continue, Act = () => _onContinue?.Invoke() });
+                _buttons.Add(new Btn { Label = CupText.EndMatch, Act = () => Director?.EndMatch(), Bad = true });
+            }
+            else
+            {
+                _buttons.Add(new Btn { Label = CupText.EndMatch, Act = () => Director?.EndMatch(), Bad = true });
+            }
+        }
+
         void OnGUI()
         {
             Styles();
@@ -596,38 +671,19 @@ namespace Trickshot
             // and under the pause menu), so control ids never shift under a click.
             bool show = ButtonsUp && !paused && !_wheelOpen;
             float bw = 170f, bh = 48f, gap = 20f, by = h - 100f;
-            bool solo = Director == null || Director.Style == CupStyle.Solo;
-            bool authority = Director == null || Director.IsAuthority;
-            var labels = new List<string>();
-            var acts = new List<Action>();
-            var bad = new List<bool>();
-            if (solo)
-            {
-                labels.Add(CupText.NewCup); acts.Add(() => Director?.PlayAgain()); bad.Add(false);
-                labels.Add(CupText.Continue); acts.Add(() => _onContinue?.Invoke()); bad.Add(false);
-                labels.Add(CupText.MainMenu); acts.Add(() => Director?.QuitToMenu()); bad.Add(true);
-            }
-            else if (authority)
-            {
-                labels.Add(CupText.PlayAgain); acts.Add(() => Director?.PlayAgain()); bad.Add(false);
-                labels.Add(CupText.Continue); acts.Add(() => _onContinue?.Invoke()); bad.Add(false);
-                labels.Add(CupText.EndMatch); acts.Add(() => Director?.EndMatch()); bad.Add(true);
-            }
-            else
-            {
-                labels.Add(CupText.EndMatch); acts.Add(() => Director?.EndMatch()); bad.Add(true);
-            }
-            float total = labels.Count * bw + (labels.Count - 1) * gap;
+            if (!_rowBuilt) RefreshButtons();   // OnGUI can precede the first Update
+            int n = _buttons.Count;
+            float total = n * bw + (n - 1) * gap;
             float bx = (w - total) * 0.5f;
             bool wasEnabled = GUI.enabled;
             GUI.enabled = show;
-            for (int i = 0; i < labels.Count; i++)
+            for (int i = 0; i < n; i++)
             {
                 var r = show ? new Rect(bx + i * (bw + gap), by, bw, bh) : new Rect(-1000f, -1000f, bw, bh);
-                if (UITheme.Button(r, labels[i], _buttonStyle, bad[i]) && show) fire = acts[i];
+                if (UITheme.Button(r, _buttons[i].Label, _buttonStyle, _buttons[i].Bad) && show) fire = _buttons[i].Act;
             }
             GUI.enabled = wasEnabled;
-            if (!solo && !authority && show)
+            if (!_rowSolo && !_rowAuthority && show)
                 UITheme.Label(new Rect(0f, by - 28f, w, 22f), CupText.WaitingForHost, _waitStyle);
 
             // The wheel (the local champion's): drawn last, over everything. A pick closes it (and

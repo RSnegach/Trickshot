@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/NetMessages.cs": {
-    "mtime": 1788489598.6356487,
-    "seen": 1788498194.8290133,
-    "ast_hash": "cbc15bf93ace8f543aa86d86701e1bae",
+    "mtime": 1788510428.297633,
+    "seen": 1788514399.3029745,
+    "ast_hash": "633ebb75ddd9af55d393cc5630768be4",
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/NetPump.cs": {
@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/NetSession.cs": {
-    "mtime": 1788489598.7525978,
-    "seen": 1788498194.8290133,
-    "ast_hash": "718cf695d887dcacdb0af628a44f8b3f",
+    "mtime": 1788510324.2636664,
+    "seen": 1788514399.3029745,
+    "ast_hash": "dc233eab305a43debdeaef465da1ec8a",
     "semantic_hash": ""
   },
   "Assets/Scripts/Net/ReliableChannel.cs": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/KeeperController.cs": {
-    "mtime": 1788497055.314487,
-    "seen": 1788498194.8290133,
-    "ast_hash": "83b0fbebddfa9a93dd027e1a49d91713",
+    "mtime": 1788511919.6079242,
+    "seen": 1788514399.3029745,
+    "ast_hash": "cdba891ed19c339af51f98d7b29d67a2",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/KeeperGame.cs": {
@@ -2466,9 +2466,9 @@
     "semantic_hash": ""
   },
   "docs/claude-handoff.md": {
-    "mtime": 1788508272.40947,
-    "seen": 1788508307.515271,
-    "ast_hash": "4c896021dd8ea1bda1316edc862884f8",
+    "mtime": 1788514370.6424067,
+    "seen": 1788514399.3029745,
+    "ast_hash": "da91eb007a97feb4a3a44a4413ac60e5",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/InviteFriendsUI.cs": {
@@ -2484,9 +2484,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupBodies.cs": {
-    "mtime": 1788491741.7321875,
-    "seen": 1788498194.8290133,
-    "ast_hash": "e4fc0cea9d16dfa6d7dd7b09da0a7083",
+    "mtime": 1788511919.4891644,
+    "seen": 1788514399.3029745,
+    "ast_hash": "be0a619a22a153951a0540d77d2383c0",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupBotTaker.cs": {
@@ -2508,9 +2508,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupBracketView.cs": {
-    "mtime": 1788497056.1253495,
-    "seen": 1788498194.8290133,
-    "ast_hash": "b3cb5750c7315a39a2f307da6eacafa6",
+    "mtime": 1788510325.5057888,
+    "seen": 1788514399.3029745,
+    "ast_hash": "8bcc48fdf53a45e96e445120961c8aa5",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupBytes.cs": {
@@ -2550,15 +2550,15 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupDirector.Coop.cs": {
-    "mtime": 1788488327.9795332,
-    "seen": 1788498194.8290133,
-    "ast_hash": "59813eba8680efdd2f511f1dcf8099e7",
+    "mtime": 1788513923.7934942,
+    "seen": 1788514399.3029745,
+    "ast_hash": "e6067e6eafabfea3ba6c89da2567a3f5",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupDirector.HeadToHead.cs": {
-    "mtime": 1788488327.9448388,
-    "seen": 1788498194.8290133,
-    "ast_hash": "8dcca2720551822562b648c71717b80f",
+    "mtime": 1788512513.8676236,
+    "seen": 1788514399.3029745,
+    "ast_hash": "d3259158115eb79cdcd16942292a6a91",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupDirector.Solo.cs": {
@@ -2568,9 +2568,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupDirector.cs": {
-    "mtime": 1788507847.8013139,
-    "seen": 1788508307.515271,
-    "ast_hash": "a24506f3d86b40eeb5a6e7ba841c3c58",
+    "mtime": 1788513923.900283,
+    "seen": 1788514399.3029745,
+    "ast_hash": "b1e20547b82a93e82de2e33587a587c4",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupEmoteWheel.cs": {
@@ -2580,9 +2580,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupHud.cs": {
-    "mtime": 1788507657.0921812,
-    "seen": 1788508307.515271,
-    "ast_hash": "af7f6c3521e8c077e9f089b3ffd169e0",
+    "mtime": 1788513924.0054781,
+    "seen": 1788514399.3029745,
+    "ast_hash": "250aacbc16e8646d2ece1a61a3c9cf2d",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupIntroCard.cs": {
@@ -2664,15 +2664,15 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupRoundDriver.Kick.cs": {
-    "mtime": 1788507710.049356,
-    "seen": 1788508307.515271,
-    "ast_hash": "b1c1ed165dc2f7b6d1f065f317c8929a",
+    "mtime": 1788513923.4729302,
+    "seen": 1788514399.3029745,
+    "ast_hash": "2826b616da2d4d5ce10552412f546416",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupRoundDriver.Scene.cs": {
-    "mtime": 1788507656.8809154,
-    "seen": 1788508307.515271,
-    "ast_hash": "0c862da9e75503a14c9dc47b94b35284",
+    "mtime": 1788513923.5852566,
+    "seen": 1788514399.3029745,
+    "ast_hash": "6c0f23e39d96418afa68693c08888826",
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupRoundDriver.cs": {
@@ -2766,9 +2766,9 @@
     "semantic_hash": ""
   },
   "Assets/Scripts/Cup/CupTrophyLift.cs": {
-    "mtime": 1788507847.586973,
-    "seen": 1788508307.515271,
-    "ast_hash": "aa268fe00cf9f0d5c5e702569eb9b7fd",
+    "mtime": 1788513924.1129494,
+    "seen": 1788514399.3029745,
+    "ast_hash": "6ada432718008606a915d385f6445a92",
     "semantic_hash": ""
   },
   "Assets/Scripts/Play/MenuScenes/CupScene.cs": {
@@ -2844,27 +2844,69 @@
     "semantic_hash": ""
   },
   "docs/cup-build/workflows/wf4-multiplayer.js": {
-    "mtime": 1788498861.3477864,
-    "seen": 1788508307.515271,
-    "ast_hash": "86908ad6f592b49d462009ae60e631aa",
+    "mtime": 1788508511.5440097,
+    "seen": 1788514399.3029745,
+    "ast_hash": "137440c99c39430472c050da6d7ea2ce",
     "semantic_hash": ""
   },
   "docs/cup-build/workflows/wf5-review.js": {
-    "mtime": 1788498861.3649814,
-    "seen": 1788508307.515271,
-    "ast_hash": "f6a9f2d5622d70af4a17135ed393b63f",
+    "mtime": 1788514338.50945,
+    "seen": 1788514399.3029745,
+    "ast_hash": "fb9c00d68a95612996f149e8ba0fdb09",
     "semantic_hash": ""
   },
   "docs/cup-build/README.md": {
-    "mtime": 1788498966.4798305,
-    "seen": 1788508307.515271,
-    "ast_hash": "fa7c438238cf8ae7e8b4c7946003d9e9",
+    "mtime": 1788514338.5590346,
+    "seen": 1788514399.3029745,
+    "ast_hash": "e0e4943af3f6c0d4dfaa3967fba7ad68",
     "semantic_hash": ""
   },
   "docs/cup-build/cup-build-notes.md": {
     "mtime": 1788498966.551098,
     "seen": 1788508307.515271,
     "ast_hash": "7bb3138a13985588618549199717ceaf",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupDirector.Net.cs": {
+    "mtime": 1788514009.7200642,
+    "seen": 1788514399.3029745,
+    "ast_hash": "9fb54c9edb106f642f0bcff214d83bae",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupNet.cs": {
+    "mtime": 1788511919.447197,
+    "seen": 1788514399.3029745,
+    "ast_hash": "45c4d216fbb21a061a240caab87c804a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupOrderUI.cs": {
+    "mtime": 1788511955.7540152,
+    "seen": 1788514399.3029745,
+    "ast_hash": "bc83e50c7838de4137f170132b2eb814",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.Leaver.cs": {
+    "mtime": 1788512514.0492427,
+    "seen": 1788514399.3029745,
+    "ast_hash": "7c219cd4a36b55ed0f9ca082520a59ce",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.Net.cs": {
+    "mtime": 1788510324.8797722,
+    "seen": 1788514399.3029745,
+    "ast_hash": "59441f6c91e2f1d2177a51294b97a2ae",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupSpectatorView.cs": {
+    "mtime": 1788510325.3518,
+    "seen": 1788514399.3029745,
+    "ast_hash": "f0dbb592dac86e33bae01588e8ce593e",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/reports/phase4-multiplayer.json": {
+    "mtime": 1788514128.246299,
+    "seen": 1788514399.3029745,
+    "ast_hash": "106a85f36a65bfdfbdc0de5e32ae1277",
     "semantic_hash": ""
   }
 }

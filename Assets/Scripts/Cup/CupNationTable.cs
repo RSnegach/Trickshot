@@ -35,6 +35,24 @@ namespace Trickshot
     /// jersey library; keep every spelling identical to the design (CupNations.Validate logs any
     /// row that no longer resolves). Indices ride the wire, so append at the end if the library
     /// ever grows rather than re-sorting.
+    ///
+    /// EDITING THIS TABLE IS A WIRE CHANGE - bump <c>NetCodec.ProtocolVersion</c> (currently 8)
+    /// with ANY edit here: a new row, a removed row, a flipped Novelty flag, or an edited
+    /// Strength. Peers never replicate the bracket, only the results of rounds humans played
+    /// (design 2.5), so every peer REBUILDS the draw from the seed - and both of those rebuilds
+    /// read this table:
+    ///
+    ///   * the DRAW. CupBracket.Build walks <c>PoolIndices</c> in TABLE ORDER, skipping novelty
+    ///     rows, and shuffles the result; so inserting or removing a row, or flipping a Novelty
+    ///     flag, shifts every later index through that shuffle and changes which 31 nations are
+    ///     drawn and who meets whom.
+    ///   * every SIMULATED AI result. CupSim.Simulate reads Entrants[..].Strength to bias the
+    ///     line it rolls, so an edited Strength changes rounds a peer re-runs from the seed.
+    ///
+    /// Without the bump two builds join happily and then disagree about the whole tournament. The
+    /// only symptom is the client's one-off bracket-hash warning in CupDirector.Net: the shape is
+    /// compared against the host's FNV hash and a mismatch is LOGGED, never repaired - so a
+    /// mixed-build lobby plays on, silently, with two different brackets.
     /// </summary>
     public static class CupNationTable
     {

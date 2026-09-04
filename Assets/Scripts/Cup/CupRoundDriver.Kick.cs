@@ -1062,8 +1062,15 @@ namespace Trickshot
                 bool emoting = b.Celeb != null && b.Celeb.Playing;
                 if (!emoting && b.NetInput != null && b.Celeb != null)
                 {
+                    // Bound by the WHEEL, not by the enum: the cup's five choreography emotes are
+                    // the TOP of the enum (TrophyLift 33 .. WhistleRaise 37) and are played only by
+                    // code, so the old `eid <= WhistleRaise` test let a remote human pick every one
+                    // of them off the wire - including the three 4 s dejections the driver plays on
+                    // the LOSING side, which a teammate could then stand in through a whole winners'
+                    // beat. The local player can only ever pick from Celebration.Pages (CupHud hands
+                    // the wheel exactly that), so this is the same set, enforced for remotes.
                     int eid = b.NetInput.EmoteId;
-                    if (eid >= 0 && eid != 255 && eid <= (int)Celebration.Emote.WhistleRaise)
+                    if (eid >= 0 && eid != 255 && Celebration.OnWheel(eid))
                     {
                         b.Celeb.Play((Celebration.Emote)eid);
                         emoting = true;
@@ -1106,9 +1113,43 @@ namespace Trickshot
             into.CoinResult = CoinResult;
         }
 
+        /// <summary>
+        /// Client: advance the round's ball spot to the host's SpotIndex.
+        ///
+        /// PlaceForKick is the ONLY writer of BallSpotPos after Configure, and it never runs on a
+        /// client (OnPhaseChanged returns early for one), so without this the spot stays on pair 0
+        /// for the whole round. In Penalties that is invisible - the spot is constant - but in Free
+        /// Kicks it moves once both sides have shot (design 2.1), and two live consumers read it:
+        /// CamTaker frames the taker with Rig.TakerView(.., BallSpotPos, ..), whose starting yaw is
+        /// the bearing from the spot to the goal, and ClientSyncDisplayTaker captures it as the
+        /// origin of the local taker's look-aim ray - which is the same ray the host's ArmTaker
+        /// fires the REAL shot along, off this client's yaw/pitch. A stale spot therefore both
+        /// frames and aims a Co-op free kick from a point up to a band's width away.
+        ///
+        /// No wire field is needed: the client owns the identical schedule (_spots, forked in
+        /// Configure from the round's Spots salt) and CupSpots.Spot extends lazily in order, so
+        /// SpotFor lands on the same Vector3 on every peer. The wall follows the spot here too,
+        /// under the same guard PlaceForKick uses - it is built on every peer in Configure but
+        /// only ever rebuilt from PlaceForKick, so it was stranded on pair 0 for the same reason.
+        ///
+        /// Runs FIRST in OnStateApplied, before ClientSyncDisplayTaker arms the display taker on
+        /// the host's Armed edge, because that call closes over the spot by value.
+        /// </summary>
+        void ClientSyncBallSpot(CupRoundState s)
+        {
+            if (Setup == null || _spots == null) return;
+            Vector3 spot = _spots.SpotFor(Setup.Format, s.SpotIndex);
+            if ((spot - BallSpotPos).sqrMagnitude <= 1e-4f) return;
+            if (_spotMarker != null) _spotMarker.position = spot;
+            SetBallSpot(_spotMarker, spot, s.SpotIndex);
+            if (_wall != null && s.SpotIndex != _wallPair) RebuildWallFor(s.SpotIndex, spot);
+            _clientPhaseDirty = true;   // the camera's starting bearing is solved from the spot
+        }
+
         partial void OnStateApplied(CupRoundState s)
         {
             if (!_sceneBuilt || Authority != RoundAuthority.Client) return;
+            ClientSyncBallSpot(s);
             var taker = BodyByVirtualSlot(s.TakerBodyId);
             var keeper = BodyByVirtualSlot(s.KeeperBodyId);
             bool bodiesChanged = taker != _takerBody || keeper != _keeperBody;

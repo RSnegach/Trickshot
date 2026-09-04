@@ -347,6 +347,7 @@ namespace Trickshot
         {
             if (Line == null) { CupLog.Error("CupRoundDriver.ResolveKick: no line (not configured)"); return null; }
             CupSide side = CupRoundRules.NextKicker(Line);
+            outcome = CapOutcome(outcome, side);   // the wire cap: the last allowed kick must decide it
             try
             {
                 CupRoundRules.RecordKick(Line, side, outcome);
@@ -379,6 +380,44 @@ namespace Trickshot
                 return winner;
             }
             return null;
+        }
+
+        /// <summary>
+        /// The kick outcome to actually RECORD, given what the physics produced. Normally the
+        /// outcome itself - but on the very last kick the wire allows it is overridden so the line
+        /// ends DECIDED.
+        ///
+        /// Why the cap exists: sudden death is unbounded in the rules (pairs continue while both
+        /// sides match each other), yet CupState carries every played line in one reliable datagram
+        /// that DirectIpTransport never fragments, and the host's ApplyRoundResult now refuses a
+        /// line over CupTuning.MaxKicksInLine. A live round that grew past it would therefore be
+        /// unreplicable AND unrecordable, so the growth has to stop inside the rules rather than be
+        /// patched afterwards - the bracket's SetResult only accepts a decided line, and
+        /// CupRoundRules.IsOver is the single decidedness formula every peer shares.
+        ///
+        /// The override is the smallest one that terminates: on the second kick of the final
+        /// allowed pair, if recording the real outcome would leave the sides level, the kick is
+        /// recorded as the opposite of the pair's first kick, which always separates them. It costs
+        /// at most one kick's honesty on a line 10 level sudden-death pairs long - a round nobody
+        /// will ever play - and CupLog.Warn makes a real occurrence visible. Mirrors the conditional
+        /// last pair CupSim has always used, so a played line and a simulated one agree on length.
+        /// </summary>
+        KickOutcome CapOutcome(KickOutcome outcome, CupSide side)
+        {
+            int max = CupTuning.MaxKicksInLine;
+            if (Line == null || max <= 0 || Line.Count != max - 1) return outcome;
+            if (!CupRoundRules.IsSuddenDeath(Line)) return outcome;
+
+            var firstOfPair = Line.Kicks[Line.Count - 1];
+            bool firstScored = firstOfPair.Outcome == KickOutcome.Goal;
+            bool wouldScore = outcome == KickOutcome.Goal;
+            if (firstScored != wouldScore) return outcome;   // the pair already separates them
+
+            var forced = firstScored ? KickOutcome.Saved : KickOutcome.Goal;
+            CupLog.Warn("CupRoundDriver: the line reached the " + max + "-kick wire cap ("
+                        + CupRoundRules.Describe(Line) + "); " + CupSides.Name(side) + "'s "
+                        + outcome + " is recorded as " + forced + " so the round ends decided");
+            return forced;
         }
 
         /// <summary>The scoreboard sub-line: "KICK 3 of 5", or "SUDDEN DEATH - KICK 7" (per-side number).</summary>
@@ -487,7 +526,7 @@ namespace Trickshot
             if (Setup != null) Setup.FirstKicker = first;
             RoundLine line;
             string err;
-            if (!CupRoundRules.Validate(s.Kicks, first, CupTuning.KicksEach, false, out line, out err))
+            if (!CupRoundRules.Validate(s.Kicks, first, CupTuning.KicksEach, false, out line, out err, CupTuning.MaxKicksInLine))
             {
                 CupLog.Warn("CupRoundDriver.ApplyState: bad kick line from the host (" + err + "); keeping the local line");
                 line = Line ?? new RoundLine(first, CupTuning.KicksEach);

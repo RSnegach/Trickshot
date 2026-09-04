@@ -213,12 +213,24 @@ namespace Trickshot
         /// after the decision, and (optionally) decided at the end. The host runs this on a
         /// client-authored result before folding it into the bracket. On success <paramref name="line"/>
         /// holds the replayed line (its scores are the authoritative ones).
+        ///
+        /// <paramref name="maxKicks"/> is the WIRE CAP, and it is the only length bound there is:
+        /// alternation and the decidedness rules bound nothing on their own, so an undecided
+        /// alternating line is legal at any length. Without the cap a modified client can report
+        /// 255 kicks through CupRequest.RoundResult and every later CupState carries them (31 such
+        /// rounds is about 4 KB in one reliable datagram, which DirectIpTransport never fragments).
+        /// Pass CupTuning.MaxKicksInLine at every wire seam; 0 or less means no cap (tests only).
         /// </summary>
-        public static bool Validate(IList<KickRecord> kicks, CupSide firstKicker, int kicksEach, bool requireDecided, out RoundLine line, out string error)
+        public static bool Validate(IList<KickRecord> kicks, CupSide firstKicker, int kicksEach, bool requireDecided, out RoundLine line, out string error, int maxKicks = 0)
         {
             line = new RoundLine(firstKicker, kicksEach);
             error = null;
             if (kicks == null) { error = "no kick line"; return false; }
+            if (maxKicks > 0 && kicks.Count > maxKicks)
+            {
+                error = "the line is " + kicks.Count + " kicks, over the " + maxKicks + "-kick cap";
+                return false;
+            }
             for (int i = 0; i < kicks.Count; i++)
             {
                 var k = kicks[i];

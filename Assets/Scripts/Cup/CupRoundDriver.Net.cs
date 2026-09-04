@@ -47,6 +47,11 @@ namespace Trickshot
         // its puppets to its spectators, and a puppet has no playing Celebration to read).
         readonly Dictionary<int, int> _posedEmote = new Dictionary<int, int>();
         readonly Dictionary<int, float> _posedPhase = new Dictionary<int, float>();
+        // Client: each puppet's gait accumulator and its last interpolated ground position, so the
+        // wire's AnimState hint can be walked/run at the right cadence (NetSetPieceMatch keeps the
+        // same two per body). Keyed by virtual slot, cleared with the rest on bind.
+        readonly Dictionary<int, float> _animPhase = new Dictionary<int, float>();
+        readonly Dictionary<int, Vector3> _lastInterpPos = new Dictionary<int, Vector3>();
 
         /// <summary>
         /// A spectator view is mirroring a remote camera on this machine: every camera call of the
@@ -117,6 +122,8 @@ namespace Trickshot
                 _ns.ReplayEnded += NetOnReplayEnded;
                 _posedEmote.Clear();
                 _posedPhase.Clear();
+                _animPhase.Clear();
+                _lastInterpPos.Clear();
             }
         }
 
@@ -236,7 +243,7 @@ namespace Trickshot
             });
         }
 
-        /// <summary>The canned-animation hint the other drivers stream (a puppet consumer may use it; ApplyBodyPose today does not).</summary>
+        /// <summary>The canned-animation hint the other drivers stream; a client feeds it to ApplyBodyPose's DisplayAnim path.</summary>
         static AnimState NetAnimOf(CupBody b)
         {
             if (b.Ragdoll == null) return AnimState.Idle;
@@ -308,7 +315,24 @@ namespace Trickshot
                     float phase = sb.emotePhase / 255f;
                     _posedEmote[sb.slot] = eid;
                     _posedPhase[sb.slot] = phase;
-                    ApplyBodyPose(sb.slot, pos, yaw, eid, phase);
+                    // The gait: measured from the interpolated ground movement since the last frame
+                    // (the wire carries no speed), advanced at the cadence every other net driver
+                    // uses. A puppet seen for the first time contributes no movement, so it starts
+                    // from a standstill rather than teleporting into a sprint.
+                    Vector3 last;
+                    float moveAmount = 0f;
+                    if (_lastInterpPos.TryGetValue(sb.slot, out last))
+                    {
+                        Vector3 d = pos - last;
+                        d.y = 0f;
+                        moveAmount = Mathf.Clamp01(d.magnitude / Mathf.Max(1e-4f, Time.deltaTime) / SimConfig.StrikerMoveSpeed);
+                    }
+                    _lastInterpPos[sb.slot] = pos;
+                    float aphase;
+                    if (!_animPhase.TryGetValue(sb.slot, out aphase)) aphase = 0f;
+                    aphase += Time.deltaTime * SimConfig.StrideRateMax * moveAmount / (2f * Mathf.PI);
+                    _animPhase[sb.slot] = aphase;
+                    ApplyBodyPose(sb.slot, pos, yaw, eid, phase, (AnimState)sb.anim, aphase, moveAmount);
                     var cb = BodyByVirtualSlot(sb.slot);
                     if (cb != null && cb.Ragdoll != null && cb.Ragdoll.Anatomy != null) cb.Ragdoll.Anatomy.Erect = sb.erect;
                 }

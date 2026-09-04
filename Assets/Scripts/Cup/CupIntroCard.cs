@@ -9,7 +9,10 @@ namespace Trickshot
     ///
     /// Timed on Time.deltaTime, like the driver's Intro phase it accompanies: a Solo pause freezes
     /// both together and they leave together; under the MP overlay pause both keep running.
-    /// Nothing here is clickable, so the pause menu drawing over it costs nothing.
+    /// Nothing here is clickable, so the card simply steps out of the pause menu's way: the draw is
+    /// skipped while <see cref="PauseMenu.Paused"/> - NOT Frozen, which is false in every networked
+    /// style (Frozen = Paused &amp;&amp; !Overlay) and would leave the card in front of the menu in
+    /// Head to Head and Co-op. The clock in Update keeps running, so the intro still ends on time.
     /// </summary>
     public sealed class CupIntroCard : MonoBehaviour
     {
@@ -57,7 +60,7 @@ namespace Trickshot
 
         void OnGUI()
         {
-            if (!_visible || PauseMenu.Frozen) return;
+            if (!_visible || PauseMenu.Paused) return;
             GUI.depth = GuiDepth;
             MenuScale.Begin();
             try { Draw(); }

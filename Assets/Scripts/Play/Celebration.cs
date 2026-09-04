@@ -87,6 +87,30 @@ namespace Trickshot
         // Back-compat: the first wheel (single-player match uses this directly).
         public static readonly (Emote e, string name)[] Menu = Pages[0];
 
+        // Every emote a player can actually PICK, i.e. the union of the four wheel pages, built
+        // once. The cup's internal emotes (TrophyLift .. WhistleRaise) are deliberately off the
+        // wheel and so are absent here.
+        static readonly System.Collections.Generic.HashSet<int> _onWheel = BuildOnWheel();
+
+        static System.Collections.Generic.HashSet<int> BuildOnWheel()
+        {
+            var set = new System.Collections.Generic.HashSet<int>();
+            for (int p = 0; p < Pages.Length; p++)
+                for (int i = 0; i < Pages[p].Length; i++) set.Add((int)Pages[p][i].e);
+            return set;
+        }
+
+        /// <summary>
+        /// Is this wire emote id one a player could have chosen? The WHEEL is the authority, not
+        /// the enum's range: the cup's five choreography emotes sit at the TOP of the enum
+        /// (TrophyLift 33 .. WhistleRaise 37) but are played only by code, so a bound like
+        /// `id &lt;= (int)Emote.WhistleRaise` admits every one of them from the wire. Validate a
+        /// remote player's pick with this instead - a 4 s dejection is not something a teammate
+        /// gets to stand in during a winners' beat, and two bodies playing the driver's own
+        /// dejection on opposite sides reads as a bug.
+        /// </summary>
+        public static bool OnWheel(int emoteId) => _onWheel.Contains(emoteId);
+
         ActiveRagdoll _ragdoll;
         Emote _emote;
         float _t;              // elapsed
@@ -302,21 +326,53 @@ namespace Trickshot
         static readonly Vector3 _torsoH = new Vector3(0.18f + 0.05f, 0.23f + 0.05f, 0.11f + 0.05f);
         const float ShoulderX = 0.26f, ShoulderY = 1.57f, UpperArmLen = 0.33f, ForearmLen = 0.31f;
 
+        // INERT AS SHIPPED - and deliberately left that way. See the sign note below before
+        // touching either argument: the two signs here are the ones that make the clamp a no-op,
+        // and "correcting" them alone rewrites most of the emote library. The call site above is
+        // the only reader.
         static void ClampArms(Vector3[] buf)
         {
             ClampArm(buf, (int)Bone.UpperArmL, (int)Bone.ForearmL, +1f);
             ClampArm(buf, (int)Bone.UpperArmR, (int)Bone.ForearmR, -1f);
         }
 
-        // abductSign = +1 LEFT arm (shoulder at x=-0.26, local +Z abducts OUT to the left),
-        //              -1 RIGHT arm (shoulder at x=+0.26, local -Z abducts OUT to the right).
-        // The shoulder X and the abduction axis sign are OPPOSITE - getting this pairing wrong
-        // swings arms across the chest instead of clear of it.
+        // WHICH WAY IS "OUT"? Derived from the engine, not assumed. The rest local rotation of
+        // every biped bone is identity, so a pose Euler acts in the body frame, and Unity's
+        // positive rotation about +Z takes +X toward +Y - so it takes a HANGING limb (-Y) toward
+        // +X, i.e. toward the character's RIGHT. Running the same FK this file uses
+        // (Quaternion.Euler, ZXY) from the left shoulder at x = -0.26 puts the elbow at:
+        //     z =   0 -> x = -0.260      z =  -8 -> x = -0.306
+        //     z =  +8 -> x = -0.214      z = -30 -> x = -0.425
+        //     z = +30 -> x = -0.095      z = -90 -> x = -0.590
+        // So on a LEFT arm +Z swings the elbow ACROSS the chest and -Z abducts it OUT; the RIGHT
+        // arm mirrors. OUTWARD is -Z on a LEFT limb and +Z on a RIGHT limb - the shoulder X and
+        // the abduction sign are the SAME, not opposite. CupPoses' header records the same rule
+        // (and the on-screen keeper bug that proved it); this file's older prose said the reverse.
         //
-        // SAFETY NET, never a regression: only nudges an arm out when a segment genuinely enters
-        // the padded torso box, only ACCEPTS a step that strictly increases clearance, and leaves
-        // already-raised/out arms alone. Verified against every standing pose x all p: clean poses
-        // get 0 steps; it only fires on a real cross-chest segment.
+        // The arguments above are therefore INWARD, which is why the clamp has never fired: a step
+        // that reduces clearance is rejected by the `tClear <= clear` test, so the wrong sign fails
+        // safe and the net has been dormant for its whole life.
+        //
+        // DO NOT simply flip the two signs. Swept over all 38 emotes x p in 0.01 steps (the pure
+        // maths of this block, run outside Unity): the shipped signs take 0 steps on every emote,
+        // and the corrected signs fire on 25 of them - and they do not tidy those poses, they
+        // destroy them, because the clamp's premise ("abduction cannot change the read of a pose")
+        // is false for any pose whose POINT is a hand near the chest or face:
+        //     Clap        L/R z +-37.5 -> +-5.5    (the hands no longer meet)
+        //     HeartHands  L/R z +-35   -> +-11     (the heart comes apart)
+        //     Facepalm      R z -55    -> -7       (the hand leaves the face)
+        //     Thinker       R z -35    -> -3       (likewise)
+        //     WhistleRaise  R z -34    -> -2       (the referee's hand leaves his mouth)
+        //     DejectHips  L/R z +-27   -> +-51     (hands slide off the hips)
+        // Those are deliberate arrangements, not chest clips, and the box test cannot tell them
+        // apart. Making the net live needs the test to exclude intentional hand-to-body poses
+        // (e.g. skip an arm whose forearm is bent past some angle, or an opt-out per emote) and
+        // then an eyeball pass in the editor over all 25 - not a sign flip. Until someone does
+        // that with an editor open, dormant is the honest state, and this comment is the record.
+        //
+        // The rest of the guard is sound and unchanged: it only considers an arm whose segment
+        // genuinely enters the padded torso box, only ACCEPTS a step that strictly increases
+        // clearance, and leaves already-raised/out arms alone.
         static void ClampArm(Vector3[] buf, int ua, int fa, float abductSign)
         {
             Vector3 shoulder = new Vector3(-abductSign * ShoulderX, ShoulderY, 0f);
@@ -504,8 +560,10 @@ namespace Trickshot
         }
 
         // Wheels 2 & 3. All standing poses (upright held); arms fully extend where the move
-        // calls for it (straight elbows = forearm 0). Local +Z on an UpperArm raises it out to
-        // that side (L positive up-left, R negative up-right); +X on an UpperArm swings it forward.
+        // calls for it (straight elbows = forearm 0). Local +Z on an UpperArm swings it toward the
+        // character's RIGHT, so OUT is -Z on the LEFT arm and +Z on the RIGHT (derived in the
+        // ClampArm block above; CupPoses' header states the same rule). +X on an UpperArm swings
+        // it BACKWARD, -X forward.
         static void ApplyExtra(Celebration.Emote e, float p, System.Action<Bone, Vector3> set)
         {
             switch (e)
@@ -810,11 +868,14 @@ namespace Trickshot
                 }
 
                 // ---- Trickshot Cup choreography (first-pass poses; the cup's own agent tunes) ----
-                // Rig conventions, as the cases above use them: UpperArm +Z raises the arm OUT to
-                // its side (L positive, R negative; ~170 = straight overhead), UpperArm -X raises it
-                // FORWARD, Forearm -X bends the elbow so the hand comes up (Facepalm / Salute put a
-                // hand to the face with UpperArm (-70, 0, -55) + Forearm -120). Torso +X leans
-                // forward, -X back; Head +X looks down.
+                // Rig conventions (derived in the ClampArm block above, and matching CupPoses'
+                // header): UpperArm +Z swings the arm toward the character's RIGHT, so OUT to its
+                // own side is -Z on the LEFT arm and +Z on the RIGHT (|z| ~170 = straight
+                // overhead). UpperArm -X raises the arm FORWARD; Forearm -X bends the elbow so the
+                // hand comes up (Facepalm / Salute put a hand to the face with UpperArm
+                // (-70, 0, -55) + Forearm -120). Torso +X leans forward, -X back; Head +X looks
+                // down. The symmetric wheel poses above are authored to the OLD, reversed prose,
+                // which is why several of them mirror the rule stated here.
                 case Celebration.Emote.TrophyLift:
                 {
                     // Both hands on the trophy overhead (the podium / trophy lift, design 8): the

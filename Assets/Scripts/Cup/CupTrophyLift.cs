@@ -364,10 +364,15 @@ namespace Trickshot
 
         void Update()
         {
+            CupEmoteWheel.KeepAlive(_wheelOpen);   // Escape ownership, republished while open
             bool paused = PauseMenu.Paused;
             if (_wasPaused && !paused) GameInput.CaptureCursor(false);
             _wasPaused = paused;
             if (paused && _wheelOpen) { CupEmoteWheel.ForceClosed(ref _wheelOpen); SyncWheelGate(); }
+            // Escape closes the WHEEL rather than opening the pause menu behind it (CupEscape.Owned
+            // reads CupEmoteWheel.AnyOpen, so PauseMenu skips the same press). ForceClosed, not
+            // SetOpen: the line below owns the cursor for this screen.
+            else if (_wheelOpen && CupEmoteWheel.EscapePressed()) { CupEmoteWheel.ForceClosed(ref _wheelOpen); SyncWheelGate(); }
             if (_wheelWasOpen && !_wheelOpen) { GameInput.CaptureCursor(false); SyncWheelGate(); }
             _wheelWasOpen = _wheelOpen;
 

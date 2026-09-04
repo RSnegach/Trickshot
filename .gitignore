@@ -59,3 +59,7 @@ graphify-out/cache/
 
 # Local AI-tool config (machine-specific paths)
 .cline/
+
+# dotnet build output for the cup self-test console project
+docs/cup-build/cuptest/bin/
+docs/cup-build/cuptest/obj/

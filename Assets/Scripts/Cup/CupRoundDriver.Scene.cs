@@ -282,17 +282,28 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// Client: pose a puppet from a snapshot body (position, facing yaw, emote id + phase).
-        /// The net agent maps the snapshot's slot byte to <see cref="CupBody.VirtualSlot"/> and
-        /// calls this per body per frame; a parked twin is left hidden.
+        /// Client: pose a puppet from a snapshot body (position, facing yaw, emote id + phase, and
+        /// the canned-animation hint the host streams). The net agent maps the snapshot's slot byte
+        /// to <see cref="CupBody.VirtualSlot"/> and calls this per body per frame; a parked twin is
+        /// left hidden.
+        ///
+        /// An emote OUTRANKS the gait (a celebrating body is doing that, not running), and Idle
+        /// with no emote is the plain snap. Everything else goes through DisplayAnim, the same call
+        /// every other net driver's client applier makes (NetSetPieceMatch / NetMatch /
+        /// NetStrikerMatch): without it a running AI taker and a diving keeper - the two
+        /// most-watched moments of a round - read as bodies sliding across the turf in an idle pose.
+        /// <paramref name="animPhase"/> is the caller's per-body gait accumulator and
+        /// <paramref name="moveAmount"/> the 0..1 gait amount it measured from the two samples.
         /// </summary>
-        public void ApplyBodyPose(int virtualSlot, Vector3 pos, float yaw, int emoteId, float emotePhase)
+        public void ApplyBodyPose(int virtualSlot, Vector3 pos, float yaw, int emoteId, float emotePhase,
+                                  AnimState anim, float animPhase, float moveAmount)
         {
             var b = BodyByVirtualSlot(virtualSlot);
             if (b == null || !b.Alive || b.Parked) return;
             var facing = Quaternion.Euler(0f, yaw, 0f);
             if (emoteId >= 0 && emoteId != 255) b.Ragdoll.DisplayEmote(pos, facing, emoteId, emotePhase);
-            else b.Ragdoll.DisplaySnap(pos, facing);
+            else if (anim == AnimState.Idle && moveAmount <= 0.001f) b.Ragdoll.DisplaySnap(pos, facing);
+            else b.Ragdoll.DisplayAnim(pos, facing, anim, animPhase, moveAmount);
         }
 
         // ==========================================================================================

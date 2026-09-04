@@ -54,9 +54,20 @@ namespace Trickshot
         public Celebration Celeb;
         /// <summary>Host authority: a REMOTE human's wire input (shared by both of that human's bodies).</summary>
         public NetInputSource NetInput;
-        /// <summary>Position in its side's lineup (a human's two bodies share one).</summary>
+        /// <summary>
+        /// Position in its side's lineup (Penalties); in FREE KICKS there is no lineup, and this is
+        /// the index into that kick's seeded scatter instead. A human's two bodies share one.
+        /// </summary>
         public int LineupIndex;
+        /// <summary>
+        /// Where this body stands for the CURRENT kick - the name is historical, the meaning is
+        /// per format: its lineup slot (Penalties), or its seeded scatter mark, or the run-up start
+        /// for the taker (Free Kicks, which has no lineup and no walk-in / walk-back at all).
+        /// Rewritten per kick by CupRoundDriver's placement, so never cache it across a kick.
+        /// CupChoreo.OnWalkBack reads it for both formats.
+        /// </summary>
         public Vector3 LineupMark;
+        /// <summary>The facing that goes with <see cref="LineupMark"/>, rewritten with it.</summary>
         public Quaternion LineupFacing = Quaternion.identity;
         /// <summary>Live and visible this kick (false = the human's other body is out instead).</summary>
         public bool Active = true;

@@ -311,7 +311,7 @@ namespace Trickshot
         // ---- per-cup presentation services (created once at Launch, live under MatchRoot) ---------
         /// <summary>Every camera the cup uses (design 7.8 / 7.9); the round driver and the choreography ask it for views.</summary>
         public CupCameraRig Rig { get; private set; }
-        /// <summary>The in-round HUD (design 6.5); bound to each round's driver by StartRound, unbound by EndRound.</summary>
+        /// <summary>The in-round HUD (design 6.5); bound to each round's driver once the loading card clears (StartRound queues it, TickHudBind lands it), unbound by EndRound.</summary>
         public CupHud Hud { get; private set; }
         /// <summary>The loading card (design 6.4): the flows Show it before StartRound and Hide it once the scene is built.</summary>
         public CupLoadingUI Loading { get; private set; }
@@ -472,6 +472,7 @@ namespace Trickshot
             PhaseTime += Time.deltaTime;
             FlushGuiHookChanges();
             ReassertCursorAfterUnpause();
+            TickHudBind();
             // The shared multiplayer plumbing runs BEFORE the style tick: a client's phase edge
             // arrives here (from a deferred CupState) and the style's entry latch then sees it
             // in the same frame; the host's coalesced broadcast goes out after the style ticked.
@@ -482,6 +483,24 @@ namespace Trickshot
                 case CupStyle.HeadToHead: HeadToHeadTick(); break;
                 case CupStyle.Coop: CoopTick(); break;
             }
+        }
+
+        /// <summary>The driver waiting for the loading card to clear before the HUD is bound to it.</summary>
+        CupRoundDriver _hudBindPending;
+
+        /// <summary>
+        /// Bind the HUD to the round the moment the loading card stops covering the screen (or at
+        /// once when there is no card). Called from StartRound and from every Update, so the bind
+        /// lands on the release frame whichever flow released it.
+        /// </summary>
+        void TickHudBind()
+        {
+            var drv = _hudBindPending;
+            if (drv == null) return;
+            if (drv != Driver || !drv.Configured) { _hudBindPending = null; return; }   // the round moved on
+            if (Loading != null && Loading.Covering) return;
+            _hudBindPending = null;
+            if (Hud != null) Hud.Bind(drv);
         }
 
         /// <summary>
@@ -912,7 +931,14 @@ namespace Trickshot
         public void StopSpectating()
         {
             if (IsAuthority) { ApplySpectate(LocalSlot, -1); return; }
-            // MP: client -> host CupRequest.Unspectate; the host runs ApplySpectate(slot, -1) and stops the relay.
+            // MP: client -> host CupRequest.Unspectate; the host runs ApplySpectate(slot, -1) and
+            // stops the relay. Esc must close the view NOW, not a round trip later, so the local
+            // row is cleared here and NetApplyPlayers holds that clear against the host's stale
+            // echo for LiveRowEchoGrace (the same latch the local coin call and the live row use).
+            // The host stays authoritative: once its echo agrees the latch is dropped.
+            var me = LocalPlayer;
+            if (me != null) me.SpectatingSlot = -1;
+            NetMarkUnspectateSent();
             RaiseRequest(CupRequestKind.Unspectate, 0, null);
         }
 
@@ -1350,7 +1376,7 @@ namespace Trickshot
             if (!reported.FirstKicker.HasValue) { CupLog.Warn("ApplyRoundResult: no first kicker - refused"); return false; }
             RoundLine line;
             string err;
-            if (!CupRoundRules.Validate(reported.Kicks, reported.FirstKicker.Value, CupTuning.KicksEach, true, out line, out err))
+            if (!CupRoundRules.Validate(reported.Kicks, reported.FirstKicker.Value, CupTuning.KicksEach, true, out line, out err, CupTuning.MaxKicksInLine))
             {
                 CupLog.Warn("ApplyRoundResult: " + err + " - refused");
                 return false;
@@ -1677,7 +1703,16 @@ namespace Trickshot
                 // taker / keeper at every whistle. Choreo fires no hooks on a Client, so creating
                 // it there costs nothing.
                 drv.AttachChoreo(CupChoreo.Create(root, drv, Rig));
-                if (Hud != null) Hud.Bind(drv);
+                // The HUD binds only once the loading card has stopped covering the screen: the
+                // scrim is 0.9 alpha, so a freshly bound 0-0 scoreboard, its empty pip rows and
+                // the role panel ghost through at 10% for the whole build - the exact pop the
+                // card exists to hide (design 6.4). Nothing is lost by waiting: every flow
+                // releases the card BEFORE the coin toss, so the ceremony's HEADS / TAILS flash
+                // still lands on a bound HUD. TickHudBind does it on the release frame.
+                _hudBindPending = drv;
+                TickHudBind();
+                // The stats listener latches taker / keeper at every whistle and draws nothing,
+                // so it binds at once - a whistle must never be missed for a scrim.
                 BindRoundStats(drv);
             }
             SimConfig.KeeperAbility = CupTuning.KeeperAbility(round.Stage);   // the baseline; the driver writes it per kick
@@ -1707,6 +1742,7 @@ namespace Trickshot
             // die at end of frame either way; the subscriptions would not.
             if (Toss != null) { Toss.Cancel(); Toss = null; }
             EndTrophyLift();   // it runs on this round's bodies; never let it outlive them
+            _hudBindPending = null;   // a bind still waiting on the loading card must not land now
             if (Hud != null) Hud.Unbind();
             UnbindRoundStats();
             if (Driver != null && Driver.Running) Driver.Abort();

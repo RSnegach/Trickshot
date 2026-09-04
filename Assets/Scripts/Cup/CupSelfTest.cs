@@ -328,6 +328,23 @@ namespace Trickshot
             Check(!CupRoundRules.Validate(live.Kicks, A, 5, true, out vl, out err) && err.Contains("not decided"), "Validate requires a decision when asked");
             Check(CupRoundRules.Validate(live.Kicks, A, 5, false, out vl, out err), "Validate accepts a live line when not asked for a decision");
 
+            // The WIRE CAP (CupTuning.MaxKicksInLine). Alternation and the decidedness rules bound
+            // nothing on their own, so this is the only thing standing between a modified client
+            // and a 4 KB CupState. Build a level line of exactly the cap, which is legal, then one
+            // pair longer, which is not.
+            var atCap = new List<KickRecord>();
+            for (int i = 0; i < CupTuning.MaxKicksInLine; i++)
+                atCap.Add(new KickRecord(i % 2 == 0 ? A : B, KickOutcome.Goal));
+            Check(CupRoundRules.Validate(atCap, A, 5, false, out vl, out err, CupTuning.MaxKicksInLine),
+                  "Validate accepts a line exactly at the cap: " + err);
+            var overCap = new List<KickRecord>(atCap) { new KickRecord(A, KickOutcome.Goal), new KickRecord(B, KickOutcome.Goal) };
+            Check(!CupRoundRules.Validate(overCap, A, 5, false, out vl, out err, CupTuning.MaxKicksInLine) && err.Contains("cap"),
+                  "Validate rejects a line over the cap");
+            Check(CupRoundRules.Validate(overCap, A, 5, false, out vl, out err),
+                  "no cap passed means no length limit (the pure tests and CupSim rely on this)");
+            Check(CupSim.SimulateLine(50, 50, A, new SeededRng(12345)).Count <= CupTuning.MaxKicksInLine,
+                  "a simulated line never exceeds the wire cap");
+
             // Co-op cycling and the coin.
             Check(CupRoundRules.CoopShooterFor(0, 5) == 0 && CupRoundRules.CoopShooterFor(4, 5) == 4 && CupRoundRules.CoopShooterFor(5, 5) == 0 && CupRoundRules.CoopShooterFor(6, 5) == 1, "co-op shooters cycle (kick 6 wraps to shooter 1)");
             Check(CupRoundRules.CoopShooterFor(3, 1) == 0 && CupRoundRules.CoopShooterFor(7, 7) == 0 && CupRoundRules.CoopShooterFor(2, 0) == 0, "co-op cycling edge cases");

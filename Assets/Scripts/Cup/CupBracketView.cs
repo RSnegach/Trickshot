@@ -142,7 +142,12 @@ namespace Trickshot
     /// </summary>
     public static class CupEscape
     {
-        public static bool Owned => NationPickerUI.EscapeOwned || CupLobbyUI.EscapeOwned || CupResultsUI.EscapeOwned || CupSpectatorView.EscapeOwned;
+        // The emote wheel is here too: it is a cup overlay like the rest, and Escape must CLOSE it
+        // rather than open the pause menu behind it. CupEmoteWheel.AnyOpen mirrors the owners'
+        // flags (CupHud / CupPodium / CupTrophyLift each hold their own) and holds ownership one
+        // frame past a close, so the owner's Escape handler and PauseMenu's raw read of the same
+        // press cannot both fire.
+        public static bool Owned => NationPickerUI.EscapeOwned || CupLobbyUI.EscapeOwned || CupResultsUI.EscapeOwned || CupSpectatorView.EscapeOwned || CupEmoteWheel.AnyOpen;
     }
 
     /// <summary>

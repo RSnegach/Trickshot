@@ -196,7 +196,32 @@ namespace Trickshot
             }
         }
 
-        /// <summary>The wire size of a CupState in bytes (the MsgType byte included), for diagnostics.</summary>
+        /// <summary>
+        /// The wire size of a CupState in bytes (the MsgType byte included), for diagnostics.
+        ///
+        /// WORST CASE, and why it matters: CupState rides NetChannel.Reliable, and DirectIpTransport
+        /// never fragments a reliable payload - FrameReliablePacket wraps it in ONE datagram, with
+        /// no MTU split anywhere in the transport. So the whole message must stay inside the
+        /// ~1.2 KB single-datagram budget or it is IP-fragmented and, off loopback, likely dropped
+        /// outright - which stalls every client's model silently, because nothing retries a
+        /// too-large state.
+        ///
+        /// The dominant term is the played results: each carries its full kick line at
+        /// 3 + ceil(nKicks / 2) bytes, over up to 31 rounds. That makes the bound a function of the
+        /// longest LEGAL kick line, and the codec writes the count as a u8 - so with no rule cap the
+        /// true worst case is 31 * (3 + 128) = 4061 B of results alone, about 4.2 KB in total, well
+        /// past the budget. (The build reports' "639 bytes worst case" assumed a line that always
+        /// ends near regulation length; sudden death is unbounded in the rules, and a client can
+        /// report any 255-kick line through CupRequest.RoundResult.)
+        ///
+        /// Held to CupTuning.MaxKicksInLine (30) the arithmetic is
+        ///     29 header + 120 players + 9 order + 1 + 31 * (3 + 15) + 4 hash = 721 B,
+        /// comfortably inside the budget. That cap IS enforced at both ends now (see
+        /// CupTuning.MaxKicksInLine): CupRoundRules.Validate refuses a longer reported line at both
+        /// wire seams, and CupRoundDriver.CapOutcome stops a live line growing past it. So 721 B is
+        /// the real bound today - but it is a bound on the CURRENT state shape, and anything added
+        /// to CupStateMsg must be added here too or the budget check silently under-reports.
+        /// </summary>
         public static int SizeOf(in CupStateMsg m)
         {
             int size = 1 + 1 + 4 + 1 + 4 + 4 + 1 + 1 + 1 + 4 + 1 + 2 + 1 + 1 + 1 + 1;

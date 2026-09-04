@@ -1,0 +1,544 @@
+{
+  "summary": "Trickshot Cup phase 5: three-lens adversarial review against the design doc, then fixes, then final verification and docs",
+  "agentCount": 6,
+  "logs": [
+    "Review: 31 findings, 31 after dedup (2 blockers, 7 major)",
+    "Fix: 27 fixed, 5 skipped",
+    "Final: compile=true"
+  ],
+  "result": {
+    "findings": [
+      {
+        "id": "CUP-01",
+        "severity": "blocker",
+        "file": "Assets/Scripts/Cup/CupRoundDriver.cs",
+        "symbol": "CupRoundDriver.ApplyState",
+        "problem": "On a Client the round's ball spot is never advanced. ApplyState mirrors the host state with `SpotIndex = s.SpotIndex;` (CupRoundDriver.cs:498) but `BallSpotPos` is written only by `SetBallSpot`, which is called from Configure (CupRoundDriver.Scene.cs:364) and from `PlaceForKick` (CupRoundDriver.Kick.cs:387) - and PlaceForKick never runs on a Client (OnPhaseChanged returns early at CupRoundDriver.Kick.cs:176-181). In Penalties BallSpotPos is constant so nothing shows, but in FREE KICKS the spot changes every pair (design 2.1), so from pair 1 onward a client's BallSpotPos still holds pair 0's spot. Two live consumers read it: `CamTaker` -> `Rig.TakerView(b.Ragdoll, BallSpotPos, SimConfig.AttackGoalCenter, Setup.Format)` (CupRoundDriver.Scene.cs:1053), reached on a client through ApplyClientCamera's `case RoundPhase.Placing: case RoundPhase.WhistleRaise: case RoundPhase.Armed: ... CamForLocalRole();` (CupRoundDriver.Kick.cs:1208-1214), where TakerView computes the starting look as `Vector3 axis = goalCenter - ballSpot; float yaw0 = Mathf.Atan2(axis.x, axis.z) * Mathf.Rad2Deg; _gameCam.SetLook(yaw0, 14f);` (CupCameraRig.cs:229-231); and `ClientSyncDisplayTaker`'s `Vector3 spot = BallSpotPos;` (CupRoundDriver.Kick.cs:314), whose aim delegate is `SetPieceTaker.LookAimPoint(spot, s.GameCam.Yaw, s.GameCam.Pitch, goal.z)`. Because the host's ArmTaker aims the REAL shot with `SetPieceTaker.LookAimPoint(spot, net.LookYaw, net.LookPitch, goal.z)` off that same client camera's yaw/pitch, a client taking a free kick in Co-op (or in a host-simulated Head to Head round) is framed on, and aims from, the wrong spot - the camera swings to a bearing computed for a spot up to 36 m away across the band. This affects every Co-op Free Kicks round, a whole advertised format.",
+        "fix": "In the client apply path, recompute the spot whenever SpotIndex moves. The client already owns an identical schedule - `_spots = new CupSpots(s.Stream(CupSalts.Spots(s.Stage, Data.Index)))` (CupRoundDriver.Scene.cs:356) - and `CupSpots.Spot` extends lazily in order, so every peer lands on the same Vector3. `_spots` lives in the C1 partial, so do it from `OnStateApplied` (CupRoundDriver.Kick.cs:1109), before `if (_clientPhaseDirty || bodiesChanged) ApplyClientCamera(false);`: `if (Setup != null && _spots != null) { Vector3 sp = _spots.SpotFor(Setup.Format, s.SpotIndex); if ((sp - BallSpotPos).sqrMagnitude > 1e-4f) { SetBallSpot(_spotMarker, sp, s.SpotIndex); if (_spotMarker != null) _spotMarker.position = sp; _clientPhaseDirty = true; } }` - marking the camera dirty so TakerView re-latches on the new bearing.",
+        "specRef": "design 2.1 (\"every kick PAIR has its own spot... the spot changes once both have shot\"), 7.9 (\"Free kicks: the standard Follow camera and look-ray aim... the wall and the range need the yaw-driven aim\"), 9.3 (Co-op fully host-simulated)"
+      },
+      {
+        "id": "CUP-02",
+        "severity": "major",
+        "file": "Assets/Scripts/Cup/CupChoreo.cs",
+        "symbol": "CupChoreo.OnWalkBack / CupTuning.WalkSpeed",
+        "problem": "The walk-back cinematic can never finish inside its cap, so every missed or saved PENALTY ends on a hidden snap rather than the arrival the design describes. `OnWalkBack` walks the beaten shooter at a flat `CupTuning.WalkSpeed` (1.6 m/s): `Walk(body, body.LineupMark, CupTuning.WalkSpeed, body.LineupFacing, CupTuning.WalkBackMax, true, ...)` (CupChoreo.cs:240), and `TickWalkBack` cuts at `done = _walkArrived || PhaseTime >= CupTuning.WalkBackMax` (3.5 s, CupRoundDriver.Kick.cs:868). The real distance is larger than the 6.9 m the build report assumed: the penalty spot is (0, 6) (`CupSpots.PenaltySpot` = GoalCenter.z 17 minus PenaltyDistance 11) and the lineup sits at z = 17 - 16.5 - 1 = -0.5 (`CupSpots.LineupZ`) at x = -6 +/- spacing (`CupSpots.LineupMark`, LineupX 6, LineupSpacing 0.62). Computed: a lone shooter walks 8.85 m = 5.53 s; a 4-a-side lineup 8.24-9.50 m = 5.15-5.94 s; an 8-strong Co-op lineup 7.54-10.44 m = 4.72-6.53 s. Every case exceeds 3.5 s, so `_walkArrived` never fires first and the arrival callback (which re-enters the arms-round-shoulders pose via `EnterLineup`) never runs before the cut. The recommended remedy of raising WalkSpeed to 2.0 still yields 3.77-5.22 s and does not fix it. The AI walk-IN already solves exactly this: `float speed = Mathf.Max(CupTuning.WalkSpeed * WalkInSpeedMul, dist / WalkInBudget);` (CupChoreo.cs:204).",
+        "fix": "Give the walk-back the same distance-aware speed the walk-in has. In `OnWalkBack`, before the `Walk` call, compute `float dist = Vector3.Distance(shooter.GroundPos, shooter.LineupMark); float speed = Mathf.Max(CupTuning.WalkSpeed, dist / Mathf.Max(0.5f, CupTuning.WalkBackMax - 0.3f));` and pass `speed` instead of `CupTuning.WalkSpeed`. The 0.3 s slack lets the arrival land before the cap so the rig's wide cut shows him arriving. Keep WalkSpeed 1.6 as the floor for a short walk; at the 10.44 m worst case this solves to ~3.3 m/s, which the gait reads as a jog - acceptable for a beaten taker, and the alternative is that the beat is never seen. Update `CupTuning.WalkSpeed`'s doc comment, which currently claims to be \"Walking speed of the shooter on the walk-back (m/s)\".",
+        "specRef": "design 2.7 (\"Missed/saved: walk back to the lineup - up to 3.5 s, camera covers it\") and 7.5 (\"If they have not arrived at 3.5 s, the cut to the next placement hides the snap\" - the 3.5 s cut is meant to be the exception, not every single kick)"
+      },
+      {
+        "id": "CUP-03",
+        "severity": "major",
+        "file": "Assets/Scripts/Play/Celebration.cs",
+        "symbol": "EmotePose.ClampArms / EmotePose.ClampArm",
+        "problem": "The arm-clip safety net abducts both arms INWARD, so it is a permanent no-op for every emote in the project (the cup's dejection trio and TrophyLift included). `ClampArms` calls `ClampArm(buf, (int)Bone.UpperArmL, (int)Bone.ForearmL, +1f);` and `ClampArm(buf, (int)Bone.UpperArmR, (int)Bone.ForearmR, -1f);` (Celebration.cs:305-306), and ClampArm steps `trial.z += abductSign * 8f;` (Celebration.cs:332) under the comment \"abductSign = +1 LEFT arm (shoulder at x=-0.26, local +Z abducts OUT to the left)\". That is backwards. Forward kinematics through Quaternion.Euler's own ZXY order, using the shoulder ClampArm itself computes (`Vector3 shoulder = new Vector3(-abductSign * ShoulderX, ShoulderY, 0f)`, i.e. x = -0.26 for the left arm), gives the left elbow's x as: z=0 -> -0.260, z=+8 -> -0.214, z=+30 -> -0.095, z=-8 -> -0.306, z=-30 -> -0.425. So +Z on the LEFT arm swings the elbow toward +X, ACROSS the chest; -Z is outward. CupPoses' derived header states this correctly (\"+Z swings a hanging arm or leg toward the character's RIGHT... OUTWARD is therefore -Z on a LEFT limb and +Z on a RIGHT limb... EmotePose's header states the opposite\"), and the cup's own DejectHips/DejectFall cases are authored to the correct rule (`set(Bone.UpperArmL, new Vector3(10f * k, 0f, -30f * k - breath));`, Celebration.cs:873). Because ClampArm only accepts a strictly-improving step (`if (tClear <= clear) break;`, Celebration.cs:334) the wrong sign never produces visible breakage - it just makes the clamp never fire, which is why it survived review. The carried-forward instruction was to fix the HEADER, not the numbers; the header is not the only thing wrong.",
+        "fix": "Flip the two call sites: `ClampArm(buf, (int)Bone.UpperArmL, (int)Bone.ForearmL, -1f);` and `ClampArm(buf, (int)Bone.UpperArmR, (int)Bone.ForearmR, +1f);`. Rewrite the comment above ClampArm to the derived rule: abductSign = -1 LEFT arm (shoulder at x=-0.26; local -Z abducts OUT to the left), +1 RIGHT arm (shoulder at x=+0.26; +Z abducts OUT to the right) - the shoulder X and the abduction axis sign are the SAME, not opposite. Then fix the other two stale statements in the same file so it stops contradicting CupPoses: \"Local +Z on an UpperArm raises it out to...\" (Celebration.cs:507) and the \"Rig conventions\" note (Celebration.cs:813). Finally re-run the sweep the header claims (\"Verified against every standing pose x all p: clean poses get 0 steps\") - with the sign corrected the clamp becomes live for the first time, so any pose it now nudges must be eyeballed rather than assumed clean.",
+        "specRef": "CLAUDE.md's lateral-sign rule (\"+Z on the LEFT arm = inboard\"); design 7.6 / 8.1 rely on EmotePose for the dejection trio and TrophyLift, and the carried-forward phase-3 item asked for CupPoses and the three Celebration hunks to agree with the editor-verified result"
+      },
+      {
+        "id": "CUP-04",
+        "severity": "major",
+        "file": "Assets/Scripts/Cup/CupRoundDriver.Net.cs",
+        "symbol": "CupRoundDriver.ApplyBodyPose / NetAnimOf",
+        "problem": "Carried-forward phase-4 item (a) is still open: a client's puppets are posed with position and yaw only, so an AI taker walking in, a keeper diving and a freed body running all read as sliding statues. `ApplyBodyPose` is `if (emoteId >= 0 && emoteId != 255) b.Ragdoll.DisplayEmote(pos, facing, emoteId, emotePhase); else b.Ragdoll.DisplaySnap(pos, facing);` (CupRoundDriver.Scene.cs:294-295). The hint is already computed and already on the wire - `anim = (byte)NetAnimOf(b)` (CupRoundDriver.Net.cs:221), with NetAnimOf returning Dive / Down / Run / Idle (CupRoundDriver.Net.cs:240-248) - but nothing consumes it, as its own doc comment admits: \"The canned-animation hint the other drivers stream (a puppet consumer may use it; ApplyBodyPose today does not)\" (CupRoundDriver.Net.cs:239). `NetApplySnapshots` reads `sb.emoteId` and `sb.erect` off the BodyState but never `sb.anim` (CupRoundDriver.Net.cs:300-313). Every other net driver already does this: `body.ragdoll.DisplayAnim(pos, Quaternion.Euler(0f, yaw, 0f), (AnimState)(sb.anim), body.animPhase, moveAmount);` (NetSetPieceMatch.cs:1262; the same line is at NetMatch.cs:668 and NetStrikerMatch.cs:1237).",
+        "fix": "Give ApplyBodyPose an anim path, copying NetSetPieceMatch.cs:1262. Extend the signature to `ApplyBodyPose(int virtualSlot, Vector3 pos, float yaw, int emoteId, float emotePhase, AnimState anim, float moveAmount)`; keep the DisplayEmote branch first (an emote outranks a gait) and otherwise call `b.Ragdoll.DisplayAnim(pos, facing, anim, phase, moveAmount)`, where `phase` is a per-body accumulator advanced by dt (NetSetPieceMatch keeps `body.animPhase` for exactly this) and `moveAmount` comes from the two snapshot samples already in hand in the caller: `(sb.pos - sa.pos).magnitude / Mathf.Max(1e-4f, dt)`, normalised the way the other drivers do. Pass `(AnimState)sb.anim` from the loop at CupRoundDriver.Net.cs:311. CupSpectatorView.cs:168-169 carries the identical two-line pose and needs the same treatment, or a spectator still sees statues.",
+        "specRef": "design 4 (\"Spectate = the spectated player's exact view\") and 9.3 (Co-op fully host-simulated, snapshots back, emoteId/emotePhase filled)"
+      },
+      {
+        "id": "CUP-05",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupIntroCard.cs",
+        "symbol": "CupIntroCard.GuiDepth / CupLoadingUI.GuiDepth",
+        "problem": "Carried-forward item still open: both cards draw in front of the pause menu in multiplayer. `public const int GuiDepth = -1;` in CupIntroCard.cs:19 and CupLoadingUI.cs:23; PauseMenu never sets GUI.depth at all (its `void OnGUI()` at PauseMenu.cs:337 leaves the default 0), and in IMGUI a lower depth draws on top. The intro card guards with `if (!_visible || PauseMenu.Frozen) return;` (CupIntroCard.cs:59), which covers Solo only - `Frozen => Paused && !Overlay` (PauseMenu.cs:49) and the cup sets Overlay true for every networked style, so in Head to Head and Co-op the 620x230 intro plate sits over the pause menu's buttons for its 3 s. CupLoadingUI has no pause guard of any kind (`void OnGUI() { if (!_visible) return; GUI.depth = GuiDepth; ...`, CupLoadingUI.cs:87-89) and paints `UITheme.Scrim(w, h, 0.9f * alpha, 900f, 0.35f * alpha)`, so an Esc during the MP loading barrier (up to CupTuning.LoadBarrierTimeout, 10 s) shows a pause menu the player cannot see.",
+        "fix": "In both OnGUI bodies pick the depth from the pause state rather than hard-coding it: `GUI.depth = PauseMenu.Paused ? 1 : GuiDepth;` (any value above PauseMenu's 0 puts the card behind it). Do not early-return on Paused in either - both allocate no controls, and the loading scrim vanishing would expose a half-built round.",
+        "specRef": "design 6.10 (\"in Head to Head and Co-op the pause menu is an overlay... the local player's input is cut and the cursor freed while it is up\")"
+      },
+      {
+        "id": "CUP-06",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupRoundDriver.Kick.cs",
+        "symbol": "CupRoundDriver.TickFreedBodies",
+        "problem": "A remote human can play the cup's five INTERNAL emotes on their own body during a free window. The wire emote is accepted with `if (eid >= 0 && eid != 255 && eid <= (int)Celebration.Emote.WhistleRaise)` (CupRoundDriver.Kick.cs:1066), and WhistleRaise is 37 - the top of the enum - so the bound admits TrophyLift (33), DejectKnees (34), DejectHips (35), DejectFall (36) and WhistleRaise (37). Those are deliberately not on the wheel (Celebration.cs:26-32: \"none on the wheel Pages: the cup plays them by code\"), and the local player can only pick from `Celebration.Pages`, which stops at Slide2 (32) - CupHud.cs:253 passes `Celebration.Pages` to the wheel. DejectKnees/DejectHips/DejectFall are 4 s poses (Celebration.cs:181-183), so a teammate can stand in a dejection through an entire winners' beat, and the driver's own choreography uses the same emotes for the losing side - two bodies playing the same dejection on opposite sides reads as a bug. The podium already validates this correctly: \"plays it on the winner when it is on the curated page, else ignored (a stray id must...)\" with `IsOnPage` (CupPodium.cs:555-568).",
+        "fix": "Bound the wire emote by the WHEEL rather than the enum, the way the podium does. Add a `static bool OnWheel(int emoteId)` beside `Celebration.Pages` that scans the four pages once into a cached HashSet<int>, and replace the `eid <= (int)Celebration.Emote.WhistleRaise` test with `Celebration.OnWheel(eid)`. Point CupPodium.IsOnPage at the same helper (with its curated page) so there is one predicate for \"is this a legal player-chosen emote\". An id off the wheel then falls through to the existing `if (emoting) continue;` and the body simply runs.",
+        "specRef": "design 7.4 / 7.7 (the free windows give \"locomotion and the emote wheel (B)\"), 8.1 (the podium's curated page is the precedent for validating a wire emote id)"
+      },
+      {
+        "id": "CUP-07",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupPodium.cs",
+        "symbol": "CupPodium.BuildLosers",
+        "problem": "The podium's static loser bodies keep paying hair and anatomy solver cost behind a frozen pose. The build does `rag.BecomeDisplayBody(); rag.DisplayPose(pos, facing, 0f, 0f, CupPoses.LoserPose(variant)); ... rag.enabled = false;` (CupPodium.cs:381-384) under the comment \"A posed puppet needs no solver: stop the component (the menu vignettes' rule)\" - but that rule is three components, not one. CLAUDE.md: \"BecomeDisplayBody does NOT stop ActiveRagdoll.FixedUpdate, HairSim or AnatomySim. Freezing a scene must also set enabled = false on the ragdoll and those sims, or idle panels keep paying full solver cost.\" Neither HairSim nor AnatomySim appears anywhere in CupPodium.cs. Human loser bodies do carry both: `BuildHuman` passes `appearance: look` into `rag.BuildScaled(...)` / `rag.Build(...)` (CupBodies.cs:276-280), which is what attaches the cosmetics. In Head to Head every other connected human is a loser body, so up to seven cosmetic sims run for the whole podium - the one screen already carrying 200 confetti quads and an orbiting camera. (AI filler bodies are `appearance: null` at CupBodies.cs:288, so they are unaffected.)",
+        "fix": "After `rag.enabled = false;` in the loser loop, disable the two sims the ragdoll owns, as the menu scenes do: `var hair = go.GetComponentInChildren<HairSim>(true); if (hair != null) hair.enabled = false; if (rag.Anatomy != null) rag.Anatomy.enabled = false;` (the driver already reads `b.Ragdoll.Anatomy` at CupRoundDriver.Net.cs:312, so the accessor exists). Update the comment to name all three components so the omission is not repeated.",
+        "specRef": "design 8.1 (\"Losers stand idle, no emotes, cheap: display bodies (BecomeDisplayBody + DisplayPose, no solver cost)\")"
+      },
+      {
+        "id": "CUP-08",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupDirector.Net.cs",
+        "symbol": "CupDirector.NetApplyPlayers / CupDirector.StopSpectating",
+        "problem": "Carried-forward phase-4 item (b) is still open: Esc on a lobby spectator's view closes it only after a host round trip. `StopSpectating` on a client just raises the request - `RaiseRequest(CupRequestKind.Unspectate, 0, null);` (CupDirector.cs:916) - and the local flag is written back unconditionally from the host echo: `p.SpectatingSlot = row.spectating == 255 ? -1 : row.spectating;` (CupDirector.Net.cs:543). So a local clear would be re-applied by any CupState already in flight, and the view stays up for ~RTT after the key. The pattern that solves it sits twenty lines below in the same method, for the coin call: `else if (!(local && p.CoinCall.HasValue && (Phase == CupPhase.CoinToss || Toss != null))) p.CoinCall = null;` (CupDirector.Net.cs:563-564), and the live row uses the same idea with a grace window (`bool keepLive = local && (... || now - _liveSentAt < CupNet.LiveRowEchoGrace);`, CupDirector.Net.cs:547-548).",
+        "fix": "Add the mirror-image latch. Beside the existing `_stopSpectateSentFor` field (CupDirector.Net.cs:52) add `float _unspectateSentAt = -100f;`; in StopSpectating's client branch set it and clear `LocalPlayer.SpectatingSlot` locally before raising the request; then guard the write in NetApplyPlayers: `bool pendingUnspec = local && row.spectating != 255 && Time.unscaledTime - _unspectateSentAt < CupNet.LiveRowEchoGrace; if (!pendingUnspec) p.SpectatingSlot = row.spectating == 255 ? -1 : row.spectating;`. Clear `_unspectateSentAt` as soon as an echo agrees (row.spectating == 255).",
+        "specRef": "design 4 (\"No control on the spectator's side beyond Esc back to the lobby\")"
+      },
+      {
+        "id": "CUP-09",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupHud.cs",
+        "symbol": "CupHud.DriverBridge",
+        "problem": "Carried-forward item still open: the HUD reaches the round driver through a cached reflection seam now that the type tree is stable. `readonly DriverBridge _bridge = new DriverBridge();` (CupHud.cs:48) fronts a class that binds by NAME at runtime - `_drawMini = t.GetMethod(\"DrawMini\", BindingFlags.Public | BindingFlags.Static, null, ...)` (CupHud.cs:684), `_voteSkip = t.GetMethod(\"VoteSkipReplay\", Pub, null, Type.EmptyTypes, null)` (CupHud.cs:703), plus `t.GetProperty(name, Pub)` / `t.GetField(name, Pub)` fallbacks (CupHud.cs:713-715) and a type-matched field scan (CupHud.cs:723). Every member it looks up is public on CupRoundDriver / CupBracketView today, so a rename now fails silently at runtime (the HUD quietly stops drawing the replay vote, the bracket peek, or the wheel) instead of failing the build - the exact failure mode direct calls remove.",
+        "fix": "Delete the DriverBridge class (CupHud.cs:586 to the end of the nested type) and replace each accessor with the direct member: `_bridge.ReplayPlaying` -> `_driver.ReplayPlaying`; `_bridge.HasCallout` -> a null check on `_driver.Callout`; `_bridge.LocalCelebration` -> `_driver.LocalBody?.Celeb`; `_bridge.SetEmoteWheelOpen(open)` -> `_driver.EmoteWheelOpen = open`; `DriverBridge.DrawMini(inner, bracket, StageOf(), highlight, data)` (CupHud.cs:442) -> `CupBracketView.DrawMini(...)`; and the replay-vote members -> `_driver.ReplaySkipVotes` / `_driver.ReplaySkipNeeded` / `_driver.VoteSkipReplay()`. All are already public on the driver (CupRoundDriver.cs and .Scene.cs). Mechanical, and it converts four silent-null paths into compile errors.",
+        "specRef": "design 9.1 (CupHud is one of the cup's own screens over its own driver - there is no third-party type to late-bind to)"
+      },
+      {
+        "id": "CUP-10",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupTypes.cs",
+        "symbol": "CupTuning.PenaltyCamHeight / CupTuning.PenaltyCamBack",
+        "problem": "The penalty camera's settled placement lives in CupPenaltyCam locals while the CupTuning constants that are supposed to document it are dead or unreachable, and the class header describes numbers the code no longer uses. `CupTuning.PenaltyCamHeight = 1.5f` (CupTypes.cs:352) has ZERO readers anywhere under Assets/Scripts - the rig uses its own `public const float CamHeight = 2.4f;` (CupPenaltyCam.cs:51). `CupTuning.PenaltyCamBack = 3f` (CupTypes.cs:351) is read once but always loses: `float back = Mathf.Max(CupTuning.PenaltyCamBack, takerBehind + MinBehindTaker);` (CupPenaltyCam.cs:103) with `MinBehindTaker = 4f` and a taker 3 m back (CupTuning.RunUpDistance) gives 7 m every time. The header then claims \"With the design's 3 m / 1.5 m placement the ball rule wins at every aspect (the ball sits ~24 deg under the goal line from that close), which lands the posts nearer 35% / 65% than 11% / 89%\", and MinBehindTaker's own doc says \"3.5: the first pass's 1.0 put the camera...\" while the constant reads 4f. Solving the rig's own maths at the real 7 m / 2.4 m placement (16:9, goal 7.32 x 2.44, ball at (0, 0.11, 6)): the ball rule wins with tanHalfV 0.305 against the post rule's 0.146, giving FOV 33.9 deg and the outer post at 31% / 69% - so the quoted framing is wrong too. A tuner who edits CupTuning.PenaltyCamHeight, as the design's \"(tune)\" markers invite, sees no change at all.",
+        "fix": "Make CupTuning the single source again: delete `PenaltyCamHeight` from CupTypes.cs and move the rig's value there as `PenaltyCamHeight = 2.4f`, having CupPenaltyCam read it in place of the local `CamHeight`; do the same for the effective stand-off (either fold `MinBehindTaker` into CupTuning or drop `PenaltyCamBack` and say in the CupTypes \"cameras\" block that CupPenaltyCam owns the placement). Either way correct the CupPenaltyCam header: replace the \"3 m / 1.5 m\" and \"35% / 65%\" sentences with the measured 7 m / 2.4 m / 31%-69% result and the reason the ball rule wins there, and fix MinBehindTaker's doc comment (says 3.5, value is 4).",
+        "specRef": "design 7.9 and 12.1 answer 17 (\"the posts sit at about 11% and 89% of the frame width\"); the recorded decision keeps the ball in frame as the hard rule and lets the solve land the posts as close as it can - which is fine, but the constants and comments must say what the code actually does"
+      },
+      {
+        "id": "CUP-11",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupNationTable.cs",
+        "symbol": "CupNationTable.All",
+        "problem": "The rule that a nation-table edit desyncs peers is not written where the table lives, so the next person to tune a strength or add a row will not know to bump the protocol. A client rebuilds the draw locally and only checks the shape: \"The shape is checked against the host's hash; a mismatch is a build difference and is logged once\" (CupDirector.Net.cs:571-574). Two table fields feed that rebuild. `CupBracket.Build` derives the AI pool from table ORDER - `IEnumerable<int> source = aiPool != null ? (IEnumerable<int>)aiPool : CupNationTable.PoolIndices; foreach (int n in source) { if (!CupNationTable.IsValid(n) || CupNationTable.IsNovelty(n)) continue; if (humanNations.Contains(n) || !seen.Add(n)) continue; pool.Add(n); } ... rng.Shuffle(pool);` (CupBracket.cs:460-474) - so inserting a row or flipping a Novelty flag shifts every later index through the shuffle and changes which 31 nations are drawn. And `CupSim.Simulate` reads `int sA = bracket.Entrants[round.EntrantA].Strength;` (CupSim.cs:126-127), so an edited Strength changes every simulated AI result a client re-runs from the seed. The table header covers only one of the two hazards: \"Indices ride the wire, so append at the end if the library ever grows rather than re-sorting\" (CupNationTable.cs:35-36).",
+        "fix": "Extend that header paragraph to state the full rule beside the data it governs: any change to this table - a new row, a removed row, a flipped Novelty flag, or an edited Strength - changes the draw (through PoolIndices' order into CupBracket.Build's shuffle) and every simulated AI result (through CupSim's Strength reads) on a peer that rebuilds the bracket from the seed, so it MUST be accompanied by a `NetCodec.ProtocolVersion` bump (currently 8, NetMessages.cs:570) or mixed-build lobbies silently disagree and merely log a one-off bracket-hash mismatch. Add the reciprocal one-liner beside `ProtocolVersion` pointing back at CupNationTable, next to the existing \"8: GameMode.TrickshotCup + MatchConfig.cupStyle/cupFormat...\" note.",
+        "specRef": "design 2.5 (\"Peers never sync the bracket shape, only the results of rounds that humans played\"), 2.8 (CupSim biased by Strength), 9.4 (\"ProtocolVersion 7 -> 8 when the cup ships (a new mode value changes what a lobby means)\")"
+      },
+      {
+        "id": "CUP-12",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupLobbyUI.cs",
+        "symbol": "CupLobbyUI.DrawSimRow",
+        "problem": "The Solo stage-complete reveal does not stagger: the simulated rows all appear at once. The design calls for rows staggering in at 0.05 s, and the file's own header promises it - \"then the stage's simulated results revealing row by row under 'Simulating the rest of the...'\" (CupLobbyUI.cs:11) - but the draw passes a constant alpha: `DrawSimRow(_simRounds[i], b, px + 24f + c * colW, y, colW, rh, 1f);` (CupLobbyUI.cs:224). The tunable that exists for exactly this, `CupTuning.RowStagger = 0.05f` (CupTypes.cs:303, \"Cup lobby: result rows stagger in this far apart\"), has no reader anywhere under Assets/Scripts.",
+        "fix": "Latch an unscaled show time where `_simRounds` is cleared and refilled (CupLobbyUI.cs:126-139): `_simShownAt = Time.unscaledTime;`. Then drive the per-row alpha from it in the draw loop: `float a = Mathf.Clamp01((Time.unscaledTime - _simShownAt - i * CupTuning.RowStagger) / 0.18f);` and pass `a` as DrawSimRow's last argument instead of `1f` - the parameter is already there and already threaded through the row's colours. Use unscaled time so a Solo pause cannot freeze the reveal half-drawn.",
+        "specRef": "design 3.7 (\"'Simulating the rest of the stage' reveal (rows stagger in at 0.05 s)\") and 6.3"
+      },
+      {
+        "id": "CUP-13",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupHud.cs",
+        "symbol": "CupHud.DrawScoreboard",
+        "problem": "Dead local. `const float boardW = 400f, teamW = 132f;` (CupHud.cs:279) declares teamW, which is never read anywhere in the method or the file - the pip anchors come from boardW alone: `DrawPips(left, bx + 5f, py, false); DrawPips(right, bx + boardW - 5f, py, true);` (CupHud.cs:281-282). It survives because docs/compile-check.sh reports errors only, so the CS0219 warning is invisible.",
+        "fix": "Drop it: `const float boardW = 400f;`.",
+        "specRef": "carried-forward phase-4 open item (d)"
+      },
+      {
+        "id": "CUP-14",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupDirector.HeadToHead.cs",
+        "symbol": "H2H wave watchdog / HeadToHeadResultGrace",
+        "problem": "Carried-forward phase-4 item (c) is still open and unmitigated: a REFUSED client round result waits out the full 10 s watchdog before the host simulates it, so the reporting player sits on a finished round for ten seconds. `public const float HeadToHeadResultGrace = 10f;` (CupDirector.HeadToHead.cs:83) and the wave watchdog settles only on `if (now - at > HeadToHeadResultGrace) settle = true;` (CupDirector.HeadToHead.cs:855). The refusal is immediate and knowable: the host runs `CupRoundRules.Validate(kicks, firstKicker, 5, requireDecided:true, out line, out err)` and has `err` in hand at `case CupRequestKind.RoundResult:` (CupDirector.Net.cs:319-352), and the watchdog's own comment already lumps the two causes together - \"within HeadToHeadResultGrace (a report the rules refused, a crash short of the roster...\" (CupDirector.HeadToHead.cs:828-830). A crash genuinely needs the timeout; a refusal does not.",
+        "fix": "Separate the two causes. When Validate fails in the RoundResult handler (or the reported round is not the one that owner should be playing), mark that owner's wave entry as refused at once - either set its recorded time to `now - HeadToHeadResultGrace` or add an explicit `refused` flag the watchdog treats as already expired - so the very next H2HTickWave pass simulates the round and the owner follows through NetApplyResult with no wait. Keep the 10 s timeout for the silent case (no report at all). Log `err` at Warn on the refusal path either way; it is currently the only evidence a refusal happened.",
+        "specRef": "design 9.3 (\"the host validates shape (scores within the rules)\") and 4.8 (\"Ready gate: all rounds of the stage finished AND every surviving human ready\")"
+      },
+      {
+        "id": "cup-ui-1",
+        "severity": "major",
+        "file": "Assets/Scripts/Cup/CupLoadingUI.cs",
+        "symbol": "CupLoadingUI.GuiDepth / CupLoadingUI.OnGUI (and CupIntroCard.GuiDepth / CupIntroCard.OnGUI)",
+        "problem": "Both cover cards still draw at GUI.depth = -1 unconditionally. PauseMenu never assigns GUI.depth, so it draws at the default 0 and the cards sit IN FRONT of it. Pressing Esc during the 1.5 s loading card or the 3 s intro card leaves the player looking at the card with the pause menu completely hidden behind it, and the menu's buttons unreachable-looking (they are still clickable, invisibly, which is worse than being blocked). CupIntroCard returns on PauseMenu.Frozen, which covers a Solo pause but NOT the multiplayer overlay pause (Frozen is Paused && !Overlay), so in Head to Head and Co-op - exactly where a pause is most likely mid-loading - the intro card still covers the menu. CupLoadingUI has no pause guard at all, so it covers the menu in every style. This is the phase-2b/phase-3 carried-forward issue, unfixed.",
+        "fix": "Give both cards the same treatment the other cup screens already use for the pause menu: in OnGUI, set `GUI.depth = PauseMenu.Paused ? 1 : GuiDepth;` so the card falls behind the menu (depth 0) while it is up and keeps its -1 cover otherwise. The condition changes only in PauseMenu.Update, never between an OnGUI Layout and Repaint pass, and neither card allocates a control, so nothing can shift. (Returning early on PauseMenu.Paused is the alternative but exposes the mid-build scene the loading card exists to hide.)",
+        "specRef": "design 6.4 (the loading card is a cover), 6.10 (the pause menu is available at all times, as an overlay in MP)"
+      },
+      {
+        "id": "cup-ui-2",
+        "severity": "major",
+        "file": "Assets/Scripts/Cup/CupTypes.cs",
+        "symbol": "CupTuning.WalkSpeed (1.6f) vs CupTuning.WalkBackMax (3.5f), consumed by CupChoreo.OnWalkBack",
+        "problem": "The beaten shooter can never reach his lineup slot inside the cut, so the walk-back cinematic ALWAYS ends on a hidden snap rather than on the arrival it is designed to show. Measured on the real geometry, not the estimate in the build report: the penalty spot is (0, GoalCenter.z - 11) = (0, 6) and CupSpots.LineupMark puts a lineup at x = +-CupTuning.LineupX (6) on LineupZ = 17 - 16.5 - 1 = -0.5, so the walk is sqrt(6^2 + 6.5^2) = 8.85 m, not the 6.9 m the report assumed. At WalkSpeed 1.6 m/s that is 5.53 s against a WalkBackMax of 3.5 s - the cut fires with the shooter still 3.2 m short. Even the decision's proposed 2.0 m/s gives 4.43 s and still misses.",
+        "fix": "Raise `WalkSpeed` to at least 2.6f (8.85 m / 3.5 s = 2.53 m/s, so 2.6 leaves a small margin and still reads as a brisk walk rather than a jog), or raise WalkBackMax to 5.5f. 2.6 is the better lever: the 3.5 s beat is a pacing decision in design 2.7's timing table, while the walk pace is not. Note the innermost lineup slot is nearer and the outermost further, so size against the outermost mark (index 0 or count-1 at LineupSpacing 0.62 per slot) rather than the centre if you want every body to arrive.",
+        "specRef": "design 2.7 (\"Missed/saved: walk back to the lineup | up to 3.5 s, camera covers it\") and 7.5 (\"a cut to a wide shot from behind the lineup as they arrive\")"
+      },
+      {
+        "id": "cup-ui-3",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupHud.cs",
+        "symbol": "CupHud.DriverBridge",
+        "problem": "The whole 150-line reflection seam (DriverBridge, lines 586-735) is still in place, plus `using System.Reflection` at the top. Every member it probes for now exists as a plain public member on the concrete types: CupRoundDriver.Callout, LocalBody, Taker, ReplayPlaying, ReplaySkipVotes, ReplaySkipNeeded, VoteSkipReplay(), EmoteWheelOpen (all in CupRoundDriver.Scene.cs, lines 36-208), CupBody.Celeb (CupBodies.cs:54) and CupBracketView.DrawMini (CupBracketView.cs:194). The cost is real, not stylistic: every accessor is a per-frame reflective Read on a HUD that draws several OnGUI passes per frame over a live round, a missing member degrades SILENTLY to \"feature off\" (no meter, no replay counter, no local celebration) with no compile error to catch a rename, and DriverBridge.DrawMini invokes a method that returns void yet reports `true`, so the DrawPeekFallback path is now dead code that can never run.",
+        "fix": "Delete DriverBridge and the `using System.Reflection`, and call the members directly: `_driver.Callout += Flash` / `-=` in Bind/Unbind, `_driver.ReplayPlaying`, `_driver.ReplaySkipVotes`, `_driver.ReplaySkipNeeded`, `_driver.VoteSkipReplay()`, `_driver.EmoteWheelOpen = open`, `_driver.Authority == RoundAuthority.Client ? null : _driver.LocalBody?.Celeb`, `_driver.Taker` for the meter, and `CupBracketView.DrawMini(inner, bracket, StageOf(), highlight, data)` followed by a plain `return` (dropping DrawPeekFallback, or keeping it only for the `bracket == null` case which DrawMini already handles with its \"No draw yet\" hint). Mechanical, and the tree is stable now.",
+        "specRef": "phase-2 report decision (\"replace with direct calls now that the tree is stable\"); CLAUDE.md IMGUI rule on cached/cheap work over a running match"
+      },
+      {
+        "id": "cup-ui-4",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupLobbyUI.cs",
+        "symbol": "CupLobbyUI.DrawFooter (the Customize button) / CupDirector.Solo.cs:302 / CupDirector.HeadToHead.cs:1243",
+        "problem": "The Customize button is drawn on every cup lobby but is permanently dead in BOTH Solo and Head to Head: `_soloLobby.OnCustomizeRequested = null` and `_h2hLobby.OnCustomizeRequested = null`, so `GUI.enabled = outerEnabled && OnCustomizeRequested != null && !localPlaying` is always false. Unlike the Ready button next to it - which gets an explicit \"your round is still on\" / \"auto-ready (out)\" hint when it is disabled - the greyed Customize gives the player no reason at all, so it reads as a broken screen rather than as a feature that is not wired up. Design 6.3 lists it as one of the four footer buttons.",
+        "fix": "Cheapest honest fix: give the disabled Customize the same hint treatment the Ready button already has - when `OnCustomizeRequested == null`, draw `UITheme.Hint` above it reading \"not yet available\" (or the reason), using the exact `UITheme.Hint(new Rect(cr.x - 60f, cr.y - 22f, cr.width + 60f, 18f), ..., TextAnchor.MiddleRight)` shape at lines 502-503. If the real routing is wanted, both directors need a cup-aware appearance-only customize path (GameBootstrap.ShowLobbyCustomize returns to the multiplayer LobbyUI and drives a preview camera that was never checked against a standing arena, which is the documented reason it was left null) - that is a bigger job than the hint and should be its own task.",
+        "specRef": "design 6.3 (\"Customize (appearance only ...)\" as a footer button)"
+      },
+      {
+        "id": "cup-ui-5",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupDirector.cs",
+        "symbol": "CupDirector.StartRound (line ~1680, `if (Hud != null) Hud.Bind(drv);`)",
+        "problem": "The HUD is bound immediately after `drv.Configure`, while CupLoadingUI is still covering the screen. The loading scrim is 0.9 alpha (CupLoadingUI.Draw line 106), so the freshly bound HUD's 0-0 scoreboard, its empty pip rows and the role panel bleed through at 10% for the whole build - a visible ghost on the card the card exists to prevent. The comment justifies the early bind by saying it puts \"the coin toss's HEADS / TAILS flash\" up during the ceremony, but the ceremony runs AFTER the card is released: CupDirector.Solo.cs line 283 calls `Loading.Hide()` once `Driver.SceneBuilt && Loading.MinElapsed`, and the toss follows. Binding one step later costs the HUD nothing.",
+        "fix": "Move `Hud.Bind(drv)` out of StartRound to the point where the loading card is released - beside the existing `Loading.Hide()` calls in the flows (CupDirector.Solo.cs:283 and the Head to Head / Co-op equivalents), or gate it in the flow tick on `Loading == null || !Loading.Covering`. Keep `BindRoundStats(drv)` where it is: the stats listener must latch from the first whistle and draws nothing.",
+        "specRef": "design 6.4 (\"Solid Scrim 0.9 so the round build ... is never seen popping in\")"
+      },
+      {
+        "id": "cup-ui-6",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupBracketView.cs",
+        "symbol": "CupEscape.Owned (line 145)",
+        "problem": "`CupEscape.Owned` aggregates NationPickerUI, CupLobbyUI, CupResultsUI and CupSpectatorView but NOT the emote wheel, so a player with the wheel open who presses Esc opens the PAUSE MENU instead of closing the wheel. The outcome is not broken - CupHud.Update sees PauseMenu.Paused and closes the wheel without re-capturing the cursor, so the menu keeps the free cursor - but it is the opposite of what the design specifies, and it means the wheel is the one cup overlay Esc does not dismiss. CupHud already exposes `WheelOpen` (line 64) and CupPodium/CupTrophyLift each hold a `_wheelOpen`, so the state is there to report.",
+        "fix": "Add a wheel term to CupEscape.Owned and have the wheel owners close on Esc. The smallest shape that matches the existing screens: give CupEmoteWheel a `public static bool AnyOpen` (plus the one-frame `s_escGraceFrame` grace the other screens use, since PauseMenu polls Escape with Keyboard.current in Update BEFORE IMGUI sees the KeyDown), set it from CupHud.SetWheel / CupPodium.SetWheel / CupTrophyLift.SetWheel, `|| CupEmoteWheel.AnyOpen` into CupEscape.Owned, and handle the raw Escape in each owner's Update by calling SetWheel(false). Note that consuming the IMGUI Escape event alone will NOT work here - PauseMenu polls the device, not the event.",
+        "specRef": "design 6.10 (\"the emote wheel owns Esc while open (existing SetWheelOpen contract)\")"
+      },
+      {
+        "id": "cup-ui-7",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupHud.cs",
+        "symbol": "CupHud.DrawScoreboard (line 279)",
+        "problem": "`const float boardW = 400f, teamW = 132f;` - `teamW` is declared and never read. It mirrors Hud.Scoreboard's own private constant and was presumably meant to anchor the pip rows under the team blocks, but DrawPips is called with `bx + 5f` and `bx + boardW - 5f` instead. Dead local (compiles as CS0219-class noise) and a false hint that the pip anchors are tied to the team block width when they are not.",
+        "fix": "Drop `, teamW = 132f` from the declaration, leaving `const float boardW = 400f;`. (If you would rather keep the tie to the team blocks explicit, use it: `DrawPips(left, bx + 5f, py, false)` already lands on the left block's left edge, so `bx + 5f + teamW` would be its right edge - but the current anchors are correct, so deleting is the honest change.)",
+        "specRef": "phase-4 report open issue (d); CLAUDE.md HUD panel rules"
+      },
+      {
+        "id": "cup-ui-8",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupPenaltyCam.cs",
+        "symbol": "CupPenaltyCam class summary (lines 29-36) and CupTuning.PenaltyCamHeight (CupTypes.cs:352)",
+        "problem": "The framing was fixed but its documentation was not, and one constant is now dead. The rig actually stands at `Max(CupTuning.PenaltyCamBack, takerBehind + MinBehindTaker)` = 7 m behind the ball (MinBehindTaker 4 + RunUpDistance 3) at `CamHeight` 2.4 m, so PenaltyCamBack's 3 f can never win and `CupTuning.PenaltyCamHeight` (1.5f) has NO reader anywhere in the tree. The class summary still asserts \"With the design's 3 m / 1.5 m placement the ball rule wins at every aspect ... which lands the posts nearer 35% / 65% than 11% / 89%; a lower, further camera (e.g. 6 m back, 0.9 m high) lets the post rule win\", which describes a placement the code no longer uses. At the real 7 m / 2.4 m the solve clamps to MinFov 18 and puts the outer posts at ~13.9% / 86.1% with the ball ~9.8% above the bottom edge - i.e. the design target is essentially met, and a future tuner reading this comment would be sent to undo it.",
+        "fix": "Delete `CupTuning.PenaltyCamHeight` (nothing reads it) and rewrite the summary paragraph to describe the shipped rig: 7 m behind the ball (MinBehindTaker 4 m behind the taker's RunUpDistance 3 m mark) at CamHeight 2.4 m, the solve clamping to MinFov 18 with the posts landing at about 14% / 86% and the ball about 10% above the bottom edge. Also fix the line-24 sentence, which still says PenaltyCamBack (3 m) is where the camera stands - it is only a floor that MinBehindTaker always beats. Consider deleting PenaltyCamBack too and folding MinBehindTaker/CamHeight into CupTuning so all the camera levers live in one place, as CupTuning's own header rule asks.",
+        "specRef": "design 7.9 (\"the posts sit at about 11% and 89% of the frame width ... with the ball in view\")"
+      },
+      {
+        "id": "cup-ui-9",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupBodies.cs",
+        "symbol": "CupBody.LineupIndex / CupBody.LineupMark (lines 57-59)",
+        "problem": "`LineupIndex` is documented as \"Position in its side's lineup (a human's two bodies share one)\" and `LineupMark` carries no comment at all, but in the Free Kicks format there is no lineup: CupRoundDriver.Scene.cs:877-917 overwrites both fields per kick with the seeded scatter marks from CupSpots.FreeKickMarks, and the taker's LineupMark becomes CupSpots.RunUpStart(spot). The class-level comment on CupRoundDriver.Scene.cs:24 does say this correctly, but the field a reader lands on from CupChoreo.OnWalkBack (which reads `body.LineupMark` for both formats) still claims a lineup that does not exist in half the cup.",
+        "fix": "Reword the two comments to name both meanings, e.g. `LineupIndex`: \"Position in its side's lineup (Penalties); in Free Kicks the index into that kick's seeded scatter. A human's two bodies share one.\" and add to `LineupMark`: \"Where this body stands for the current kick: its lineup slot (Penalties), its seeded scatter mark, or the run-up start for the taker (Free Kicks). Rewritten per kick by CupRoundDriver's placement.\"",
+        "specRef": "owner's decision recorded in CLAUDE.md (\"FREE KICKS have no lineup and no walk-in / walk-back\") vs design 7.3"
+      },
+      {
+        "id": "cup-ui-10",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupSetupUI.cs",
+        "symbol": "CupSetupUI.OnGUI (line 51)",
+        "problem": "`var btn = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };` allocates a fresh GUIStyle inside OnGUI on every IMGUI pass (several per frame) for the Back button, while the card title style right below it is correctly cached in the static `_titleSt`. Every other cup screen caches all of its styles in an EnsureStyles/Styles static. Minor here because the fork screen is not over a running match, but it is the one cup screen that breaks its own file's pattern.",
+        "fix": "Hoist it beside `_titleSt`: add `static GUIStyle _btnSt;` and `_btnSt ??= new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold };` before use, matching the `_titleSt ??=` idiom already in Card().",
+        "specRef": "CLAUDE.md / cup-build-notes IMGUI rule: \"cache GUIStyles in statics\""
+      },
+      {
+        "id": "cup-ui-11",
+        "severity": "polish",
+        "file": "Assets/Scripts/Cup/CupPodium.cs",
+        "symbol": "CupPodium.OnGUI (the labels/acts/bad button lists)",
+        "problem": "Three `new List<>` (labels, acts, bad) plus one closure per entry are allocated on EVERY OnGUI pass - several passes per frame - for a button row whose contents change only when the style or the authority flag changes. The podium runs a slow camera orbit with live confetti, so this is steady per-frame garbage on the one cup screen that is explicitly a long dwell. CupTrophyLift's equivalent single button avoids it; every other cup screen builds its row model in Update. It is also the only place in the cup where the CONTROL COUNT is derived inside the GUI pass rather than from a model latched in Update (3 buttons for Solo / MP-authority, 1 for a MP client), which is safe today only because Director.IsAuthority cannot flip between an OnGUI Layout and Repaint pass.",
+        "fix": "Build the three lists once in Update (or in Begin plus on the director's change notification) into readonly fields, and have OnGUI only iterate them - the same shape CupLobbyUI._rows and CupResultsUI._tabs already use. That removes the per-pass garbage and makes the control count come from a model that provably cannot change mid-pass.",
+        "specRef": "design 8.1 (podium buttons); cup-build-notes IMGUI rule that the control set is rebuilt outside the GUI pass"
+      },
+      {
+        "id": "NET-1",
+        "severity": "blocker",
+        "file": "Assets/Scripts/Cup/CupNet.cs",
+        "symbol": "CupNet.BuildResults / NetCodec.CupState / CupRound.WriteTo",
+        "problem": "CupState's worst case is 4224 bytes, not the 639 the build reports claim, and it rides NetChannel.Reliable which DirectIpTransport never fragments (FrameReliablePacket wraps the payload in one datagram; there is no MTU split anywhere in the transport). Each played result carries its kick line at 3 + ceil(nKicks/2) bytes, and nKicks is bounded only by the u8 the codec writes: CupRound.WriteTo caps at 255 kicks, CupRoundRules.Validate imposes no length limit at all (it only checks alternation, outcome range and decidedness - an undecided alternating line is accepted at any length), and neither the driver nor ApplyRoundResult caps it. 31 played rounds at 255 kicks is 31 x 131 = 4061 bytes of results alone. Sudden death is genuinely unbounded (pairs continue while both score, and the Round-of-32 keeper sits at ability 0.20, under the claim/rush gates), and a modified or buggy client can report any 255-kick line through CupRequest.RoundResult - the 1024-byte CupRequestMaxPayload admits it easily. A 4 KB UDP datagram is IP-fragmented and, over anything but loopback, is likely dropped outright, silently stalling every client's model.",
+        "fix": "Cap the kick line at both ends. (1) Add a maximum-kicks parameter to CupRoundRules.Validate (a sane cap is CupTuning.KicksEach * 2 plus a sudden-death pair cap, e.g. 40 kicks) and reject a longer reported line in ApplyRoundResult with the usual CupLog.Warn + refuse, so the wave watchdog settles it. (2) Cap the live round the same way in the driver: past the cap, decide the round on goals scored rather than letting the line grow. (3) With a 40-kick cap the worst-case CupState is 29 + 120 + 9 + 1 + 31*23 + 4 = 876 bytes - still worth asserting: add a CupLog.Warn in NetFlushState when CupNet.SizeOf(m) exceeds ~1100, and correct the 639-byte figure in the NetMessages.cs layout comment (the L852-871 block) and in CupNet.SizeOf's doc.",
+        "specRef": "design 9.4 (\"About 280 bytes worst case, well under the 1200-byte single-packet ceiling\"), 2.1 (sudden death); builder notes \"DirectIpTransport (UDP, ~1.2 KB safe packet)\""
+      },
+      {
+        "id": "NET-2",
+        "severity": "major",
+        "file": "Assets/Scripts/Cup/CupLoadingUI.cs",
+        "symbol": "CupLoadingUI.GuiDepth / CupLoadingUI.OnGUI",
+        "problem": "CupLoadingUI draws unconditionally at GUI.depth = -1 (L23, L91) with a 0.9 scrim over the whole screen. PauseMenu sets no GUI.depth at all, so it draws at the default 0 - behind the loading card. Pressing Esc during the loading beat (at least 1.5 s, and up to the 10 s MP load barrier) puts the pause menu underneath an opaque scrim: the player sees only the loading card, cannot see the menu they just opened, and their clicks land on invisible buttons. Unlike CupIntroCard this card has no PauseMenu guard of any kind.",
+        "fix": "In CupLoadingUI.OnGUI, return early on PauseMenu.Paused - the card is decorative and its Update-driven fade/min-time timers keep running, so nothing is lost - or set GUI.depth = 0 so the menu wins. The early return matches how every other cup card behaves.",
+        "specRef": "design 6.4 (loading card), 6.10 (pause menu in the cup); CLAUDE.md IMGUI modal rules"
+      },
+      {
+        "id": "NET-3",
+        "severity": "major",
+        "file": "Assets/Scripts/Cup/CupIntroCard.cs",
+        "symbol": "CupIntroCard.OnGUI",
+        "problem": "CupIntroCard guards its draw with `if (!_visible || PauseMenu.Frozen) return` (L60) and then draws at GUI.depth = -1. PauseMenu.Frozen is `Paused && !Overlay`, and GameBootstrap sets PauseMenu.Overlay = true for every networked cup style - so Frozen is ALWAYS false in Head to Head and Co-op. The guard therefore does nothing in multiplayer, and the 3 s intro card renders in front of the pause menu (depth -1 vs the menu's default 0) for anyone who presses Esc during the intro. Solo is covered only by accident, because there Frozen == Paused.",
+        "fix": "Change the guard to `if (!_visible || PauseMenu.Paused) return`. The card's own clock is in Update and keeps running either way, so hiding it while the menu is up gives multiplayer the behaviour Solo already has. Same one-line pattern as NET-2.",
+        "specRef": "design 6.10 (\"in Head to Head and Co-op the pause menu is an overlay\"), 2.7 (round intro card 3 s)"
+      },
+      {
+        "id": "NET-4",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupDirector.cs",
+        "symbol": "CupDirector.StopSpectating / CupDirector.Net.NetApplyPlayers",
+        "problem": "On a client, StopSpectating (L913-917) only raises CupRequest.Unspectate; the local CupPlayer.SpectatingSlot is not cleared. NetTickSpectate closes CupSpectatorView on `me.SpectatingSlot`, so the view survives until the host's CupState echo returns - roughly one RTT. Worse, a CupState already in flight when Esc was pressed re-asserts the old SpectatingSlot in NetApplyPlayers (L543, an unconditional overwrite), so on a slow or lossy link Esc can appear to do nothing for a beat. The coin call immediately below (L561-564) already carries exactly the pending-local-value latch this needs, so the pattern is established in the same method.",
+        "fix": "Add a pending-unspectate latch beside the coin one: in StopSpectating's client path record `_pendingUnspectateAt = Time.unscaledTime` and clear `me.SpectatingSlot = -1` locally; in NetApplyPlayers skip the `p.SpectatingSlot = row.spectating...` write for the local row while `now - _pendingUnspectateAt < CupNet.LiveRowEchoGrace` and the echoed value still names the old target, clearing the latch once the echo agrees. Esc becomes instant and the host stays authoritative.",
+        "specRef": "design 4 (\"No control on the spectator's side beyond Esc back to the lobby\"), 6.3"
+      },
+      {
+        "id": "NET-5",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupRoundDriver.Scene.cs",
+        "symbol": "CupRoundDriver.ApplyBodyPose",
+        "problem": "ApplyBodyPose (L289-297) poses every client puppet with only DisplayEmote or DisplaySnap - a position and a yaw. BodyState.anim already carries the AnimState hint and the host fills it correctly (CupRoundDriver.Net.NetAnimOf returns Dive / Down / Run / Idle), and CupRoundDriver.Net.cs L239 even documents that ApplyBodyPose ignores it. So on a client every AI taker's run-up and every keeper's dive read as a body sliding across the turf in an idle pose: the two most-watched moments of a cup round are exactly the ones with no animation. NetSetPieceMatch already has the DisplayAnim path this needs.",
+        "fix": "Thread the anim byte from NetApplySnapshots (already read off the BodyState at CupRoundDriver.Net.cs L302-311) into ApplyBodyPose, and when there is no emote and anim != Idle call `b.Ragdoll.DisplayAnim(pos, facing, (AnimState)anim, phase)` the way NetSetPieceMatch's client applier does, falling back to DisplaySnap for Idle. Emote keeps priority over anim, as today.",
+        "specRef": "design 9.3 (Co-op fully host-simulated, snapshots back), 7.3 (\"AI takers walk from their lineup to the spot\")"
+      },
+      {
+        "id": "NET-6",
+        "severity": "minor",
+        "file": "Assets/Scripts/Cup/CupHud.cs",
+        "symbol": "CupHud.DriverBridge",
+        "problem": "CupHud still reaches CupRoundDriver through the cached reflection seam DriverBridge (L590-720): the Callout event, ReplayPlaying / ReplaySkipVotes / ReplaySkipNeeded, VoteSkipReplay, EmoteWheelOpen, LocalBody.Celeb, the SetPieceTaker field and CupBracketView.DrawMini are all resolved by name at runtime with try/catch and CupLog.Warn fallbacks. That was justified while the partials were written in parallel, but the tree is stable now and every one of those members is public on CupRoundDriver in the same assembly. As it stands a rename silently degrades the HUD to a console warning instead of failing the build, the per-frame property reads box every int and bool, and Probe()'s static caches survive a domain reload in ways the rest of the cup does not. The director already carries no reflection probe, so this is the last one.",
+        "fix": "Replace DriverBridge with direct calls: hold the CupRoundDriver reference, subscribe to `Callout` with `+=` in Bind and `-=` in Unbind, read `_driver.ReplayPlaying` / `.ReplaySkipVotes` / `.ReplaySkipNeeded` / `.Taker` directly, call `_driver.VoteSkipReplay()` and set `_driver.EmoteWheelOpen`, keep the existing `Authority == RoundAuthority.Client -> null Celebration` rule as an explicit property, and call `CupBracketView.DrawMini` directly. Mechanical; also removes the pre-existing unused `teamW` local at L279 while in the file.",
+        "specRef": "builder notes \"Ground rules\"; the phase-3/4 carried-forward decision (\"replace with direct calls now that the tree is stable\")"
+      }
+    ],
+    "fixes": [
+      {
+        "summary": "Applied 11 of the 13 assigned finding ids across all 10 owned files. CupHud's 150-line reflection seam (DriverBridge) is gone and replaced with direct calls; the walk-back now solves its speed against the real distance so an 8-strong Co-op lineup arrives inside the 3.5 s cap; client puppets now animate via DisplayAnim instead of sliding as statues; a refused Head to Head result is settled at once rather than after the 10 s watchdog; Esc unspectate is instant via a pending latch; the HUD binds after the loading scrim clears; the Solo stage-complete rows stagger in; plus the smaller polish items. Two ids were verified as ALREADY FIXED by the earlier editor pass and needed only a documentation correction or nothing at all. compile-check.sh exits 0 after every file; all 10 files re-normalised to CRLF. Nothing committed.",
+        "filesEdited": [
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupHud.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupLobbyUI.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupDirector.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupChoreo.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupRoundDriver.Net.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupRoundDriver.Scene.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupDirector.Net.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupDirector.HeadToHead.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupPenaltyCam.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupSetupUI.cs"
+        ],
+        "compileClean": true,
+        "fixed": [
+          "CUP-09",
+          "cup-ui-3",
+          "NET-6",
+          "CUP-13",
+          "cup-ui-7",
+          "CUP-12",
+          "cup-ui-4",
+          "cup-ui-5",
+          "NET-4",
+          "CUP-08",
+          "CUP-02",
+          "CUP-04",
+          "NET-5 (driver half)",
+          "CUP-14",
+          "cup-ui-8 (doc half)",
+          "cup-ui-10"
+        ],
+        "skipped": [
+          "NET-5 / CUP-04 spectator half - CupSpectatorView.cs and CupNet.cs are outside my file list and the CupStreamBody wire record carries no anim field",
+          "cup-ui-8 constant deletion - CupTuning.PenaltyCamHeight was already deleted by the editor pass and CupTypes.cs is outside my file list"
+        ],
+        "notes": "DETAIL PER ID.\n\nCUP-09 / cup-ui-3 / NET-6 (all one item, CupHud.DriverBridge). Verified every probed member is public on the concrete types (CupRoundDriver.Scene.cs L36-208, CupBody.Celeb at CupBodies.cs:54, CupBracketView.DrawMini at CupBracketView.cs:194). Deleted the whole nested class and `using System.Reflection`. Direct calls now: `_driver.Callout += Flash` in Bind / `-=` in Unbind, `_driver.ReplayPlaying`, `.ReplaySkipVotes`, `.ReplaySkipNeeded`, `.VoteSkipReplay()`, `.EmoteWheelOpen = _wheelOpen`, `.Taker` for the meter, and a private `LocalCelebration` property keeping the explicit \"null on a Client driver\" rule. Three consequences worth flagging:\n  1. `DriverBridge.DrawMini` invoked a method that returns VOID yet reported `true`, so `DrawPeekFallback` was already unreachable. `CupBracketView.DrawMini` handles `bracket == null` itself with a \"No draw yet\" hint, so I call it unconditionally and DELETED DrawPeekFallback (22 lines) rather than leaving dead code. That removed the only readers of `_peekName/_peekScore/_peekLine/_peekTag`, so those four static GUIStyles and their initialisers went too.\n  2. I also removed the `KickResolved -> OnKick` subscription. Its only body was `if (!_bridge.HasCallout) Flash(CupText.Verdict(outcome))`. With Callout always present that fallback would DOUBLE-FLASH: CupRoundDriver.Kick.cs:157 (`AnnounceKick`) raises `Callout(CupText.Verdict(outcome))` on the Local/Host path, and Kick.cs:1124-1131 replays AnnounceKick per kick on the client path, so every machine already gets exactly one verdict pill. Left a comment saying why there is no handler.\n  3. `CanVoteReplay` etc. untouched.\n\nCUP-13 / cup-ui-7. `teamW` confirmed unread anywhere in the file; declaration reduced to `const float boardW = 400f;`.\n\nCUP-12 (stagger). Confirmed `CupTuning.RowStagger` had zero readers under Assets/Scripts. Note the finding's suggested latch point is WRONG in a way that matters: `_simRounds` is cleared and refilled EVERY FRAME in Update (CupLobbyUI.cs:126-139), so latching where it is refilled would restart the reveal every frame and freeze every row at alpha 0. I latch on a CHANGE instead - `_simShownCount` and `_simShownStage` (a `CupStage?`, since CupStage is byte-backed and `(CupStage)(-1)` is a compile error) - so the clock starts when the set first appears for a stage and re-latches when the stage changes or another round lands. Alpha is `Clamp01((unscaledTime - _simShownAt - i*RowStagger) / SimRowFade)` with a new `SimRowFade = 0.18f` const. Unscaled per the finding. Safe against the IMGUI id rule: DrawSimRow's `alpha <= 0.01f` early return allocates no controls (UITheme.Label -> GUI.Label, Flag, Pips are all draw-only).\n\ncup-ui-4 (dead Customize). Took the cheap honest fix, as specified: hoisted the button rect to `cr` and added the Ready-button hint shape - \"not yet available\" when `OnCustomizeRequested == null` (both Solo and Head to Head today), \"your round is still on\" when disabled because the local round is live. Did NOT attempt the real routing (needs GameBootstrap + both directors, outside my file list and explicitly called out as its own task).\n\ncup-ui-5 (HUD ghosting through the scrim). Verified the premise: every flow releases the card BEFORE the toss (CupDirector.Solo.cs:279-285 hides then `SetPhase(CoinToss)`), so binding later costs the ceremony nothing. The Hide call sites are spread over Solo.cs / Coop.cs / HeadToHead.cs and two of those are outside my list, so instead of touching them I made the bind a DEFERRED step owned by CupDirector: `StartRound` sets `_hudBindPending` and calls the new `TickHudBind()`, which is also called from `Update()` before the style tick and binds the moment `Loading == null || !Loading.Covering`. `EndRound` clears `_hudBindPending` so a bind waiting on the card cannot land on a dead round. `BindRoundStats` stays where it was, per the finding (it must latch from the first whistle and draws nothing). Field doc on `Hud` updated.\n\nNET-4 / CUP-08 (one item, unspectate latch). `StopSpectating`'s client branch now clears `LocalPlayer.SpectatingSlot = -1` locally and calls the new `NetMarkUnspectateSent()`; `NetApplyPlayers` skips the echo write for the LOCAL row while `row.spectating >= 0` and `now - _unspectateSentAt < CupNet.LiveRowEchoGrace` (1.5 s), and drops the latch as soon as an echo agrees (`echoSpectating < 0`). `_unspectateSentAt` is also reset in `NetRoundEnded` beside `_liveSentAt`. Mirrors the coin-call and live-row latches in the same method; the host stays authoritative.\n\nCUP-02 (walk-back). THE FINDING'S NUMBERS ARE STALE BUT ITS CONCLUSION IS STILL RIGHT. The editor pass had already raised `CupTuning.WalkSpeed` from 1.6 to 2.85 with a full derivation in its doc comment - but that derivation is sized for a FIVE-body line (9.73 m, 2.78 m/s needed). Co-op seats up to 8 in the lineup (CupRoundDriver.Scene.cs:460-465 adds one person per human in the order), and `CupSpots.LineupMark(.., 7, 8)` puts the outermost mark at x = 6 + 3.5*0.62 = 8.17, so dist = sqrt(8.17^2 + 6.5^2) = 10.44 m = 3.66 s at 2.85 - still past `WalkBackMax` 3.5. So I applied the real fix the finding asked for: `OnWalkBack` now solves `speed = Max(CupTuning.WalkSpeed, dist / (WalkBackMax - WalkBackArriveSlack))` with a new `CupChoreo.WalkBackArriveSlack = 0.3f`, exactly the shape `OnAiTakerToSpot` already uses for the walk-in. WalkSpeed stays the floor for short walks. I did NOT edit WalkSpeed's doc comment - CupTypes.cs is outside my file list - but the new XML doc on OnWalkBack states that the constant's derivation covers five bodies and that this solve absorbs Co-op's eight.\n\nCUP-04 / NET-5 (client puppet animation). `ApplyBodyPose` extended to `(virtualSlot, pos, yaw, emoteId, emotePhase, AnimState anim, float animPhase, float moveAmount)`. Emote still outranks the gait; `Idle` with `moveAmount <= 0.001` still takes `DisplaySnap`; everything else goes to `DisplayAnim`, copying NetSetPieceMatch.cs:1262 exactly. The two pieces of per-body state that call needs (`animPhase`, `lastInterpPos`) live in the driver as `Dictionary<int,float>` / `Dictionary<int,Vector3>` keyed by virtual slot, following the existing `_posedEmote`/`_posedPhase` pattern, cleared alongside them on bind - I did not add fields to CupBody, which is outside my file list. `moveAmount = Clamp01(|d| / dt / SimConfig.StrikerMoveSpeed)` from the two interpolated samples; phase advances at `dt * SimConfig.StrideRateMax * moveAmount / 2pi`. A puppet seen for the first time contributes no movement, so it starts from a standstill rather than teleporting into a sprint. `NetAnimOf`'s doc comment, which admitted nothing consumed the hint, corrected. Only one call site existed, so nothing else broke.\n\nCUP-14 (refused H2H result). Added `_h2hOwnerRefused` (HashSet, cleared with the other wave bookkeeping in the wave entry) and `H2HRoundResultRefused(int ownerSlot)`, a no-op outside a Head to Head wave on the authority. The CupRequest.RoundResult handler calls it on all four refusal paths: not-in-that-round, host-simulates-it, wrong-first-kicker, and now `if (!ApplyRoundResult(round)) H2HRoundResultRefused(slot)` which covers Validate's failure plus entrants-differ and no-first-kicker. The watchdog ORs the refusal into `settle`, so the next `H2HWaveWatchdog` pass simulates the round with no wait, and its log line now says \"refused result\" vs \"no result\". The `already decided` refusal is harmless because that round is `Done` and the watchdog skips it, so nothing is simulated twice - noted in a comment. The 10 s `HeadToHeadResultGrace` is kept for the silent case only and its doc comment now says so.\n\ncup-ui-8 (penalty cam). MOSTLY ALREADY FIXED, AND THE FINDING'S NUMBERS ARE WRONG. `CupTuning.PenaltyCamHeight` has ALREADY been deleted by the editor pass (CupTypes.cs:372 carries a comment explaining that a constant with no reader looks like a knob and moves nothing), and CupTypes.cs is outside my list anyway. I checked the finding's framing claim by working the solve numerically: at the shipped 7 m / 2.4 m the BALL rule wins with FOV 32.0 deg, nothing clamps (MinFov is 18), and the outer post lands at 30.1% / 69.9% at 16:9 (23.5%/76.5% at 4:3, 34.8%/65.2% at 21:9) - NOT the \"~13.9% / 86.1% clamped to MinFov 18\" the finding asserts. The editor pass's own note in CupTypes.cs (\"nearer 31% / 69%\") is the accurate one. So the only real remaining defect was the stale class summary in CupPenaltyCam.cs, which still described the retired 3 m / 1.5 m placement and told a future tuner to move to \"6 m back, 0.9 m high\". I rewrote both the opening paragraph and the placement / FOV paragraphs to describe the shipped rig with the correct measured percentages, to say plainly that PenaltyCamBack is only a floor that MinBehindTaker always beats, to record that SideOffset is 0 deliberately, and to name the actual trade (closing the gap to 11/89 needs a LOWER camera, which costs the head clearance). Did NOT fold MinBehindTaker/CamHeight into CupTuning - that is a cross-file move into a file I do not own.\n\ncup-ui-10 (CupSetupUI style). Hoisted to `static GUIStyle _titleSt, _backSt;` with the `_backSt ??=` idiom matching the Card()'s existing `_titleSt ??=`.\n\nVERIFICATION. `bash docs/compile-check.sh` run after every file, exit=0 each time and at the end. No Unity editor, no MCP, no graphify. All 10 files re-normalised to CRLF and confirmed. Nothing committed. Note the working tree also contains the parallel fixer's edits to CupBodies.cs / CupIntroCard.cs / CupLoadingUI.cs / CupNationTable.cs / CupPodium.cs / CupRoundDriver.Kick.cs / CupTypes.cs; the final clean compile covers both sets together.\n\nFOR THE HANDOFF. The spectator half of CUP-04/NET-5 is still open: CupSpectatorView.cs:168-169 poses with DisplayEmote/DisplaySnap only, so a lobby spectator still sees sliding statues. Fixing it needs an `anim` byte added to `CupStreamBody` in CupNet.cs (bump CupNet.StateVersion and keep CupNet.SizeOf honest) plus the same DisplayAnim path in the view - both files belong to the other fixer or to a follow-up."
+      },
+      {
+        "summary": "Applied 11 of 14 assigned findings across 9 files; compile clean (exit=0) and the cup self-test passes (562,273 checks). Two findings were skipped because their real fix needs files owned by the other fixer, and one (CUP-03) was deliberately reduced to a documentation fix after I proved with a numerical sweep that the reviewer's proposed code change would visibly break 25 of the 38 emotes in the game.",
+        "filesEdited": [
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupIntroCard.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupLoadingUI.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupPodium.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupTypes.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupRoundDriver.Kick.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Play/Celebration.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupNationTable.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupBodies.cs",
+          "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupNet.cs"
+        ],
+        "compileClean": true,
+        "fixed": [
+          "NET-3 / CUP-05 (intro card): guard changed from PauseMenu.Frozen to PauseMenu.Paused. Verified Frozen => Paused && !Overlay and GameBootstrap sets Overlay for every networked style, so the old guard was dead in Head to Head and Co-op. Header rewritten to say why Frozen is the wrong test here.",
+          "NET-2 / cup-ui-1 / CUP-05 (loading card): GUI.depth is now PauseMenu.Paused ? PausedGuiDepth(1) : GuiDepth(-1). Verified PauseMenu never assigns GUI.depth (draws at the default 0). Chose the depth swap over NET-2's early return because the card is a cover for a mid-build round; documented that reasoning on the class.",
+          "CUP-07 (podium loser sims): added FreezeSims(rag) after rag.enabled = false, disabling HairSim and AnatomySim via GetComponentsInChildren, mirroring MenuScene.SetSims. Comment now names all three components so the omission is not repeated.",
+          "cup-ui-11 (podium button garbage): the three per-pass Lists plus closures are replaced by a readonly List<Btn> model built in RefreshButtons(), called from Update and rebuilt only when solo/authority changes. OnGUI now only iterates it, so the control count comes from a model that cannot change mid-pass. Guarded for OnGUI preceding the first Update.",
+          "CUP-10 (penalty cam constants): deleted the zero-reader CupTuning.PenaltyCamHeight and documented that CupPenaltyCam owns the effective placement, that PenaltyCamBack is only a floor which never wins (Max(3, takerBehind+4) = 7 m every time), and that PenaltyCamPostFrac is a target the ball rule overrides (~31%/69% at the real 7 m / 2.4 m). Partial: the header corrections inside CupPenaltyCam.cs are not mine - see skipped notes.",
+          "cup-ui-2 (walk-back speed): WalkSpeed 1.6 -> 2.85. Re-derived the geometry rather than trusting either estimate: spot z = GoalCenter.z-11, LineupZ = GoalCenter.z-17.5, so 6.5 m of z against LineupX 6 plus two LineupSpacing steps for the outermost slot = 9.73 m, needing 2.78 m/s inside WalkBackMax 3.5 s. Sized against the OUTERMOST mark as the finding advised, with the arithmetic recorded on the constant.",
+          "CUP-01 (blocker - client ball spot): added ClientSyncBallSpot(s), called first in OnStateApplied. Recomputes the spot from the client's own _spots schedule whenever SpotIndex moves, re-points the marker, marks the camera dirty, and also rebuilds the wall under the same guard PlaceForKick uses - the wall was stranded on pair 0 for the identical reason (built on every peer in Configure, rebuilt only from PlaceForKick, which never runs on a client). Placed before ClientSyncDisplayTaker because that call captures the spot by value into its aim closure.",
+          "CUP-06 (wire emote bound): added Celebration.OnWheel(int), a cached HashSet over the union of the four wheel Pages, and replaced the `eid <= (int)Emote.WhistleRaise` test in TickFreedBodies with it. The old bound admitted all five cup-internal emotes (33-37), including the three 4 s dejections the driver plays on the losing side.",
+          "CUP-11 (nation table wire rule): extended the CupNationTable header to state that ANY edit - new row, removed row, flipped Novelty, edited Strength - requires a ProtocolVersion bump, naming both rebuild paths I verified (CupBracket.Build walking PoolIndices in table order into the shuffle; CupSim.Simulate reading Strength) and that the only symptom is a one-off bracket-hash warning that is logged, never repaired.",
+          "cup-ui-9 (CupBodies comments): LineupIndex and LineupMark now document both formats - lineup slot in Penalties, seeded scatter mark or the taker's run-up start in Free Kicks - and note that they are rewritten per kick so nothing caches them across a kick. LineupFacing documented alongside.",
+          "NET-1 (blocker, partial): added CupTuning.MaxKicksInLine = KicksEach*2 + SimMaxSuddenDeathPairs*2 (30), reusing the cap CupSim has always applied so played and simulated lines agree on what is legal, with the full wire rationale. Corrected CupNet.SizeOf's doc with verified arithmetic: 4224 B worst case today (not the reports' 639), 721 B at the 30-kick cap, and why one reliable datagram cannot be fragmented. Enforcement points are in files I do not own - see skipped."
+        ],
+        "skipped": [
+          "CUP-03 (arm-clamp sign) - CODE CHANGE DELIBERATELY NOT APPLIED; documentation fixed instead. The reviewer's diagnosis is correct and I confirmed it numerically, but their prescribed fix would ship a large visual regression.",
+          "cup-ui-6 (CupEscape wheel term) - skipped, needs files I do not own.",
+          "NET-1 parts (1) and (2) - the two enforcement points are in files I do not own."
+        ],
+        "notes": "VERIFICATION METHOD: rather than trust the findings, I built a standalone harness (a small UnityEngine shim: Vector3, Quaternion.Euler with Unity's true ZXY order, Mathf) and compiled the real EmotePose block from Celebration.cs into it, so the sweeps below ran the shipped code, not a paraphrase.\n\nCUP-03 IS THE IMPORTANT ONE - PLEASE READ. The reviewer is right about the sign. FK from the left shoulder (x=-0.26) gives elbow x: z=0 -> -0.260, +8 -> -0.214, +30 -> -0.095, +90 -> +0.070, and -8 -> -0.306, -30 -> -0.425. So +Z on a LEFT arm swings ACROSS the chest and -Z abducts OUT; shoulder X and abduction sign are the SAME, not opposite as the header claimed. CupPoses' derived header is correct and Celebration's was wrong.\n\nBUT the prescribed fix (flip the two call-site signs) must not ship. I swept all 38 emotes x p in 0.01 steps under both sign conventions:\n  - shipped signs: 0 clamp steps on EVERY emote (the net has been dormant its whole life; the wrong sign fails safe because `tClear <= clear` rejects a step that reduces clearance).\n  - corrected signs: fires on 25 of 38, and does not tidy them - it destroys them, because the clamp's premise (\"abduction cannot change the read of a pose\") is false wherever a hand near the body IS the pose:\n      Clap        L/R z +-37.5 -> +-5.5   (hands no longer meet)\n      HeartHands  L/R z +-35   -> +-11    (the heart comes apart)\n      Facepalm      R z -55    -> -7      (hand leaves the face)\n      Thinker       R z -35    -> -3\n      WhistleRaise  R z -34    -> -2      (the referee's hand leaves his mouth - a cup emote)\n      DejectHips  L/R z +-27   -> +-51    (hands slide off the hips - a cup emote)\n    plus FistPump, TPose, Bow, Robot, Dab, Floss, Salute, MuscleFlex, Point, Sprinkler, Charleston, Disco, FishFlop, Moonwalk, Crip, Vibe, Slide2, KneeSlide, TrophyLift.\nThe reviewer anticipated the risk (\"any pose it now nudges must be eyeballed\") but had no editor; I have none either, and this task's bar is compile-clean plus review. Flipping blind would regress most of the emote wheel with nobody looking.\n\nSo I fixed all three stale statements (the ClampArm header, the \"Local +Z ... raises it out\" line at ~507, and the cup block's \"Rig conventions\" note), recorded the derived rule with the FK table, marked the clamp INERT AS SHIPPED, and wrote the measured before/after table into the code with the reason a sign flip alone is wrong. Making the net live needs the box test to exclude intentional hand-to-body poses (e.g. skip an arm whose forearm is bent past some angle, or an opt-out per emote) plus an editor eyeball over the 25 - that is a design task for the next agent, not a mechanical fix. RECOMMEND: hand this to whoever next has the editor open.\n\ncup-ui-6 SKIPPED: the complete fix needs CupEmoteWheel.cs (a new static AnyOpen + the one-frame esc grace) and CupHud.cs (SetWheel wiring, and its Update handling the raw Escape) - both owned by the other fixer; CupHud was mid-edit and briefly uncompilable during my run. I own only CupBracketView.cs (CupEscape) and CupPodium.cs. Adding `|| CupEmoteWheel.AnyOpen` to CupEscape.Owned with nothing setting the flag and no owner closing on Esc would make the wheel SWALLOW Escape without closing - strictly worse than today's behaviour (which at least ends with a usable pause menu). Needs one agent owning all four files.\n\nNET-1 PARTS 1-2 SKIPPED (the constant and the honest size accounting are in): the two enforcement points are CupRoundRules.Validate (add a maxKicks parameter and reject a longer reported line) and CupDirector.Net.cs's ApplyRoundResult / NetFlushState (refuse + CupLog.Warn, and warn when SizeOf exceeds ~1100), plus the live-round cap in the driver's kick loop - none of those files are mine. CupTuning.MaxKicksInLine is in place and its doc comment spells out exactly what each site must do, so the follow-up is mechanical. Confirmed arithmetic: 255 kicks -> 4224 B (IP-fragmented, likely dropped off loopback), 40 -> 876 B, 30 -> 721 B. Also note NetMessages.cs's L852-871 layout comment still carries the wrong 639-byte figure and needs the reciprocal ProtocolVersion/CupNationTable one-liner - that file is not mine either.\n\nCUP-10 PARTIAL: I removed the dead constant and documented the real ownership in CupTypes.cs, but CupPenaltyCam.cs is not in my list, so its header still claims the \"3 m / 1.5 m\" placement and \"35% / 65%\" framing, and MinBehindTaker's doc still says 3.5 while the constant reads 4f. Those three sentences still need correcting to the measured 7 m / 2.4 m / ~31%-69%.\n\nVERIFIED-CORRECT FINDINGS I did not have to second-guess: PauseMenu genuinely never sets GUI.depth; Frozen is genuinely always false under Overlay; PenaltyCamHeight genuinely has zero readers; PlaceForKick genuinely never runs on a client; Validate genuinely imposes no length cap.\n\nCompile: `bash docs/compile-check.sh` exit=0 after every file. All 9 files are fully CRLF. Cup self-test (`dotnet run` in docs/cup-build/cuptest): ALL PASSED, 562273 checks. Nothing committed. Transient CupHud.cs / CupLobbyUI.cs errors seen mid-run were the parallel fixer's in-progress edits, and the tree compiles clean now that both of us have landed."
+      }
+    ],
+    "final": {
+      "summary": "Final verification pass on the Trickshot Cup build. Compile is clean (exit=0) and the pure self-test passes (562277 checks, up from 562273 with 4 new checks I added). I re-read the code for every blocker/major finding rather than trusting the fixer reports: 13 of 14 carried-forward blockers/majors and all the phase-4 open items (e)(f)(g)(h) were genuinely fixed, but NET-1 (blocker) was still open — the constant existed with zero enforcement — so I implemented it. I also completed cup-ui-6, which the previous fixer skipped for lack of file ownership. Updated CLAUDE.md (5 new invariants merged into the existing Trickshot Cup section), rewrote docs/claude-handoff.md, and appended the DESIGN_NOTES.md pointer. All three docs and all 11 edited .cs files are CRLF-clean. Nothing committed. CRITICAL CAVEAT: the editor was never available, so everything is compile-verified and code-review-verified only — no visual, layout, camera, choreography or loopback-networking claim in this mode has ever been observed running.",
+      "filesEdited": [
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupRoundRules.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupRoundDriver.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupDirector.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupTypes.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupNet.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupSelfTest.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupEmoteWheel.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupBracketView.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupHud.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupPodium.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/Assets/Scripts/Cup/CupTrophyLift.cs",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/CLAUDE.md",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/DESIGN_NOTES.md",
+        "C:/Users/evrik/downloads/Trickshot/Trickshot/docs/claude-handoff.md"
+      ],
+      "compileClean": true,
+      "fixed": [
+        "NET-1 (BLOCKER, was still open despite the constant existing): the kick-line wire cap is now enforced at all three points. CupRoundRules.Validate takes an optional maxKicks (0 = no cap, tests only) and refuses a longer line before replaying it; the host's CupDirector.ApplyRoundResult and the client's CupRoundDriver.ApplyState both pass CupTuning.MaxKicksInLine (30). For the LIVE line I added CupRoundDriver.CapOutcome, called from ResolveKick: on the second kick of the final allowed pair, if the real outcome would leave the sides level it is recorded as the opposite of the pair's first kick, so the line always ends DECIDED. That shape was necessary rather than the obvious 'award it on goals' — CupRoundDriver.IsDecided, the driver's whole post-verdict flow, and CupBracket.SetResult all read CupRoundRules.IsOver, which would have been false at a cap-decided line, so a latch would have left the driver kicking on and handed RecordResult an undecided line. It mirrors the conditional last pair CupSim has always used, so played and simulated lines agree on legal length. Guard verified correct: MaxKicksInLine is even by construction so Count == max-1 is always the second kick of a pair, and IsSuddenDeath is true there (29 > 10 regulation). Docs on CupTuning.MaxKicksInLine and CupNet.SizeOf updated from 'not yet enforced' to the real bound (721 B).",
+        "cup-ui-6 (skipped by the previous fixer for lack of file ownership): Escape now closes the emote wheel instead of opening the pause menu behind it. Added CupEmoteWheel.AnyOpen to CupEscape.Owned, plus CloseOnEscape/EscapePressed wired into all three wheel owners (CupHud via SetWheel semantics, CupPodium and CupTrophyLift via ForceClosed since both keep a free cursor). Deliberately implemented AnyOpen as an EXPIRING stamp (KeepAlive republished each frame) rather than a reference count: I checked and none of the three owners closes its wheel in OnDestroy, so a count would leak on a torn-down podium and swallow Escape for the rest of the session, whereas a stale stamp heals in two frames. The same window covers the frame between an owner's close and PauseMenu's raw key read, matching QuickChatFeed's existing contract.",
+        "Added 4 self-test checks covering the new cap (accepts a line exactly at the cap, rejects one pair over it, no-cap-passed still means unlimited, and a simulated line never exceeds the cap). Self-test went 562273 -> 562277, ALL PASSED."
+      ],
+      "skipped": [
+        "CUP-03 (Celebration.ClampArms wrong abduction sign) — left as documented-and-inert, agreeing with the previous fixer. The diagnosis is right, but flipping the two call-site signs makes the clamp fire on 25 of 38 emotes and destroys them (Clap's hands stop meeting, HeartHands comes apart, Facepalm and the referee's WhistleRaise hands leave the face/mouth, DejectHips' hands slide off). Needs an editor eyeball plus a box test that excludes intentional hand-to-body poses. Flagged prominently in the handoff as the top item for whoever has the editor.",
+        "Spectator half of NET-5/CUP-04 — CupSpectatorView still poses with DisplayEmote/DisplaySnap only. The fix requires adding an anim byte to the CupStreamBody wire record, bumping CupNet.StateVersion and re-doing SizeOf. Widening the wire during a final verification pass, with no way to test it, is worse than the cosmetic gap (sliding puppets in a secondary lobby view). Documented as open.",
+        "KeeperHands held-ball vs the `approaching` verdict test — real but bounded. KeeperHands.Holding is public, but neither Goalkeeper nor KeeperController exposes its private _hands, so the fix needs a passthrough property added to two shared gameplay files. The unconditional 20 s LiveHardCap already guarantees the round ends. Documented as open with the exact fix.",
+        "Cup lobby Customize routing (Solo + Head to Head) — needs GameBootstrap.ShowLobbyCustomize (which returns to the multiplayer LobbyUI, preview camera never checked against a standing arena) plus both directors. The honest 'not yet available' hint from the earlier pass stands. Documented."
+      ],
+      "notes": "HONEST VERIFICATION STATEMENT — the most important line in this report: the Unity editor was never available to me or to any agent in this build. Everything is verified by `bash docs/compile-check.sh` (exit=0 on the whole runtime assembly) and by `dotnet run` in docs/cup-build/cuptest (ALL PASSED, 562277 checks over the pure core: rules, bracket, sim, RNG, nation table, and now the wire cap). NOTHING has been run in play mode or on loopback. Every visual, layout, camera, choreography and networking-behaviour claim about this mode is UNVERIFIED. A clean compile says nothing about whether the penalty camera frames the posts, whether the walk-back arrives, or whether two peers agree.\n\nRE-VERIFICATION METHOD: I did not trust the fixer reports. For each blocker/major I read the actual code at the named site. Confirmed genuinely fixed: CUP-01 (ClientSyncBallSpot, called first in OnStateApplied and rebuilding the wall under the same guard), CUP-02/cup-ui-2 (OnWalkBack solves speed = Max(WalkSpeed, dist/(WalkBackMax - slack))), CUP-04 driver half (ApplyBodyPose -> DisplayAnim with emote outranking gait), CUP-05/NET-2/NET-3/cup-ui-1 (loading card swaps depth on Paused, intro card guards on Paused not Frozen — and I confirmed the intro card's early return is IMGUI-safe because it allocates no controls), CUP-06, CUP-07, CUP-08/NET-4, CUP-09/NET-6/cup-ui-3 (only reflection left in the cup is in CupDebugCapture, a debug tool — acceptable), CUP-10/cup-ui-8, CUP-11, CUP-12, CUP-13/cup-ui-7, CUP-14, cup-ui-9, cup-ui-10.\n\nPhase-4 open items independently verified as closed: (e) ClientTickDisplayTaker resets on any phase or role change; (f) a client puppet can never reach Celebration.Play — doubly gated, since SimTick (which reaches TickFreedBodies) runs only under Local/Host authority AND NetInput is assigned only when Authority == Host; (g) HandSlotToAi is Head-to-Head-only and refuses Client authority while HumanLeft is Co-op-only, so the two leaver paths cannot both run on one round; (h) _netLostAsClient is set and IsAuthority reads it. The three coin seams the brief told me not to undo are all in place and mutually consistent (ceremony-open gate in both CallCoin and the host's request gate; localOnly judging for a Local-authority H2H round; CoinCallRight.HasValue idempotence; ApplyCoinCall clearing the old verdict on a changed call), and ClearCoinCalls runs before each toss at both call sites.\n\nCLAUDE.md: a \"Trickshot Cup\" section already existed and already covered every item the task listed (round/stage naming, CupRoundDriver vs CupRound, authority per style, Paused/Frozen/Overlay, the coin contract, emote wire ids 33-37, the referee kit, statics hygiene, ProtocolVersion 8, the self-test menu, no \"tie\"). Rather than duplicate it I merged in only what this pass newly established: the MaxKicksInLine wire cap and its two enforcement points, the CupEscape/AnyOpen expiring-stamp rule and why it is not a count, Celebration.OnWheel as the emote validation bound, the ApplyBodyPose DisplayAnim path plus the note that CupSpectatorView does not yet have it, and the SimTick/NetInput authority gates plus the two leaver paths. Pruned nothing.\n\ndocs/claude-handoff.md rewritten fresh: what was built, an explicit verification-state table making the compile-only status unmissable, the six in-editor verification steps (self-test menu, Solo end-to-end via the SP chain, Free Kicks scatter specifically, Escape ownership, loopback MP with phase4-multiplayer.json r1's first-pass checklist carried VERBATIM as the brief required, Co-op order screen), what I fixed, what was verified already fixed, and every still-open issue split into needs-an-editor / contained-code-gaps / accepted-design-gaps (the last so the next agent does not re-report them as bugs).\n\nNote on process: bash heredocs containing apostrophes fail in this environment (a known issue in the user's memory), which bit me once writing the handoff; I used the Write tool plus a Python CRLF conversion instead.\n\nNothing was committed. The commit 78df3b2 visible in the log predates this session."
+    }
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Review"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Fix"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 3,
+      "title": "Verify"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "review:spec",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a5c162afff7c5d7fa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1788533754445,
+      "queuedAt": 1788533754430,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Reviewed the Trickshot Cup against the design spec (2.1-2.8…",
+      "promptPreview": "You are working on the \"Trickshot Cup\" mode implementation in the Unity game at C:/Users/evrik/downloads/Trickshot/Trickshot. It was built by a team of agents over four phases; their reports are JSON files (read them all, each \"result\" entry has publicApi/notes/openIssues):\n  C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/reports/phase1-foundations.json\n  C:/Users/evrik/downloads/Tric…",
+      "lastProgressAt": 1788534741671,
+      "tokens": 328596,
+      "toolCalls": 153,
+      "durationMs": 987224,
+      "resultPreview": "{\"summary\":\"Reviewed the Trickshot Cup against the design spec (2.1-2.8, 3, 4, 5, 7, 8, 10, 12.1), walking every Cup/ file and the touched existing files; compile is clean (exit=0). The pure rules core is correct: CupRoundRules' alternation / early-finish / sudden-death formula, the coin rule, Co-op shooter cycling, CupSim's capped-but-unbiased sudden death, and the 32-nation draw with humans in d…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "review:ui",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "af0774cab13968fb7",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1788533754446,
+      "queuedAt": 1788533754430,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Reviewed every OnGUI under Assets/Scripts/Cup/ (CupHud, Nat…",
+      "promptPreview": "You are working on the \"Trickshot Cup\" mode implementation in the Unity game at C:/Users/evrik/downloads/Trickshot/Trickshot. It was built by a team of agents over four phases; their reports are JSON files (read them all, each \"result\" entry has publicApi/notes/openIssues):\n  C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/reports/phase1-foundations.json\n  C:/Users/evrik/downloads/Tric…",
+      "lastProgressAt": 1788534348030,
+      "tokens": 320213,
+      "toolCalls": 79,
+      "durationMs": 592293,
+      "resultPreview": "{\"summary\":\"Reviewed every OnGUI under Assets/Scripts/Cup/ (CupHud, NationPickerUI, CupLobbyUI, CupOrderUI, CupResultsUI, CupKnockedOutUI, CupSetupUI, CupBracketScreen, CupBracketView, CupLoadingUI, CupIntroCard, CupCoinToss, CupEmoteWheel, CupPodium, CupTrophyLift, CupSpectatorView) plus the touched existing screens (HostSetupUI cup branch, SessionBrowserUI cup filter, PauseMenu overlay/SetCupLab…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "review:net",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a58bf61a1ca76b3df",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1788533754446,
+      "queuedAt": 1788533754430,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Reviewed the cup's networking, lifecycle and determinism (d…",
+      "promptPreview": "You are working on the \"Trickshot Cup\" mode implementation in the Unity game at C:/Users/evrik/downloads/Trickshot/Trickshot. It was built by a team of agents over four phases; their reports are JSON files (read them all, each \"result\" entry has publicApi/notes/openIssues):\n  C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/reports/phase1-foundations.json\n  C:/Users/evrik/downloads/Tric…",
+      "lastProgressAt": 1788534192202,
+      "tokens": 275360,
+      "toolCalls": 77,
+      "durationMs": 436464,
+      "resultPreview": "{\"summary\":\"Reviewed the cup's networking, lifecycle and determinism (design 9.3-9.6, 10) against Assets/Scripts/Cup/ plus NetMessages.cs / NetSession.cs. The wire itself is in good shape: the four codec pairs (CupState/CupRequest/CupStream/CupRoundState) write and read identical field order byte for byte (NetMessages.cs L896-1069 vs the layout comment at L852-871); CupState and CupRoundState are …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "fix:1",
+      "phaseIndex": 2,
+      "phaseTitle": "Fix",
+      "agentId": "aeab0dffa46cd562b",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1788534741692,
+      "queuedAt": 1788534741676,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Applied 11 of the 13 assigned finding ids across all 10 own…",
+      "promptPreview": "You are working on the \"Trickshot Cup\" mode implementation in the Unity game at C:/Users/evrik/downloads/Trickshot/Trickshot. It was built by a team of agents over four phases; their reports are JSON files (read them all, each \"result\" entry has publicApi/notes/openIssues):\n  C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/reports/phase1-foundations.json\n  C:/Users/evrik/downloads/Tric…",
+      "lastProgressAt": 1788535333133,
+      "tokens": 203585,
+      "toolCalls": 94,
+      "durationMs": 591440,
+      "resultPreview": "{\"summary\":\"Applied 11 of the 13 assigned finding ids across all 10 owned files. CupHud's 150-line reflection seam (DriverBridge) is gone and replaced with direct calls; the walk-back now solves its speed against the real distance so an 8-strong Co-op lineup arrives inside the 3.5 s cap; client puppets now animate via DisplayAnim instead of sliding as statues; a refused Head to Head result is sett…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "fix:2",
+      "phaseIndex": 2,
+      "phaseTitle": "Fix",
+      "agentId": "afaf3fb91754be131",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1788534741693,
+      "queuedAt": 1788534741677,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Applied 11 of 14 assigned findings across 9 files; compile …",
+      "promptPreview": "You are working on the \"Trickshot Cup\" mode implementation in the Unity game at C:/Users/evrik/downloads/Trickshot/Trickshot. It was built by a team of agents over four phases; their reports are JSON files (read them all, each \"result\" entry has publicApi/notes/openIssues):\n  C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/reports/phase1-foundations.json\n  C:/Users/evrik/downloads/Tric…",
+      "lastProgressAt": 1788535386144,
+      "tokens": 193444,
+      "toolCalls": 75,
+      "durationMs": 643123,
+      "resultPreview": "{\"summary\":\"Applied 11 of 14 assigned findings across 9 files; compile clean (exit=0) and the cup self-test passes (562,273 checks). Two findings were skipped because their real fix needs files owned by the other fixer, and one (CUP-03) was deliberately reduced to a documentation fix after I proved with a numerical sweep that the reviewer's proposed code change would visibly break 25 of the 38 emo…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "final verify + docs",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a530bbb8dd1681ffc",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1788535386152,
+      "queuedAt": 1788535386149,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Final verification pass on the Trickshot Cup build. Compile…",
+      "promptPreview": "You are working on the \"Trickshot Cup\" mode implementation in the Unity game at C:/Users/evrik/downloads/Trickshot/Trickshot. It was built by a team of agents over four phases; their reports are JSON files (read them all, each \"result\" entry has publicApi/notes/openIssues):\n  C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/reports/phase1-foundations.json\n  C:/Users/evrik/downloads/Tric…",
+      "lastProgressAt": 1788536069781,
+      "tokens": 220835,
+      "toolCalls": 94,
+      "durationMs": 683629,
+      "resultPreview": "{\"summary\":\"Final verification pass on the Trickshot Cup build. Compile is clean (exit=0) and the pure self-test passes (562277 checks, up from 562273 with 4 new checks I added). I re-read the code for every blocker/major finding rather than trusting the fixer reports: 13 of 14 carried-forward blockers/majors and all the phase-4 open items (e)(f)(g)(h) were genuinely fixed, but NET-1 (blocker) was…"
+    }
+  ],
+  "totalTokens": 1542033,
+  "totalToolCalls": 572
+}
