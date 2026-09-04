@@ -18,7 +18,7 @@ namespace Trickshot
     /// </summary>
     public class CareerStatsUI
     {
-        enum Cat { Overall, Striker, Goalkeeper, Accuracy, FreeKick, Match, Friends }
+        enum Cat { Overall, Striker, Goalkeeper, Accuracy, FreeKick, Match, Cup, Friends }
         int _cat;
 
         // Reset-all confirm. Same shape as PauseMenu's _confirmAct/_confirmTitle/_confirmBody/
@@ -38,6 +38,7 @@ namespace Trickshot
                 case Cat.Accuracy:   return "ACCURACY";
                 case Cat.FreeKick:   return "FREE KICK";
                 case Cat.Match:      return "MATCH";
+                case Cat.Cup:        return CupText.Title;   // "TRICKSHOT CUP"
                 default:             return "FRIENDS";
             }
         }
@@ -98,9 +99,36 @@ namespace Trickshot
                 case Cat.Goalkeeper: return GoalkeeperRows();
                 case Cat.Accuracy:   return AccuracyRows();
                 case Cat.FreeKick:   return FreeKickRows();
+                case Cat.Cup:        return CupRows();
                 default:             return MatchRows();
             }
         }
+
+        // SP = Solo, MP = Head to Head + Co-op. 13 rows, the same count Match fits in the 650
+        // panel. Strength is hidden everywhere in the cup (design 2.4), so nothing here ranks
+        // nations by it: the "most played" row is by entries.
+        static (string, string, string)[] CupRows()
+        {
+            var sp = CareerStats.Data.SP; var mp = CareerStats.Data.MP;
+            return new[]
+            {
+                ("Cups entered", sp.CupsEntered.ToString(), mp.CupsEntered.ToString()),
+                ("Cups won", sp.CupsWon.ToString(), mp.CupsWon.ToString()),
+                ("Best stage", CupCareer.BestStageLabel(sp), CupCareer.BestStageLabel(mp)),
+                ("Rounds won", sp.CupRoundsWon.ToString(), mp.CupRoundsWon.ToString()),
+                ("Rounds lost", sp.CupRoundsLost.ToString(), mp.CupRoundsLost.ToString()),
+                ("Kicks taken", sp.CupKicksTaken.ToString(), mp.CupKicksTaken.ToString()),
+                ("Kicks scored", sp.CupKicksScored.ToString(), mp.CupKicksScored.ToString()),
+                ("Conversion", Pct(sp.CupKicksScored, sp.CupKicksTaken), Pct(mp.CupKicksScored, mp.CupKicksTaken)),
+                ("Saves", sp.CupSaves.ToString(), mp.CupSaves.ToString()),
+                ("Goals conceded", sp.CupConceded.ToString(), mp.CupConceded.ToString()),
+                ("Coin calls right", Ratio(sp.CupCoinCallsRight, sp.CupCoinCallsMade), Ratio(mp.CupCoinCallsRight, mp.CupCoinCallsMade)),
+                ("Sudden-death wins", sp.CupSuddenDeathWins.ToString(), mp.CupSuddenDeathWins.ToString()),
+                ("Most played nation", CupCareer.MostEnteredNation(sp), CupCareer.MostEnteredNation(mp)),
+            };
+        }
+
+        static string Ratio(int made, int total) => total <= 0 ? "-" : made + "/" + total;
 
         static (string, string, string)[] OverallRows()
         {

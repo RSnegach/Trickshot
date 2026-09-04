@@ -59,6 +59,11 @@ namespace Trickshot
                 // would be overwritten on the next round, or would silently disagree with the
                 // picker that set it. Its real settings are the Practice/Challenge screens.
                 case GameMode.Accuracy:   return 0;
+                // The cup has NO settings at all (design 6.10): regulation goal, the stage ramp
+                // owns the keeper, standardised shooting, the field is always 32. A slider here
+                // would be overwritten on the next kick by the ramp, so there is no card - and
+                // GameBootstrap passes a null onFullSetup for it too, so the entry never appears.
+                case GameMode.TrickshotCup: return 0;
                 default:                  return 3;   // shot speed, striker speed, keeper ability
             }
         }

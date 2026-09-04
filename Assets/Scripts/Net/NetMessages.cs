@@ -39,6 +39,11 @@ namespace Trickshot.Net
         NominateJersey = 20, // client -> host: toggle MY slot's jersey as a candidate for my team
         CastJerseyVote = 21, // client -> host: vote for a candidate slot (255 = clear my vote)
         CrosserSetup = 22,   // client -> host request, then host -> clients relay: the AI crosser panel
+        // ---- Trickshot Cup (design 9.4). Host-authoritative; see CupNet / CupDirector.Net ----
+        CupState = 23,       // host -> clients, reliable, HOST-ONLY: the whole cup read model (phase, players, results)
+        CupRequest = 24,     // client -> host, reliable: an intent (pick, ready, spectate, a round result, a coin call...)
+        CupStream = 25,      // client -> host -> the spectators of that slot, unreliable, RELAYED: a spectated round's view
+        CupRoundState = 26,  // host -> clients, reliable, HOST-ONLY: the host-simulated round's CupRoundState record
     }
 
     /// <summary>
@@ -187,6 +192,13 @@ namespace Trickshot.Net
         // Goal HEIGHT multiplier, separate from goalScale (which is now the WIDTH). The host's goal
         // editor sizes the two independently. 0 = not set: the reader keeps the goal in proportion.
         public float goalScaleH;
+        // Trickshot Cup only: the play STYLE (CupStyle as a byte: 1 = Head to Head, 2 = Co-op;
+        // 0 = Solo is never hosted) and the FORMAT (CupFormat: 0 = Penalties, 1 = Free Kicks).
+        // The cup's seed is fkSeed, which already rides above. Both are written after goalScaleH
+        // and read UNCONDITIONALLY - the slot list follows the config, so `r.More` cannot tell a
+        // trailing field from the slot count - which is why they cost the v8 protocol bump.
+        public byte cupStyle;
+        public byte cupFormat;
     }
 
     // Host -> clients: the set-pieces shootout tally. activeShooter = slot currently up;
@@ -197,6 +209,151 @@ namespace Trickshot.Net
         public bool over;            // match finished
         public byte[] scored;        // per-slot goals (length MaxSlots)
         public byte[] taken;         // per-slot attempts (length MaxSlots)
+    }
+
+    // ==============================================================================================
+    // Trickshot Cup messages (design 9.4). The cup's PURE records (CupBracket, CupRound,
+    // CupRoundState) serialise themselves through CupByteWriter; these structs are the thin wire
+    // shells the session routes, so the session never has to understand the cup. Encoded and
+    // decoded by NetCodec.CupState / CupRequest / CupStream / CupRoundState below; built from and
+    // applied to the director by CupNet / CupDirector.Net (Assets/Scripts/Cup).
+    // ==============================================================================================
+
+    /// <summary>Bits of <see cref="CupPlayerRow.status"/>.</summary>
+    public static class CupPlayerStatus
+    {
+        public const byte Ready = 1;
+        public const byte Out = 2;
+        public const byte ReplacedByAi = 4;
+        public const byte Left = 8;
+        public const byte Loaded = 16;
+        public const byte Playing = 32;
+        /// <summary>Somebody is spectating this player right now: the owner of a local round must stream it.</summary>
+        public const byte Spectated = 64;
+    }
+
+    /// <summary>Bits of <see cref="CupPlayerRow.coin"/>: this round's call and its verdict.</summary>
+    public static class CupCoinBits
+    {
+        public const byte HasCall = 1;
+        public const byte CallTails = 2;
+        public const byte HasVerdict = 4;
+        public const byte Right = 8;
+    }
+
+    /// <summary>
+    /// One human in the cup as the host sees them (CupPlayer's replicated fields). Nation
+    /// indices are CupNations table indices (-1 = none). `entrant` is the player's bracket
+    /// entrant (-1 before the draw) - it is what lets a client rebuild the SAME draw the host
+    /// built, whoever has left since (the draw is a pure function of the seed and the entrant
+    /// humans' nations and slots, so only those facts cross the wire; the tree itself never does).
+    /// </summary>
+    public struct CupPlayerRow
+    {
+        public byte slot;
+        public int nation;          // -1 none (0xFFFF on the wire)
+        public int entrant;         // -1 before the draw
+        public byte status;         // CupPlayerStatus bits
+        public byte spectating;     // the slot being watched, 255 = none
+        public int liveOpponent;    // live row: the opponent nation while Playing (-1 none)
+        public byte liveFor, liveAgainst, liveKick;
+        public byte coin;           // CupCoinBits
+        public byte coinMade, coinRight;   // cup tallies (career + the Co-op calls band)
+    }
+
+    /// <summary>
+    /// One DONE round of the bracket. A round the host SIMULATED (AI vs AI, or a leaver's) is
+    /// seed-derivable, so it carries only its identity and the client re-runs CupSim on its own
+    /// copy of the draw; a round humans PLAYED carries its real kick line (2 bits a kick).
+    /// </summary>
+    public struct CupResultRow
+    {
+        public byte stage;          // CupStage
+        public byte index;          // round index within the stage
+        public bool simulated;
+        public bool suddenDeath;    // played rounds only
+        public byte firstKicker;    // 0 = A, 1 = B (played rounds only)
+        public byte scoreA, scoreB; // played rounds only
+        public byte[] kicks;        // played rounds only: one KickRecord nibble per entry (KickRecord.ToNibble)
+    }
+
+    /// <summary>
+    /// The whole cup as the host sees it (the read model of CupDirector), sent RELIABLE on every
+    /// change, coalesced to at most 10 a second. A client applies it wholesale; nothing in it is
+    /// seed-derivable (the draw, the simulated results, the free-kick spots, the coin faces and
+    /// the dejection variants are all rebuilt from `seed` on every peer).
+    /// </summary>
+    public struct CupStateMsg
+    {
+        public byte version;        // CupNet.StateVersion
+        public uint tick;           // the host director's monotonic tick when captured (a stale state is dropped)
+        public byte phase;          // CupPhase
+        public uint phaseSerial;    // the host's PhaseSerial: a client re-enters a phase whenever it changes
+        public float phaseTime;     // seconds the host has spent in the phase
+        public byte stage;          // CupStage in progress
+        public byte style;          // CupStyle
+        public byte format;         // CupFormat
+        public uint seed;           // the cup seed; a NEW seed means Play Again (back to the nation pick)
+        public byte captainSlot;
+        public int teamNation;      // Co-op: the settled nation, -1 until then
+        public byte leverPulls;     // Co-op: lever pulls this stage (the permutation stream)
+        public bool hasBracket;     // the draw has been made
+        public byte currentRound;   // the round the HOST is running: stage << 5 | index; 255 = none. Clients StartRound the same one.
+        public CupPlayerRow[] players;
+        public byte[] order;        // Co-op shooting order: slot per order index (index 0 = keeper); empty until set
+        public CupResultRow[] results;   // every Done round, in stage then index order
+        public uint bracketHash;    // FNV-1a over the entrants' (nation, slot) pairs; 0 without a draw. A client checks its rebuilt draw against it.
+    }
+
+    /// <summary>A client's intent for the host (CupRequestKind as the kind byte). `arg` is the kind's integer argument; `payload` its blob (a round record, an order, a live row).</summary>
+    public struct CupRequestMsg
+    {
+        public byte kind;
+        public int arg;
+        public byte[] payload;      // may be null / empty
+    }
+
+    /// <summary>Bits of <see cref="CupStreamBody.flags"/>.</summary>
+    public static class CupStreamBodyFlags
+    {
+        public const byte SideB = 1;
+        public const byte KeeperBody = 2;   // gloved
+        public const byte Referee = 4;
+    }
+
+    /// <summary>
+    /// One body of a spectated round: the pose subset of BodyState (pelvis ground position, facing
+    /// yaw, emote id + quantised phase) plus the facts a spectator needs to BUILD a puppet for it -
+    /// which side it is on (its nation kit), whether it wears gloves, whether it is the referee, and
+    /// the human slot whose look it wears (255 = an AI body).
+    /// </summary>
+    public struct CupStreamBody
+    {
+        public byte vslot;          // the round's virtual body id (CupBody.VirtualSlot)
+        public byte slot;           // the human slot whose look it wears; 255 = AI / referee
+        public byte flags;          // CupStreamBodyFlags
+        public Vector3 pos;
+        public float yaw;
+        public byte emoteId;        // 255 none
+        public byte emotePhase;     // 0..255
+    }
+
+    /// <summary>
+    /// A spectated player's exact view (design 4, "Spectate"): their camera pose, the ball and
+    /// their round's bodies, streamed at 20 Hz UNRELIABLE from the round's owner to the host,
+    /// which relays it only to the slots spectating `fromSlot`. The host validates that
+    /// `fromSlot` is the sender's own slot before relaying; a client accepts it only from the host.
+    /// </summary>
+    public struct CupStreamMsg
+    {
+        public byte fromSlot;
+        public uint seq;            // the sender's frame counter; a stale message is dropped
+        public Vector3 camPos;
+        public Quaternion camRot;
+        public float camFov;
+        public Vector3 ballPos;
+        public int nationA, nationB;   // the round's two nations (kits), -1 unknown
+        public CupStreamBody[] bodies; // may be empty (a participant of a HOST-simulated round streams only its camera)
     }
 
     // One lobby row in the roster (host -> clients each change).
@@ -218,7 +375,10 @@ namespace Trickshot.Net
         public byte voteFor;
     }
 
-    public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2, Crosser = 3 }
+    // Entrant = every seat in a Trickshot Cup lobby (a cup has no keeper / crosser seats: each
+    // human is a nation, and the roles inside a round come from the cup itself). APPEND ONLY - the
+    // value rides the wire in AssignSlot and every roster row.
+    public enum NetRole : byte { Shooter = 0, Keeper = 1, Spectator = 2, Crosser = 3, Entrant = 4 }
 
     /// <summary>
     /// Why the host gave a joiner no slot. Rides along on AssignSlot so the joining client can say
@@ -407,7 +567,8 @@ namespace Trickshot.Net
         /// struct at the wrong offsets, so bodies teleport and the ball is somewhere else. The host
         /// compares this at Hello and refuses with JoinRefusal.Version instead.
         /// </summary>
-        public const byte ProtocolVersion = 7;   // 7: BodyState carries the adult-mode erect flag (fixed-stride record grew)
+        public const byte ProtocolVersion = 8;   // 8: GameMode.TrickshotCup + MatchConfig.cupStyle/cupFormat (read unconditionally), NetRole.Entrant
+                                                 // 7: BodyState carries the adult-mode erect flag (fixed-stride record grew)
                                                  // 6: PlayerInput carries a bundle of frames; ReliableBulk stream
                                                  // 5: MatchConfig.goalScaleH, InputFrame.cross, player flags
 
@@ -590,6 +751,8 @@ namespace Trickshot.Net
             w.B(cfg.accSuddenDeath); w.U8(0); w.U32(0);
             w.U8(cfg.lookingFor);    // appended last for the same reason
             w.F(cfg.goalScaleH);     // ...and this after it
+            w.U8(cfg.cupStyle);      // v8: the cup's style + format, read unconditionally (the
+            w.U8(cfg.cupFormat);     //     slot list follows, so a trailing r.More test is useless)
             w.U8((byte)(slots?.Length ?? 0));
             if (slots != null)
                 foreach (var s in slots) { w.U8(s.slot); w.B(s.human); w.B(s.ai); w.B(s.ready); w.U8(s.role); w.Str(s.name); WriteAppearance(w, s.appearance); w.B(s.nominated); w.U8(s.voteFor); }
@@ -613,6 +776,8 @@ namespace Trickshot.Net
             r.U8(); r.U32();
             cfg.lookingFor = r.U8();
             cfg.goalScaleH = r.F();
+            cfg.cupStyle = r.U8();    // v8 (see Roster)
+            cfg.cupFormat = r.U8();
             int n = r.U8();
             slots = new LobbySlot[n];
             for (int i = 0; i < n; i++)
@@ -681,6 +846,239 @@ namespace Trickshot.Net
             s.scored = new byte[n]; s.taken = new byte[n];
             for (int i = 0; i < n; i++) { s.scored[i] = r.U8(); s.taken[i] = r.U8(); }
             return s;
+        }
+
+        // ==========================================================================================
+        // Trickshot Cup (design 9.4). Layouts, byte for byte:
+        //
+        //   CupState      u8 version | u32 tick | u8 phase | u32 phaseSerial | f32 phaseTime | u8 stage
+        //                 | u8 style | u8 format | u32 seed | u8 captain | u16 teamNation | u8 leverPulls
+        //                 | u8 flags (1 = hasBracket) | u8 currentRound (stage<<5 | index, 255 none)
+        //                 | u8 nPlayers | nPlayers x PLAYER | u8 nOrder | nOrder x u8
+        //                 | u8 nResults | nResults x RESULT | u32 bracketHash
+        //     PLAYER      u8 slot | u16 nation | u8 entrant | u8 status | u8 spectating | u16 liveOpponent
+        //                 | u8 liveFor | u8 liveAgainst | u8 liveKick | u8 coin | u8 coinMade | u8 coinRight   (15 B)
+        //     RESULT      u8 stage<<5 | index  (stage in the top 3 bits, index 0..15 below)
+        //                 | u8 flags (1 = simulated, 2 = suddenDeath, 4 = firstKickerIsB)
+        //                 | [played only] u8 scoreA | u8 scoreB | u8 nKicks | ceil(nKicks/2) x u8 (two nibbles a byte)
+        //   CupRequest    u8 kind | u32 arg | u32 payloadLen | payload
+        //   CupStream     u8 fromSlot | u32 seq | v3 camPos | f32 x4 camRot | f32 camFov | v3 ballPos
+        //                 | u16 nationA | u16 nationB | u8 nBodies | nBodies x BODY
+        //     BODY        u8 vslot | u8 slot | u8 flags | v3 pos | f32 yaw | u8 emoteId | u8 emotePhase   (21 B)
+        //   CupRoundState u32 len | len x u8   (CupRoundState.ToBytes: its own versioned record)
+        //
+        // u16 = two bytes, low first (NetWriter has no U16). A nation / entrant of -1 is 0xFFFF / 255.
+        // ==========================================================================================
+
+        /// <summary>The largest CupRequest payload the host will read (a round record is ~30 B, an order 9 B).</summary>
+        public const int CupRequestMaxPayload = 1024;
+        /// <summary>The largest CupRoundState blob a client will read (~45 B + a byte per two kicks).</summary>
+        public const int CupRoundStateMaxBytes = 512;
+        /// <summary>Bodies per CupStream (a Co-op round has at most 17).</summary>
+        public const int CupStreamMaxBodies = 32;
+
+        static void U16(NetWriter w, int v)
+        {
+            if (v < 0 || v > 0xFFFE) v = 0xFFFF;
+            w.U8((byte)(v & 0xFF));
+            w.U8((byte)((v >> 8) & 0xFF));
+        }
+
+        static int U16(NetReader r)
+        {
+            int v = r.U8() | (r.U8() << 8);
+            return v == 0xFFFF ? -1 : v;
+        }
+
+        static byte Slot(int v) => v < 0 || v > 254 ? (byte)255 : (byte)v;
+        static int Slot(byte v) => v == 255 ? -1 : v;
+
+        public static byte[] CupState(in CupStateMsg m)
+        {
+            var w = new NetWriter(MsgType.CupState);
+            w.U8(m.version); w.U32(m.tick);
+            w.U8(m.phase); w.U32(m.phaseSerial); w.F(m.phaseTime);
+            w.U8(m.stage); w.U8(m.style); w.U8(m.format);
+            w.U32(m.seed);
+            w.U8(m.captainSlot);
+            U16(w, m.teamNation);
+            w.U8(m.leverPulls);
+            w.U8((byte)(m.hasBracket ? 1 : 0));
+            w.U8(m.currentRound);
+            int np = m.players != null ? Mathf.Min(m.players.Length, NetSession.MaxSlots) : 0;
+            w.U8((byte)np);
+            for (int i = 0; i < np; i++)
+            {
+                var p = m.players[i];
+                w.U8(p.slot); U16(w, p.nation); w.U8(Slot(p.entrant));
+                w.U8(p.status); w.U8(p.spectating);
+                U16(w, p.liveOpponent);
+                w.U8(p.liveFor); w.U8(p.liveAgainst); w.U8(p.liveKick);
+                w.U8(p.coin); w.U8(p.coinMade); w.U8(p.coinRight);
+            }
+            int no = m.order != null ? Mathf.Min(m.order.Length, NetSession.MaxSlots) : 0;
+            w.U8((byte)no);
+            for (int i = 0; i < no; i++) w.U8(m.order[i]);
+            int nr = m.results != null ? Mathf.Min(m.results.Length, 255) : 0;
+            w.U8((byte)nr);
+            for (int i = 0; i < nr; i++)
+            {
+                var res = m.results[i];
+                w.U8((byte)(((res.stage & 7) << 5) | (res.index & 31)));
+                byte flags = 0;
+                if (res.simulated) flags |= 1;
+                if (res.suddenDeath) flags |= 2;
+                if (res.firstKicker != 0) flags |= 4;
+                w.U8(flags);
+                if (res.simulated) continue;
+                w.U8(res.scoreA); w.U8(res.scoreB);
+                int nk = res.kicks != null ? Mathf.Min(res.kicks.Length, 255) : 0;
+                w.U8((byte)nk);
+                for (int k = 0; k < nk; k += 2)
+                {
+                    int lo = res.kicks[k] & 15;
+                    int hi = k + 1 < nk ? res.kicks[k + 1] & 15 : 0;
+                    w.U8((byte)(lo | (hi << 4)));
+                }
+            }
+            w.U32(m.bracketHash);
+            return w.ToArray();
+        }
+
+        public static CupStateMsg ReadCupState(NetReader r)
+        {
+            var m = new CupStateMsg();
+            m.version = r.U8(); m.tick = r.U32();
+            m.phase = r.U8(); m.phaseSerial = r.U32(); m.phaseTime = r.F();
+            m.stage = r.U8(); m.style = r.U8(); m.format = r.U8();
+            m.seed = r.U32();
+            m.captainSlot = r.U8();
+            m.teamNation = U16(r);
+            m.leverPulls = r.U8();
+            m.hasBracket = (r.U8() & 1) != 0;
+            m.currentRound = r.U8();
+            int np = r.U8();
+            if (np > NetSession.MaxSlots) throw new System.IO.InvalidDataException("CupState: " + np + " players");
+            m.players = new CupPlayerRow[np];
+            for (int i = 0; i < np; i++)
+            {
+                var p = new CupPlayerRow();
+                p.slot = r.U8(); p.nation = U16(r); p.entrant = Slot(r.U8());
+                p.status = r.U8(); p.spectating = r.U8();
+                p.liveOpponent = U16(r);
+                p.liveFor = r.U8(); p.liveAgainst = r.U8(); p.liveKick = r.U8();
+                p.coin = r.U8(); p.coinMade = r.U8(); p.coinRight = r.U8();
+                m.players[i] = p;
+            }
+            int no = r.U8();
+            if (no > NetSession.MaxSlots) throw new System.IO.InvalidDataException("CupState: " + no + " order entries");
+            m.order = new byte[no];
+            for (int i = 0; i < no; i++) m.order[i] = r.U8();
+            int nr = r.U8();
+            m.results = new CupResultRow[nr];
+            for (int i = 0; i < nr; i++)
+            {
+                var res = new CupResultRow();
+                byte id = r.U8();
+                res.stage = (byte)(id >> 5);
+                res.index = (byte)(id & 31);
+                byte flags = r.U8();
+                res.simulated = (flags & 1) != 0;
+                res.suddenDeath = (flags & 2) != 0;
+                res.firstKicker = (byte)((flags & 4) != 0 ? 1 : 0);
+                if (!res.simulated)
+                {
+                    res.scoreA = r.U8(); res.scoreB = r.U8();
+                    int nk = r.U8();
+                    res.kicks = new byte[nk];
+                    for (int k = 0; k < nk; k += 2)
+                    {
+                        byte b = r.U8();
+                        res.kicks[k] = (byte)(b & 15);
+                        if (k + 1 < nk) res.kicks[k + 1] = (byte)((b >> 4) & 15);
+                    }
+                }
+                else res.kicks = System.Array.Empty<byte>();
+                m.results[i] = res;
+            }
+            m.bracketHash = r.U32();
+            return m;
+        }
+
+        public static byte[] CupRequest(in CupRequestMsg m)
+        {
+            var w = new NetWriter(MsgType.CupRequest);
+            w.U8(m.kind);
+            w.U32(unchecked((uint)m.arg));
+            w.Bytes(m.payload);
+            return w.ToArray();
+        }
+
+        public static CupRequestMsg ReadCupRequest(NetReader r)
+        {
+            var m = new CupRequestMsg { kind = r.U8(), arg = unchecked((int)r.U32()) };
+            m.payload = BoundedBytes(r, CupRequestMaxPayload, "CupRequest");
+            return m;
+        }
+
+        public static byte[] CupStream(in CupStreamMsg m)
+        {
+            var w = new NetWriter(MsgType.CupStream);
+            w.U8(m.fromSlot); w.U32(m.seq);
+            w.V3(m.camPos);
+            w.F(m.camRot.x); w.F(m.camRot.y); w.F(m.camRot.z); w.F(m.camRot.w);
+            w.F(m.camFov);
+            w.V3(m.ballPos);
+            U16(w, m.nationA); U16(w, m.nationB);
+            int n = m.bodies != null ? Mathf.Min(m.bodies.Length, CupStreamMaxBodies) : 0;
+            w.U8((byte)n);
+            for (int i = 0; i < n; i++)
+            {
+                var b = m.bodies[i];
+                w.U8(b.vslot); w.U8(b.slot); w.U8(b.flags);
+                w.V3(b.pos); w.F(b.yaw);
+                w.U8(b.emoteId); w.U8(b.emotePhase);
+            }
+            return w.ToArray();
+        }
+
+        public static CupStreamMsg ReadCupStream(NetReader r)
+        {
+            var m = new CupStreamMsg { fromSlot = r.U8(), seq = r.U32() };
+            m.camPos = r.V3();
+            m.camRot = new Quaternion(r.F(), r.F(), r.F(), r.F());
+            m.camFov = r.F();
+            m.ballPos = r.V3();
+            m.nationA = U16(r); m.nationB = U16(r);
+            int n = r.U8();
+            if (n > CupStreamMaxBodies) throw new System.IO.InvalidDataException("CupStream: " + n + " bodies");
+            m.bodies = new CupStreamBody[n];
+            for (int i = 0; i < n; i++)
+                m.bodies[i] = new CupStreamBody { vslot = r.U8(), slot = r.U8(), flags = r.U8(), pos = r.V3(), yaw = r.F(), emoteId = r.U8(), emotePhase = r.U8() };
+            return m;
+        }
+
+        /// <summary>The host-simulated round's record (CupRoundState.ToBytes), as an opaque blob the cup layer decodes.</summary>
+        public static byte[] CupRoundState(byte[] record)
+        {
+            var w = new NetWriter(MsgType.CupRoundState);
+            w.Bytes(record);
+            return w.ToArray();
+        }
+
+        public static byte[] ReadCupRoundState(NetReader r) => BoundedBytes(r, CupRoundStateMaxBytes, "CupRoundState");
+
+        // A length-prefixed blob with a ceiling: the length is an untrusted wire uint, and an
+        // unbounded read would let one corrupt packet ask for gigabytes (the jersey path guards the
+        // same way). Over the ceiling is a malformed packet - thrown, so RouteMessage's guard drops it.
+        static byte[] BoundedBytes(NetReader r, int max, string what)
+        {
+            uint n = r.U32();
+            if (n > (uint)max) throw new System.IO.InvalidDataException(what + ": " + n + "-byte payload (max " + max + ")");
+            if (n == 0) return System.Array.Empty<byte>();
+            var buf = new byte[n];
+            for (int i = 0; i < n; i++) buf[i] = r.U8();
+            return buf;
         }
     }
 }

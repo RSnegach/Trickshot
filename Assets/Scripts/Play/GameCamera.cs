@@ -38,6 +38,40 @@ namespace Trickshot
         float _ballViewYaw;    // ball-cam camera yaw (frames the ball), separate from _yaw
         Vector3 _velPos;
 
+        // Optional LOOK CLAMP for the cup's penalty camera (CupCameraRig / CupPenaltyCam): the mouse
+        // yaw is held within +-_clampYawRange of _clampYawCenter and the pitch within
+        // [_clampPitchMin, _clampPitchMax] INSTEAD of the follow camera's own pitch limits (the
+        // penalty aim needs to look further UP than CamPitchMin allows, to reach the bar). Only
+        // the yaw/pitch accumulation is clamped - this camera's yaw and pitch stay the aim source
+        // (SetPieceTaker.LookAimPoint) while the rig places the camera itself. Off by default and
+        // nothing outside the cup sets it, so every other mode is untouched.
+        bool _clampLook;
+        float _clampYawCenter, _clampYawRange, _clampPitchMin, _clampPitchMax;
+
+        /// <summary>Clamp the follow look: yaw within +-yawRange of yawCenter, pitch within [pitchMin, pitchMax] (deg, +pitch = down).</summary>
+        public void SetLookClamp(float yawCenter, float yawRange, float pitchMin, float pitchMax)
+        {
+            _clampLook = true;
+            _clampYawCenter = yawCenter;
+            _clampYawRange = Mathf.Max(0f, yawRange);
+            _clampPitchMin = Mathf.Min(pitchMin, pitchMax);
+            _clampPitchMax = Mathf.Max(pitchMin, pitchMax);
+            _yaw = _clampYawCenter + Mathf.Clamp(Mathf.DeltaAngle(_clampYawCenter, _yaw), -_clampYawRange, _clampYawRange);
+            _pitch = Mathf.Clamp(_pitch, _clampPitchMin, _clampPitchMax);
+            _ballViewYaw = _yaw;
+        }
+
+        public void ClearLookClamp() => _clampLook = false;
+
+        /// <summary>Set the follow look outright (deg, +pitch = down): a cut to face something, e.g. the goal at the start of a kick.</summary>
+        public void SetLook(float yaw, float pitch)
+        {
+            _yaw = yaw;
+            _ballViewYaw = yaw;
+            _pitch = _clampLook ? Mathf.Clamp(pitch, _clampPitchMin, _clampPitchMax)
+                                : Mathf.Clamp(pitch, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
+        }
+
         Transform _ball, _striker, _crosser, _goal;
         float _slowmoTimer;
         bool _ballCam;
@@ -140,9 +174,10 @@ namespace Trickshot
         void LateUpdate()
         {
             if (_cam == null) return;
-            // While paused, do nothing: otherwise UpdateSlowMo re-asserts Time.timeScale
-            // back toward 1 every frame and defeats the pause freeze.
-            if (PauseMenu.Paused) return;
+            // While FROZEN, do nothing: otherwise UpdateSlowMo re-asserts Time.timeScale
+            // back toward 1 every frame and defeats the pause freeze. An OVERLAY pause (the
+            // multiplayer cup) freezes nothing, so the camera keeps running under the menu.
+            if (PauseMenu.Frozen) return;
             UpdateSlowMo();
 
             // Auto ball-cam pulse countdown (real time, so slow-mo doesn't stretch it).
@@ -174,7 +209,9 @@ namespace Trickshot
             Vector3 pivot = _followTarget.position;
 
             Vector2 look = (_lookSource != null && !FreezeLook) ? _lookSource() : Vector2.zero;
-            _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, SimConfig.CamPitchMin, SimConfig.CamPitchMax);
+            float pitchMin = _clampLook ? _clampPitchMin : SimConfig.CamPitchMin;
+            float pitchMax = _clampLook ? _clampPitchMax : SimConfig.CamPitchMax;
+            _pitch = Mathf.Clamp(_pitch - look.y * SimConfig.CamPitchSpeed, pitchMin, pitchMax);
 
             float viewYaw;
             if (_ballCam && _ball != null)
@@ -195,6 +232,8 @@ namespace Trickshot
             {
                 // Normal follow: the mouse drives _yaw (striker facing + camera).
                 _yaw += look.x * SimConfig.CamYawSpeed;
+                if (_clampLook)
+                    _yaw = _clampYawCenter + Mathf.Clamp(Mathf.DeltaAngle(_clampYawCenter, _yaw), -_clampYawRange, _clampYawRange);
                 viewYaw = _yaw;
                 _ballViewYaw = _yaw;   // keep aligned so toggling into ball cam doesn't snap
             }

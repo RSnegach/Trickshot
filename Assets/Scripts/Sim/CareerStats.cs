@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -54,6 +55,41 @@ namespace Trickshot
         public int MatchPasses;
         public int MatchPassesCompleted;
         public int MatchMOTM;   // times this player was Man of the Match
+
+        // ---- Trickshot Cup (design 9.7) ----
+        // SP = Solo; MP = Head to Head and Co-op. A "round" is one bracket match between two
+        // nations; "kicks" are the player's own (Co-op: only the ones this player took), "saves"
+        // and "conceded" the kicks this player kept against.
+        public int CupsEntered;
+        public int CupsWon;
+        public int CupBestStage;         // furthest stage index reached + 1 (1 = R32 .. 5 = Final); 0 = never entered
+        public int CupRoundsWon;
+        public int CupRoundsLost;
+        public int CupKicksScored;
+        public int CupKicksTaken;
+        public int CupSaves;
+        public int CupConceded;
+        public int CupCoinCallsMade;
+        public int CupCoinCallsRight;
+        // Achievement counters (Achievements.All reads these; see CupCareer for the rules).
+        public int CupGiantKills;        // rounds won against a nation CupTuning.GiantKillerMargin+ stronger
+        public int CupCleanSheets;       // rounds won conceding nothing
+        public int CupSuddenDeathWins;   // rounds won in sudden death
+        public int CupCoopWins;          // Co-op cups won (MP bag only in practice)
+        // Per-nation entries and wins. A list of rows because JsonUtility cannot serialise a
+        // dictionary; it loads empty on an older save, which is the right starting point.
+        public List<NationCups> CupNations = new List<NationCups>();
+    }
+
+    /// <summary>One nation's cup record for a player: how often they entered with it, how often
+    /// they won with it. Keyed by the nation's design NAME (the CupNationTable key), never by
+    /// index, so a re-ordered table cannot move a record onto another flag.</summary>
+    [Serializable]
+    public class NationCups
+    {
+        public string Nation;
+        public int Entered;
+        public int Won;
     }
 
     /// <summary>Lifetime stats split by origin: SP (single-player) and MP (networked). Every
@@ -106,6 +142,10 @@ namespace Trickshot
             // loads both bags as fresh zeros - no explicit migration needed.
             _data.SP ??= new ModeStats();
             _data.MP ??= new ModeStats();
+            // A save written before the cup existed has no list at all (JsonUtility leaves a
+            // missing List field null rather than empty).
+            _data.SP.CupNations ??= new List<NationCups>();
+            _data.MP.CupNations ??= new List<NationCups>();
         }
 
         /// <summary>
@@ -191,5 +231,102 @@ namespace Trickshot
             Save();
         }
 
+        // ---- Trickshot Cup (SP = Solo, MP = Head to Head / Co-op) ----
+        // Every method takes `mp` rather than reading Multiplayer.IsActive, because the cup's
+        // director knows its style and a solo cup launched with a stale session must not land in
+        // the MP bag. CupCareer is the facade the director calls; it adds the achievement check.
+
+        static ModeStats Bag(bool mp) => mp ? Data.MP : Data.SP;
+
+        /// <summary>The per-nation row, created on first use when `create` is set; else null.</summary>
+        public static NationCups CupNationRow(ModeStats d, string nation, bool create)
+        {
+            if (d == null || string.IsNullOrEmpty(nation)) return null;
+            d.CupNations ??= new List<NationCups>();
+            for (int i = 0; i < d.CupNations.Count; i++)
+                if (string.Equals(d.CupNations[i].Nation, nation, StringComparison.OrdinalIgnoreCase))
+                    return d.CupNations[i];
+            if (!create) return null;
+            var row = new NationCups { Nation = nation };
+            d.CupNations.Add(row);
+            return row;
+        }
+
+        /// <summary>A cup started with this nation (the draw has been made).</summary>
+        public static void RecordCupEntered(string nation, bool mp)
+        {
+            var d = Bag(mp);
+            d.CupsEntered++;
+            var row = CupNationRow(d, nation, create: true);
+            if (row != null) row.Entered++;
+            Save();
+        }
+
+        /// <summary>
+        /// A round this player was part of has been decided. The three flags feed achievements
+        /// and only count on a WIN: `suddenDeath` (decided past five kicks each), `cleanSheet`
+        /// (the other side scored nothing), `giantKill` (the opponent was 30+ strength above).
+        /// </summary>
+        public static void RecordCupRound(bool won, bool mp, bool suddenDeath = false,
+                                          bool cleanSheet = false, bool giantKill = false)
+        {
+            var d = Bag(mp);
+            if (won)
+            {
+                d.CupRoundsWon++;
+                if (suddenDeath) d.CupSuddenDeathWins++;
+                if (cleanSheet) d.CupCleanSheets++;
+                if (giantKill) d.CupGiantKills++;
+            }
+            else d.CupRoundsLost++;
+            Save();
+        }
+
+        /// <summary>One kick this player took.</summary>
+        public static void RecordCupKick(bool scored, bool mp)
+        {
+            var d = Bag(mp);
+            d.CupKicksTaken++;
+            if (scored) d.CupKicksScored++;
+            Save();
+        }
+
+        /// <summary>One kick this player kept against and stopped (a wall stop counts: it reads SAVED).</summary>
+        public static void RecordCupSave(bool mp) { Bag(mp).CupSaves++; Save(); }
+
+        /// <summary>One kick this player kept against that went in.</summary>
+        public static void RecordCupConceded(bool mp) { Bag(mp).CupConceded++; Save(); }
+
+        /// <summary>One HEADS/TAILS call before a flip (every human present calls; design 6.11).</summary>
+        public static void RecordCupCoinCall(bool right, bool mp)
+        {
+            var d = Bag(mp);
+            d.CupCoinCallsMade++;
+            if (right) d.CupCoinCallsRight++;
+            Save();
+        }
+
+        /// <summary>Won the Final. `coop` marks a Co-op cup for the Team Player achievement.</summary>
+        public static void RecordCupWon(string nation, bool mp, bool coop = false)
+        {
+            var d = Bag(mp);
+            d.CupsWon++;
+            if (coop) d.CupCoopWins++;
+            var row = CupNationRow(d, nation, create: true);
+            if (row != null) row.Won++;
+            Save();
+        }
+
+        /// <summary>
+        /// The furthest stage reached in a cup, kept as a best. `stageIndex` is the CupStage value
+        /// (0 = Round of 32 .. 4 = Final); stored +1 so an untouched save reads 0 = never entered.
+        /// Winning the Final is RecordCupWon; this only says the Final was reached.
+        /// </summary>
+        public static void RecordCupStage(int stageIndex, bool mp)
+        {
+            var d = Bag(mp);
+            int v = Mathf.Clamp(stageIndex, 0, 4) + 1;
+            if (v > d.CupBestStage) { d.CupBestStage = v; Save(); }
+        }
     }
 }

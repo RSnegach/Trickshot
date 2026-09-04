@@ -1597,8 +1597,14 @@ namespace Trickshot
             if (rb == null) return;
             rb.position = worldPos;
             rb.rotation = rot;
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
+            // A kinematic body (a display puppet, a parked cup twin) has no velocity to clear, and
+            // PhysX logs an error per bone per snap if asked ("Setting linear velocity of a
+            // kinematic body is not supported") - 26 red lines every time a parked twin is re-parked.
+            if (!rb.isKinematic)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
             rb.transform.position = worldPos;
             rb.transform.rotation = rot;
         }

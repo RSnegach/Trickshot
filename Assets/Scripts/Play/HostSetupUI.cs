@@ -56,6 +56,14 @@ namespace Trickshot
         // ball/wall placement reuses the same free-kick map.
         bool _accSuddenDeath;      // false = strikes (a run each), true = one shot per visit
         bool _accNoKeeper;         // true = open goal for the whole match
+        // Trickshot Cup host settings (design 6.9): the play STYLE (Head to Head / Co-op - Solo
+        // is single player and never hosted) and the FORMAT. That is the whole of the cup's
+        // configuration: regulation goal, the stage ramp owns the keeper, always 32 nations.
+        // Static, like the accuracy goal above, so reopening the screen keeps what was dialled.
+        static CupStyle _cupStyle = CupStyle.HeadToHead;
+        static CupFormat _cupFormat = CupFormat.Penalties;
+        static readonly string[] CupStyleNames = { CupText.StyleName(CupStyle.HeadToHead), CupText.StyleName(CupStyle.Coop) };
+        static readonly string[] CupFormatNames = { CupText.FormatName(CupFormat.Penalties), CupText.FormatName(CupFormat.FreeKicks) };
         string _hostError = "";    // shown when Create couldn't open the host port
 
         public void Init(System.Action onCreated, System.Action onBack, GameMode mode)
@@ -77,9 +85,14 @@ namespace Trickshot
             // remaining rows (format + the public-lobby toggle). Match adds the Looking-for row
             // (+58). -116 on the others: neither a mode row (the mode was chosen on the hub) nor a
             // stadium row (picked on its own screen after Create).
+            // The cup is sized the same way: the goal picture, then three rows' worth of content
+            // (two LadderPicker rows at SetupPanel.RowH, the blurb line under the first, and the
+            // public-lobby toggle - 104 + 26 + 40 = 170 < 3 * 52 + the head band's slack).
             float w = 480f;
             float panelH = mode == GameMode.Accuracy
                          ? SetupPanel.Height(2)
+                         : mode == GameMode.TrickshotCup
+                         ? SetupPanel.Height(3)
                          : 470f + (mode == GameMode.Match ? 58f : 0f) - 116f;
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
@@ -131,6 +144,30 @@ namespace Trickshot
                 if (!_accFkInit) { SetPieceMap.DefaultPlacement(out _accFkBall, out _accFkWall); _accFkInit = true; }
                 SetupPanel.Map(x, y, ref _accFkBall, ref _accFkWall, ref _accFkEdit, ref _accFkRandom,
                                "Random spot each round.", showWall: false);
+            }
+            else if (mode == GameMode.TrickshotCup)
+            {
+                // Design 6.9: the goal picture LOCKED at regulation with NO keeper row (the stage
+                // ramp owns the keeper - CupTuning.KeeperAbilityByStage), then Play style with a
+                // one-line blurb under the selected one, Format, and the public-lobby toggle
+                // below. No map, no sliders, no field-size picker: the field is always 32.
+                // The picture's values are throwaways - locked means regulation whatever it is
+                // handed, and the level only decides that the figure stands beside the post.
+                float gw = SimConfig.GoalWidthBase, gh = SimConfig.GoalHeightBase;
+                int kLvl = GoalEditor.YesLevel;
+                _goalEditor.Draw(new Rect(x + 30f, row + 4f, w - 60f, GoalEditor.ContentH), ref gw, ref gh, ref kLvl,
+                                 framed: false, locked: true, keeperRow: GoalEditor.KeeperRow.None);
+                row += GoalEditor.ContentH + 8f;
+
+                int style = PrematchUI.LadderPicker(lx, ref row, lw, CupText.PlayStyle + ":", CupStyleNames,
+                                                    _cupStyle == CupStyle.Coop ? 1 : 0);
+                _cupStyle = style == 1 ? CupStyle.Coop : CupStyle.HeadToHead;
+                UITheme.Hint(new Rect(lx, row - 2f, lw, 20f), CupText.StyleBlurb(_cupStyle), TextAnchor.MiddleLeft);
+                row += 26f;
+
+                int fmt = PrematchUI.LadderPicker(lx, ref row, lw, CupText.Format + ":", CupFormatNames,
+                                                  _cupFormat == CupFormat.FreeKicks ? 1 : 0);
+                _cupFormat = fmt == 1 ? CupFormat.FreeKicks : CupFormat.Penalties;
             }
             // This toggle now DOES something. It used to be carried on the wire and ignored; it decides
             // whether the host answers discovery probes at all, so off means the lobby appears in
@@ -190,9 +227,12 @@ namespace Trickshot
             StadiumStyle.SelectedIndex = _stadium;
             // Both dead-ball modes (set pieces + accuracy) use the goal/keeper/placement knobs.
             bool deadBall = mode == GameMode.SetPieces || mode == GameMode.Accuracy;
+            bool cup = mode == GameMode.TrickshotCup;
 
             // Match is two teams mapped onto the 8 slots (capped 4-a-side incl keepers), so
             // both sides can be human: allow up to 2*perSide (bounded to the 8-slot board).
+            // The cup seats all eight as entrants (NetSession.SlotAllowed), and so does every
+            // single-goal mode by default.
             int maxPlayers = mode == GameMode.Match ? Mathf.Clamp(_perSide * 2, 2, 8) : 8;
             Multiplayer.Host(maxPlayers);
             // Hosting can FAIL to bind UDP 7777 (another copy of the game still holding it, or an
@@ -243,6 +283,12 @@ namespace Trickshot
                 accSuddenDeath = mode == GameMode.Accuracy && _accSuddenDeath,
                 // Match only: the roles this host is advertising for (see LookingRole).
                 lookingFor = mode == GameMode.Match ? _lookingFor : (byte)0,
+                // Trickshot Cup: the style (never Solo from here - 1 = Head to Head, 2 = Co-op)
+                // and the format. Its seed is the fresh fkSeed above; the goal is regulation by
+                // construction (goalScale 1 falls out of `deadBall` being false) and the keeper is
+                // the stage ramp's, so neither is read from this config by the cup.
+                cupStyle = cup ? (byte)_cupStyle : (byte)0,
+                cupFormat = cup ? (byte)_cupFormat : (byte)0,
             });
 
             enabled = false;

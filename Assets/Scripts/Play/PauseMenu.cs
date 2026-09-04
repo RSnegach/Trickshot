@@ -23,10 +23,38 @@ namespace Trickshot
     ///
     /// The mode HUDs keep drawing behind this (only their Update is gated on Paused), so the
     /// scrim is deliberately partial: the live score, clock, and stat panel stay readable.
+    ///
+    /// OVERLAY MODE (the multiplayer cup, design 6.10): with <see cref="Overlay"/> set, opening
+    /// the menu freezes NOTHING - Time.timeScale is untouched, the sim, the kick clock, the camera
+    /// and everyone else keep running, like every real multiplayer game. The menu still frees the
+    /// cursor and still owns the screen; cutting the LOCAL player's input while it is up is the
+    /// driver's job, by reading <see cref="Paused"/> as it always has. Anything that stops TIME
+    /// (the camera's slow-mo owner, the crowd bed, a driver's whole Update) reads
+    /// <see cref="Frozen"/> instead, which is Paused AND not Overlay - so a solo cup, and every
+    /// other mode, freeze exactly as before.
     /// </summary>
     public class PauseMenu : MonoBehaviour
     {
         public static bool Paused { get; private set; }
+
+        /// <summary>
+        /// Overlay mode: the menu is up but the game is NOT frozen. Set by GameBootstrap for a
+        /// NETWORKED cup (Head to Head / Co-op) and cleared on match teardown, so it never leaks
+        /// into the next mode. Nothing else sets it: a solo cup pauses like any other mode.
+        /// </summary>
+        public static bool Overlay { get; set; }
+
+        /// <summary>The menu is up AND it is freezing the game. The reader for everything that
+        /// stops time or the sim; input gates keep reading <see cref="Paused"/>.</summary>
+        public static bool Frozen => Paused && !Overlay;
+
+        // Did THIS pause zero Time.timeScale? Only then does Resume/Unfreeze put it back: in
+        // overlay mode nothing was touched, and writing 1 there would stamp on the camera's
+        // slow-mo, which keeps running under the overlay.
+        bool _froze;
+
+        // Cup relabelling of the one quit entry (see SetCupLabels). null = the stock labels.
+        string _cupQuitLabel, _cupConfirmTitle, _cupConfirmBody;
 
         System.Action _onMainMenu;
         System.Action _onMatchSetup;
@@ -95,6 +123,7 @@ namespace Trickshot
                 case GameMode.FreeKick:   return SimConfig.PenaltyMode ? "Penalties" : "Free Kick";
                 case GameMode.Match:  return "Match";
                 case GameMode.SetPieces:  return "Set Pieces";
+                case GameMode.TrickshotCup: return CupText.TitleMixed;   // "Trickshot Cup"
             }
             return "Match";
         }
@@ -115,6 +144,9 @@ namespace Trickshot
                 if (GameManager.CrossMapEscapeOwned) return;
                 // ...and the accuracy PRACTICE placement map, which is the same contract.
                 if (AccuracyGame.MapEscapeOwned) return;
+                // ...and the cup's menu screens (the Solo nation picker's Back, the lobby's bracket
+                // overlay and confirm cards), one aggregate flag for all of them.
+                if (CupEscape.Owned) return;
 
                 // Back out one level at a time: confirm card -> settings/setup -> buttons -> unpause.
                 if (_confirmAct != null) { ClearConfirm(); return; }
@@ -161,8 +193,14 @@ namespace Trickshot
         void Pause()
         {
             Paused = true;
-            _savedTimeScale = Time.timeScale;
-            Time.timeScale = 0f;
+            // Overlay: the world keeps running (design 6.10) - only the cursor and the local
+            // player's input change, and the input is cut by the drivers reading Paused.
+            _froze = !Overlay;
+            if (_froze)
+            {
+                _savedTimeScale = Time.timeScale;
+                Time.timeScale = 0f;
+            }
             GameInput.CaptureCursor(false);
             _sel = 0;
             _setupOpen = false;   // always open on the buttons, not on a panel left up last time
@@ -172,7 +210,8 @@ namespace Trickshot
         void Resume()
         {
             Paused = false;
-            Time.timeScale = _savedTimeScale <= 0f ? 1f : _savedTimeScale;
+            if (_froze) Time.timeScale = _savedTimeScale <= 0f ? 1f : _savedTimeScale;
+            _froze = false;
             GameInput.CaptureCursor(true);
             ClearConfirm();
         }
@@ -180,11 +219,30 @@ namespace Trickshot
         void ClearConfirm() { _confirmAct = null; _confirmTitle = null; _confirmBody = null; _confirmYes = false; }
 
         // Restore time and clear the paused flag before any teardown callback runs, so a torn-down
-        // match can never leave the game frozen.
+        // match can never leave the game frozen. Time is only touched when this pause froze it: an
+        // overlay pause never did, and the teardown path resets timeScale itself anyway.
         void Unfreeze()
         {
-            Time.timeScale = 1f;
+            if (_froze) Time.timeScale = 1f;
+            _froze = false;
             Paused = false;
+        }
+
+        /// <summary>
+        /// The cup's per-style wording for the ONE quit entry (design 6.10). Solo: "Quit to Menu"
+        /// with "Quit the cup? This ends it."; a client: "Quit to Menu" with the style's body ("An
+        /// AI plays your nation from here" / "You are dropped from the order"); the host: "End
+        /// Match" with "Ends the cup for everyone". While set, the client's Leave entry and the
+        /// host's End Match entry collapse into that single relabelled entry: a cup client is not
+        /// offered both "Leave Match" and "Main Menu", because leaving IS quitting. Pass a null
+        /// label to go back to the stock entries.
+        /// </summary>
+        public void SetCupLabels(string quitLabel, string confirmTitle, string confirmBody)
+        {
+            _cupQuitLabel = quitLabel;
+            _cupConfirmTitle = confirmTitle;
+            _cupConfirmBody = confirmBody;
+            _entriesFrame = -1;   // rebuild on the next ask, not a frame later
         }
 
         void Activate(Entry e)
@@ -228,26 +286,44 @@ namespace Trickshot
             if (_settings != null)
                 _entries.Add(new Entry { Label = "Settings", Act = () => _settingsOpen = true });
 
-            // Client in a networked match: leave without ending it for everyone else. The host
-            // keeps running the sim and this player's slot reverts to AI.
-            if (_onLeave != null)
+            // The cup's single quit entry (SetCupLabels): a client leaves through onLeave, the
+            // host and a solo player through onMainMenu, under the cup's own wording. One entry,
+            // never two - "Leave Match" and "Main Menu" both mean "quit the cup" there.
+            if (_cupQuitLabel != null)
+            {
+                bool viaLeave = _onLeave != null;
                 _entries.Add(new Entry
                 {
-                    Label = "Leave Match", Kind = Kind.Bad,
-                    Act = () => { Unfreeze(); _onLeave?.Invoke(); },
-                    ConfirmTitle = "LEAVE MATCH?", ConfirmBody = "Your slot goes back to AI."
+                    Label = _cupQuitLabel, Kind = Kind.Bad,
+                    Act = viaLeave ? () => { Unfreeze(); _onLeave?.Invoke(); }
+                                   : (System.Action)(() => { Unfreeze(); _onMainMenu?.Invoke(); }),
+                    ConfirmTitle = (_cupConfirmTitle ?? "QUIT THE CUP?").ToUpperInvariant(),
+                    ConfirmBody = _cupConfirmBody ?? ""
                 });
-
-            // For a networked HOST this ends the match for everyone (no host migration); in
-            // single-player it's just quit-to-menu. Label and confirm text reflect that.
-            bool isHost = Trickshot.Net.Multiplayer.IsHost;
-            _entries.Add(new Entry
+            }
+            else
             {
-                Label = isHost ? "End Match" : "Main Menu", Kind = Kind.Bad,
-                Act = () => { Unfreeze(); _onMainMenu?.Invoke(); },
-                ConfirmTitle = isHost ? "END MATCH?" : "QUIT TO MENU?",
-                ConfirmBody = isHost ? "Ends the match for everyone." : "Match progress is lost."
-            });
+                // Client in a networked match: leave without ending it for everyone else. The host
+                // keeps running the sim and this player's slot reverts to AI.
+                if (_onLeave != null)
+                    _entries.Add(new Entry
+                    {
+                        Label = "Leave Match", Kind = Kind.Bad,
+                        Act = () => { Unfreeze(); _onLeave?.Invoke(); },
+                        ConfirmTitle = "LEAVE MATCH?", ConfirmBody = "Your slot goes back to AI."
+                    });
+
+                // For a networked HOST this ends the match for everyone (no host migration); in
+                // single-player it's just quit-to-menu. Label and confirm text reflect that.
+                bool isHost = Trickshot.Net.Multiplayer.IsHost;
+                _entries.Add(new Entry
+                {
+                    Label = isHost ? "End Match" : "Main Menu", Kind = Kind.Bad,
+                    Act = () => { Unfreeze(); _onMainMenu?.Invoke(); },
+                    ConfirmTitle = isHost ? "END MATCH?" : "QUIT TO MENU?",
+                    ConfirmBody = isHost ? "Ends the match for everyone." : "Match progress is lost."
+                });
+            }
 
             _entries.Add(new Entry
             {
@@ -388,8 +464,9 @@ namespace Trickshot
 
         void OnDestroy()
         {
-            // Never leave the game frozen if this object is destroyed while paused.
-            if (Paused) { Time.timeScale = 1f; Paused = false; }
+            // Never leave the game frozen if this object is destroyed while paused. (An overlay
+            // pause never froze anything; the flag still has to clear.)
+            if (Paused) { if (_froze) Time.timeScale = 1f; _froze = false; Paused = false; }
             _settings?.Dispose();   // abort any in-flight rebind operation
         }
     }

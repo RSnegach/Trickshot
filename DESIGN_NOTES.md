@@ -248,6 +248,8 @@ asymmetric/short-session modes and a progression layer, not just the main match 
     the bracket persists across a disconnect (it is derivable from the seed, so it can); and whether
     a solo run should be the same code path with 31 AI slots, which is the cheapest way to get both.
   Not scoped beyond this — just an idea, not being built yet.
+  **Update 2026-09-03:** renamed **Trickshot Cup** and planned in full (Solo / Head to Head /
+  Co-op, every screen, wire and lifecycle) in `docs/trickshot-cup-design.md`. Still not built.
 
 ## Open questions (not answered yet)
 

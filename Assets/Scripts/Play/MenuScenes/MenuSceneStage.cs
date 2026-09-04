@@ -136,6 +136,9 @@ namespace Trickshot
                 case GameMode.Accuracy:   return new AccuracyScene();
                 case GameMode.FreeKick:   return new FreeKickScene();
                 case GameMode.SetPieces:  return new FreeKickScene();
+                // The cup: a penalty driven low into the corner past a diving keeper, the
+                // fist pump, and the trophy in the foreground (design 3.1).
+                case GameMode.TrickshotCup: return new CupScene();
                 default: return null;
             }
         }

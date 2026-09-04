@@ -40,6 +40,51 @@ namespace Trickshot
     {
         public static readonly AchievementDef[] All =
         {
+            // ---- Trickshot Cup (design 9.7). Every one reads SP + MP together: a solo champion
+            // and a multiplayer champion are both champions. The counters are moved by
+            // CareerStats.RecordCup* through the CupCareer facade, which calls CheckAll after each.
+            new AchievementDef
+            {
+                Id = "cup_champion", Title = CupText.AchChampion,
+                Description = "Win a Trickshot Cup.",
+                Kind = AchievementKind.StatThreshold, Target = 1,
+                CurrentValue = d => d.SP.CupsWon + d.MP.CupsWon,
+            },
+            new AchievementDef
+            {
+                Id = "cup_giant_killer", Title = CupText.AchGiantKiller,
+                Description = "Knock out a nation " + CupTuning.GiantKillerMargin + "+ strength above yours.",
+                Kind = AchievementKind.StatThreshold, Target = 1,
+                CurrentValue = d => d.SP.CupGiantKills + d.MP.CupGiantKills,
+            },
+            new AchievementDef
+            {
+                Id = "cup_clean_sheet", Title = CupText.AchCleanSheet,
+                Description = "Win a cup round without conceding a kick.",
+                Kind = AchievementKind.StatThreshold, Target = 1,
+                CurrentValue = d => d.SP.CupCleanSheets + d.MP.CupCleanSheets,
+            },
+            new AchievementDef
+            {
+                Id = "cup_cold_blooded", Title = CupText.AchColdBlooded,
+                Description = "Win a cup round in sudden death.",
+                Kind = AchievementKind.StatThreshold, Target = 1,
+                CurrentValue = d => d.SP.CupSuddenDeathWins + d.MP.CupSuddenDeathWins,
+            },
+            new AchievementDef
+            {
+                Id = "cup_team_player", Title = CupText.AchTeamPlayer,
+                Description = "Win a Co-op Trickshot Cup.",
+                Kind = AchievementKind.StatThreshold, Target = 1,
+                CurrentValue = d => d.SP.CupCoopWins + d.MP.CupCoopWins,
+            },
+            new AchievementDef
+            {
+                Id = "cup_pundit", Title = CupText.AchPundit,
+                Description = "Call " + CupTuning.PunditCalls + " coin tosses right.",
+                Kind = AchievementKind.StatThreshold, Target = CupTuning.PunditCalls,
+                CurrentValue = d => d.SP.CupCoinCallsRight + d.MP.CupCoinCallsRight,
+            },
             // Leaderboard-placement achievements (e.g. "finish top 10 in a Challenge") go here
             // once Challenges mode + its leaderboards exist - see the AchievementKind doc above.
         };

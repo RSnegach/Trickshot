@@ -16,7 +16,7 @@ namespace Trickshot
     {
         /// <summary>Every mode with a networked driver, in hub order. Host Setup and the browser
         /// are locked to one of these; a mode not listed here cannot be hosted or found.</summary>
-        public static readonly GameMode[] NetModes = { GameMode.Match, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy };
+        public static readonly GameMode[] NetModes = { GameMode.Match, GameMode.Striker, GameMode.SetPieces, GameMode.Accuracy, GameMode.TrickshotCup };
 
         static int _page;
 

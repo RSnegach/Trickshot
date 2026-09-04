@@ -47,6 +47,13 @@ namespace Trickshot
         Vector3 _goal;      // centre of the goal he defends, on the goal line
         float _out = -1f;   // world-Z sign from that goal toward the pitch
 
+        /// <summary>
+        /// Penalty rule (Trickshot Cup): while set he neither rushes nor guards off his line - his
+        /// target is clamped to the goal line until the ball is struck. The cup's round driver
+        /// sets it for the placed / armed phases and clears it when the ball is live.
+        /// </summary>
+        public bool HoldLine;
+
         readonly KeeperHands _hands = new KeeperHands();
 
         /// <summary>
@@ -398,13 +405,16 @@ namespace Trickshot
             // ---- move ----
             Vector3 meFlat = new Vector3(me.x, 0f, me.z);
             Vector3 bFlat = new Vector3(bpos.x, 0f, bpos.z);
-            bool rush = Rushing(bFlat, ability);
+            bool rush = !HoldLine && Rushing(bFlat, ability);
 
             Vector3 spot = GuardSpot(bFlat, ability);
             Vector3 target = spot;
             if (rush) target = bFlat;
             else if (incoming) target = new Vector3(Mathf.Clamp(predictX, _goal.x - halfGoal, _goal.x + halfGoal),
                                                    0f, spot.z);
+            // Held on his line before the strike (HoldLine): no target further toward the pitch
+            // than the goal line itself, whichever way this goal faces.
+            if (HoldLine && (target.z - _goal.z) * _out > 0.05f) target.z = _goal.z + _out * 0.05f;
 
             Vector3 delta = target - meFlat;
             // Tighter proportional band at higher ability -> saturates to full speed sooner, so he

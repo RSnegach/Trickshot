@@ -77,10 +77,22 @@ namespace Trickshot.Net
         /// carries two keepers (slots 0 and 4) and RoleOfSlot only ever names slot 0, so the away
         /// keeper used to be published, labelled and read back as a shooter.
         /// </summary>
-        NetRole RoleForSlot(int slot)
-            => (GameMode)Config.mode == GameMode.Match
-             ? (ScrimShirtOfSlot(slot) == 0 ? NetRole.Keeper : NetRole.Shooter)
-             : RoleOfSlot(slot);
+        NetRole RoleForSlot(int slot) => RoleForSlot(slot, (GameMode)Config.mode);
+
+        /// <summary>
+        /// The mode-aware form. The Trickshot Cup has no keeper or crosser SEATS - every human is a
+        /// nation, and who takes and who keeps is decided inside each round by the cup itself - so
+        /// all eight slots are plain <see cref="NetRole.Entrant"/>s there (design 4.2: without this
+        /// the eighth row read "Crosser"). Match maps two teams onto the board (see above); every
+        /// other mode is the single-goal layout of RoleOfSlot.
+        /// </summary>
+        public static NetRole RoleForSlot(int slot, GameMode mode)
+        {
+            if (mode == GameMode.TrickshotCup) return NetRole.Entrant;
+            if (mode == GameMode.Match)
+                return ScrimShirtOfSlot(slot) == 0 ? NetRole.Keeper : NetRole.Shooter;
+            return RoleOfSlot(slot);
+        }
 
         public INetTransport Transport { get; private set; }
         public bool IsHost => Transport != null && Transport.IsHost;
@@ -156,7 +168,50 @@ namespace Trickshot.Net
         readonly byte[] _voteOf = new byte[MaxSlots];
         public MatchConfig Config;                 // host authors it; clients receive it
         public LobbySlot[] Roster { get; private set; } = new LobbySlot[0];   // client mirror + host snapshot
+        /// <summary>
+        /// Set by StartMatch and NEVER cleared for the life of the session: a lobby is closed to late
+        /// joiners from the first start onward. The Trickshot Cup relies on that through Play Again
+        /// (design 9.5): a new cup in the same lobby is a CupState phase change back to the nation
+        /// pick, not a session teardown, and the seats must stay exactly as they were.
+        /// </summary>
         public bool MatchStarted { get; private set; }
+
+        // ---- Trickshot Cup (design 9.4): the session only ROUTES these; the cup layer owns their meaning ----
+        /// <summary>Client: the host's cup state arrived (reliable, host-only). The director applies it.</summary>
+        public event Action<CupStateMsg> CupStateReceived;
+        /// <summary>Host: a client's cup request, with the AUTHORITATIVE sender slot (the packet carries none).</summary>
+        public event Action<int, CupRequestMsg> CupRequestReceived;
+        /// <summary>A spectator (a client, or the host itself watching): a relayed round view for the slot it is watching.</summary>
+        public event Action<CupStreamMsg> CupStreamReceived;
+        /// <summary>Client: the host-simulated round's record (the CupRoundState bytes, reliable, host-only).</summary>
+        public event Action<byte[]> CupRoundStateReceived;
+        /// <summary>
+        /// Host, while <see cref="ReplayVotesExternal"/>: a human clicked to skip the replay (their
+        /// slot; the host's own click included). The session then keeps NO tally of its own - the cup
+        /// counts votes among the humans WITH A BODY in the round (design 2.1), not every human in
+        /// the session, and ends the replay itself with EndReplayHost.
+        /// </summary>
+        public event Action<int> SkipVoteReceived;
+        /// <summary>
+        /// When true, SkipVote / VoteSkip only raise <see cref="SkipVoteReceived"/> and the built-in
+        /// "every human voted" rule is off. Set by the cup for the life of a host-simulated round,
+        /// cleared with it; every other mode leaves it false and keeps today's behaviour.
+        /// </summary>
+        public bool ReplayVotesExternal { get; set; }
+        /// <summary>Client: the most recent cup state, so a director bound after it arrived can catch up.</summary>
+        public CupStateMsg LatestCupState { get; private set; }
+        public bool HasCupState { get; private set; }
+        // Host: which slot each slot is spectating (255 = nobody). The CupStream relay table - the
+        // director writes it from its read model (SetCupSpectating); RouteMessage forwards a stream
+        // only to the peers whose entry names its sender. Lives here because the relay must not
+        // decode the message it forwards, and the director must not touch peers.
+        readonly byte[] _cupSpectating = NewSpectatingTable();
+        static byte[] NewSpectatingTable()
+        {
+            var t = new byte[MaxSlots];
+            for (int i = 0; i < t.Length; i++) t[i] = 255;
+            return t;
+        }
 
         // Raised on clients when the host sends a tagged match event (goal, kickoff, etc).
         public event Action<string> MatchEvent;
@@ -306,7 +361,7 @@ namespace Trickshot.Net
             // starts empty (open) apart from an AI goalkeeper. The host toggles other slots' AI
             // on per-slot in the lobby. (The crosser still feeds balls on the host regardless of
             // its AI toggle - see NetStrikerMatch - so crosses come even with crosser AI off.)
-            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; _nominated[i] = false; _voteOf[i] = 255; }
+            for (int i = 0; i < MaxSlots; i++) { _slotOwner[i] = PeerId.None; _slotName[i] = null; _slotReady[i] = false; _slotAi[i] = i == 0; _nominated[i] = false; _voteOf[i] = 255; _cupSpectating[i] = 255; }
             _maxPlayers = Mathf.Clamp(maxPlayers, 1, MaxSlots);   // enforced in GrantSlot
             Transport.StartHost(_maxPlayers);
             // Answer discovery probes with the LIVE lobby. A delegate rather than a snapshot, so the
@@ -327,7 +382,17 @@ namespace Trickshot.Net
         }
 
         // Host: author the match config (mode/stadium/etc) and push it to everyone.
-        public void SetConfig(MatchConfig cfg) { if (IsHost) { Config = cfg; PushRoster(); } }
+        public void SetConfig(MatchConfig cfg)
+        {
+            if (!IsHost) return;
+            Config = cfg;
+            // A cup lobby has no AI seats: Host() defaults slot 0 to an AI keeper, but in the cup
+            // the AI nations are drawn from the bracket, not from the board, and an "AI" row would
+            // be a Clanker nobody can play against. Every unfilled seat is simply Open.
+            if ((GameMode)cfg.mode == GameMode.TrickshotCup)
+                for (int i = 0; i < MaxSlots; i++) _slotAi[i] = false;
+            PushRoster();
+        }
 
         public void JoinLobby(ulong lobbyOrHost) => Transport.Join(lobbyOrHost);
         public void Leave() => Transport.Shutdown();
@@ -636,7 +701,13 @@ namespace Trickshot.Net
         // Any human clicks to skip. Host tallies locally; clients send a vote to the host.
         public void VoteSkip()
         {
-            if (IsHost) { _skipVotes.Add(LocalSlot); TryEndReplay(); }
+            if (IsHost)
+            {
+                // The cup counts its own voters (see ReplayVotesExternal): hand the click over and
+                // keep no tally, or the session would end a replay the cup still needs a vote for.
+                if (ReplayVotesExternal) { SkipVoteReceived?.Invoke(LocalSlot); return; }
+                _skipVotes.Add(LocalSlot); TryEndReplay();
+            }
             else Transport.Send(Transport.HostPeer, NetCodec.SkipVote(), NetChannel.Reliable);
         }
 
@@ -714,6 +785,12 @@ namespace Trickshot.Net
                     // ScrimSlotsPerTeam, and a lobby that seats 4 must not advertise 5.
                     int n = Mathf.Clamp((int)Config.perSide, 2, ScrimSlotsPerTeam);
                     return ModeWord(mode) + " " + n + "v" + n + LookingRoles.Tag(Config.lookingFor);
+                case GameMode.TrickshotCup:
+                    // "Trickshot Cup - Head to Head - Penalties": the style and the format are
+                    // what a joiner needs to know, and the browser shows and filters on them
+                    // (ParseCupLabel). The words are CupText's, so this label, the browser's meta
+                    // and the setup screen's pickers all say the same thing.
+                    return CupLabel(CupStyleOf(Config), (CupFormat)Config.cupFormat);
                 default: return ModeWord(mode);
             }
         }
@@ -721,7 +798,67 @@ namespace Trickshot.Net
         /// <summary>The word a ModeLabel() for this mode starts with. The session browser is
         /// locked to one mode and matches rows on it (LabelIsMode), so the label and the filter
         /// share this one source and cannot drift.</summary>
-        public static string ModeWord(GameMode mode) => mode == GameMode.SetPieces ? "Set Pieces" : mode.ToString();
+        public static string ModeWord(GameMode mode)
+        {
+            switch (mode)
+            {
+                case GameMode.SetPieces:    return "Set Pieces";
+                case GameMode.TrickshotCup: return CupText.TitleMixed;   // "Trickshot Cup"
+                default:                    return mode.ToString();
+            }
+        }
+
+        // ---- cup label plumbing: the advert string is the only browsable fact about a lobby ----
+
+        /// <summary>The style a config carries, with the unhosted Solo value (0, or anything
+        /// unknown) read as Head to Head so an unauthored config never labels a lobby "Solo".</summary>
+        public static CupStyle CupStyleOf(in MatchConfig cfg)
+            => cfg.cupStyle == (byte)CupStyle.Coop ? CupStyle.Coop : CupStyle.HeadToHead;
+
+        const string CupSep = " - ";
+
+        /// <summary>"Trickshot Cup - Head to Head - Penalties" (== CupText.Label, spelt through
+        /// ModeWord so LabelIsMode keeps matching it).</summary>
+        public static string CupLabel(CupStyle style, CupFormat format)
+            => ModeWord(GameMode.TrickshotCup) + CupSep + CupText.StyleName(style) + CupSep + CupText.FormatName(format);
+
+        /// <summary>
+        /// Read the style and format back out of a cup advert label. False for anything that is not
+        /// a cup label of this exact shape (another mode, an older build's bare "TrickshotCup",
+        /// a truncated string); the outs are then Head to Head / Penalties.
+        /// </summary>
+        public static bool ParseCupLabel(string label, out CupStyle style, out CupFormat format)
+        {
+            style = CupStyle.HeadToHead;
+            format = CupFormat.Penalties;
+            if (!LabelIsMode(label, GameMode.TrickshotCup)) return false;
+            string rest = label.Substring(ModeWord(GameMode.TrickshotCup).Length);
+            if (!rest.StartsWith(CupSep, System.StringComparison.Ordinal)) return false;
+            rest = rest.Substring(CupSep.Length);
+            bool styleOk = false;
+            foreach (CupStyle s in System.Enum.GetValues(typeof(CupStyle)))
+            {
+                string name = CupText.StyleName(s) + CupSep;
+                if (!rest.StartsWith(name, System.StringComparison.Ordinal)) continue;
+                style = s;
+                rest = rest.Substring(name.Length);
+                styleOk = true;
+                break;
+            }
+            if (!styleOk) return false;
+            foreach (CupFormat f in System.Enum.GetValues(typeof(CupFormat)))
+            {
+                string name = CupText.FormatName(f);
+                // The format is the tail of the label; a space after it is tolerated so a future
+                // tag appended the way Match appends [LF:...] cannot break the parse.
+                if (rest == name || rest.StartsWith(name + " ", System.StringComparison.Ordinal))
+                {
+                    format = f;
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <summary>Does a browser row's mode string advertise this mode? Whole-word: the label is
         /// the word alone, or the word then a space (Match carries its team size and the LF tag
@@ -944,6 +1081,86 @@ namespace Trickshot.Net
             ShootoutUpdated?.Invoke(s);
         }
 
+        // ---- Trickshot Cup (design 9.4): four message types, routed here, owned by the cup ----
+
+        /// <summary>Host: publish the cup read model to every client (reliable). The host applies its own model directly, so nothing fires locally.</summary>
+        public void BroadcastCupState(in CupStateMsg m)
+        {
+            if (!IsHost || !Active) return;
+            LatestCupState = m; HasCupState = true;
+            Transport.SendToAll(NetCodec.CupState(m), NetChannel.Reliable);
+        }
+
+        /// <summary>Host: publish the host-simulated round's record (CupRoundState.ToBytes) to every client (reliable).</summary>
+        public void BroadcastCupRoundState(byte[] record)
+        {
+            if (!IsHost || !Active || record == null) return;
+            Transport.SendToAll(NetCodec.CupRoundState(record), NetChannel.Reliable);
+        }
+
+        /// <summary>
+        /// Client: send an intent to the host (reliable). On the host it is delivered straight to
+        /// <see cref="CupRequestReceived"/> under the host's own slot - the director applies its own
+        /// intents directly and never calls this, but a stray call must not vanish.
+        /// </summary>
+        public void SendCupRequest(in CupRequestMsg m)
+        {
+            if (!Active) return;
+            if (IsHost) { if (LocalSlot >= 0) CupRequestReceived?.Invoke(LocalSlot, m); return; }
+            Transport.Send(Transport.HostPeer, NetCodec.CupRequest(m), NetChannel.Reliable);
+        }
+
+        /// <summary>
+        /// The owner of a spectated round streams its view (unreliable, 20 Hz). A client sends it to
+        /// the host, which relays it to the slots watching that sender; the host's own stream is
+        /// relayed from here directly. `fromSlot` is overwritten with the sender's real slot.
+        /// </summary>
+        public void SendCupStream(CupStreamMsg m)
+        {
+            if (!Active || LocalSlot < 0 || LocalSlot >= MaxSlots) return;
+            m.fromSlot = (byte)LocalSlot;
+            var bytes = NetCodec.CupStream(m);
+            if (IsHost) RelayCupStream(bytes, m);
+            else Transport.Send(Transport.HostPeer, bytes, NetChannel.Unreliable);
+        }
+
+        /// <summary>Host: record who a slot is watching (255 / -1 = nobody) so RelayCupStream can route streams. The director mirrors its read model here on every change.</summary>
+        public void SetCupSpectating(int slot, int target)
+        {
+            if (!IsHost || slot < 0 || slot >= MaxSlots) return;
+            _cupSpectating[slot] = target < 0 || target >= MaxSlots || target == slot ? (byte)255 : (byte)target;
+        }
+
+        /// <summary>Host: the slot a slot is watching, -1 for nobody.</summary>
+        public int CupSpectatingOf(int slot)
+            => slot >= 0 && slot < MaxSlots && _cupSpectating[slot] != 255 ? _cupSpectating[slot] : -1;
+
+        // Host: forward a stream's raw bytes to every peer watching its sender, and hand it to the
+        // host's own spectator view when the host is watching. The bytes go out untouched: the
+        // relay decoded them only to validate the sender, and re-encoding would cost the host a
+        // NetWriter per spectator per frame for nothing.
+        void RelayCupStream(byte[] bytes, in CupStreamMsg m)
+        {
+            int from = m.fromSlot;
+            for (int s = 0; s < MaxSlots; s++)
+            {
+                if (s == from || _cupSpectating[s] != from) continue;
+                if (s == LocalSlot) { CupStreamReceived?.Invoke(m); continue; }
+                if (_slotOwner[s].IsValid) Transport.Send(_slotOwner[s], bytes, NetChannel.Unreliable);
+            }
+        }
+
+        /// <summary>
+        /// Host: forget every slot's buffered input and applied tick (see ResetSlotInput). The cup
+        /// calls it between rounds together with ClearSnapshotBuffer, so a fresh round never
+        /// inherits a stale held button or a sticky press from the last one (design 9.5).
+        /// </summary>
+        public void ResetAllSlotInputs()
+        {
+            if (!IsHost) return;
+            for (int i = 0; i < MaxSlots; i++) ResetSlotInput(i);
+        }
+
         // Reassemble a jersey chunk. On the HOST the authoritative slot is the SENDER's slot (a
         // client can't spoof another slot's kit); on a CLIENT the slot is the message field (the
         // host broadcasts on behalf of every slot). When all chunks are in: store the PNG, drop the
@@ -1145,8 +1362,49 @@ namespace Trickshot.Net
                     ReplayStarted?.Invoke();
                     break;
                 case MsgType.SkipVote:    // host: a client voted to skip the replay
-                    if (IsHost) { int sv = SlotOf(from); if (sv >= 0) _skipVotes.Add(sv); TryEndReplay(); }
+                    if (IsHost)
+                    {
+                        int sv = SlotOf(from);
+                        if (ReplayVotesExternal) { if (sv >= 0) SkipVoteReceived?.Invoke(sv); break; }   // the cup tallies
+                        if (sv >= 0) _skipVotes.Add(sv);
+                        TryEndReplay();
+                    }
                     break;
+                // ---- Trickshot Cup ----
+                case MsgType.CupState:       // client: the host's cup read model (host-only: gated above)
+                {
+                    var cs = NetCodec.ReadCupState(r);
+                    LatestCupState = cs; HasCupState = true;
+                    CupStateReceived?.Invoke(cs);
+                    break;
+                }
+                case MsgType.CupRoundState:  // client: the host-simulated round's record (host-only)
+                    CupRoundStateReceived?.Invoke(NetCodec.ReadCupRoundState(r));
+                    break;
+                case MsgType.CupRequest:     // host: a client's intent; the sender's slot is the truth, never a wire field
+                    if (IsHost)
+                    {
+                        var rq = NetCodec.ReadCupRequest(r);
+                        int rs = SlotOf(from);
+                        if (rs >= 0) CupRequestReceived?.Invoke(rs, rq);
+                    }
+                    break;
+                case MsgType.CupStream:      // client -> host -> the spectators of that slot; unreliable, relayed as-is
+                {
+                    var st = NetCodec.ReadCupStream(r);
+                    if (IsHost)
+                    {
+                        // A stream may only describe ITS SENDER'S view: a client cannot impersonate
+                        // another slot's round to the people watching it.
+                        int ss = SlotOf(from);
+                        if (ss < 0 || ss != st.fromSlot) break;
+                        RelayCupStream(data, st);
+                    }
+                    // Client: only the host relays (this type cannot be in IsHostOnly - clients
+                    // legitimately SEND it - so the direction check lives here, like CrosserSetup).
+                    else if (from.Equals(Transport.HostPeer)) CupStreamReceived?.Invoke(st);
+                    break;
+                }
                 case MsgType.ReplayEnd:   // client: host ended the replay
                     ReplayEnded?.Invoke();
                     break;
@@ -1302,6 +1560,10 @@ namespace Trickshot.Net
             if (slot < 0 || slot >= MaxSlots) return false;
             var mode = (GameMode)Config.mode;
             if (mode == GameMode.Match) return ScrimShirtOfSlot(slot) < ScrimPerSide;
+            // TRICKSHOT CUP: all eight seats, no crosser exception. Every slot is a plain
+            // entrant (RoleForSlot) - a nation in the draw - and the cup's own round driver
+            // builds the bodies, so slot 7 is as real a seat as slot 1. Up to 8 humans (design 1).
+            if (mode == GameMode.TrickshotCup) return true;
             if (slot != CrosserSlot) return true;
             // The crosser is a claimable human role in Striker only, by decision - not because
             // other modes lack a body for it. NetSetPieceMatch.cs:221 does spawn one for slot 7, but
@@ -1324,7 +1586,11 @@ namespace Trickshot.Net
             => t == MsgType.AssignSlot || t == MsgType.RosterSync || t == MsgType.StartMatch
                || t == MsgType.Snapshot || t == MsgType.MatchEvent || t == MsgType.BallKick
                || t == MsgType.PostHit
-               || t == MsgType.ReplayStart || t == MsgType.ReplayEnd || t == MsgType.ShootoutState;
+               || t == MsgType.ReplayStart || t == MsgType.ReplayEnd || t == MsgType.ShootoutState
+               // The cup: the read model and the round record are host-authored. CupRequest is
+               // client-authored and CupStream is RELAYED (both directions), so neither belongs here;
+               // their direction checks are inline in RouteMessage.
+               || t == MsgType.CupState || t == MsgType.CupRoundState;
 
         void OnConnectedToHost()
         {
@@ -1348,6 +1614,9 @@ namespace Trickshot.Net
                 _nominated[slot] = false; _voteOf[slot] = 255;   // a dropped peer's candidacy/vote dies with them
                 _slotLeftFooted[slot] = false;
                 ResetSlotInput(slot);
+                // Nobody can watch a departed peer, and a departed peer watches nobody.
+                _cupSpectating[slot] = 255;
+                for (int i = 0; i < MaxSlots; i++) if (_cupSpectating[i] == slot) _cupSpectating[i] = 255;
             }
             _peerIdentity.Remove(p.Value);
             // Drop their build with them, or the next occupant of that slot inherits it.
@@ -1431,6 +1700,14 @@ namespace Trickshot.Net
                 int first = PreferredMatchTeam(), second = 1 - first;
                 granted = GrantWithinTeam(first);
                 if (granted < 0) granted = GrantWithinTeam(second);
+            }
+            else if ((GameMode)Config.mode == GameMode.TrickshotCup)
+            {
+                // Plain entrants: the lowest free seat 0..7 in order. No role preference exists
+                // to express - slot 0 is not a keeper here and slot 7 is not a crosser - and the
+                // host stays wherever Host() sat it (slot 1), which the walk simply skips past.
+                for (int s = 0; s < MaxSlots; s++)
+                    if (!_slotOwner[s].IsValid && SlotAllowed(s)) { granted = s; break; }
             }
             else
             {

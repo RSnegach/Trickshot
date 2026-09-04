@@ -219,7 +219,7 @@ namespace Trickshot
             // The map owns Escape for the frame it closes on, whether or not it is still open.
             MapEscapeOwned = _mapOpen || (Time.frameCount - _mapClosedFrame) <= 1;
 
-            if (PauseMenu.Paused) return;
+            if (PauseMenu.Frozen) return;   // Frozen: an overlay pause never stops the sim
 
             // Unpausing over the end card re-captures the mouse: PauseMenu.Resume does that
             // unconditionally, with no notion of a mode that wanted it free. Re-assert here, on the

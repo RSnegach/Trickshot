@@ -225,34 +225,45 @@ namespace Trickshot
         // previous ordering got wrong. The tests run most-specific first:
         //   1. A FAILURE that happens to name a good thing. "STRIKE 2 - EPIC SAVE!" is a lost
         //      round, not a triumph, and must not come out gold with stars; "NO GOAL" and
-        //      "MISSED THE TARGET" both contain a positive word too.
-        //   2. Informational callouts, before any keyword can claim them.
+        //      "MISSED THE TARGET" both contain a positive word too. The cup's "KNOCKED OUT 2-3"
+        //      banner lives here too: it is the end of a player's cup, red, before anything else
+        //      in the line (a score, a stage name) can be read as informational.
+        //   2. Informational callouts, before any keyword can claim them. The cup's coin toss
+        //      result ("HEADS" / "TAILS", design 6.11) is a fact about a coin, not a verdict on the
+        //      player - neutral grey - so it sits above the good/bad keyword tests.
         //   3. The epic save, before the plain-save rule swallows it.
-        //   4. Plain good, then plain bad.
+        //   4. Plain good, then plain bad. " WIN" (with its leading space) is the cup's round-end
+        //      "BRAZIL WIN 4-2"; the space keeps a bare "WIN" from claiming words that merely
+        //      contain it, and it is tested AFTER rule 1 so "KNOCKED OUT" can never turn green
+        //      because some future line puts both words together.
         static FlashKind KindOf(string text)
         {
             if (string.IsNullOrEmpty(text)) return FlashKind.Neutral;
             string t = text.ToUpperInvariant();
 
-            // 1. Failures first. A strike is a lost round whatever else the line says about it.
+            // 1. Failures first. A strike is a lost round whatever else the line says about it;
+            //    KNOCKED OUT is the cup's elimination line.
             if (t.StartsWith("STRIKE") || t.Contains("NO GOAL") || t.Contains("MISSED")
-                || t.Contains("ALL OUT") || t.Contains(" IS OUT"))
+                || t.Contains("ALL OUT") || t.Contains(" IS OUT") || t.Contains("KNOCKED OUT"))
                 return FlashKind.Bad;
 
-            // 2. Not verdicts at all: the picked cross delivery, the replay prompt, and the neutral
-            //    end-of-round lines that report a result rather than judging the player.
+            // 2. Not verdicts at all: the picked cross delivery, the replay prompt, the neutral
+            //    end-of-round lines that report a result rather than judging the player, and the
+            //    coin toss result.
             if (t.StartsWith("CROSS:") || t.Contains("REPLAY") || t.StartsWith("TIE")
-                || t.StartsWith("GAME OVER") || t.StartsWith("+"))
+                || t.StartsWith("GAME OVER") || t.StartsWith("+")
+                || t.StartsWith("HEADS") || t.StartsWith("TAILS"))
                 return FlashKind.Neutral;
 
             // 3. Epic, before the plain SAVE rule below can take it.
             if (t.Contains("EPIC")) return FlashKind.Epic;
 
             // 4. Good, then bad. "OVER"/"WIDE"/"POST" are ball-missed-the-goal words; GAME OVER is
-            //    already handled above, which is why "OVER" is safe to test for here.
+            //    already handled above, which is why "OVER" is safe to test for here. " WIN" is
+            //    the cup's "<NATION> WIN a-b" banner.
             if (t.Contains("GOAL") || t.Contains("SAVE") || t.Contains("SCORE")
                 || t.Contains("CLEARED") || t.Contains("ON TARGET") || t.Contains("BLOCK")
-                || t.Contains("WINS") || t.Contains("SURVIVES"))
+                || t.Contains("WINS") || t.Contains(" WIN") || t.Contains("SURVIVES"))
                 return FlashKind.Good;
             if (t.Contains("MISS") || t.Contains("WIDE") || t.Contains("OVER")
                 || t.Contains("POST") || t.Contains("OUT"))
@@ -290,7 +301,10 @@ namespace Trickshot
         /// a light sweep across the band, then a slight push-out as it fades. The whole group is
         /// drawn through a scaled GUI.matrix so the text stays crisp at any size.
         /// </summary>
-        public static void Flash(string text, float alpha, string sub = null)
+        /// <param name="top">Where the pill's top sits (virtual px). The default hugs the top of the
+        /// screen; a mode with its own scoreboard up there (the cup) passes a lower value so the
+        /// callout never overlaps it.</param>
+        public static void Flash(string text, float alpha, string sub = null, float top = 16f)
         {
             if (alpha <= 0f || string.IsNullOrEmpty(text)) return;
             alpha = Mathf.Clamp01(alpha);
@@ -317,7 +331,7 @@ namespace Trickshot
             const float padX = 22f, barH = 34f, starW = 20f;
             float w = ts.x + padX * 2f + (epic ? starW * 2f + 12f : 0f);
             w = Mathf.Min(w, W * 0.7f);
-            float x = W * 0.5f - w * 0.5f, y = 16f + rise;
+            float x = W * 0.5f - w * 0.5f, y = top + rise;
             var band = new Rect(x, y, w, barH);
 
             var keep = GUI.matrix;

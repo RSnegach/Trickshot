@@ -34,6 +34,10 @@ namespace Trickshot
         // Match only: hosts advertise roles for nothing else (HostSetupUI sends 0 otherwise), so
         // the row is not drawn for other modes and the mask stays 0 there.
         byte _wantRoles;
+        // Trickshot Cup only: show just the lobbies of one play style (Head to Head / Co-op),
+        // read back out of the advert label (NetSession.ParseCupLabel). null = either, the
+        // default. The same local-view-only filter the role row is.
+        CupStyle? _cupStyleFilter;
         // _lobbies filtered by mode + _wantRoles, rebuilt after every sweep and filter change. Rows
         // are SELECTED out of this list, so _sel indexes the VISIBLE rows, never the raw sweep
         // results. _modeCount is how many of the sweep are this mode at all (before the role
@@ -123,7 +127,15 @@ namespace Trickshot
                 // OR): ticking Sniper+Referee means "somewhere I can do both", which is the reading
                 // that never puts a lobby in front of someone it cannot seat.
                 byte has = LookingRoles.Parse(_lobbies[i].mode);
-                if ((has & _wantRoles) == _wantRoles) _shown.Add(_lobbies[i]);
+                if ((has & _wantRoles) != _wantRoles) continue;
+                // Cup style filter: a label that does not parse (an older build's bare label) is
+                // shown under "either" and hidden under a specific style - it cannot be that style.
+                if (_gameMode == GameMode.TrickshotCup && _cupStyleFilter.HasValue)
+                {
+                    if (!NetSession.ParseCupLabel(_lobbies[i].mode, out var style, out _)) continue;
+                    if (style != _cupStyleFilter.Value) continue;
+                }
+                _shown.Add(_lobbies[i]);
             }
             _sel = -1;
             if (_selHandle != 0)
@@ -268,7 +280,7 @@ namespace Trickshot
             // as a working sweep).
             string name = PauseMenu.ModeName(_gameMode);
             string what = _shown.Count == 1 ? "1 " + name + " session" : _shown.Count + " " + name + " sessions";
-            if (_wantRoles != 0 && _shown.Count != _modeCount)
+            if (Filtering && _shown.Count != _modeCount)
                 what += " of " + _modeCount;
             string others = OtherModesLine();
             if (Multiplayer.SteamLinked || !Multiplayer.UseDirectIp) return what + " found" + others;
@@ -286,6 +298,18 @@ namespace Trickshot
             return other > 0 ? " (+" + other + " in other modes)" : "";
         }
 
+        /// <summary>Is a view filter (roles, or the cup's style) able to hide rows of this mode?</summary>
+        bool Filtering => _wantRoles != 0 || (_gameMode == GameMode.TrickshotCup && _cupStyleFilter.HasValue);
+
+        /// <summary>The row's mode text: a cup lobby shows just "Head to Head - Penalties" (the
+        /// panel title already says it is the cup); every other mode shows the label as advertised.</summary>
+        string RowMeta(LobbyInfo l)
+        {
+            if (_gameMode == GameMode.TrickshotCup && NetSession.ParseCupLabel(l.mode, out var style, out var format))
+                return CupText.Meta(style, format);
+            return l.mode;
+        }
+
         // Scaled up on big displays like the other pre-match menus (see MenuScale); the fixed sizes
         // below are unchanged, they just cover more of the screen. Wrapped so any early return
         // inside DrawBrowser can't leak the scaled GUI matrix.
@@ -299,8 +323,9 @@ namespace Trickshot
         void DrawBrowser()
         {
             float w = 560f, rowH = 46f, gap = 8f;
-            // +78 join row; +58 role filter, Match only (see the row itself).
-            float panelH = 150f + 6 * (rowH + gap) + 60f + 78f + (_gameMode == GameMode.Match ? 58f : 0f);
+            // +78 join row; +58 for the filter row: roles (Match) or play style (the cup).
+            bool filterRow = _gameMode == GameMode.Match || _gameMode == GameMode.TrickshotCup;
+            float panelH = 150f + 6 * (rowH + gap) + 60f + 78f + (filterRow ? 58f : 0f);
             float x = MenuScale.Width * 0.5f - w * 0.5f;
             float y = MenuScale.Height * 0.5f - panelH * 0.5f;
             UITheme.Scrim(MenuScale.Width, MenuScale.Height, 0.42f, w + 300f);
@@ -342,6 +367,31 @@ namespace Trickshot
                 UITheme.Divider(lx, row + 50f, lw);
                 row += 58f;
             }
+            // ---- Cup style filter (design 6.9): Head to Head / Co-op, in the same place the
+            // Match role row sits. One-of-two with an off state: clicking the lit style clears it.
+            else if (_gameMode == GameMode.TrickshotCup)
+            {
+                UITheme.Label(new Rect(lx, row, lw, 18f), CupText.PlayStyle + ":",
+                              new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UITheme.Dim } });
+                {
+                    var styles = CupStyleButtons;
+                    float bw = (lw - 6f * (styles.Length - 1)) / styles.Length;
+                    var fSt = new GUIStyle(GUI.skin.button) { fontSize = 12 };
+                    for (int i = 0; i < styles.Length; i++)
+                    {
+                        bool on = _cupStyleFilter.HasValue && _cupStyleFilter.Value == styles[i];
+                        var fs = new GUIStyle(fSt) { fontStyle = on ? FontStyle.Bold : FontStyle.Normal };
+                        if (on) fs.normal.textColor = UITheme.Gold;
+                        if (UITheme.Toggle(new Rect(lx + i * (bw + 6f), row + 20f, bw, 26f), CupText.StyleName(styles[i]), on, fs))
+                        {
+                            _cupStyleFilter = on ? (CupStyle?)null : styles[i];
+                            ApplyFilter();       // re-filter NOW so the list reacts to the click
+                        }
+                    }
+                }
+                UITheme.Divider(lx, row + 50f, lw);
+                row += 58f;
+            }
 
             if (_shown.Count == 0)
             {
@@ -359,6 +409,9 @@ namespace Trickshot
                 string why;
                 if (_modeCount > 0 && _wantRoles != 0)
                     why = "No open session is looking for that. Untick a role, or host one yourself.";
+                else if (_modeCount > 0 && Filtering)
+                    why = "No open " + CupText.StyleName(_cupStyleFilter ?? CupStyle.HeadToHead)
+                        + " cup right now. Try the other style, or host one yourself.";
                 else if (_lobbies.Count > 0)
                     why = "Nobody is hosting an open " + PauseMenu.ModeName(_gameMode) + " session"
                         + OtherModesLine() + ". Host one yourself.";
@@ -376,7 +429,7 @@ namespace Trickshot
                 { _sel = i; _selHandle = l.handle; }
                 // Green while the lobby has room, gold once it is full: the joinable ones stand out.
                 UITheme.Dot(r.x + 16f, r.center.y, l.players < l.maxPlayers ? UITheme.Green : UITheme.Gold, 2.5f);
-                UITheme.Label(new Rect(r.x, r.y, r.width - 14f, rowH), $"{l.mode}    {l.players}/{l.maxPlayers}  ", meta);
+                UITheme.Label(new Rect(r.x, r.y, r.width - 14f, rowH), $"{RowMeta(l)}    {l.players}/{l.maxPlayers}  ", meta);
                 row += rowH + gap;
             }
             if (_shown.Count > 0)
@@ -441,6 +494,10 @@ namespace Trickshot
             // Connecting overlay: block the panel + show progress while we wait for the host.
             if (_connecting) DrawConnecting();
         }
+
+        // The two hostable cup styles, in the order the host setup offers them (Solo is single
+        // player and never advertised).
+        static readonly CupStyle[] CupStyleButtons = { CupStyle.HeadToHead, CupStyle.Coop };
 
         // Modal "Connecting…" overlay shown between clicking Join and the host assigning us a slot.
         void DrawConnecting()

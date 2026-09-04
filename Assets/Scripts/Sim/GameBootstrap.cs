@@ -382,6 +382,14 @@ namespace Trickshot
                 // client could disagree about the goal - the same desync the Match branch fixed.
                 ApplyConfigGoal(cfg);
             }
+            else if (mode == GameMode.TrickshotCup)
+            {
+                // Style / format / seed for EVERY peer from the host's config (CupLaunch is what
+                // BuildMode reads). Never ApplyConfigGoal here: a cup goal is regulation on every
+                // peer by construction (CupDirector.ApplyCupStatics, called above the arena build),
+                // and its keeper is the stage ramp's, not the config's.
+                CupLaunch.FromConfig(cfg);
+            }
             BuildMode(mode);
         }
 
@@ -411,10 +419,13 @@ namespace Trickshot
 
         // Every human-player mode gets the customize screen, keeper included (the keeper wears
         // the customized skin/cosmetics/jersey + gloves, same as multiplayer). Modes with no
-        // customizable player would return false here.
+        // customizable player would return false here. The cup included: the player is a body
+        // in every round (the Jersey stage still runs; the cup paints the nation kit over it).
         static bool UsesCustomPlayer(GameMode mode) => true;
         // The keeper's customize flow skips the Skill stage (it only drives shot/movement traits
-        // a KeeperController never reads); every other mode walks the full flow.
+        // a KeeperController never reads); every other mode walks the full flow. The cup walks
+        // it too even though it standardises shooting (SkillTree.MaxShootingOverride): the tree
+        // still owns the movement traits, and the build is the player's outside the cup.
         static bool CustomizeSkipsSkill(GameMode mode) => mode == GameMode.Goalkeeper;
 
         // Match mode is HUMANS ONLY for now, so it skips the species screen and pins the selection
@@ -465,11 +476,27 @@ namespace Trickshot
         }
 
         // Accuracy forks before the pre-match screen: PRACTICE goes on to it, CHALLENGE has nothing
-        // to configure and starts the run directly. Every other mode goes straight to pre-match.
+        // to configure and starts the run directly. The cup has its own fork (Penalties / Free
+        // Kicks) and no pre-match panel at all. Every other mode goes straight to pre-match.
         void ShowPrematch(GameMode mode)
         {
             if (mode == GameMode.Accuracy) { ShowAccuracyModePick(); return; }
+            if (mode == GameMode.TrickshotCup) { ShowCupSetup(); return; }
             ShowPrematchPanel(mode);
+        }
+
+        // The Solo cup's fork (design 3.3): PENALTIES or FREE KICKS, nothing else to set - the
+        // goal is regulation, the stage ramp owns the keeper, the field is always 32. Picking a
+        // card IS the start of the cup: park the format and a fresh seed (CupLaunch) and build.
+        // Back returns to Customize, the screen before it.
+        void ShowCupSetup()
+        {
+            var go = new GameObject("CupSetupUI");
+            go.AddComponent<CupSetupUI>().Init(
+                onPick: f => { Destroy(go); CupLaunch.Solo(f); BuildMode(GameMode.TrickshotCup); },
+                onBack: () => { Destroy(go);
+                                if (UsesCustomPlayer(GameMode.TrickshotCup)) ShowCustomize(GameMode.TrickshotCup);
+                                else ShowStadiumSelect(GameMode.TrickshotCup); });
         }
 
         void ShowAccuracyModePick()
@@ -513,6 +540,11 @@ namespace Trickshot
             if (gc != null) Destroy(gc);
             Time.timeScale = 1f;
             Time.fixedDeltaTime = 0.02f;
+            // The cup's pause overlay and its parked launch values never outlive the match: the
+            // next mode's pause menu must freeze again, and a later BuildMode must not be able to
+            // launch yesterday's cup.
+            PauseMenu.Overlay = false;
+            CupLaunch.Clear();
 
             // Back to menus: stop the crowd bed and resume menu music. Covers BOTH exits (quit to
             // main menu AND pause -> match setup, which reopens Prematch without ShowMainMenu).
@@ -594,16 +626,50 @@ namespace Trickshot
             // single-player and for the host, where "Main Menu" ends the session for everyone.
             var pauseGo = new GameObject("PauseMenu");
             pauseGo.transform.SetParent(root, false);
-            System.Action onLeave = Trickshot.Net.Multiplayer.IsClient ? LeaveNetworkedMatch : (System.Action)null;
+            bool cup = mode == GameMode.TrickshotCup;
+            bool net = Trickshot.Net.Multiplayer.IsActive;
+            // The cup's quits go THROUGH the director (design 6.10 / 9.5): it marks the cup Ended
+            // - the host broadcasts that so clients see the menu rather than "connection lost" -
+            // and then calls the same ReturnToMainMenu / LeaveNetworkedMatch these closures
+            // would. Looked up at click time: the director does not exist yet here, and a cup
+            // that somehow has none falls back to the plain path.
+            System.Action cupQuit = () =>
+            {
+                var d = CupDirector.Instance;
+                if (d != null) d.QuitToMenu(); else ReturnToMainMenu();
+            };
+            System.Action cupLeave = () =>
+            {
+                var d = CupDirector.Instance;
+                if (d != null) d.QuitToMenu(); else LeaveNetworkedMatch();
+            };
+            System.Action onLeave = Trickshot.Net.Multiplayer.IsClient ? (cup ? cupLeave : LeaveNetworkedMatch) : (System.Action)null;
             // Restart is single-player only: the net protocol has no match reset, so restarting
-            // mid-session would strand every client.
-            System.Action onRestart = Trickshot.Net.Multiplayer.IsActive ? (System.Action)null : () => RestartMatch(mode);
+            // mid-session would strand every client. Never for the cup, in ANY style: a cup is
+            // a bracket, and "restart" there is Play Again / New Cup on its own end cards.
+            System.Action onRestart = net || cup ? (System.Action)null : () => RestartMatch(mode);
             // The full-screen setup (tear down + reopen the pre-match screen) is SINGLE-PLAYER only:
             // networked, ReturnToMatchSetup ends the session for everyone, and the host now has the
-            // in-pause Match Setup (goal size + keeper, applied live) for what it can change.
-            System.Action onFullSetup = Trickshot.Net.Multiplayer.IsActive ? (System.Action)null : () => ReturnToMatchSetup(mode);
-            pauseGo.AddComponent<PauseMenu>().Init(ReturnToMainMenu, onFullSetup, GetInput(),
-                                                   onLeave, onRestart, mode);
+            // in-pause Match Setup (goal size + keeper, applied live) for what it can change. The
+            // cup has no settings to reopen (PauseMatchSetup.RowsFor is 0 for it), so never there.
+            System.Action onFullSetup = net || cup ? (System.Action)null : () => ReturnToMatchSetup(mode);
+            var pause = pauseGo.AddComponent<PauseMenu>();
+            pause.Init(cup ? cupQuit : ReturnToMainMenu, onFullSetup, GetInput(), onLeave, onRestart, mode);
+            if (cup)
+            {
+                // The one quit entry, worded per style (design 6.10), and the overlay pause for the
+                // multiplayer styles: the sim, the kick clock and the camera keep running under the
+                // menu there; only Solo freezes. Cleared again in TearDownMatch.
+                if (!net)
+                    pause.SetCupLabels(CupText.QuitToMenu, CupText.ConfirmQuitTitle, CupText.ConfirmQuitSoloBody);
+                else if (Trickshot.Net.Multiplayer.IsHost)
+                    pause.SetCupLabels(CupText.EndMatch, CupText.ConfirmEndMatchTitle, CupText.ConfirmEndMatchBody);
+                else
+                    pause.SetCupLabels(CupText.QuitToMenu, CupText.ConfirmQuitTitle,
+                                       CupLaunch.Style == CupStyle.Coop ? CupText.ConfirmQuitCoopBody
+                                                                        : CupText.ConfirmQuitHeadToHeadBody);
+                PauseMenu.Overlay = net;
+            }
 
             // Networked match: pump the transport every frame for the match's lifetime.
             if (Trickshot.Net.Multiplayer.IsActive)
@@ -636,6 +702,13 @@ namespace Trickshot
                 SimConfig.StrikerMoveSpeed = SimConfig.StrikerMoveSpeedBase;
                 SimConfig.WallCount = 0;
             }
+            // The cup, for the same reason and in the same place: regulation goal, BallSpeedMul 1,
+            // StrikerMoveSpeed base, the 4-man wall at 9.15 m, PenaltyMode per format, no accuracy
+            // flags, no placed spot, and the two standardised-shooting overrides - one idempotent
+            // snapshot (design 9.6) the director puts back in its OnDestroy. Launch calls it again
+            // and only rebuilds the goal if something still differs, which after this is nothing.
+            if (mode == GameMode.TrickshotCup)
+                CupDirector.ApplyCupStatics(CupLaunch.Format, CupStage.RoundOf32);
 
             // --- Shared: arena, full pitch, stadium, crowd, ball, camera controller ---
             // All single-goal modes play on the OPEN full pitch: no boundary walls. The old
@@ -662,6 +735,15 @@ namespace Trickshot
             Arena.BindBall(ball.transform, SimConfig.BallRadius);   // also re-bound on a goal rebuild
 
             var gameCam = camGo.AddComponent<GameCamera>();
+
+            // The Trickshot Cup, every style, before the networked dispatches: one director for
+            // the whole cup (design 9.5) and NO ball-mode driver - the director runs its own
+            // session plumbing and builds each round under its own RoundRoot.
+            if (mode == GameMode.TrickshotCup)
+            {
+                BuildCup(root, cam, gameCam, ball, arena);
+                return;
+            }
 
             // Networked striker: host-authoritative multi-player striker driver instead of
             // the single-player GameManager. (Match-mode networking is a later pass.)
@@ -750,6 +832,43 @@ namespace Trickshot
             go.AddComponent<NetAccuracyMatch>()
               .Configure(GetInput(), cam, gameCam, ball, arena.goalCenter, torso, limb, glove, root);
             LockCursor();
+        }
+
+        // ------------------------------------------------ Trickshot Cup (all three styles)
+        // The arena, pitch, stadium, crowd, ball and camera are already standing (BuildMode) and
+        // persist for the WHOLE cup; the director builds and tears down each round's bodies,
+        // referee, wall and coin under its own RoundRoot, so the stadium never flickers between
+        // rounds (design 9.5). Style / format / seed come from CupLaunch: the Solo fork parked
+        // them, or StartNetworkedMatch copied them out of the host's config on every peer. The
+        // director opens on CHOOSE YOUR NATION, a menu, so the cursor is left free; its screens
+        // own it from here (every round captures it on its own).
+        void BuildCup(Transform root, Camera cam, GameCamera gameCam, BallController ball, Arena.Refs arena)
+        {
+            ball.SetCamera(gameCam);
+            // Init the camera controller like every other builder does - without it GameCamera
+            // has no Camera and its LateUpdate returns at once, so the free-kick Follow, the
+            // keeper's KeeperFollow and the replay's Broadcast would never move the camera.
+            // No striker here: the round driver re-targets it per kick through the rig.
+            gameCam.Init(cam, ball.transform, null, null, arena.goalCenter);
+            Material torso = JerseyMaterial();   // the cup paints the nation kit over it per body
+            Material limb  = Make.Mat(new Color(0.15f, 0.32f, 0.6f));
+            Material glove = Make.Mat(new Color(0.9f, 0.85f, 0.2f));
+
+            // No session = Solo, whatever was parked (a stale MP style must not run a networked
+            // phase machine against nobody); a session with a Solo style (never hosted, but an
+            // unauthored config is 0) is Head to Head, as NetSession labels it.
+            bool netActive = Trickshot.Net.Multiplayer.IsActive;
+            var style = !netActive ? CupStyle.Solo
+                      : CupLaunch.Style == CupStyle.Solo ? CupStyle.HeadToHead
+                      : CupLaunch.Style;
+            var director = CupDirector.Launch(root, style, CupLaunch.Format, CupLaunch.SeedForLaunch(),
+                                              GetInput(), cam, gameCam, ball, arena.goalCenter,
+                                              torso, limb, glove, ReturnToMainMenu);
+            if (Trickshot.Net.Multiplayer.IsClient) director.OnLeave = LeaveNetworkedMatch;
+            // Solo: Back / Esc on CHOOSE YOUR NATION returns to the fork (design 6.1) - the same
+            // tear-down-and-reopen the pause menu's Match Setup uses, which lands on ShowCupSetup.
+            if (!netActive) director.OnBackToSetup = () => ReturnToMatchSetup(GameMode.TrickshotCup);
+            GameInput.CaptureCursor(false);
         }
 
         Crowd _crowd;   // shared crowd, so modes can Celebrate() on goals

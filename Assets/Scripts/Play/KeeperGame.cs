@@ -47,7 +47,7 @@ namespace Trickshot
         void Update()
         {
             if (_input == null) return;
-            if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
+            if (PauseMenu.Frozen) return;   // no gameplay/input behind a FREEZING pause menu
             if (_input.ResetPressed) { FullReset(); return; }
 
             _keeper.Tick();

@@ -131,7 +131,7 @@ namespace Trickshot
         void Update()
         {
             if (_input == null) return;
-            if (PauseMenu.Paused) return;   // no gameplay/input behind the pause menu
+            if (PauseMenu.Frozen) return;   // no gameplay/input behind a FREEZING pause menu
 
             // Placement map (M): pick the ball/shooter spot + wall on a top-down map. While open,
             // free the cursor, freeze the camera, and do NOT tick the taker (so it can't charge or

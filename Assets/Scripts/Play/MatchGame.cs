@@ -176,7 +176,7 @@ namespace Trickshot
         void Update()
         {
             if (_input == null) return;
-            if (PauseMenu.Paused) return;
+            if (PauseMenu.Frozen) return;   // Frozen: an overlay pause never stops the sim
 
             // Landing telegraph, BEFORE every early return below. It has to be: this method returns at
             // full time, on a reset and on the frame the clock expires, and the disc would have been

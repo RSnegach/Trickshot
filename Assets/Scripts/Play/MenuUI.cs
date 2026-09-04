@@ -8,7 +8,9 @@ namespace Trickshot
     // Freeplay and TimeTrial were removed outright (not just reordered) - pre-release, no
     // external client needs the old byte values to stay stable, so every value after them
     // shifted down rather than leaving a permanent gap.
-    public enum GameMode { Striker, Goalkeeper, Accuracy, FreeKick, Match, SetPieces }
+    // TrickshotCup = the knockout cup (Solo / Head to Head / Co-op are a STYLE inside it, carried
+    // in MatchConfig.cupStyle; Penalties / Free Kicks a FORMAT in cupFormat - neither is a mode).
+    public enum GameMode { Striker, Goalkeeper, Accuracy, FreeKick, Match, SetPieces, TrickshotCup }
 
     /// <summary>
     /// IMGUI start menu, two screens: a title SPLASH (the wordmark + "press any key"), then a
@@ -237,7 +239,7 @@ namespace Trickshot
         static readonly GameMode[] SoloModes =
         {
             GameMode.Striker, GameMode.Goalkeeper, GameMode.Match,
-            GameMode.Accuracy, GameMode.FreeKick,
+            GameMode.Accuracy, GameMode.FreeKick, GameMode.TrickshotCup,
         };
         ModeGrid _soloGrid;
         static int _soloPage;

@@ -975,7 +975,7 @@ namespace Trickshot
         // -------------------------------------------------------------- loop
         void Update()
         {
-            if (_s == null || PauseMenu.Paused) return;
+            if (_s == null || PauseMenu.Frozen) return;   // Frozen: an overlay pause never stops the sim
 
             // Quickchat (multiplayer): Tab opens/submits the custom text box; while typing, gameplay
             // input is suspended so keystrokes don't drive the player. Number keys 1-6 send a preset.

@@ -1,113 +1,74 @@
-# Handoff: live menu scene panels (pass 2)
+# Handoff: Trickshot Cup build (multi-agent, phase 5 is the last)
 
 ## Current task
 
-The Single Player and Multiplayer submenus now show large panel buttons, each rendering a LIVE
-ragdoll vignette of that mode. Built and compiling; the last round of choreography changes is
-**written but never run**, because the editor was uncompilable at the time (a parallel session was
-mid-way through an Accuracy rework). **That rework has since landed and the tree compiles clean, so
-the outstanding work is verification, not writing.**
+Implementing the whole Trickshot Cup mode (design: `docs/trickshot-cup-design.md`) with a
+sequence of Workflow-orchestrated agent phases. The runbook with the exact resume commands is
+`docs/cup-build/README.md`; the codebase facts the agents rely on are
+`docs/cup-build/cup-build-notes.md`; every finished phase's report is under `docs/cup-build/reports/`.
 
-Design and rationale: `docs/menu-scenes-design.md` (its "What the build changed against this plan"
-section is the corrections list). Durable API rules: the "Menu scene panels" section of `CLAUDE.md`.
+## Desired end state
 
-## Acceptance criteria (the user's own words)
+All three styles (Solo, Head to Head, Co-op) playable end to end per the design doc, the podium and
+trophy lift, the menu vignette, multiplayer on the existing direct-IP transport, a three-lens review
+with fixes, CLAUDE.md carrying the cup's invariants, this handoff rewritten (or deleted) by the final
+verifier. Then the owner commits and the graph is updated.
 
-- Striker: faces the camera "a little bit more off center"; goes up **instantly** on hover; the ball
-  **hits the boot**; he **rolls onto his back** limp.
-- Match: both start closer; the tackle launches **instantly**; the tackler **crashes into** the
-  dribbler (he was running out from under it); **both end limp on the ground, on screen**; the whole
-  scene is **2 seconds max**.
-- Goalkeeper: zoomed out, starts centred, lands inside the frame; **several saves that cycle
-  randomly** - a lunge, a catch, and a spread save.
-- Free kick: zoomed out a little, wall further away so the ball does not hit it.
-- All scenes: no background, no ground, no sky - just the character(s) and the ball.
+## Where it stands (2026-09-04, phase 4 complete)
 
-## State of each scene
+- Phases 1, 2, 2b, 3 and 4 are DONE and compile-clean (`bash docs/compile-check.sh` -> `exit=0`).
+  3b (editor check of the endings) was SKIPPED on the owner's instruction.
+- Phase 4 (`wf4-multiplayer.js`, 4 agents, 2.56M agent tokens, 93 min) built the wire and both
+  networked styles: `reports/phase4-multiplayer.json`. New files: `CupNet.cs`, `CupDirector.Net.cs`,
+  `CupRoundDriver.Net.cs`, `CupSpectatorView.cs` (H), `CupRoundDriver.Leaver.cs` (I), `CupOrderUI.cs`
+  (J); `CupDirector.HeadToHead.cs` / `CupDirector.Coop.cs` are now the full flows; R1 fixed twelve
+  seam defects. MsgType CupState 23 / CupRequest 24 / CupStream 25 / CupRoundState 26,
+  ProtocolVersion 8 unchanged, CupNet.StateVersion 1.
+- EVERYTHING in phases 3 and 4 is compile- and desk-checked only: no editor, no loopback. The first
+  loopback pass is spelled out in phase 4's `r1.notesForNextAgents` (item 1) and should follow phase 5.
+- Everything through phase 4 is COMMITTED and PUSHED on `main` (2026-09-04) with the graph refreshed;
+  the six new scripts got hand-written two-line `.meta` files in the project's form.
+- Phase 5 (`wf5-review.js`: 3 reviewers, 2 fixers, 1 final verifier) is NOT started. Its KNOWN block
+  already carries every open issue from the phase 3 and 4 reports (superseded free-kick bullet
+  rewritten, phase 4 deliberate gaps listed as accepted, phase 4 open items (a)-(i) listed to fix).
 
-| Scene | State |
-|---|---|
-| Striker | Facing + instant jump + back-landing VERIFIED earlier (`MinUp` -0.58, `Tumbled` true). Boot contact **unverified** - last change is a rewrite, see below. |
-| Match | Intercept aim, spacing, 2 s hold, both felled: **all unverified**. |
-| Goalkeeper | Five random shots: **unverified**. Earlier single-dive version was verified working after the `outSign` fix. |
-| Accuracy | Verified composing correctly. |
-| Free Kick | Wall distance 6.2 m and reframing **unverified**; earlier version verified showing taker + wall. |
+## Known bugs / open questions
 
-## The one substantive open risk: striker ball-to-boot
+- Phase 4 open items a reviewer should settle (all in `wf5-review.js` KNOWN): client puppets have no
+  run/dive animation (DisplaySnap/DisplayEmote only); a lobby spectator's Esc closes on the host's
+  echo; a refused RoundResult waits for the 10 s wave watchdog; `CupHud.cs` unused `teamW`; the
+  display-only client taker meter; puppets must never get `Celebration.Play`; the two leaver paths
+  (`HandSlotToAi` Head to Head / `HumanLeft` Co-op) must be style-gated.
+- Deliberate gaps (accepted): no client keeper prediction; EndMatch's single `Ended` packet; the
+  Co-op reel gate on host time; a leaving keeper's gloves re-slotted, not rebuilt.
+- Free kicks: the owner saw the kick clock keep counting after a strike and the auto-shot overwrite
+  the real result. Agent K found and fixed two real causes (lineup bodies inside the free-kick band
+  striking the dead ball; `SetPieceTaker.Begin` swallowing a Space held at the whistle -> `ChargeGate`)
+  but it was never reproduced in play mode. Still pending: may an agent use play mode for it?
+- The editor pass in phase 2b ran `graphify update .` on its own; the owner wants that only at
+  commits or on "about to clear" (done at the phase 4 commit).
 
-Four ballistic attempts all missed (closest approach 1.72 -> 1.19 m; a miss of 20 cm is a miss). The
-reason is structural, not tuning: `BallController.LaunchTo` solves an arc THROUGH a point fixed at
-launch, while the boot is swung by a whole-body torque whose rate varies with `PlayerProfile
-.AirFlipMul` and the frame rate, so predicting the bone's position 0.2 s ahead is unreliable.
+## Decisions already made
 
-**Current approach (untested):** `StrikerScene.TickHoming` holds the ball kinematic and flies it
-along a lifted lerp onto the boot's LIVE position, re-read every frame, then releases it into
-physics on arrival with its carried velocity. The strike itself still goes through `KickDetector` /
-`BallController`, so the bicycle classification and pace bonus remain real.
+- Round / stage naming; no "tie". Solo is standardised like MP. No human keeper handicap.
+- Editor use is for animation checks only. Agent budget about 22 for the whole build (22 used;
+  phase 5's six are the last).
+- Phase order and agent counts are fixed in the scripts; do not add agents without asking.
+- Free kicks have no lineup: scatter marks, dejection on the spot, whole side freed on a goal.
 
-If it still reads wrong, the fallbacks are: shorten `ServeTime` (0.14) so there is less to
-interpolate; raise `ServeLift` (0.35) so the ball rises into the foot more visibly; or move
-`ServeAtUp` (0.18, the lean at which the serve fires) later/earlier to change where in the flip
-contact lands.
+## Exact next steps (from a fresh session)
 
-## How to verify (the harness matters)
+Preconditions: `/effort ultracode`; Unity is NOT needed. Launch phase 5 only with well over an hour
+of session limit left: it is six agents, about the size of phase 4, and a killed workflow cannot be
+resumed (it restarts from scratch).
 
-`MenuUI.OnGUI` re-latches hover from the real mouse EVERY frame, so a reflection-driven `SetHover`
-is overwritten instantly. Sequence that works:
-
-1. Play mode, then set `MenuUI._phase` to `SinglePlayer` by reflection; wait ~3 s for all five
-   sub-stages to build (one per frame, `MenuSceneStage._built` reaches 5).
-2. `menu.enabled = false` — this is the step that makes the test deterministic.
-3. `stage.SetHover(null)` then `stage.SetHover(GameMode.X)` for a clean restart.
-4. Wait ~2 s, then read the run record.
-
-`StrikerScene` exposes a run record for exactly this: `MinFootBall` (want < ~0.4), `MinUp` (want
-negative = went past horizontal), `Tumbled`, `PeakY`, `BootAtPeak`, `BallAtPeak`. Add the same to
-`MatchScene` if its contact needs the same treatment.
-
-~~The user has asked to stop using Unity MCP for verification.~~ **REVERSED (2026-09-03):** the
-user re-enabled Unity MCP and asked for it to be used - a later session drove the whole accuracy
-flow through it (play mode, reflection navigation, `ScreenCapture`, `read_console`) and found two
-real UX bugs a compile pass could not. The harness sequence below still applies. Note
-`execute_code`'s compiler is CodeDom (C# 6): no `out var`, no local functions.
-
-## Known-good arithmetic (do not re-derive)
-
-- Match spacing: slide launches at `SlideLunge` 8.5 m/s decaying by `SlideFriction` 0.955/frame. A
-  3.5 m start gap gives contact at ~0.3 s after ~1.9 m of travel, leaving ~1.7 s of both bodies down
-  inside the 2 s hold. A 2.1 m gap made contact at 0.03 s (slide invisible).
-- Keeper dead band ≈ 4.2 m/s of reach at ability 0.6; a 2.4 m offset needs a flight under ~0.5 s or
-  he sidesteps instead of diving.
-
-## Also done this session (complete, not blocked)
-
-- **Pass 1, "Other Modes" breakup** — finished and verified in the editor. See the "Multiplayer menu
-  flow" section of `CLAUDE.md`.
-- **Trickshot World Cup** idea added to `DESIGN_NOTES.md` (idea only, nothing built).
-- Material-leak fixes at the source in `AccuracyTarget`, `DefensiveWall`, `BallController`,
-  `ActiveRagdoll`.
-
-## Everything is uncommitted
-
-All of the above sits in the working tree on `main`, interleaved with the parallel session's
-Accuracy work. Nothing has been committed. `bash docs/compile-check.sh` is clean.
-
-**Update (2026-09-03):** that parallel Accuracy rework is COMPLETE and verified in the editor - it
-is no longer a moving target under this task. The tree compiles clean in both Roslyn and Unity, and
-Unity's console shows no errors. Accuracy's durable rules are in `CLAUDE.md` ("Accuracy mode
-(practice / challenge)", "Single-player setup screens", "Setup panels", "HUD panels", "HUD
-callouts"). The menu-scene verification described above is still the only outstanding work here.
-
-**Update (2026-09-03, later session):** three more pieces landed, all COMPLETE and verified in the
-editor with screenshots - nothing about them is outstanding, and their durable rules are already in
-`CLAUDE.md` (see "HUD callouts", "Accuracy mode", "Steam", "IMGUI modal rules"):
-
-1. Accuracy callouts shortened to `GOAL` / `STRIKE n` (practice: `GOAL` / `MISS`) in SP and MP.
-2. SP accuracy CHALLENGE end card - it previously had no buttons at all, only "Press R", with the
-   cursor still captured so nothing was clickable. Now Replay / Match Setup / Main Menu.
-3. MP accuracy results card (winner crowned, losers below) and an in-game Steam invite friend
-   picker (`InviteFriendsUI`) on the host lobby.
-
-The menu-scene verification at the top of this file remains the ONLY open work in the tree. Note
-that a parallel session was editing `NetSetPieceMatch.cs` at the same time as item 3; the combined
-file compiles clean, but that session's own edits were not reviewed here.
+1. `bash docs/compile-check.sh` must print `exit=0`.
+2. Phase 5: `Workflow({ scriptPath: "C:/Users/evrik/downloads/Trickshot/Trickshot/docs/cup-build/workflows/wf5-review.js", args: { reportFiles: [P1, P2, P2B, P3, P4] } })`
+   with P1 = docs/cup-build/reports/phase1-foundations.json, P2 = phase2-solo.json,
+   P2B = phase2b-editor-solo.json, P3 = phase3-endings.json, P4 = phase4-multiplayer.json (absolute
+   paths). Its final verifier updates CLAUDE.md, rewrites this handoff and the DESIGN_NOTES pointer.
+   When it completes, copy its `tasks/<id>.output` to `docs/cup-build/reports/phase5-review.json`.
+3. Report, then (the owner's call) commit and push, and only then `graphify update .`.
+4. After phase 5: the loopback pass (Head to Head lobby of two, then one Co-op stage) and the
+   in-editor animation checks the skipped 3b would have done (podium hand-over, trophy lift, the
+   free-kick scatter and dejection, the menu vignette).

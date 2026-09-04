@@ -66,6 +66,16 @@ namespace Trickshot
         /// MoveInput is zeroed, so he finishes what he was doing and then stands still.</summary>
         public bool InputLocked;
 
+        /// <summary>
+        /// Penalty rule (Trickshot Cup): the keeper may shuffle along his line but may not come off
+        /// it toward the ball until it is struck. While set, any move input toward the pitch is
+        /// dropped once his pelvis is on or in front of <see cref="HoldLineZ"/> (the goal line's
+        /// world z); sideways movement and dives are untouched. The cup's round driver sets it for
+        /// the placed / armed phases and clears it when the ball is live.
+        /// </summary>
+        public bool HoldLine;
+        public float HoldLineZ;
+
         // Dive lifecycle: landing detection.
         float _diveDir;       // -1 left / +1 right (for the leading-leg bend)
         Quaternion _diveOrient;  // held horizontal lay-out target for the current dive
@@ -106,6 +116,16 @@ namespace Trickshot
             // the camera look (SetLookYawSource).
             _facing = Quaternion.LookRotation(_faceDir, Vector3.up);
             _ragdoll.FacingRotation = _facing;
+        }
+
+        /// <summary>
+        /// Swap the input source without re-running Init (the cup's Co-op hands a leaving keeper's
+        /// gloved body to another human mid-round; Init re-derives "out" from the pelvis z, which
+        /// would face a body standing in a lineup into its own net). Null is ignored.
+        /// </summary>
+        public void SetInput(IStrikerInput input)
+        {
+            if (input != null) _input = input;
         }
 
         /// <summary>True while he has the ball in his gloves.</summary>
@@ -348,6 +368,16 @@ namespace Trickshot
             if ((x > SimConfig.KeeperStrafeXLimit && vel.x > 0f) ||
                 (x < -SimConfig.KeeperStrafeXLimit && vel.x < 0f))
                 vel.x = 0f;
+
+            // Held on his line before the strike: drop the component toward the pitch once he is
+            // on or past the line (he can still step BACK onto it and shuffle sideways).
+            if (HoldLine)
+            {
+                float toward = Vector3.Dot(vel, fwd);
+                var line = new Vector3(_ragdoll.Pelvis.position.x, _ragdoll.Pelvis.position.y, HoldLineZ);
+                bool onLine = Vector3.Dot(_ragdoll.Pelvis.position - line, fwd) >= -0.05f;
+                if (toward > 0f && onLine) vel -= fwd * toward;
+            }
 
             _ragdoll.MoveInput = vel;
         }

@@ -48,8 +48,11 @@ namespace Trickshot
 
         /// <summary>The keeper row's shape: the five-step difficulty ladder, or a plain Yes/No.
         /// Yes/No stores its answer in the SAME keeperLevel int - 0 is None either way, and any
-        /// other value is "there is a keeper" - so no caller needs a second field.</summary>
-        public enum KeeperRow { Ladder, YesNo }
+        /// other value is "there is a keeper" - so no caller needs a second field. None draws no
+        /// row at all and leaves keeperLevel untouched: the Trickshot Cup's host panel, where the
+        /// keeper is the stage ramp's to set and the picture only says "regulation goal" (the
+        /// figure still stands beside the post when the level passed in is above 0).</summary>
+        public enum KeeperRow { Ladder, YesNo, None }
 
         /// <summary>Yes on a Yes/No row maps to this rung of the ladder, so a caller that later
         /// reads the level back gets a sensible ability rather than a bare 1.</summary>
@@ -145,16 +148,21 @@ namespace Trickshot
 
             // ---- goalkeeper, under the goal ----
             float ky = box.yMax + (framed ? 10f : 14f);
-            var klbl = _klblSt ??= new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = UITheme.Ink } };
-            UITheme.Label(new Rect(p.x + inset, ky, 120f, 22f), "Goalkeeper:", klbl);
+            // None: no label, no buttons, and nothing allocated - the row's band under the picture
+            // is simply empty (the panel keeps ContentH so every setup screen lines up).
+            var names = keeperRow == KeeperRow.None ? NoNames
+                      : keeperRow == KeeperRow.YesNo ? YesNoNames
+                      : SimConfig.AiLevelNames;
+            if (keeperRow != KeeperRow.None)
+            {
+                var klbl = _klblSt ??= new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = UITheme.Ink } };
+                UITheme.Label(new Rect(p.x + inset, ky, 120f, 22f), "Goalkeeper:", klbl);
+            }
 
             // Ladder: the five named difficulties. Yes/No: two buttons over the same int, where 0
             // is None and YesLevel is "there is one". The two rows are drawn by one loop so they
             // stay identical in size, spacing and hit area.
-            var names = keeperRow == KeeperRow.YesNo
-                      ? YesNoNames
-                      : SimConfig.AiLevelNames;
-            float bx = p.x + inset, bw = p.width - inset * 2f, each = (bw - 6f * (names.Length - 1)) / names.Length;
+            float bx = p.x + inset, bw = p.width - inset * 2f, each = (bw - 6f * (Mathf.Max(1, names.Length) - 1)) / Mathf.Max(1, names.Length);
             for (int i = 0; i < names.Length; i++)
             {
                 // Yes/No's buttons are [No, Yes] and map to levels 0 and YesLevel.
@@ -184,6 +192,7 @@ namespace Trickshot
         }
 
         static readonly string[] YesNoNames = { "No", "Yes" };
+        static readonly string[] NoNames = new string[0];   // KeeperRow.None: the loop draws nothing
 
         static void Handle(float x, float y)
             => GUI.DrawTexture(new Rect(x - 4f, y - 4f, 8f, 8f), Texture2D.whiteTexture);

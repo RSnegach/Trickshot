@@ -199,8 +199,10 @@ namespace Trickshot
             ApplyAmbientSwell();   // set the initial split immediately (bed 0 full, bed 1 silent)
 
             // Set pieces drive the livelies off scoring streaks (no timer); everything else swells
-            // the crowd on a clock.
-            _swellEnabled = !(mode == GameMode.FreeKick || mode == GameMode.SetPieces);
+            // the crowd on a clock. The cup is a dead-ball mode too (its driver calls the same
+            // OnSetPieceGoal / OnSetPieceMiss per kick), so a clocked swell would land on a coin
+            // toss or a results card.
+            _swellEnabled = !(mode == GameMode.FreeKick || mode == GameMode.SetPieces || mode == GameMode.TrickshotCup);
             _swellTimer = NextSwellInterval();
         }
 
@@ -271,7 +273,9 @@ namespace Trickshot
                 else _menuMusicOn = false;
             }
 
-            if (!_matchActive || PauseMenu.Paused) return;
+            // Frozen, not Paused: an overlay pause (the multiplayer cup) keeps the match running,
+            // and a crowd that fell silent under the menu would say the game had stopped.
+            if (!_matchActive || PauseMenu.Frozen) return;
 
             // Antiphase ambient swell runs the whole match (independent of the lively timer).
             _ambientPhase += Time.unscaledDeltaTime * (2f * Mathf.PI / AmbientSwellPeriod);
@@ -365,6 +369,17 @@ namespace Trickshot
             var clap  = Clip("applause");
             if (cheer != null) _event.PlayOneShot(cheer, v);
             if (clap  != null) _event.PlayOneShot(clap,  v);
+        }
+
+        // The cup's podium / trophy lift (design 8.1): Resources/Audio/fanfare if the clip exists
+        // (Clip null-skips, so a build without it just gets the crowd), over the full goal
+        // celebration. Nothing else - no swell, no streak, no lively cut beyond what the
+        // celebration already does.
+        public void PlayFanfare()
+        {
+            var fanfare = Clip("fanfare");
+            if (fanfare != null) _event.PlayOneShot(fanfare, Chan(Channel.Sfx));
+            PlayGoalCelebration();
         }
 
         // Applause alone (no cheer) - used at the end of a set-piece match.

@@ -21,6 +21,15 @@ namespace Trickshot
             Sprinkler, HandsUp, Facepalm, Charleston, Cheer, Twirl, Disco, Thinker,
             // Newest wheel (shown 2nd in the order, but appended here so wire ids never shift)
             Twerk, FishFlop, Moonwalk, Wave2, Crip, Vibe, Kick, Slide2,
+            // Trickshot Cup choreography (design 7.6 / 7.1 / 8.1). APPENDED, never inserted: the
+            // enum value is the byte on the wire (InputFrame.emoteId / BodyState.emoteId), so
+            // TrophyLift = 33, DejectKnees = 34, DejectHips = 35, DejectFall = 36,
+            // WhistleRaise = 37 are now a contract every peer shares. None of these are on the
+            // wheel Pages: the cup plays them by code (the podium re-plays TrophyLift whenever
+            // Playing drops; the dejection trio is rolled by the round RNG; the referee raises
+            // before every whistle). DejectFall only POSES the arms here - freeing the body to
+            // fall is the cup choreography's job (balance off, upright lock off, a nudge).
+            TrophyLift, DejectKnees, DejectHips, DejectFall, WhistleRaise,
         }
 
         // Emote pages, cycled by the wheel's left/right arrows. The "fun/new" wheel is shown
@@ -166,6 +175,13 @@ namespace Trickshot
                 case Emote.Bow:       return 1.5f;
                 case Emote.FishFlop:  return 1.6f;
                 case Emote.Twerk:     return 2.2f;
+                // Cup choreography (CupTuning has the beats these sit inside: the 4 s dejection
+                // beat, the 0.4 s whistle raise + 0.5 s hold, the podium's re-played lift).
+                case Emote.TrophyLift:   return 2.5f;
+                case Emote.DejectKnees:  return 4.0f;
+                case Emote.DejectHips:   return 4.0f;
+                case Emote.DejectFall:   return 4.0f;
+                case Emote.WhistleRaise: return 1.2f;
                 default:              return 1.6f;
             }
         }
@@ -478,6 +494,11 @@ namespace Trickshot
                     return -Mathf.Clamp01(p * 3f) * 0.45f;   // drop onto the shins
                 case Celebration.Emote.Twerk:
                     return -0.35f;                            // squat down into the wide stance
+                case Celebration.Emote.DejectKnees:
+                    // Sink to the knees over the first ~0.4 s and stay there (the cup's losing
+                    // shooter, design 7.6 #1). Same depth as the knee slide, whose shin pose it
+                    // shares, so the shins meet the ground at this scale.
+                    return -Mathf.Clamp01(p * 2.5f) * 0.45f;
                 default: return 0f;
             }
         }
@@ -785,6 +806,116 @@ namespace Trickshot
                     set(Bone.UpperArmR, new Vector3(40f * s, 0f, -12f));
                     set(Bone.ForearmL, new Vector3(-50f, 0f, 0f));
                     set(Bone.ForearmR, new Vector3(-50f, 0f, 0f));
+                    break;
+                }
+
+                // ---- Trickshot Cup choreography (first-pass poses; the cup's own agent tunes) ----
+                // Rig conventions, as the cases above use them: UpperArm +Z raises the arm OUT to
+                // its side (L positive, R negative; ~170 = straight overhead), UpperArm -X raises it
+                // FORWARD, Forearm -X bends the elbow so the hand comes up (Facepalm / Salute put a
+                // hand to the face with UpperArm (-70, 0, -55) + Forearm -120). Torso +X leans
+                // forward, -X back; Head +X looks down.
+                case Celebration.Emote.TrophyLift:
+                {
+                    // Both hands on the trophy overhead (the podium / trophy lift, design 8): the
+                    // arms rise over the first 0.35 of the emote, then hold with a slow sway and one
+                    // small pump (a dip and back) at p 0.55-0.75, so a lift re-played every 2.5 s
+                    // reads as a celebration, never a statue. The trophy is parented to the LEFT
+                    // forearm (CupTrophy), so the right hand comes to it.
+                    // Lateral sign per the derived rule (CupPoses' header, verified in play mode):
+                    // +Z on the LEFT arm swings it toward the body's right. 162 from hanging is 18 deg
+                    // INBOARD of vertical, which with the shoulders 0.26 out and a 0.64 arm puts the
+                    // hands 0.06 m either side of the centre line, 0.61 m above the shoulders - both
+                    // round the trophy's base. -X tips the raised arms a touch forward so the trophy
+                    // is held in front of the crown, not behind it.
+                    float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(p / 0.35f));
+                    float pump = Mathf.Sin(Mathf.Clamp01((p - 0.55f) / 0.2f) * Mathf.PI) * 14f * k;
+                    float sway = Mathf.Sin(p * Mathf.PI * 2f) * 5f * k;
+                    set(Bone.UpperArmL, new Vector3(-10f * k, 0f, (162f - pump) * k));
+                    set(Bone.UpperArmR, new Vector3(-10f * k, 0f, (-162f + pump) * k));
+                    set(Bone.ForearmL, new Vector3(-6f * k, 0f, sway * 0.4f));
+                    set(Bone.ForearmR, new Vector3(-6f * k, 0f, -sway * 0.4f));
+                    set(Bone.Torso, new Vector3(-9f * k, 0f, sway * 0.5f));
+                    set(Bone.Head, new Vector3(-14f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.DejectKnees:
+                {
+                    // Knees + face in hands: the knee-slide's shin fold (RootLift sinks him onto
+                    // them), both forearms to the face, head down 30. Eases in over ~0.4 s, holds.
+                    float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(p * 2.5f));
+                    set(Bone.ThighL, new Vector3(-20f * k, 0f, 0f));
+                    set(Bone.ThighR, new Vector3(-20f * k, 0f, 0f));
+                    set(Bone.CalfL, new Vector3(135f * k, 0f, 0f));
+                    set(Bone.CalfR, new Vector3(135f * k, 0f, 0f));
+                    set(Bone.UpperArmL, new Vector3(-70f * k, 0f, 55f * k));
+                    set(Bone.UpperArmR, new Vector3(-70f * k, 0f, -55f * k));
+                    set(Bone.ForearmL, new Vector3(-120f * k, 0f, 0f));
+                    set(Bone.ForearmR, new Vector3(-120f * k, 0f, 0f));
+                    set(Bone.Torso, new Vector3(14f * k, 0f, 0f));
+                    set(Bone.Head, new Vector3(30f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.DejectHips:
+                {
+                    // Hands on hips, head down 35: upper arms a touch back and out, forearms bent
+                    // in so the hands land on the hips; a slow breath in the shoulders.
+                    // Lateral sign per the DERIVED rule (KeeperPose's header, CupPoses): +Z swings
+                    // a hanging limb toward the character's RIGHT, so the elbows go OUT with -Z on
+                    // the left arm and +Z on the right. The first pass had them mirrored (tucked
+                    // in across the back), which reads as a straitjacket, not hands on hips.
+                    // Forward kinematics (CupPoses' derivation): upper arm back 10 / out 30, forearm
+                    // bent 65 and swung IN 60 puts the hand ON the hip at (-0.23, 1.08, 0.05); the
+                    // straight-down forearm of the first pass left it dangling 0.2 m outboard.
+                    float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(p * 2.5f));
+                    float breath = Mathf.Sin(p * Mathf.PI * 3f) * 3f * k;
+                    set(Bone.UpperArmL, new Vector3(10f * k, 0f, -30f * k - breath));
+                    set(Bone.UpperArmR, new Vector3(10f * k, 0f, 30f * k + breath));
+                    set(Bone.ForearmL, new Vector3(-65f * k, 0f, 60f * k));
+                    set(Bone.ForearmR, new Vector3(-65f * k, 0f, -60f * k));
+                    set(Bone.Torso, new Vector3(8f * k, 0f, 0f));
+                    set(Bone.Head, new Vector3(35f * k, 0f, 0f));
+                    break;
+                }
+                case Celebration.Emote.DejectFall:
+                {
+                    // Arms on the head (hands clasped behind it) for the first 0.35 of the emote,
+                    // held for the rest: the cup frees the body at 0.8 s (balance off, upright off,
+                    // a backward nudge) and gravity does the fall, so the pose overrides only have
+                    // to keep the arms where they are while he goes over.
+                    // Elbows flared OUT (left arm -Z, right arm +Z - see CupPoses for the derivation;
+                    // the mirrored first pass crossed the forearms in front of the face), the same
+                    // shape CupPoses.DejectFallArms holds on the body after it has gone over.
+                    // With the arm raised sideways the elbow folds about Z (the frontal plane), not
+                    // X: -130 on the left forearm (+130 right) brings the hands together at the
+                    // back of the head, (-0.07, 1.77, -0.07); an X fold sent them out in front of
+                    // the face. Same numbers as CupPoses.DejectFallArms, which holds them after.
+                    float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(p / 0.35f));
+                    set(Bone.UpperArmL, new Vector3(0f, 0f, -165f * k));
+                    set(Bone.UpperArmR, new Vector3(0f, 0f, 165f * k));
+                    set(Bone.ForearmL, new Vector3(-20f * k, 0f, -130f * k));
+                    set(Bone.ForearmR, new Vector3(-20f * k, 0f, 130f * k));
+                    set(Bone.Head, new Vector3(-14f * k, 0f, 0f));   // looks up as the hands go on
+                    break;
+                }
+                case Celebration.Emote.WhistleRaise:
+                {
+                    // The referee: right forearm to the mouth over the first 0.45 s (the whistle
+                    // audio fires at the end of the raise, see CupTuning.WhistleRaiseSeconds), held
+                    // through the whistle for 0.45 s, then EASED down over the last 0.3 s of the
+                    // 1.2 s emote. The first pass ended the emote at 0.9 s with the hand still up,
+                    // and Celebration.End's ClearPoseOverrides snapped the arm down in one frame
+                    // (seen in play mode: the hand went from the mouth to the hip in 0.1 s).
+                    // Small head tilt toward the hand.
+                    // Forward kinematics (CupPoses' derivation) put the first pass's hand 0.17 m
+                    // to the right of the mouth at eye level; upper arm forward 30 / in 40 with the
+                    // forearm folded 125 and swung in 30 lands it ON the mouth, (0.03, 1.65, 0.21).
+                    float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(p / 0.375f))
+                            * (1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((p - 0.75f) / 0.25f)));
+                    set(Bone.UpperArmR, new Vector3(-30f * k, 0f, -40f * k));
+                    set(Bone.ForearmR, new Vector3(-125f * k, 0f, -30f * k));
+                    set(Bone.Head, new Vector3(5f * k, -8f * k, 4f * k));
+                    set(Bone.Torso, new Vector3(3f * k, 0f, 0f));
                     break;
                 }
             }

@@ -435,6 +435,7 @@ namespace Trickshot
             {
                 case Trickshot.Net.NetRole.Keeper:  return "Keeper";
                 case Trickshot.Net.NetRole.Crosser: return "Crosser";
+                case Trickshot.Net.NetRole.Entrant: return CupText.EntrantRole;   // the cup: every seat is a nation
                 default:                            return "Shooter " + slot;
             }
         }

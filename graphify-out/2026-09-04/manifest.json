@@ -1,0 +1,2870 @@
+{
+  "Assets/Scripts/Input/GameInput.cs": {
+    "mtime": 1788365279.814484,
+    "seen": 1788365336.9434223,
+    "ast_hash": "b0836aebe0ce681bc89f4ba26b7335c1",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Input/IStrikerInput.cs": {
+    "mtime": 1788333129.2283397,
+    "seen": 1788333527.6375785,
+    "ast_hash": "0ef05dcc2d568055cc5166997095d3d8",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Input/Keybinds.cs": {
+    "mtime": 1788365279.816504,
+    "seen": 1788365336.9434223,
+    "ast_hash": "4e42019c1395239db3e1fd8d982f91dd",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Input/NetInputSource.cs": {
+    "mtime": 1788333129.2308476,
+    "seen": 1788333527.6375785,
+    "ast_hash": "aa38c2a59fe2777ced8fbceb6121f5cd",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/DirectIpTransport.cs": {
+    "mtime": 1788330721.7212825,
+    "seen": 1788330798.9511728,
+    "ast_hash": "7ee96d591fb3c9685bf78c656085ab1e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/INetTransport.cs": {
+    "mtime": 1788330074.030102,
+    "seen": 1788330798.9511728,
+    "ast_hash": "ded69fd61c4084937409411f0b1da44f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/LocalTransport.cs": {
+    "mtime": 1788222226.615067,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a373261b8687fde12918225bc450ce81",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/Multiplayer.cs": {
+    "mtime": 1788222226.615067,
+    "seen": 1788288953.1075418,
+    "ast_hash": "c381e80528b66890521a0969a9521a4c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/NetEndpoint.cs": {
+    "mtime": 1788222226.615067,
+    "seen": 1788288953.1075418,
+    "ast_hash": "6e1e38fea10ce70a339de17d46b95369",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/NetMessages.cs": {
+    "mtime": 1788489598.6356487,
+    "seen": 1788498194.8290133,
+    "ast_hash": "cbc15bf93ace8f543aa86d86701e1bae",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/NetPump.cs": {
+    "mtime": 1788222226.618535,
+    "seen": 1788288953.1075418,
+    "ast_hash": "955f4caaa74fdd7cf59b31458dd20a49",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/NetSession.cs": {
+    "mtime": 1788489598.7525978,
+    "seen": 1788498194.8290133,
+    "ast_hash": "718cf695d887dcacdb0af628a44f8b3f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/ReliableChannel.cs": {
+    "mtime": 1788330727.4674385,
+    "seen": 1788330798.9511728,
+    "ast_hash": "4624e61cac55def2ad6d115513d54c9a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/SteamTransport.cs": {
+    "mtime": 1788420374.7299147,
+    "seen": 1788420522.442083,
+    "ast_hash": "0133b9fecfd705cb1103a641857b22bc",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AccuracyGame.cs": {
+    "mtime": 1788489599.9978032,
+    "seen": 1788498194.8290133,
+    "ast_hash": "18bcf8e321f1826307894454c082b7f9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AccuracyTarget.cs": {
+    "mtime": 1788420038.8846948,
+    "seen": 1788420522.442083,
+    "ast_hash": "25c1a78727f590dd76cc7031d5f5327a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AimReticle.cs": {
+    "mtime": 1788328043.9879417,
+    "seen": 1788328305.9311132,
+    "ast_hash": "f4304a3b60880a05f217cff1fd554878",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/BallController.cs": {
+    "mtime": 1788407446.8638778,
+    "seen": 1788409431.6429098,
+    "ast_hash": "c427393f823d2e0fb05c8326436f6849",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Celebration.cs": {
+    "mtime": 1788507848.0086782,
+    "seen": 1788508307.515271,
+    "ast_hash": "34c0e673a387c88fd7593824d60bc584",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CrossMap.cs": {
+    "mtime": 1788337401.4822948,
+    "seen": 1788337439.0205367,
+    "ast_hash": "3babdc76e1f785a813fb871fc64e07f3",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Crosser.cs": {
+    "mtime": 1788336573.383405,
+    "seen": 1788336589.956261,
+    "ast_hash": "c2bd3018244c21f261ac6865eb29a69f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CrosserControl.cs": {
+    "mtime": 1788337401.4792519,
+    "seen": 1788337439.0205367,
+    "ast_hash": "a0579068efc6957fcbb0a28a3ce016e4",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Crowd.cs": {
+    "mtime": 1788330420.1387324,
+    "seen": 1788330798.9511728,
+    "ast_hash": "65b819d69eec3a63be99db5cf872a694",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CrowdCheer.cs": {
+    "mtime": 1788222226.6361961,
+    "seen": 1788288953.1075418,
+    "ast_hash": "d65672fb818012190aa0a311b0b4b001",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CustomizeUI.cs": {
+    "mtime": 1788387664.6735773,
+    "seen": 1788387729.8346014,
+    "ast_hash": "b362729bbe50ea0cec75f8491fb33eb2",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/DefensiveWall.cs": {
+    "mtime": 1788408353.2684703,
+    "seen": 1788409431.6429098,
+    "ast_hash": "d28d79d7c560d7ca4d87a5f5e9c7953e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Dribble.cs": {
+    "mtime": 1788222226.643574,
+    "seen": 1788288953.1075418,
+    "ast_hash": "7b58fed9df86130dfe34a0e685903f2c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/FlexNet.cs": {
+    "mtime": 1788330046.2468984,
+    "seen": 1788330798.9511728,
+    "ast_hash": "fb67990fb5cd25b61f23cd3e1507cba6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Footballer.cs": {
+    "mtime": 1788222226.648387,
+    "seen": 1788288953.1075418,
+    "ast_hash": "b1e71fb669f6bcd37460a6b56e751caa",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/FreeKickGame.cs": {
+    "mtime": 1788489599.7733588,
+    "seen": 1788498194.8290133,
+    "ast_hash": "cdf4ac837b5be3f65dc97e3aaad83bf3",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/GameCamera.cs": {
+    "mtime": 1788491300.5061004,
+    "seen": 1788498194.8290133,
+    "ast_hash": "fee3fa90ffa2e793b6030e5142196b56",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/GameManager.cs": {
+    "mtime": 1788489599.5604782,
+    "seen": 1788498194.8290133,
+    "ast_hash": "57aae390a71b2a97efaa64c5801cac0c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Goal.cs": {
+    "mtime": 1788222226.652708,
+    "seen": 1788288953.1075418,
+    "ast_hash": "477402be695a6ebb78b75e5afa2c70f3",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Goalkeeper.cs": {
+    "mtime": 1788497055.3928492,
+    "seen": 1788498194.8290133,
+    "ast_hash": "195ffd142f503bc92876e29fab24cf04",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/HostSetupUI.cs": {
+    "mtime": 1788489600.9195254,
+    "seen": 1788498194.8290133,
+    "ast_hash": "623f93ca1b44e817cbff5b3ad24c3760",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Hud.cs": {
+    "mtime": 1788497055.4906566,
+    "seen": 1788498194.8290133,
+    "ast_hash": "638eb2f5b83ac0cfeda9af8d9ba490d6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/IPlayerController.cs": {
+    "mtime": 1788222226.6585634,
+    "seen": 1788288953.1075418,
+    "ast_hash": "18a9b7105b7346521e2dd59678e92b42",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations1.cs": {
+    "mtime": 1788222226.6585634,
+    "seen": 1788288953.1075418,
+    "ast_hash": "b48e8fc1901797341f060f81865f209f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations10.cs": {
+    "mtime": 1788222226.6585634,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e2ff10adc4b39974bc7aaab7d5718ec9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations2.cs": {
+    "mtime": 1788222226.6615348,
+    "seen": 1788288953.1075418,
+    "ast_hash": "72283d573c943b3ef2b4c9d0c16fc2ba",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations3.cs": {
+    "mtime": 1788222226.6615348,
+    "seen": 1788288953.1075418,
+    "ast_hash": "1ba40296474b17820312c7c6406d04c2",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations4.cs": {
+    "mtime": 1788222226.6615348,
+    "seen": 1788288953.1075418,
+    "ast_hash": "2778c2e2fa5d70212a7ddbc725b33d93",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations5.cs": {
+    "mtime": 1788222226.6640954,
+    "seen": 1788288953.1075418,
+    "ast_hash": "b13167d78ebfb31b9c2945c985b25c03",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations6.cs": {
+    "mtime": 1788222226.665244,
+    "seen": 1788288953.1075418,
+    "ast_hash": "49981eb155e90450b474e54ce567978d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations7.cs": {
+    "mtime": 1788222226.665244,
+    "seen": 1788288953.1075418,
+    "ast_hash": "758dfcae4e43359fdb42ca9c417d2c11",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations8.cs": {
+    "mtime": 1788222226.6672492,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a2335106ce4d750b9c0f8f01299419b3",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.Nations9.cs": {
+    "mtime": 1788222226.6672492,
+    "seen": 1788288953.1075418,
+    "ast_hash": "ff9fa4dca1897a54b14d835ee9c072d4",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/JerseyDesigns.cs": {
+    "mtime": 1788489600.4710808,
+    "seen": 1788498194.8290133,
+    "ast_hash": "f90f06a0aa0b46575993adcbc90b8524",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/KeeperController.cs": {
+    "mtime": 1788497055.314487,
+    "seen": 1788498194.8290133,
+    "ast_hash": "83b0fbebddfa9a93dd027e1a49d91713",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/KeeperGame.cs": {
+    "mtime": 1788489599.6698287,
+    "seen": 1788498194.8290133,
+    "ast_hash": "abc4270707bb9aacd1bf5b4cdefe8f28",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/KickDetector.cs": {
+    "mtime": 1788222226.6720185,
+    "seen": 1788288953.1075418,
+    "ast_hash": "6b021e31edf74f22b7e6f09769c655be",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Knockdown.cs": {
+    "mtime": 1788222226.6720185,
+    "seen": 1788288953.1075418,
+    "ast_hash": "92687a5a96132b95db576a7db952425a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/LobbyUI.cs": {
+    "mtime": 1788489598.8576581,
+    "seen": 1788498194.8290133,
+    "ast_hash": "9778c6c2f89414b7367f1a540745ab7e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuBackground.cs": {
+    "mtime": 1788222226.67681,
+    "seen": 1788288953.1075418,
+    "ast_hash": "922b65b716a318e3f4b41a5f6e08c6d1",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuUI.cs": {
+    "mtime": 1788489598.0066915,
+    "seen": 1788498194.8290133,
+    "ast_hash": "32419d06f4d24ef0268d413d7ed8c5fd",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MultiplayerHubUI.cs": {
+    "mtime": 1788489598.155661,
+    "seen": 1788498194.8290133,
+    "ast_hash": "cb50ee3152f08abfdaaacb547afd4602",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NetBackstop.cs": {
+    "mtime": 1788222226.6831627,
+    "seen": 1788288953.1075418,
+    "ast_hash": "5f53638cc5332bc593d3d50854667381",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NetSetPieceMatch.cs": {
+    "mtime": 1788489599.3162866,
+    "seen": 1788498194.8290133,
+    "ast_hash": "bc2f39d127616f4ca559e4e825742e08",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NetStrikerMatch.cs": {
+    "mtime": 1788489599.4403527,
+    "seen": 1788498194.8290133,
+    "ast_hash": "4f9ead485cfa8a0a26ec8bce3713465d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/PauseMenu.cs": {
+    "mtime": 1788491463.132325,
+    "seen": 1788498194.8290133,
+    "ast_hash": "204cc7148f354156c9a44947a2d1e7f1",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/PlayerPreview.cs": {
+    "mtime": 1788292669.0065742,
+    "seen": 1788292777.6595223,
+    "ast_hash": "8c47cff828cb1ad636aa2ccbb1062705",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/PrematchUI.cs": {
+    "mtime": 1788417813.660662,
+    "seen": 1788418010.961056,
+    "ast_hash": "f1fc6e05366843e06e4d4217105ce29e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/ReplaySystem.cs": {
+    "mtime": 1788334665.173289,
+    "seen": 1788334690.9216704,
+    "ast_hash": "20ff5dd74063286f4372df324bbf4f74",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Role.cs": {
+    "mtime": 1788222226.695221,
+    "seen": 1788288953.1075418,
+    "ast_hash": "dc36a9e7664f3ec9934d9c55d82949ac",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SessionBrowserUI.cs": {
+    "mtime": 1788489601.0235353,
+    "seen": 1788498194.8290133,
+    "ast_hash": "5436f853a53db425db28424ffbb722e8",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SetPieceMap.cs": {
+    "mtime": 1788412847.4678957,
+    "seen": 1788413099.438765,
+    "ast_hash": "30a45959ac8d1213558f180d827165d9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SetPieceTaker.cs": {
+    "mtime": 1788337401.4782522,
+    "seen": 1788337439.0205367,
+    "ast_hash": "ac602eab7ee9863a510ca0950ec13c8c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/ShotServer.cs": {
+    "mtime": 1788222226.701899,
+    "seen": 1788288953.1075418,
+    "ast_hash": "1a540cddd2ee86c299b83f554365f906",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/ShotType.cs": {
+    "mtime": 1788333018.2654214,
+    "seen": 1788333527.6375785,
+    "ast_hash": "a0f50ad9b6f74db1a9d9a43daeab6f13",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SkillIcons.cs": {
+    "mtime": 1788222226.7038417,
+    "seen": 1788288953.1075418,
+    "ast_hash": "ac6a1db4795b768a9c3ed8d7ef7f2a5d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Sniper.cs": {
+    "mtime": 1788222226.705076,
+    "seen": 1788288953.1075418,
+    "ast_hash": "1690b642aff31ba3d40fa7e823c1da02",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/StadiumSelectUI.cs": {
+    "mtime": 1788325830.2342715,
+    "seen": 1788328305.9311132,
+    "ast_hash": "fce87d5ab1a295bcd81831239240c80b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/StatRadar.cs": {
+    "mtime": 1788289638.538642,
+    "seen": 1788289682.8400986,
+    "ast_hash": "77363f4b40e1873dba67e8fa2ea65f15",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/Striker.cs": {
+    "mtime": 1788407474.4177282,
+    "seen": 1788409431.6429098,
+    "ast_hash": "6c0fd917801978e347a9d4ed9829c8ad",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/ActiveRagdoll.cs": {
+    "mtime": 1788497610.383755,
+    "seen": 1788498194.8290133,
+    "ast_hash": "d7933458c3b12f40311cc0e04c1f3c89",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/JointMath.cs": {
+    "mtime": 1788222226.7068746,
+    "seen": 1788288953.1075418,
+    "ast_hash": "2be3321060bc9227a8a62e46a3edef83",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/KeeperPose.cs": {
+    "mtime": 1788222226.7186756,
+    "seen": 1788288953.1075418,
+    "ast_hash": "ca4fc68782ec7c450c1c74efb8911b27",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/RagdollPose.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "33285e6ac7d85b8cdd41730cf204c7d7",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Arena.cs": {
+    "mtime": 1788325830.1847234,
+    "seen": 1788328305.9311132,
+    "ast_hash": "45c83be599b385f9a68a1e3a00e71a3d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.cs": {
+    "mtime": 1788370686.7693076,
+    "seen": 1788371023.824437,
+    "ast_hash": "5e9806c061fc1b4f970e89e83683ea56",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/GameBootstrap.cs": {
+    "mtime": 1788495071.085916,
+    "seen": 1788498194.8290133,
+    "ast_hash": "78e88223fb6026f681c25493c334812e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Make.cs": {
+    "mtime": 1788369074.839179,
+    "seen": 1788371023.824437,
+    "ast_hash": "bddfddcdce81b8a5279c1817f7e18142",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/PitchBuilder.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "b8bb0ce73a2c36c8583e4f3a503b9ef1",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/PitchLayout.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "3624e01a73ff916af3f33d1570826a13",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/PlayerProfile.cs": {
+    "mtime": 1788420780.9434223,
+    "seen": 1788420912.3863454,
+    "ast_hash": "d679bdc795e6fe50bc37a00868f0ee02",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/SimConfig.cs": {
+    "mtime": 1788420103.1106415,
+    "seen": 1788420522.442083,
+    "ast_hash": "13c19829e7e76c6f1edb97dcbfb0a39d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/SkillTree.cs": {
+    "mtime": 1788420011.9791453,
+    "seen": 1788420522.442083,
+    "ast_hash": "7cf7a62018af59ff236b026ba7b64fd4",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/StadiumBuilder.cs": {
+    "mtime": 1788222226.7436335,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e23fb1b3103253f5d5719275eac9b924",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/StadiumStyle.cs": {
+    "mtime": 1788222226.7436335,
+    "seen": 1788288953.1075418,
+    "ast_hash": "ca4ca18e06a25475c55b88283a181f60",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/SurroundBuilder.cs": {
+    "mtime": 1788222226.7456267,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a7a201e48431fb4c0ef7413afbc7242d",
+    "semantic_hash": ""
+  },
+  "Packages/manifest.json": {
+    "mtime": 1788222226.7456267,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a943f76701944d7286d1ae08acc57f30",
+    "semantic_hash": ""
+  },
+  "Packages/packages-lock.json": {
+    "mtime": 1788222226.7456267,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a11b8ee88f5371eea190057cfa1ce247",
+    "semantic_hash": ""
+  },
+  "MULTIPLAYER.md": {
+    "mtime": 1788420912.51441,
+    "seen": 1788420950.0944867,
+    "ast_hash": "bd6a8579bd61891d14f3cf301f302ff6",
+    "semantic_hash": ""
+  },
+  "ProjectSettings/ProjectVersion.txt": {
+    "mtime": 1788223566.2807486,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e1f2694b3a46e5a97878a52b2aca7833",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1788222226.754233,
+    "seen": 1788288953.1075418,
+    "ast_hash": "bfaffa5aaf6298d57389c70757184a3b",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/kyrgyz_sun.png": {
+    "mtime": 1788222226.6034088,
+    "seen": 1788288953.1075418,
+    "ast_hash": "44cd7e92c2eb9074624710aee20b1db2",
+    "semantic_hash": "44cd7e92c2eb9074624710aee20b1db2"
+  },
+  "Assets/Resources/soviet_emblem.png": {
+    "mtime": 1788222226.6034088,
+    "seen": 1788288953.1075418,
+    "ast_hash": "5833ab6fb87042d6a7f39685b3752817",
+    "semantic_hash": "5833ab6fb87042d6a7f39685b3752817"
+  },
+  ".claude/settings.json": {
+    "mtime": 1788337967.9195821,
+    "seen": 1788365336.9434223,
+    "ast_hash": "c8e7bbc3071b4d79b4bdc1b70329f02f",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1788508272.461801,
+    "seen": 1788508307.515271,
+    "ast_hash": "e80c5c33d7f4765128aa1b444564d4ef",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/HairSim.cs": {
+    "mtime": 1788368239.0906177,
+    "seen": 1788368574.5862906,
+    "ast_hash": "0e4d3b7f321952e3edd7c848f04ef66c",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Hair/HairAtlas-License.txt": {
+    "mtime": 1788222226.4861813,
+    "seen": 1788288953.1075418,
+    "ast_hash": "28da04bdb0d182b4155f3c15c1023862",
+    "semantic_hash": "28da04bdb0d182b4155f3c15c1023862"
+  },
+  "Assets/Resources/Hair/HairAtlas.png": {
+    "mtime": 1788222226.4861813,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a828f2c2b7926df90f0c472affeec564",
+    "semantic_hash": "a828f2c2b7926df90f0c472affeec564"
+  },
+  "Assets/Scripts/Sim/AudioManager.cs": {
+    "mtime": 1788489599.083188,
+    "seen": 1788498194.8290133,
+    "ast_hash": "08e87895f248bd1d0af73e9cff42ee81",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/applause.mp3": {
+    "mtime": 1788222226.2626822,
+    "seen": 1788288953.1075418,
+    "ast_hash": "78f627088cb9e645b559b3825adecfb2",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/boos.mp3": {
+    "mtime": 1788222226.267929,
+    "seen": 1788288953.1075418,
+    "ast_hash": "09f02d604838b703fa5951674f9078a7",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/crowd_ambient.wav": {
+    "mtime": 1788222226.2885737,
+    "seen": 1788288953.1075418,
+    "ast_hash": "ec8d8b577b2fa3772ebf087dc51d86c5",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/crowd_ambient_lively.mp3": {
+    "mtime": 1788222226.2885737,
+    "seen": 1788288953.1075418,
+    "ast_hash": "3c90da8b295161b18a99c5ce76196bd0",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/crowd_ambient_lively_2.wav": {
+    "mtime": 1788222226.3380747,
+    "seen": 1788288953.1075418,
+    "ast_hash": "90000c43843085b1dea62b95e331dcb3",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/goal_cheer.wav": {
+    "mtime": 1788222226.3526418,
+    "seen": 1788288953.1075418,
+    "ast_hash": "32263e2ca5a77bb22d631dcb4949df51",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/ball_kick.wav": {
+    "mtime": 1788222226.2644217,
+    "seen": 1788288953.1075418,
+    "ast_hash": "89ec92ae412876f400042108153711e4",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/crowd_ambient_2.mp3": {
+    "mtime": 1788222226.2885737,
+    "seen": 1788288953.1075418,
+    "ast_hash": "759cfeaf457b66eae5500e2f5e484e8a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/QuickChat.cs": {
+    "mtime": 1788222226.6933692,
+    "seen": 1788288953.1075418,
+    "ast_hash": "d5bf253caebc6260aaa10fd4475c10e4",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/ChatCensor.cs": {
+    "mtime": 1788222226.6361961,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e4d20057d19a8232015507d040cbaf6b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/QuickChatFeed.cs": {
+    "mtime": 1788292713.807523,
+    "seen": 1788292777.6595223,
+    "ast_hash": "3bc539f2bb8c3a80fcd3f74620185360",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AdultQuiz.cs": {
+    "mtime": 1788222226.6283932,
+    "seen": 1788288953.1075418,
+    "ast_hash": "b8f6ccba378ad3b2e827ba214f8757ac",
+    "semantic_hash": ""
+  },
+  "ProjectSettings/SceneTemplateSettings.json": {
+    "mtime": 1788222226.754233,
+    "seen": 1788288953.1075418,
+    "ast_hash": "3620a2b0a1c79cc4ae4b6b6ad599ff4d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AnatomySim.cs": {
+    "mtime": 1788334665.1765263,
+    "seen": 1788334690.9216704,
+    "ast_hash": "fc6a29ff319ebc540668416117234486",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CrosserBubble.cs": {
+    "mtime": 1788222226.6361961,
+    "seen": 1788288953.1075418,
+    "ast_hash": "4023ed98284447b5399540751b63b460",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AccuracyBoard.cs": {
+    "mtime": 1788420038.885204,
+    "seen": 1788420522.442083,
+    "ast_hash": "049741987c181c2789d3e0b21f914855",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScale.cs": {
+    "mtime": 1788365279.81945,
+    "seen": 1788365336.9434223,
+    "ast_hash": "083a122781b03a4d10c91ff70e05fc6c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NetAccuracyMatch.cs": {
+    "mtime": 1788222226.6831627,
+    "seen": 1788288953.1075418,
+    "ast_hash": "80ce3da6d76f083bd733fb6f8f878f8c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Species.cs": {
+    "mtime": 1788370533.9912236,
+    "seen": 1788371023.824437,
+    "ast_hash": "de7404c58e182ea70b2f54c47a3ad69e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/SpeciesCosmetics.cs": {
+    "mtime": 1788387664.6705315,
+    "seen": 1788387729.8346014,
+    "ast_hash": "924ab370a324f71a104f39f47ca727fe",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SpeciesSelectUI.cs": {
+    "mtime": 1788292669.3052607,
+    "seen": 1788292777.6595223,
+    "ast_hash": "023afa58fac097cf922534c6abfefe24",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/BodyLayout.cs": {
+    "mtime": 1788370686.796505,
+    "seen": 1788371023.824437,
+    "ast_hash": "a10d8575f14aa97461d83f467bbd9993",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/TailnetDiscovery.cs": {
+    "mtime": 1788222226.6236796,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e0b2a52bd53862cc63f1fe3ba224e4e4",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SaveWatch.cs": {
+    "mtime": 1788417839.505133,
+    "seen": 1788418010.961056,
+    "ast_hash": "660b754706b3c67b1b40d3fbb022c1de",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/Gait.cs": {
+    "mtime": 1788222226.7068746,
+    "seen": 1788288953.1075418,
+    "ast_hash": "09a9a445aa014a2fa28776483986dc6b",
+    "semantic_hash": ""
+  },
+  "Assets/Editor/BuildAll.cs": {
+    "mtime": 1788222226.2527936,
+    "seen": 1788288953.1075418,
+    "ast_hash": "059c0f3baed8cc40bb1ac4227847b359",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/DisplaySettings.cs": {
+    "mtime": 1788365279.816504,
+    "seen": 1788365336.9439616,
+    "ast_hash": "83b90952adb1597031d31cf403bf87bc",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/UITheme.cs": {
+    "mtime": 1788419919.4725392,
+    "seen": 1788420522.442083,
+    "ast_hash": "63dda913c31477e24dc6ae27f22aa043",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Turf.cs": {
+    "mtime": 1788222226.7456267,
+    "seen": 1788288953.1075418,
+    "ast_hash": "d70dc18b52c9e7fabf66bef63179e210",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/SkyDome.cs": {
+    "mtime": 1788222226.7366862,
+    "seen": 1788288953.1075418,
+    "ast_hash": "a3dd95f341d510e0ffd87cf38c86324b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Passing.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "b57f5faec9273d2a0bb28483d5d0172f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/KeeperHands.cs": {
+    "mtime": 1788222226.6720185,
+    "seen": 1788288953.1075418,
+    "ast_hash": "f9897babbee2fcee92618b89c5b7b9cf",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Fonts/OFL.txt": {
+    "mtime": 1788222226.4844248,
+    "seen": 1788288953.1075418,
+    "ast_hash": "3aaf0dc0636aab3e49b731c28f2a680e",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Turf/Grass_Detail.jpg": {
+    "mtime": 1788222226.5901046,
+    "seen": 1788288953.1075418,
+    "ast_hash": "405875d7c2be3f325a8fb7cb6372b6bd",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Turf/Grass_DetailNormal.png": {
+    "mtime": 1788222226.593664,
+    "seen": 1788288953.1075418,
+    "ast_hash": "8157e561f14a4a6abc81da678883df1a",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/kloofendal_48d_partly_cloudy_puresky.jpg": {
+    "mtime": 1788222226.5645041,
+    "seen": 1788288953.1075418,
+    "ast_hash": "9dc779ba0b32f665d39f259553c0390e",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/kloofendal_overcast_puresky.jpg": {
+    "mtime": 1788222226.567508,
+    "seen": 1788288953.1075418,
+    "ast_hash": "f982071635b832fb67a698696804a91f",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/qwantani_late_afternoon_puresky.jpg": {
+    "mtime": 1788222226.574856,
+    "seen": 1788288953.1075418,
+    "ast_hash": "156e64b93ec893b31146b68d8a71c882",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/qwantani_noon_puresky.jpg": {
+    "mtime": 1788222226.5808556,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e76e3ec147430e12bb471a13e6eaea9d",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/qwantani_sunset_puresky.jpg": {
+    "mtime": 1788222226.5873475,
+    "seen": 1788288953.1075418,
+    "ast_hash": "3736c86acb8daea3cc3b691ff64b607d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/UIFont.cs": {
+    "mtime": 1788222226.7068746,
+    "seen": 1788288953.1075418,
+    "ast_hash": "566845181998694f33b96197a6af7594",
+    "semantic_hash": ""
+  },
+  "Tools/grassprep.py": {
+    "mtime": 1788222226.754233,
+    "seen": 1788288953.1075418,
+    "ast_hash": "08648efad9d7fc21da54f0a269f8de1f",
+    "semantic_hash": ""
+  },
+  "Tools/skyprep.py": {
+    "mtime": 1788222226.754233,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e72f9e7965d853043cc1ae72b85b7d03",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Fonts/Fonts-License.txt": {
+    "mtime": 1788222226.4693747,
+    "seen": 1788288953.1075418,
+    "ast_hash": "2eacbeb031a58818ca555327eebc81d3",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/Sky-License.txt": {
+    "mtime": 1788222226.5597215,
+    "seen": 1788288953.1075418,
+    "ast_hash": "13446bb0efd18ad3162e77f0e98227b5",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Turf/Turf-License.txt": {
+    "mtime": 1788222226.6020916,
+    "seen": 1788288953.1075418,
+    "ast_hash": "39f8c436f53191587f76fda071ff1ea8",
+    "semantic_hash": ""
+  },
+  "Assets/Editor/AssetImportRules.cs": {
+    "mtime": 1788364725.444915,
+    "seen": 1788365336.9434223,
+    "ast_hash": "42ae333c8be22b5bd979a901cb1dcb0e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CallLimiter.cs": {
+    "mtime": 1788222226.6328382,
+    "seen": 1788288953.1075418,
+    "ast_hash": "10022f5dcb9d6a4574d22b9461b36ffb",
+    "semantic_hash": ""
+  },
+  "Tools/postprep.py": {
+    "mtime": 1788222226.754233,
+    "seen": 1788288953.1075418,
+    "ast_hash": "965bd58a67d761bb299ca89c1569bd91",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/Audio-License.txt": {
+    "mtime": 1788222226.2605884,
+    "seen": 1788288953.1075418,
+    "ast_hash": "3e17b11fbd2312c5db256157ecee1fb3",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/post_hit.wav": {
+    "mtime": 1788222226.4693747,
+    "seen": 1788288953.1075418,
+    "ast_hash": "277f9125b7cabab45f1b8ad80e0101d2",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/GoalFrame.cs": {
+    "mtime": 1788222226.652708,
+    "seen": 1788288953.1075418,
+    "ast_hash": "ac158f8f2bb73c7fb4a3c130e64bb089",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Ragdoll/KickSwing.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "2d3c45852da5e188ebcdfaf72f80a2a0",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/PropKit.cs": {
+    "mtime": 1788340816.9723637,
+    "seen": 1788365336.9439616,
+    "ast_hash": "4a8f8edfb8814f08e210f868a397702a",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Props/Textures/checkers.png": {
+    "mtime": 1788222226.5362773,
+    "seen": 1788288953.1075418,
+    "ast_hash": "de0088e0cab855d7426e93554180927f",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Props/Textures/colormap_car.png": {
+    "mtime": 1788222226.5362773,
+    "seen": 1788288953.1075418,
+    "ast_hash": "451b163d51d08b73f7d98244fef3f979",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Props/Textures/colormap_city.png": {
+    "mtime": 1788222226.539245,
+    "seen": 1788288953.1075418,
+    "ast_hash": "0d6f4b089c350f6a73d58534f7ccd979",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Props/Textures/colormap_suburb.png": {
+    "mtime": 1788222226.539245,
+    "seen": 1788288953.1075418,
+    "ast_hash": "e03354f471948a2a16e3d921a2fef0f9",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Props/Textures/net.png": {
+    "mtime": 1788222226.539245,
+    "seen": 1788288953.1075418,
+    "ast_hash": "f4431e3c86f51bc1326dae4998c6935e",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Props/Textures/tankco.png": {
+    "mtime": 1788222226.5413854,
+    "seen": 1788288953.1075418,
+    "ast_hash": "15a42a8f8cbdbbf06811a3b79fbaf703",
+    "semantic_hash": ""
+  },
+  "Tools/skyfetch.py": {
+    "mtime": 1788222226.754233,
+    "seen": 1788288953.1075418,
+    "ast_hash": "160d97ad1aed42c97e593c1b827bb3c4",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/kloppenheim_06_puresky.jpg": {
+    "mtime": 1788222226.5718553,
+    "seen": 1788288953.1075418,
+    "ast_hash": "cebe0b15c2f320555fa6dd0a3d72e1f5",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/qwantani_mid_morning_puresky.jpg": {
+    "mtime": 1788222226.577856,
+    "seen": 1788288953.1075418,
+    "ast_hash": "fb872200eeb96ddbfe664798f2981723",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Sky/qwantani_puresky.jpg": {
+    "mtime": 1788222226.5838554,
+    "seen": 1788288953.1075418,
+    "ast_hash": "26a12f43e6ccdf3f633b19bc3577d0b7",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Landform.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "01d4bca24de811ba1d05b7c52a1d3b13",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MatchProbe.cs": {
+    "mtime": 1788222226.67681,
+    "seen": 1788288953.1075418,
+    "ast_hash": "0bc803f10ea2fbd8075cf9d69e7faaf7",
+    "semantic_hash": ""
+  },
+  "DESIGN_NOTES.md": {
+    "mtime": 1788473774.26045,
+    "seen": 1788498194.8290133,
+    "ast_hash": "03d8fe34b48525dedd456a133b512b4d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/TitleGlyph.cs": {
+    "mtime": 1788222226.7068746,
+    "seen": 1788288953.1075418,
+    "ast_hash": "d9514ee5dffdb46fd0710b4e6d007da5",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuIcons.cs": {
+    "mtime": 1788365279.8210013,
+    "seen": 1788365336.9434223,
+    "ast_hash": "07ba1fcb7b0d789d6c497bca2d082f6c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/CareerStats.cs": {
+    "mtime": 1788489600.5964031,
+    "seen": 1788498194.8290133,
+    "ast_hash": "82cab969117ee986bdec284a32707d4e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CareerStatsUI.cs": {
+    "mtime": 1788489600.8187618,
+    "seen": 1788498194.8290133,
+    "ast_hash": "a64d5a1d2bcf60bf271c6cc7967acaf9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MatchGame.cs": {
+    "mtime": 1788489599.8817282,
+    "seen": 1788498194.8290133,
+    "ast_hash": "099327ed2dfabc3b459fce9b00bc3efb",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NetMatch.cs": {
+    "mtime": 1788489599.196941,
+    "seen": 1788498194.8290133,
+    "ast_hash": "5c90f28f593fc5cb88bba17e24a96ebd",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/MatchArena.cs": {
+    "mtime": 1788222226.7196672,
+    "seen": 1788288953.1075418,
+    "ast_hash": "073ba50fbbc2c3fd36221b474a033470",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MatchStatsUI.cs": {
+    "mtime": 1788330060.4470613,
+    "seen": 1788330798.9511728,
+    "ast_hash": "934ec9f988a9ac351b32c4515f2a9690",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/SteamFriendsAPI.cs": {
+    "mtime": 1788420415.8661077,
+    "seen": 1788420522.442083,
+    "ast_hash": "3a63ead1146c68a06ee079c282a4673c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Net/SteamAchievementsAPI.cs": {
+    "mtime": 1788222226.6209128,
+    "seen": 1788288953.1075418,
+    "ast_hash": "1cd56fe68767bcabc749f07fd13f3f96",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Achievements.cs": {
+    "mtime": 1788489600.716363,
+    "seen": 1788498194.8290133,
+    "ast_hash": "7c8913f94f89cf6c69f47c9cdf36a222",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/NotificationToastUI.cs": {
+    "mtime": 1788289638.5346062,
+    "seen": 1788289682.8400986,
+    "ast_hash": "d65ac5df0c94b15ab7c5439e75dbcd8e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/FriendsPanelUI.cs": {
+    "mtime": 1788289638.5331023,
+    "seen": 1788289682.8400986,
+    "ast_hash": "6829ac46150f4511b5dafc476acf4aeb",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AchievementsPanelUI.cs": {
+    "mtime": 1788289638.5340989,
+    "seen": 1788289682.8400986,
+    "ast_hash": "2ccb6dc909b2a42b6d764a0617b60da9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Playlist.cs": {
+    "mtime": 1788311177.7808456,
+    "seen": 1788311228.0957363,
+    "ast_hash": "4c4d9c55ea46f7a38fda1719f79d7aa4",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Audio/Trickshot!.wav": {
+    "mtime": 1788491421.590877,
+    "seen": 1788498194.8290133,
+    "ast_hash": "6153ce22ca3ca8756cfadb8bb654d1cc",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CrossPathLine.cs": {
+    "mtime": 1788328273.5438461,
+    "seen": 1788328305.9311132,
+    "ast_hash": "e3cce5830ecf26468185561c25c8536c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/GoalEditor.cs": {
+    "mtime": 1788489600.2389226,
+    "seen": 1788498194.8290133,
+    "ast_hash": "fe8c31a0f15bff9eec9745c3bebd7e4a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/PauseMatchSetup.cs": {
+    "mtime": 1788489598.3861768,
+    "seen": 1788498194.8290133,
+    "ast_hash": "50a81a03c836352a05711f48c2f431ba",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/StudioSplash.cs": {
+    "mtime": 1788330727.4658473,
+    "seen": 1788330798.9511728,
+    "ast_hash": "324ffb05d70095d548bbc9463baa4fc9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/AtomicFileWriter.cs": {
+    "mtime": 1788330727.464847,
+    "seen": 1788330798.9511728,
+    "ast_hash": "390e178cdc96fdceb2596c07c9f0ff07",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Cosmetics/manifest.json": {
+    "mtime": 1788363859.30795,
+    "seen": 1788365336.9434223,
+    "ast_hash": "09337b3322bf2ce6bc1177a8e5764155",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/DevTools/CosmeticGallery.cs": {
+    "mtime": 1788368807.8246274,
+    "seen": 1788371023.824437,
+    "ast_hash": "7c52dab308397c294a891fbecc723eab",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/CreditsData.cs": {
+    "mtime": 1788371099.3406496,
+    "seen": 1788387729.8346014,
+    "ast_hash": "d7afaa119175130a2d24101ec93857cb",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SettingsMenu.cs": {
+    "mtime": 1788402214.189654,
+    "seen": 1788402301.9887798,
+    "ast_hash": "03024ef2ed60bd2e872062beb9cf29fe",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/CosmeticMesh.cs": {
+    "mtime": 1788340817.0094726,
+    "seen": 1788365336.9439616,
+    "ast_hash": "d0793b061a706b25dc90258ad75c553b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Hair.cs": {
+    "mtime": 1788402214.194617,
+    "seen": 1788402301.9887798,
+    "ast_hash": "44387c1d529f5712aa6ee690f2baa3f5",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/HairShape.cs": {
+    "mtime": 1788387513.1941466,
+    "seen": 1788387729.8346014,
+    "ast_hash": "eda44a9234b70da1bb0ac177501b3793",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/MeshGen.cs": {
+    "mtime": 1788365038.900103,
+    "seen": 1788365336.9439616,
+    "ast_hash": "8d67d26642470684ee4d3a030d61c19a",
+    "semantic_hash": ""
+  },
+  "docs/compile-check.sh": {
+    "mtime": 1788365439.963286,
+    "seen": 1788366706.1227713,
+    "ast_hash": "779f03fb258924b29cbb5572edc41258",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheet.py": {
+    "mtime": 1788363867.056939,
+    "seen": 1788365336.9439616,
+    "ast_hash": "2dea7c5500dfb6e789165457aa48f534",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Cosmetics/LICENSES.md": {
+    "mtime": 1788363859.3729186,
+    "seen": 1788365336.9439616,
+    "ast_hash": "d398d285d4c1ee98c4ad5c3af648c107",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Hair/TuftAtlas-License.txt": {
+    "mtime": 1788364719.1361098,
+    "seen": 1788365336.9439616,
+    "ast_hash": "cdd3fbf35a803ce24e43c2bb22b11f7c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-overhaul-plan.md": {
+    "mtime": 1788371099.339644,
+    "seen": 1788387729.8346014,
+    "ast_hash": "5c74ad93867328595c59b89e07052984",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-verdicts.md": {
+    "mtime": 1788363751.9109147,
+    "seen": 1788365336.9439616,
+    "ast_hash": "6ce07eabb8431cd5ad033e6a75af701b",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Hair/Stipple.png": {
+    "mtime": 1788364719.1361098,
+    "seen": 1788365336.9439616,
+    "ast_hash": "2137556a18f1fb06748901fb95069b9c",
+    "semantic_hash": ""
+  },
+  "Assets/Resources/Hair/TuftAtlas.png": {
+    "mtime": 1788364719.07433,
+    "seen": 1788365336.9439616,
+    "ast_hash": "b801797c8b2cd02dbaa707eaed1bd11b",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_ears_00_plain.png": {
+    "mtime": 1788363867.024748,
+    "seen": 1788365336.944497,
+    "ast_hash": "3889cd32466513c1c5baa8fc20946ea3",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_ears_01_notched.png": {
+    "mtime": 1788363867.016078,
+    "seen": 1788365336.944497,
+    "ast_hash": "3e7e03db60c06fe86c4b87b2f0874f4a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_ears_02_wide.png": {
+    "mtime": 1788363867.0212913,
+    "seen": 1788365336.944497,
+    "ast_hash": "a96350e29a5e8dde6d3e2f70778254a7",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_ears_03_torn.png": {
+    "mtime": 1788363867.0237272,
+    "seen": 1788365336.944497,
+    "ast_hash": "f1e370c12a7f6a36523e079f7d7391d7",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tack_01_head_cloth.png": {
+    "mtime": 1788363866.9792135,
+    "seen": 1788365336.944497,
+    "ast_hash": "f4ecd1790efd4434ff0d66a6081f219a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tack_02_ankle_bands.png": {
+    "mtime": 1788363866.981017,
+    "seen": 1788365336.944497,
+    "ast_hash": "bddfd7edddf4ed1c9aca2894dfbce785",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tack_03_blanket.png": {
+    "mtime": 1788363866.9820411,
+    "seen": 1788365336.944497,
+    "ast_hash": "3365af1d96f27ad7d3bf4bded1e1dc1e",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tusk_00_none.png": {
+    "mtime": 1788363866.9846997,
+    "seen": 1788365336.944497,
+    "ast_hash": "7ac1d5609af4b329ec39fc1bfbd59c24",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tusk_01_short.png": {
+    "mtime": 1788363866.9867442,
+    "seen": 1788365336.944497,
+    "ast_hash": "814a12d60c49e91c1570d6b219a71324",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tusk_02_curved.png": {
+    "mtime": 1788363866.9867442,
+    "seen": 1788365336.944497,
+    "ast_hash": "626b032810fbf7d5efc2bf9344b5f3f6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tusk_03_long.png": {
+    "mtime": 1788363866.991526,
+    "seen": 1788365336.944497,
+    "ast_hash": "120da82ebc98e4cf9677ff26b299e3d0",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/eleph_tusk_04_banded.png": {
+    "mtime": 1788363866.9930742,
+    "seen": 1788365336.944497,
+    "ast_hash": "2eb615ef907718d89b0ec1c207dde878",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_00_bald.png": {
+    "mtime": 1788363866.9956079,
+    "seen": 1788365336.944497,
+    "ast_hash": "9a54a575bb9cf76dc033ca9c139f6933",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_01_buzz.png": {
+    "mtime": 1788363866.9981153,
+    "seen": 1788365336.944497,
+    "ast_hash": "2ad083735aa6b1242fb41f831788329e",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_02_crew_cut.png": {
+    "mtime": 1788363866.9981153,
+    "seen": 1788365336.944497,
+    "ast_hash": "1a84cac7ae75e50bcbb31149ae3450dc",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_03_spiky.png": {
+    "mtime": 1788363867.0016737,
+    "seen": 1788365336.944497,
+    "ast_hash": "fec7bcf6f7afbe2f771779283755281f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_04_fringe.png": {
+    "mtime": 1788363867.0031865,
+    "seen": 1788365336.944497,
+    "ast_hash": "f3b4dfc8d8efa5e65508f0f042b58ceb",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_05_mohawk.png": {
+    "mtime": 1788363867.0057573,
+    "seen": 1788365336.944497,
+    "ast_hash": "9c092e2c20b4a0f72010f4e63da70adb",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_06_messy.png": {
+    "mtime": 1788363867.0067773,
+    "seen": 1788365336.944497,
+    "ast_hash": "fa00f1fe7fd6d0ee17816b9564076f08",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_07_curly.png": {
+    "mtime": 1788363866.811035,
+    "seen": 1788365336.944497,
+    "ast_hash": "c7f3459a0d32917b4108624f69da2c08",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_08_afro.png": {
+    "mtime": 1788363866.811035,
+    "seen": 1788365336.944497,
+    "ast_hash": "bc9082bd0dc74f7502f8cad9712b0bbe",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_09_ponytail.png": {
+    "mtime": 1788363866.8155842,
+    "seen": 1788365336.944497,
+    "ast_hash": "5a151dad4ad78a38366bc5d02b9938f8",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_10_man_bun.png": {
+    "mtime": 1788363866.8155842,
+    "seen": 1788365336.944497,
+    "ast_hash": "ccf225a84264537673a3ec08912de9b6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_11_shoulder_length.png": {
+    "mtime": 1788363866.8186793,
+    "seen": 1788365336.944497,
+    "ast_hash": "604c26b32d3408de1c8cf784ffbe2e44",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mane_12_long.png": {
+    "mtime": 1788363867.024748,
+    "seen": 1788365336.944497,
+    "ast_hash": "e20cc13a1f6d081e9c69e82a9bca4a60",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mark_01_star.png": {
+    "mtime": 1788363866.8196957,
+    "seen": 1788365336.944497,
+    "ast_hash": "46270e11dd5ec6650ac4d39bc604d777",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mark_02_blaze.png": {
+    "mtime": 1788363866.8196957,
+    "seen": 1788365336.944497,
+    "ast_hash": "24262260c5ad89c03ea780bd7936553a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mark_03_snip.png": {
+    "mtime": 1788363866.8252418,
+    "seen": 1788365336.944497,
+    "ast_hash": "4a1f9f865fc99cf0283f37619d06fc3b",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mark_04_stockings.png": {
+    "mtime": 1788363866.8262656,
+    "seen": 1788365336.944497,
+    "ast_hash": "83bd92be468e04075d31126c0ea195b0",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_mark_05_dappled.png": {
+    "mtime": 1788363867.0103922,
+    "seen": 1788365336.944497,
+    "ast_hash": "f9627ebada9e6d64eccd312ac30c791e",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_tack_01_bridle.png": {
+    "mtime": 1788363867.0114443,
+    "seen": 1788365336.944497,
+    "ast_hash": "f35427b80310e3d1c7d48a05d44b6890",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_tack_02_halter.png": {
+    "mtime": 1788363866.8293812,
+    "seen": 1788365336.944497,
+    "ast_hash": "1b25079f9916876e7ab67e05dea11992",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_tack_03_blinkers.png": {
+    "mtime": 1788363866.8314147,
+    "seen": 1788365336.944497,
+    "ast_hash": "403c2e02a17ac1bff40008d78ef7f52a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/horse_tack_04_saddle_pad.png": {
+    "mtime": 1788363867.0145433,
+    "seen": 1788365336.944497,
+    "ast_hash": "c2c720d00a1478fdf73f70e1defe55f9",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_01_glasses.png": {
+    "mtime": 1788363867.016078,
+    "seen": 1788365336.944497,
+    "ast_hash": "605b3b8895d2dc6d2d9320e25759226a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_02_square_glasses.png": {
+    "mtime": 1788363866.8334265,
+    "seen": 1788365336.944497,
+    "ast_hash": "30f2a4073a376aebe176a947a5556183",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_03_sunglasses.png": {
+    "mtime": 1788363866.8349795,
+    "seen": 1788365336.944497,
+    "ast_hash": "c760eedabec4df9c88e2e7c5671f9e53",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_04_aviators.png": {
+    "mtime": 1788363866.8379207,
+    "seen": 1788365336.944497,
+    "ast_hash": "5c223549449768e9f8295b8521706e89",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_05_visor_shades.png": {
+    "mtime": 1788363866.8394659,
+    "seen": 1788365336.944497,
+    "ast_hash": "2e00bab3a8d6b0d1196008ecb3ae7b9b",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_06_monocle.png": {
+    "mtime": 1788363866.8429272,
+    "seen": 1788365336.944497,
+    "ast_hash": "6ce4d4d8fb98da719e5a2f289a32a344",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_07_eyepatch.png": {
+    "mtime": 1788363866.8450003,
+    "seen": 1788365336.944497,
+    "ast_hash": "cf7c4a7b234e2ff245348497018ce5e1",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_08_ski_goggles.png": {
+    "mtime": 1788363866.8478067,
+    "seen": 1788365336.944497,
+    "ast_hash": "e8443e71d5ce942b444a8269e491a4d6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_09_reading_glasses.png": {
+    "mtime": 1788363866.8493433,
+    "seen": 1788365336.944497,
+    "ast_hash": "a949a75f694fbd1366b30463acdfb703",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_10_batman_mask.png": {
+    "mtime": 1788363866.852101,
+    "seen": 1788365336.944497,
+    "ast_hash": "19a901bc7fe08dbb3967d29cb3182551",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_11_hockey_mask.png": {
+    "mtime": 1788363866.854663,
+    "seen": 1788365336.944497,
+    "ast_hash": "640f705a93da0b70227919a626560933",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_12_venetian_mask.png": {
+    "mtime": 1788363866.8576944,
+    "seen": 1788365336.944497,
+    "ast_hash": "3ee636ca88fb610507dda4ffe16346d3",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_13_gas_mask.png": {
+    "mtime": 1788363866.859758,
+    "seen": 1788365336.944497,
+    "ast_hash": "ede65576491eedaf3c54f3e157cad6e6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_14_welding_mask.png": {
+    "mtime": 1788363866.8633976,
+    "seen": 1788365336.944497,
+    "ast_hash": "a8ab120400ecbc55c6fa37e932b070a7",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_15_pipe.png": {
+    "mtime": 1788363866.8662753,
+    "seen": 1788365336.944497,
+    "ast_hash": "3eef62705e9f3df2e8321c33c00a7940",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_16_stud_earrings.png": {
+    "mtime": 1788363866.8685422,
+    "seen": 1788365336.944497,
+    "ast_hash": "7fd8383576de78d932916b38e0e1c3f6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_17_hoop_earrings.png": {
+    "mtime": 1788363866.8685422,
+    "seen": 1788365336.944497,
+    "ast_hash": "045b05309080385fadd4bdf6efcb0d1d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_18_dangle_earrings.png": {
+    "mtime": 1788363866.8730032,
+    "seen": 1788365336.944497,
+    "ast_hash": "f445e633016bfa8ed3c48c099740be1c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_19_nose_stud.png": {
+    "mtime": 1788363866.8740206,
+    "seen": 1788365336.944497,
+    "ast_hash": "91b71d1372c4cae003e18f7de4d00889",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_20_septum_ring.png": {
+    "mtime": 1788363866.8781266,
+    "seen": 1788365336.944497,
+    "ast_hash": "161bb4eafa4a8984127f051446b0487c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_21_eyebrow_piercing.png": {
+    "mtime": 1788363866.8791735,
+    "seen": 1788365336.944497,
+    "ast_hash": "2ae696515bdc3f9b3297d9a9c23a478c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_22_nipple_piercings.png": {
+    "mtime": 1788363866.8825283,
+    "seen": 1788365336.944497,
+    "ast_hash": "593c53f530dd9d9cd9509fff8331b6d8",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_23_cigar.png": {
+    "mtime": 1788363866.8841221,
+    "seen": 1788365336.944497,
+    "ast_hash": "73857b03dcc0c3030dd4899aa8460832",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_24_toothpick.png": {
+    "mtime": 1788363866.8876832,
+    "seen": 1788365336.944497,
+    "ast_hash": "4809a1e078d004070c01f02936768255",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_25_lollipop.png": {
+    "mtime": 1788363866.8908124,
+    "seen": 1788365336.944497,
+    "ast_hash": "49dc333db50a52403a9b25c852dbe6c8",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_26_bindi.png": {
+    "mtime": 1788363866.8939457,
+    "seen": 1788365336.944497,
+    "ast_hash": "34d33d81ce8a495fdcde38a1fed9146f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_27_vampire_fangs.png": {
+    "mtime": 1788363866.8970287,
+    "seen": 1788365336.944497,
+    "ast_hash": "dcf64c3be03b2d233398afe63a7b26a6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_28_chain_necklace.png": {
+    "mtime": 1788363866.8985796,
+    "seen": 1788365336.944497,
+    "ast_hash": "e8140aedc6ca879b08d6f5194ce8f258",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_29_cap.png": {
+    "mtime": 1788363866.9021533,
+    "seen": 1788365336.944497,
+    "ast_hash": "a7a16086090578a3300b878807d79850",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_30_bucket_hat.png": {
+    "mtime": 1788363866.9035172,
+    "seen": 1788365336.944497,
+    "ast_hash": "4f3f9810acf25049dda4eb8604b07a7d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_31_fedora.png": {
+    "mtime": 1788363866.9065459,
+    "seen": 1788365336.944497,
+    "ast_hash": "2149b058be9f3ba689c83e72fecb1c3c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_32_top_hat.png": {
+    "mtime": 1788363866.9075706,
+    "seen": 1788365336.944497,
+    "ast_hash": "f7057f71d184fa47e605e5f647a1451f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_33_cowboy_hat.png": {
+    "mtime": 1788363866.9111152,
+    "seen": 1788365336.944497,
+    "ast_hash": "4d4c1ceb9e162a761a3cfaf7b5ff098f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_34_beret.png": {
+    "mtime": 1788363866.9131691,
+    "seen": 1788365336.944497,
+    "ast_hash": "1bc86f0fa98f59ffbab58ad940bcb162",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_35_peaky_cap.png": {
+    "mtime": 1788363866.916227,
+    "seen": 1788365336.944497,
+    "ast_hash": "f58ff33327e13f282e76ecf291b4da2e",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_36_headband.png": {
+    "mtime": 1788363866.9172463,
+    "seen": 1788365336.944497,
+    "ast_hash": "fd6c0d21c3bf6d213cd0e630a2a784cd",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_37_trapper_hat.png": {
+    "mtime": 1788363866.92062,
+    "seen": 1788365336.944497,
+    "ast_hash": "265ad654d27778253d2c3127d11a1089",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_38_sombrero.png": {
+    "mtime": 1788363866.923167,
+    "seen": 1788365336.944497,
+    "ast_hash": "510ca3d0a68644239218fe8d9bb6502d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_39_party_hat.png": {
+    "mtime": 1788363866.925383,
+    "seen": 1788365336.944497,
+    "ast_hash": "554acf6575fd3a440152c720e3206379",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_acc_40_wizard_hat.png": {
+    "mtime": 1788363866.9269135,
+    "seen": 1788365336.944497,
+    "ast_hash": "5d45f64502f17ee3731a9c55e4191513",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_01_mustache.png": {
+    "mtime": 1788363866.9300048,
+    "seen": 1788365336.944497,
+    "ast_hash": "e5ded10a139c3e7f90847a20820109d3",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_02_handlebar.png": {
+    "mtime": 1788363866.9320955,
+    "seen": 1788365336.944497,
+    "ast_hash": "ec1a159d8f6b3469284e26e83d05c0d4",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_03_goatee.png": {
+    "mtime": 1788363866.9346352,
+    "seen": 1788365336.944497,
+    "ast_hash": "8203282b3ae32fcf76a17f547de4b872",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_04_stubble.png": {
+    "mtime": 1788363866.9366834,
+    "seen": 1788365336.944497,
+    "ast_hash": "7b2e5541c3cc37f82bd06bd567e4536d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_05_short_beard.png": {
+    "mtime": 1788363866.9392135,
+    "seen": 1788365336.944497,
+    "ast_hash": "e64bca11f4f9a14d2c8c63be20a96e2a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_06_full_beard.png": {
+    "mtime": 1788363866.9427667,
+    "seen": 1788365336.944497,
+    "ast_hash": "29dba56b25f32839ea2ebd2c84d059ae",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_07_sideburns.png": {
+    "mtime": 1788363866.9451284,
+    "seen": 1788365336.944497,
+    "ast_hash": "7ee5ac6d5a86235b08fb125769353149",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_facial_08_chinstrap.png": {
+    "mtime": 1788363866.9477448,
+    "seen": 1788365336.944497,
+    "ast_hash": "86976ebb40d5e80faeb10ebc7c5460b5",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_00_bald.png": {
+    "mtime": 1788363866.9487548,
+    "seen": 1788365336.944497,
+    "ast_hash": "9993f8d8ad55de6a9891f7f5cef65ef0",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_01_buzz.png": {
+    "mtime": 1788363866.9517753,
+    "seen": 1788365336.944497,
+    "ast_hash": "80928c72c272fd91f896b59c13e15384",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_02_crew_cut.png": {
+    "mtime": 1788363866.9533217,
+    "seen": 1788365336.944497,
+    "ast_hash": "3f7275e27a0f1d1ff8d05dd50f54ded0",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_03_spiky.png": {
+    "mtime": 1788363866.9563737,
+    "seen": 1788365336.944497,
+    "ast_hash": "678f769165066278001916b54129288a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_04_fringe.png": {
+    "mtime": 1788363866.958068,
+    "seen": 1788365336.944497,
+    "ast_hash": "8bee9896ea1ab907734a26058cbafdf4",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_05_mohawk.png": {
+    "mtime": 1788363866.9605958,
+    "seen": 1788365336.944497,
+    "ast_hash": "6b3629138d02ec48445bfc9dbc78b09b",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_06_messy.png": {
+    "mtime": 1788363866.962718,
+    "seen": 1788365336.944497,
+    "ast_hash": "1d9a2e59fc1393e1e32a147d45902b6d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_07_curly.png": {
+    "mtime": 1788363866.9662714,
+    "seen": 1788365336.944497,
+    "ast_hash": "9b1d0a6f61d0b5b3016c9dd88d97bb8a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_08_afro.png": {
+    "mtime": 1788363866.9672916,
+    "seen": 1788365336.944497,
+    "ast_hash": "c15b520f44ea30475d2beedd1eea070f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_09_ponytail.png": {
+    "mtime": 1788363866.9672916,
+    "seen": 1788365336.944497,
+    "ast_hash": "919df302d085f42a4a3681c7e375c213",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_10_man_bun.png": {
+    "mtime": 1788363866.9723313,
+    "seen": 1788365336.944497,
+    "ast_hash": "77ba36c6e48eee6cb02a2583ddc883c2",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_11_shoulder_length.png": {
+    "mtime": 1788363866.9748704,
+    "seen": 1788365336.944497,
+    "ast_hash": "9afc2d437ff4cb241d4a797c825b5607",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-before/sheets/human_hair_12_long.png": {
+    "mtime": 1788363866.9777217,
+    "seen": 1788365336.944497,
+    "ast_hash": "1d63282fda864f9500aebebb27b66deb",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Facial.cs": {
+    "mtime": 1788402214.1931036,
+    "seen": 1788402301.9887798,
+    "ast_hash": "5719d8c9956e7ca0dffc2ef2908cca6d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_01_mustache.png": {
+    "mtime": 1788370981.5336847,
+    "seen": 1788371023.824437,
+    "ast_hash": "43c32491d9539058fbf91eff41126776",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_02_handlebar.png": {
+    "mtime": 1788370981.6796432,
+    "seen": 1788371023.824437,
+    "ast_hash": "9e4e5274eae2c59123a5e5b513503437",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_03_goatee.png": {
+    "mtime": 1788370981.8464403,
+    "seen": 1788371023.824437,
+    "ast_hash": "ab321bc70e72f3c24458d1d1a70474e2",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_04_stubble.png": {
+    "mtime": 1788370982.0090716,
+    "seen": 1788371023.824437,
+    "ast_hash": "87d91d6a4a78be56c417b5b93f1d44a3",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_05_short_beard.png": {
+    "mtime": 1788370982.1631198,
+    "seen": 1788371023.824437,
+    "ast_hash": "481771d6e1ddb9907114ab24abe10fba",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_06_full_beard.png": {
+    "mtime": 1788387821.1314082,
+    "seen": 1788387861.9594972,
+    "ast_hash": "1a1f17ed22b8dfe4b0a4a04269f0d8fc",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_07_sideburns.png": {
+    "mtime": 1788370982.4762087,
+    "seen": 1788371023.824437,
+    "ast_hash": "cf170cd35896e9d540b9e7e2451f27a1",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_facial_08_chinstrap.png": {
+    "mtime": 1788370982.6306922,
+    "seen": 1788371023.824437,
+    "ast_hash": "a33e2e3d2e476cc42a6830e186117d6c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_00_bald.png": {
+    "mtime": 1788387821.1572146,
+    "seen": 1788387861.9594972,
+    "ast_hash": "08414802e98533f0057cb199fe699a77",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_01_buzz.png": {
+    "mtime": 1788387821.1814432,
+    "seen": 1788387861.9594972,
+    "ast_hash": "9d58ad5a52dce04cd9b3ecd26bc5749c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_02_crew_cut.png": {
+    "mtime": 1788387821.1956012,
+    "seen": 1788387861.9594972,
+    "ast_hash": "5829bfbff928c3cbdec9fa9e9c4380f4",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_03_spiky.png": {
+    "mtime": 1788387821.2181666,
+    "seen": 1788387861.9594972,
+    "ast_hash": "1cdefaec46b798bd9ffe1fa93d4a6092",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_04_fringe.png": {
+    "mtime": 1788387821.230479,
+    "seen": 1788387861.9594972,
+    "ast_hash": "ace2c2711a9efe3e48b4cbb627c46cbc",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_05_mohawk.png": {
+    "mtime": 1788387821.2423737,
+    "seen": 1788387861.9594972,
+    "ast_hash": "8384b51af26288009460c4d6cc6f3c2f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_06_messy.png": {
+    "mtime": 1788387821.2561598,
+    "seen": 1788387861.9594972,
+    "ast_hash": "47de4828c065275adb8c609acb5f9f10",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_07_curly.png": {
+    "mtime": 1788387821.4177501,
+    "seen": 1788387861.9594972,
+    "ast_hash": "4738c20863425f1339a250d3a4016d96",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_08_afro.png": {
+    "mtime": 1788387821.2959113,
+    "seen": 1788387861.9594972,
+    "ast_hash": "cf2c138131639c6f4ee589a9ff45caf6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_09_ponytail.png": {
+    "mtime": 1788387821.309199,
+    "seen": 1788387861.9594972,
+    "ast_hash": "239819827750725ff54c580caa162429",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_10_man_bun.png": {
+    "mtime": 1788387821.3212228,
+    "seen": 1788387861.9594972,
+    "ast_hash": "b6e2f393e8028704b171e0d6b7b0f00c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_11_shoulder_length.png": {
+    "mtime": 1788387821.3356063,
+    "seen": 1788387861.9594972,
+    "ast_hash": "fb6b5e06aa51b6b9beffcb76ce326a83",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_hair_12_long.png": {
+    "mtime": 1788387821.3559036,
+    "seen": 1788387861.9594972,
+    "ast_hash": "f055a859ef5e396f1fdf6a9efc516d87",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Accessories.cs": {
+    "mtime": 1788402214.1925974,
+    "seen": 1788402301.9887798,
+    "ast_hash": "c2a90d6f49ae1effb17acb6b0998265b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Hats.cs": {
+    "mtime": 1788402214.194617,
+    "seen": 1788402301.9887798,
+    "ast_hash": "650abaa824293ac88d7477b91b2dd3f5",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Masks.cs": {
+    "mtime": 1788402214.195844,
+    "seen": 1788402301.9887798,
+    "ast_hash": "a0b1f2b74e74fe76c0456e0fd78e269a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_01_glasses.png": {
+    "mtime": 1788370975.4282804,
+    "seen": 1788371023.824437,
+    "ast_hash": "b708c36024313f0982f71662767da470",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_02_square_glasses.png": {
+    "mtime": 1788370975.5810127,
+    "seen": 1788371023.824437,
+    "ast_hash": "ba76f1b7c9d801a40f09553df0de1e0f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_03_sunglasses.png": {
+    "mtime": 1788370975.7411163,
+    "seen": 1788371023.824437,
+    "ast_hash": "d0b68b886a651d7a006fc290cba7b408",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_04_aviators.png": {
+    "mtime": 1788370975.9000087,
+    "seen": 1788371023.824437,
+    "ast_hash": "32426dcfadba4d46fbda7c9843fc50c5",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_05_visor_shades.png": {
+    "mtime": 1788387821.1058335,
+    "seen": 1788387861.9594972,
+    "ast_hash": "9512270d03da631337dc7d90e3c7df56",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_06_monocle.png": {
+    "mtime": 1788370976.1895285,
+    "seen": 1788371023.824437,
+    "ast_hash": "52fa39f1ea40e133fb720b9d062ac554",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_07_eyepatch.png": {
+    "mtime": 1788370976.3420346,
+    "seen": 1788371023.824437,
+    "ast_hash": "62693a903c77c341d03c90ec868ccaef",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_08_ski_goggles.png": {
+    "mtime": 1788370976.4965003,
+    "seen": 1788371023.824437,
+    "ast_hash": "6227baf41d6bfe52157d3a2401d69ee9",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_09_reading_glasses.png": {
+    "mtime": 1788387821.1195736,
+    "seen": 1788387861.9594972,
+    "ast_hash": "e11934dcb2ee183416d712b6c7c2ed35",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_10_vigilante_cowl.png": {
+    "mtime": 1788370976.8217926,
+    "seen": 1788371023.824437,
+    "ast_hash": "4fb9188db8f609d5d429f9a505e7fbf6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_11_hockey_mask.png": {
+    "mtime": 1788370976.9837253,
+    "seen": 1788371023.824437,
+    "ast_hash": "ba44ab2084be882d94fed2eb97382356",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_12_venetian_mask.png": {
+    "mtime": 1788370977.1382754,
+    "seen": 1788371023.824437,
+    "ast_hash": "b4950704eb5d493f470467632da48e92",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_13_gas_mask.png": {
+    "mtime": 1788370977.30293,
+    "seen": 1788371023.824437,
+    "ast_hash": "c5a8d24a7bc97ac15d9cd4f16186ce17",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_14_welding_mask.png": {
+    "mtime": 1788370977.4559813,
+    "seen": 1788371023.824437,
+    "ast_hash": "70d9696b347ba85f324db80eb111e684",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_15_pipe.png": {
+    "mtime": 1788370977.6069643,
+    "seen": 1788371023.824437,
+    "ast_hash": "763c60d164794acbb3f9b3d715728b7a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_16_stud_earrings.png": {
+    "mtime": 1788370977.7623127,
+    "seen": 1788371023.824437,
+    "ast_hash": "ba1b65afe39fbfc33dd97b10ff43b263",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_17_hoop_earrings.png": {
+    "mtime": 1788370977.9252176,
+    "seen": 1788371023.824437,
+    "ast_hash": "d81b264bd6c160ecf0afe191be318f0a",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_18_dangle_earrings.png": {
+    "mtime": 1788370978.0804753,
+    "seen": 1788371023.824437,
+    "ast_hash": "c0f7a4daed0fad962887add822248ce2",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_19_nose_stud.png": {
+    "mtime": 1788370978.2358265,
+    "seen": 1788371023.824437,
+    "ast_hash": "1f915d46e9100875f7c1b05eb2461364",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_20_septum_ring.png": {
+    "mtime": 1788370978.3934941,
+    "seen": 1788371023.824437,
+    "ast_hash": "83d147692d387771e1bcd5333d170bea",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_21_eyebrow_piercing.png": {
+    "mtime": 1788370978.5466962,
+    "seen": 1788371023.824437,
+    "ast_hash": "61bcc5fc4596528d0f2c2dceefb03089",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_22_cigar.png": {
+    "mtime": 1788370978.7032917,
+    "seen": 1788371023.824437,
+    "ast_hash": "98c0909ac9afa4f06a085073b19494a8",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_23_toothpick.png": {
+    "mtime": 1788370978.8669286,
+    "seen": 1788371023.824437,
+    "ast_hash": "75d89bfbb1a3cc59a7d2c91fa05e3f8c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_24_lollipop.png": {
+    "mtime": 1788370979.0224488,
+    "seen": 1788371023.824437,
+    "ast_hash": "6e9f74858a083a1aaacb75149e25b8cd",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_25_bindi.png": {
+    "mtime": 1788370979.1744902,
+    "seen": 1788371023.824437,
+    "ast_hash": "39b07aeb6000845ae6ebaa40bd145566",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_26_vampire_fangs.png": {
+    "mtime": 1788370979.327638,
+    "seen": 1788371023.824437,
+    "ast_hash": "089afbb98715544e7f1a55df10b9c4bb",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_27_chain_necklace.png": {
+    "mtime": 1788370979.481907,
+    "seen": 1788371023.824437,
+    "ast_hash": "1fc1e26f0393983ba83c2127981df2f7",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_28_cap.png": {
+    "mtime": 1788370979.6352413,
+    "seen": 1788371023.824437,
+    "ast_hash": "fa3301d105f5cb979ef577f9d08b8d62",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_29_bucket_hat.png": {
+    "mtime": 1788370979.7961192,
+    "seen": 1788371023.824437,
+    "ast_hash": "5bd5c4cb978a385472aa1007c7ef7ede",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_30_fedora.png": {
+    "mtime": 1788370979.9660933,
+    "seen": 1788371023.824437,
+    "ast_hash": "fe1156223c6db594b2a6b93f59440790",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_31_top_hat.png": {
+    "mtime": 1788370980.123978,
+    "seen": 1788371023.824437,
+    "ast_hash": "84bc4aa2d85ab1b0d0eb0912ba1612a6",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_32_cowboy_hat.png": {
+    "mtime": 1788370980.2762666,
+    "seen": 1788371023.824437,
+    "ast_hash": "c28d854305234af8bb2c5d7f935dab3f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_33_beret.png": {
+    "mtime": 1788370980.432805,
+    "seen": 1788371023.824437,
+    "ast_hash": "915b64d4a54beb91d3174c62f70291f9",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_34_peaky_cap.png": {
+    "mtime": 1788370980.585679,
+    "seen": 1788371023.824437,
+    "ast_hash": "1f18fb3b1a6219f422f7dcd08d670377",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_35_headband.png": {
+    "mtime": 1788370980.7316887,
+    "seen": 1788371023.824437,
+    "ast_hash": "9af838e63cf2a22188975a2a6f63db0c",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_36_trapper_hat.png": {
+    "mtime": 1788370980.8963804,
+    "seen": 1788371023.824437,
+    "ast_hash": "90d6563225648b97e46d2bec6b73d3b5",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_37_sombrero.png": {
+    "mtime": 1788370981.066928,
+    "seen": 1788371023.824437,
+    "ast_hash": "bcbe302028c57328e3400abd925c6495",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_38_party_hat.png": {
+    "mtime": 1788370981.217739,
+    "seen": 1788371023.824437,
+    "ast_hash": "3e5ae0da8898ec2efa170b89970cfd15",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/human_acc_39_wizard_hat.png": {
+    "mtime": 1788370981.3779585,
+    "seen": 1788371023.824437,
+    "ast_hash": "4d511fbeb6d63822ee6e259b4d3ce5b0",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Elephant.cs": {
+    "mtime": 1788370661.2216232,
+    "seen": 1788371023.824437,
+    "ast_hash": "4002d8b43bff2ab2579ea4c6cc1cda71",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.Horse.cs": {
+    "mtime": 1788368670.2105396,
+    "seen": 1788371023.824437,
+    "ast_hash": "01f8a72def416ae4872f2c2be218d7fb",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/Cosmetics.HorseDecor.cs": {
+    "mtime": 1788369557.875046,
+    "seen": 1788371023.824437,
+    "ast_hash": "098a29652f09a3c9f725a253ff72a0fc",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_ears_00_plain.png": {
+    "mtime": 1788370972.4981081,
+    "seen": 1788371023.824437,
+    "ast_hash": "c3712a0bdba01038d189bb74a2c1a194",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_ears_01_notched.png": {
+    "mtime": 1788370972.6052978,
+    "seen": 1788371023.824437,
+    "ast_hash": "60e8d6d4f5d3f1345d21149060c60746",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_ears_02_wide.png": {
+    "mtime": 1788370972.716243,
+    "seen": 1788371023.824437,
+    "ast_hash": "57b35c0fc7aee559783a36dc31c38e84",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_ears_03_torn.png": {
+    "mtime": 1788370972.8250518,
+    "seen": 1788371023.824437,
+    "ast_hash": "cf39f15437c1e3659f5bdbbf01d3dcc2",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tack_01_head_cloth.png": {
+    "mtime": 1788370972.9203947,
+    "seen": 1788371023.824437,
+    "ast_hash": "74da9d05ae35c448dbd3f15c17e92528",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tack_02_ankle_bands.png": {
+    "mtime": 1788370973.0213494,
+    "seen": 1788371023.824437,
+    "ast_hash": "897fcc57b3b1047a58dab50a1dd46397",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tack_03_blanket.png": {
+    "mtime": 1788370973.1221473,
+    "seen": 1788371023.824437,
+    "ast_hash": "f02f8e153c738d9e0f4b8603d99df6a9",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tusk_00_none.png": {
+    "mtime": 1788370973.2213795,
+    "seen": 1788371023.824437,
+    "ast_hash": "f5c420d6a9e67ce780d9d536f06b08bc",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tusk_01_short.png": {
+    "mtime": 1788370973.3250628,
+    "seen": 1788371023.824437,
+    "ast_hash": "f575ab496a11b823e4561dec99edbcce",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tusk_02_curved.png": {
+    "mtime": 1788370973.4274113,
+    "seen": 1788371023.824437,
+    "ast_hash": "3dbc9d995c5b8b2a9474326d3964f13b",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tusk_03_long.png": {
+    "mtime": 1788370973.5276346,
+    "seen": 1788371023.824437,
+    "ast_hash": "8113d614c838a68e6f2b8ba9f41f14d0",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/eleph_tusk_04_banded.png": {
+    "mtime": 1788370973.6317286,
+    "seen": 1788371023.824437,
+    "ast_hash": "425fd8a8feaa666c82ff9e6d0e13aea5",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_00_roached.png": {
+    "mtime": 1788370973.7357037,
+    "seen": 1788371023.824437,
+    "ast_hash": "74ba92a8b2d0521c83d50b07e3505ea2",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_01_short.png": {
+    "mtime": 1788370973.8351338,
+    "seen": 1788371023.824437,
+    "ast_hash": "a63ea83850c9cee958168aaea88e0cb7",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_02_flowing.png": {
+    "mtime": 1788370973.938371,
+    "seen": 1788371023.824437,
+    "ast_hash": "f700daf1a07f1d6a01bc80eb0d84c036",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_03_long_flowing.png": {
+    "mtime": 1788370974.0328126,
+    "seen": 1788371023.824437,
+    "ast_hash": "3d3f289a1322af8ceb4b5e25428f10a2",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_04_standing.png": {
+    "mtime": 1788370974.1316154,
+    "seen": 1788371023.824437,
+    "ast_hash": "4a737bb778995ac20a02d60a0cb69b29",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_05_button_braids.png": {
+    "mtime": 1788370974.2341948,
+    "seen": 1788371023.824437,
+    "ast_hash": "bfe12ff854c2af0a6a75a97ce2f23782",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mane_06_wild.png": {
+    "mtime": 1788370974.3425212,
+    "seen": 1788371023.824437,
+    "ast_hash": "0a8b3fcccf87d36de83bfeba6458d717",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mark_01_star.png": {
+    "mtime": 1788370974.4438348,
+    "seen": 1788371023.824437,
+    "ast_hash": "eee4def6325c4e4849eae98984dac4e4",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mark_02_blaze.png": {
+    "mtime": 1788370974.5450058,
+    "seen": 1788371023.824437,
+    "ast_hash": "a9ea88a1acbb2372c6b5a3ecec26a437",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mark_03_snip.png": {
+    "mtime": 1788370974.6506884,
+    "seen": 1788371023.824437,
+    "ast_hash": "c190f4b37ba0a070af3fae20350e7f9d",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mark_04_stockings.png": {
+    "mtime": 1788370974.7538898,
+    "seen": 1788371023.824437,
+    "ast_hash": "4e51e14971176ac5a2f8f8cfb1fe9e3f",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_mark_05_dappled.png": {
+    "mtime": 1788370974.8574567,
+    "seen": 1788371023.824437,
+    "ast_hash": "2566be9256cc38b114aa2f90bcca4da1",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_tack_01_bridle.png": {
+    "mtime": 1788370974.9660923,
+    "seen": 1788371023.824437,
+    "ast_hash": "fcf01a43c45619640961b38033e7bdb4",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_tack_02_halter.png": {
+    "mtime": 1788370975.067264,
+    "seen": 1788371023.824437,
+    "ast_hash": "9ec618a6e2d5a7db2c5738557c3af159",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_tack_03_blinkers.png": {
+    "mtime": 1788370975.1710718,
+    "seen": 1788371023.824437,
+    "ast_hash": "dee8e8d255f826599274d6c8494b44e4",
+    "semantic_hash": ""
+  },
+  "docs/cosmetics-after/sheets/horse_tack_04_saddle_pad.png": {
+    "mtime": 1788370975.2717843,
+    "seen": 1788371023.824437,
+    "ast_hash": "066490868239d787e9adf28029f55f48",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Sim/GameplaySettings.cs": {
+    "mtime": 1788393708.3636138,
+    "seen": 1788393729.593883,
+    "ast_hash": "eb311ba0c970f67bfa67df0c2a7e8aca",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/HostOrFindUI.cs": {
+    "mtime": 1788404175.6751032,
+    "seen": 1788404214.3422074,
+    "ast_hash": "2773c2bf06935f082d9dd5d1909b8598",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/AccuracyScene.cs": {
+    "mtime": 1788409305.7275815,
+    "seen": 1788409431.6429098,
+    "ast_hash": "9f58484a8e1a041a43e2239eb1121ef8",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/DeadBallScene.cs": {
+    "mtime": 1788407945.8671925,
+    "seen": 1788409431.6429098,
+    "ast_hash": "c6da1624e1fbf1691dc7e68a9b356f1f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/FreeKickScene.cs": {
+    "mtime": 1788410060.7207572,
+    "seen": 1788411786.8314767,
+    "ast_hash": "fef9c5162958b8761fd755cc74aff564",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/KeeperScene.cs": {
+    "mtime": 1788414504.6751065,
+    "seen": 1788414802.0755196,
+    "ast_hash": "4ba3f4a6c4b48f0acae90c20ae5b35f6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/MatchScene.cs": {
+    "mtime": 1788414584.995787,
+    "seen": 1788414802.0755196,
+    "ast_hash": "442f79015d4d9a3713747f24776a2b72",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/MenuScene.cs": {
+    "mtime": 1788408230.4167047,
+    "seen": 1788409431.6429098,
+    "ast_hash": "3bfbf2fa64f0dda99554556afc21100c",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/MenuSceneStage.cs": {
+    "mtime": 1788507387.396938,
+    "seen": 1788508307.515271,
+    "ast_hash": "aad43183ae065e9dc4e2b93c84fd50e6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/ModeGrid.cs": {
+    "mtime": 1788408058.7592003,
+    "seen": 1788409431.6429098,
+    "ast_hash": "47a0032a58866103717bf378a16a3a0e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/ScriptedInput.cs": {
+    "mtime": 1788407297.8976738,
+    "seen": 1788409431.6429098,
+    "ast_hash": "b5ee4ed42f1e8f3464e1c3711c1f8442",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/StrikerScene.cs": {
+    "mtime": 1788414385.9825149,
+    "seen": 1788414481.0197673,
+    "ast_hash": "6a1b9ab1d8802545d27e531798c5c81b",
+    "semantic_hash": ""
+  },
+  "docs/menu-scenes-design.md": {
+    "mtime": 1788409406.4168723,
+    "seen": 1788409431.6429098,
+    "ast_hash": "d873e9df993efa30f13d32437713eefc",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/AccuracyModeUI.cs": {
+    "mtime": 1788415326.1430545,
+    "seen": 1788415475.4896576,
+    "ast_hash": "d7d834b332e86f5f26b59b47beb22702",
+    "semantic_hash": ""
+  },
+  "docs/claude-handoff.md": {
+    "mtime": 1788508272.40947,
+    "seen": 1788508307.515271,
+    "ast_hash": "4c896021dd8ea1bda1316edc862884f8",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/InviteFriendsUI.cs": {
+    "mtime": 1788420525.4028704,
+    "seen": 1788420912.3863454,
+    "ast_hash": "a1772bceda47674a57504123e66dd927",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/SetupPanel.cs": {
+    "mtime": 1788420197.7174108,
+    "seen": 1788420522.442083,
+    "ast_hash": "716601b415e76137ab2a487cea788c82",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupBodies.cs": {
+    "mtime": 1788491741.7321875,
+    "seen": 1788498194.8290133,
+    "ast_hash": "e4fc0cea9d16dfa6d7dd7b09da0a7083",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupBotTaker.cs": {
+    "mtime": 1788491741.6932526,
+    "seen": 1788498194.8290133,
+    "ast_hash": "83760effe2b1b1e65446d59bab27804d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupBracket.cs": {
+    "mtime": 1788487039.0989263,
+    "seen": 1788498194.8290133,
+    "ast_hash": "8e06ae7718ae8963fefc0b57d2c256cf",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupBracketScreen.cs": {
+    "mtime": 1788491462.7000966,
+    "seen": 1788498194.8290133,
+    "ast_hash": "6c4f7300f7838d753164eec509a575fd",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupBracketView.cs": {
+    "mtime": 1788497056.1253495,
+    "seen": 1788498194.8290133,
+    "ast_hash": "b3cb5750c7315a39a2f307da6eacafa6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupBytes.cs": {
+    "mtime": 1788487039.1389468,
+    "seen": 1788498194.8290133,
+    "ast_hash": "911c7ebb481cc5b38be2269fbc58ef53",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupCameraRig.cs": {
+    "mtime": 1788507847.697631,
+    "seen": 1788508307.515271,
+    "ast_hash": "081978f747867e22443909f5a901ee28",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupCareer.cs": {
+    "mtime": 1788489601.237377,
+    "seen": 1788498194.8290133,
+    "ast_hash": "84e642d24ec3bdc1fbf61bac9648e84d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupChoreo.cs": {
+    "mtime": 1788507656.7799203,
+    "seen": 1788508307.515271,
+    "ast_hash": "0685f6c77fde8cf19e87e4be4b99bffc",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupCoinToss.cs": {
+    "mtime": 1788496601.85322,
+    "seen": 1788498194.8290133,
+    "ast_hash": "9493fb0c204118075dabcfb52246dbeb",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupDebugCapture.cs": {
+    "mtime": 1788495654.335323,
+    "seen": 1788498194.8290133,
+    "ast_hash": "8c9638c848ce1a13c688a6fe985b885b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupDirector.Coop.cs": {
+    "mtime": 1788488327.9795332,
+    "seen": 1788498194.8290133,
+    "ast_hash": "59813eba8680efdd2f511f1dcf8099e7",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupDirector.HeadToHead.cs": {
+    "mtime": 1788488327.9448388,
+    "seen": 1788498194.8290133,
+    "ast_hash": "8dcca2720551822562b648c71717b80f",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupDirector.Solo.cs": {
+    "mtime": 1788507847.9091318,
+    "seen": 1788508307.515271,
+    "ast_hash": "c6914c1ba2b25314bb22214b6774e4f0",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupDirector.cs": {
+    "mtime": 1788507847.8013139,
+    "seen": 1788508307.515271,
+    "ast_hash": "a24506f3d86b40eeb5a6e7ba841c3c58",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupEmoteWheel.cs": {
+    "mtime": 1788491300.1577315,
+    "seen": 1788498194.8290133,
+    "ast_hash": "20ca44648349ae0f64d09a349b7c8f68",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupHud.cs": {
+    "mtime": 1788507657.0921812,
+    "seen": 1788508307.515271,
+    "ast_hash": "af7f6c3521e8c077e9f089b3ffd169e0",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupIntroCard.cs": {
+    "mtime": 1788491300.3830547,
+    "seen": 1788498194.8290133,
+    "ast_hash": "d2534e8cee589a82a1621e033392b374",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupKnockedOutUI.cs": {
+    "mtime": 1788497465.3960896,
+    "seen": 1788498194.8290133,
+    "ast_hash": "798ed1ef2d7eaaf8488db3c7cb7bc258",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupLaunch.cs": {
+    "mtime": 1788489601.35702,
+    "seen": 1788498194.8290133,
+    "ast_hash": "a7ba8085b3ec95f6864ccfaa7552adf6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupLoadingUI.cs": {
+    "mtime": 1788491300.268966,
+    "seen": 1788498194.8290133,
+    "ast_hash": "d5fd40d82f5163a3f305f3c0f7ce2313",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupLobbyUI.cs": {
+    "mtime": 1788497056.030441,
+    "seen": 1788498194.8290133,
+    "ast_hash": "a8269d2207d20aedc0599e4356200283",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupNationTable.cs": {
+    "mtime": 1788487039.1678412,
+    "seen": 1788498194.8290133,
+    "ast_hash": "d6e3afef88f2b1f59d5958b65fe14098",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupNations.cs": {
+    "mtime": 1788487039.2006679,
+    "seen": 1788498194.8290133,
+    "ast_hash": "c94b3cd8155642325050519accbb567a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupPenaltyCam.cs": {
+    "mtime": 1788506399.8422296,
+    "seen": 1788508307.515271,
+    "ast_hash": "8cadb2e9acc22a35005f16f6de82e70d",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupPoses.cs": {
+    "mtime": 1788507656.6796527,
+    "seen": 1788508307.515271,
+    "ast_hash": "c1f62ddb33a03f37898724e73b5c8eac",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupReferee.cs": {
+    "mtime": 1788496635.617377,
+    "seen": 1788498194.8290133,
+    "ast_hash": "2d6b46fa79bdf9d6d7bdd4db19cf6fc6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupResultsUI.cs": {
+    "mtime": 1788497055.684734,
+    "seen": 1788498194.8290133,
+    "ast_hash": "3df344fcbf4f682260fa9a6825b006f5",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.Ceremony.cs": {
+    "mtime": 1788493832.7916014,
+    "seen": 1788498194.8290133,
+    "ast_hash": "7537b7d3ffbffa5b17cd85c41e6424e6",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.Debug.cs": {
+    "mtime": 1788495654.3520427,
+    "seen": 1788498194.8290133,
+    "ast_hash": "056502b3cd88c7e6ee036063a2a75ab9",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.Kick.cs": {
+    "mtime": 1788507710.049356,
+    "seen": 1788508307.515271,
+    "ast_hash": "b1c1ed165dc2f7b6d1f065f317c8929a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.Scene.cs": {
+    "mtime": 1788507656.8809154,
+    "seen": 1788508307.515271,
+    "ast_hash": "0c862da9e75503a14c9dc47b94b35284",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundDriver.cs": {
+    "mtime": 1788488328.0151498,
+    "seen": 1788498194.8290133,
+    "ast_hash": "916739c8b181f98c3f3f3b2a890db835",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundRules.cs": {
+    "mtime": 1788487039.239055,
+    "seen": 1788498194.8290133,
+    "ast_hash": "1c2f7c148f8c8bea1446dffa4ceafd32",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupRoundState.cs": {
+    "mtime": 1788488328.0580251,
+    "seen": 1788498194.8290133,
+    "ast_hash": "3ca9e646b8e0e4eb12cdcd09171f42b1",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupSelfTest.cs": {
+    "mtime": 1788487039.2754562,
+    "seen": 1788498194.8290133,
+    "ast_hash": "f6188f2fd9d4380b0d17bee7c4d0bd0a",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupSelfTestMenu.cs": {
+    "mtime": 1788487039.3155222,
+    "seen": 1788498194.8290133,
+    "ast_hash": "1ccb98a67250da12f7940a6299811929",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupSetupUI.cs": {
+    "mtime": 1788488328.092154,
+    "seen": 1788498194.8290133,
+    "ast_hash": "ed932a71a739206489ac038a16fbaee3",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupSim.cs": {
+    "mtime": 1788497465.4218383,
+    "seen": 1788498194.8290133,
+    "ast_hash": "319fbe7fad55118ab293d7b501f42ca3",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupSpots.cs": {
+    "mtime": 1788507656.5777435,
+    "seen": 1788508307.515271,
+    "ast_hash": "de4c2a1cc04d20e4ce3623d51cecd458",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupTypes.cs": {
+    "mtime": 1788507656.4698331,
+    "seen": 1788508307.515271,
+    "ast_hash": "9da5cc7efd7dfe60c7f2e27dd79b1f53",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/NationPickerUI.cs": {
+    "mtime": 1788497071.892714,
+    "seen": 1788498194.8290133,
+    "ast_hash": "d5eb6db44b9af075a8b477a9f806b33e",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/SeededRng.cs": {
+    "mtime": 1788487039.4224682,
+    "seen": 1788498194.8290133,
+    "ast_hash": "8573cb499f13d8a5a718565d27fbac6f",
+    "semantic_hash": ""
+  },
+  "docs/trickshot-cup-design.md": {
+    "mtime": 1788484550.31886,
+    "seen": 1788498194.8290133,
+    "ast_hash": "0b3937220d0b3630d7bb61a822eef84b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupConfetti.cs": {
+    "mtime": 1788507933.652971,
+    "seen": 1788508307.515271,
+    "ast_hash": "d63cc5d743ae0e32f9f2a55bcd729701",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupPodium.cs": {
+    "mtime": 1788507847.4895384,
+    "seen": 1788508307.515271,
+    "ast_hash": "949c331368633ef1929040181ba454f2",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupTrophy.cs": {
+    "mtime": 1788507847.2868938,
+    "seen": 1788508307.515271,
+    "ast_hash": "ce692b54c8f1a4f128d1edc5b5bc2e9b",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Cup/CupTrophyLift.cs": {
+    "mtime": 1788507847.586973,
+    "seen": 1788508307.515271,
+    "ast_hash": "aa268fe00cf9f0d5c5e702569eb9b7fd",
+    "semantic_hash": ""
+  },
+  "Assets/Scripts/Play/MenuScenes/CupScene.cs": {
+    "mtime": 1788507387.3822222,
+    "seen": 1788508307.515271,
+    "ast_hash": "c047628fce1fe6ef66b02ca060db2249",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/cuptest/Program.cs": {
+    "mtime": 1788498861.1823583,
+    "seen": 1788508307.515271,
+    "ast_hash": "1607f1ff7a9d5b9975607a29ef58be46",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/reports/phase1-foundations.json": {
+    "mtime": 1788498833.769729,
+    "seen": 1788508307.515271,
+    "ast_hash": "34b2d0d4170919256485d4cca81dafb4",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/reports/phase2-solo.json": {
+    "mtime": 1788498833.7945075,
+    "seen": 1788508307.515271,
+    "ast_hash": "c295a0705891b2577bc79089e86fe702",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/reports/phase2b-editor-solo.json": {
+    "mtime": 1788498833.8216412,
+    "seen": 1788508307.515271,
+    "ast_hash": "abdd852979510a12e9ca68399e10b871",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/reports/phase3-endings.json": {
+    "mtime": 1788508089.3131373,
+    "seen": 1788508307.515271,
+    "ast_hash": "5c4d1df0e8bcea39d76643505ff7f26f",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/reports/phase3-vignette.json": {
+    "mtime": 1788507755.435414,
+    "seen": 1788508307.515271,
+    "ast_hash": "c8f3866e151126029f5f4c8cf8e95707",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf1-foundations.js": {
+    "mtime": 1788498861.276416,
+    "seen": 1788508307.515271,
+    "ast_hash": "a5fadbe623ad8b5e2add3f6adee0638d",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf2-solo.js": {
+    "mtime": 1788498861.291855,
+    "seen": 1788508307.515271,
+    "ast_hash": "74e1cd3056a6380c540e98136efb7d7d",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf2b-editor-solo.js": {
+    "mtime": 1788498861.306134,
+    "seen": 1788508307.515271,
+    "ast_hash": "a0d7f246e3ef1c9464235271ce109410",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf3-endings.js": {
+    "mtime": 1788498861.320148,
+    "seen": 1788508307.515271,
+    "ast_hash": "31ded5b1a9674a7fe62f2debbb76f6e9",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf3b-editor-endings.js": {
+    "mtime": 1788498861.333383,
+    "seen": 1788508307.515271,
+    "ast_hash": "ae2ed41fc4e0384469b3097a70530d75",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf4-multiplayer.js": {
+    "mtime": 1788498861.3477864,
+    "seen": 1788508307.515271,
+    "ast_hash": "86908ad6f592b49d462009ae60e631aa",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/workflows/wf5-review.js": {
+    "mtime": 1788498861.3649814,
+    "seen": 1788508307.515271,
+    "ast_hash": "f6a9f2d5622d70af4a17135ed393b63f",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/README.md": {
+    "mtime": 1788498966.4798305,
+    "seen": 1788508307.515271,
+    "ast_hash": "fa7c438238cf8ae7e8b4c7946003d9e9",
+    "semantic_hash": ""
+  },
+  "docs/cup-build/cup-build-notes.md": {
+    "mtime": 1788498966.551098,
+    "seen": 1788508307.515271,
+    "ast_hash": "7bb3138a13985588618549199717ceaf",
+    "semantic_hash": ""
+  }
+}

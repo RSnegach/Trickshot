@@ -59,6 +59,21 @@ namespace Trickshot
             return list;
         }
 
+        /// <summary>The design with this name (case-insensitive, any tab), or null. Names are the
+        /// keys the whole library is deduped on, so a hit is unambiguous.</summary>
+        public static Design Find(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            EnsureBuilt();
+            for (int i = 0; i < _all.Count; i++)
+                if (string.Equals(_all[i].Name, name, StringComparison.OrdinalIgnoreCase)) return _all[i];
+            return null;
+        }
+
+        /// <summary>The referee's kit (ClassicKits tab): black-and-white vertical stripes with a
+        /// black collar band. `JerseyDesigns.Find(RefereeName)` is how the cup dresses him.</summary>
+        public const string RefereeName = "Referee";
+
         // Cached ~48x48 thumbnail rendered from the design's FRONT image.
         public static Texture2D Thumb(Design d)
         {
@@ -894,6 +909,16 @@ namespace Trickshot
             {
                 FillRegion(px, C(20, 30, 70));
                 for (int x = 8; x < W; x += 20) VBand(px, x, x + 1, White);
+            });
+
+            // The Trickshot Cup referee (design 7.1): eight black-and-white vertical stripes and a
+            // black collar band along the top edge of the torso. Sleeve cuffs are not drawable
+            // here - the arms are separate limb material, not part of this torso atlas - so the
+            // cup gives him black limbs/shorts through the body materials instead.
+            Add(l, RefereeName, DesignTab.ClassicKits, px =>
+            {
+                Stripes(px, 8, Black, White);
+                HBand(px, RegionH - 14, RegionH - 1, Black);   // collar (region y is UP)
             });
         }
 
