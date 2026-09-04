@@ -435,7 +435,12 @@ namespace Trickshot
             if (HandedOver && Captain != null && Captain.Alive)
             {
                 var c = Captain.Celeb;
-                bool lifting = c != null && c.Playing && c.CurrentEmote == Celebration.Emote.TrophyLift;
+                // Past its own rise only: TrophyLift eases in from a hanging arm over the first
+                // 0.35 of its length and is re-Played from zero every time it ends (PlayLift in
+                // Update), so without this window the trophy dips to the hip and climbs again once
+                // per loop. Same rule as CupPodium.LateUpdate - see the note there.
+                bool lifting = c != null && c.Playing && c.CurrentEmote == Celebration.Emote.TrophyLift
+                            && c.Progress01 >= 0.35f;
                 if (!lifting)
                 {
                     Captain.Ragdoll.SetPoseOverride(Bone.UpperArmL, CupPodium.HoldUpperArmL);

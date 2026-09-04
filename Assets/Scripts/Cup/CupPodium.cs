@@ -560,7 +560,14 @@ namespace Trickshot
                 return;
             }
             // A wheel emote owns the right arm and the body; the trophy arm is ours, held aloft.
-            if (celeb != null && celeb.Playing && celeb.CurrentEmote != Celebration.Emote.TrophyLift)
+            // TrophyLift is EXCLUDED only once it is past its own rise: it is a one-shot emote with
+            // an ease-in from a hanging arm (k = SmoothStep(p / 0.35) in Celebration's TrophyLift
+            // case), and Update re-Plays it from p = 0 the moment it ends, so a LOOPED lift drops
+            // the trophy to the hip and re-raises it for the first 0.35 of every cycle. Holding
+            // through that window is what keeps the trophy up between loops. Do not fix this in
+            // Celebration: that ramp is shared by the intended first raise at the hand-over cut.
+            if (celeb != null && celeb.Playing
+                && (celeb.CurrentEmote != Celebration.Emote.TrophyLift || celeb.Progress01 < 0.35f))
             {
                 rag.SetPoseOverride(Bone.UpperArmL, HoldUpperArmL);
                 rag.SetPoseOverride(Bone.ForearmL, HoldForearmL);

@@ -216,7 +216,16 @@ namespace Trickshot
             // The lobby survives into a wave (a peer without a round keeps it) and the interstitial
             // (the non-participants keep it); every other entry starts from a clean screen.
             CloseH2HScreens(keepLobby: wave || phase == CupPhase.Lobby || phase == CupPhase.Interstitial);
-            if (!wave) _h2hWavePrepared = false;
+            // A LOADING entry always OPENS a wave (the only two SetPhase(Loading) calls in this
+            // flow are H2HStartWave and H2HTickInterstitial), so the per-wave latches have to be
+            // dropped there as well as on a non-wave entry: a LATE wave (design 10, a leaver's
+            // pending human-vs-human round became human-vs-AI) is opened from H2HHostAdvance while
+            // the Phase is still Round, and clearing only on a non-wave entry left the latch true
+            // from the previous wave - H2HPrepareWave was skipped on every peer, so the owner never
+            // StartRound()ed, nobody re-acked the barrier (_h2hLoadedSent was still set) and the
+            // wave sat until HeadToHeadWaveCap. CoinToss / Round keep the latch: they are entered
+            // MID-wave and must not re-prepare it.
+            if (!wave || phase == CupPhase.Loading) _h2hWavePrepared = false;
 
             switch (phase)
             {
@@ -1178,9 +1187,16 @@ namespace Trickshot
         {
             var d = Driver;
             var r = CurrentRound;
-            // The condition only changes in Update (a driver comes and goes between frames), so
-            // Layout and Repaint always agree on whether these controls exist.
-            if (!_h2hHostRound || d == null || d.Setup == null || d.Setup.LocalHasBody || r == null || Bracket == null || PauseMenu.Paused) return;
+            // These terms only change in Update (a driver comes and goes between frames), so Layout
+            // and Repaint always agree on whether these controls exist. PauseMenu.Paused is NOT one
+            // of them - it is written from INSIDE an IMGUI pass (the menu's own Resume button runs
+            // its action straight out of UITheme.Button), so a pass can begin paused and end
+            // unpaused. Returning on it would allocate this bar's 2-3 controls for the first time in
+            // an event that never saw their Layout and shift every id drawn after them - including
+            // the coin overlay's ClickBlocker and HEADS / TAILS, which are hooked AFTER this bar and
+            // are live at the same time for a watcher (CupCoinToss.Draw carries the same note).
+            // The hiding happens below, by the same parking the coin buttons use.
+            if (!_h2hHostRound || d == null || d.Setup == null || d.Setup.LocalHasBody || r == null || Bracket == null) return;
             H2HStyles();
             MenuScale.Begin();
             Action fire = null;
@@ -1208,15 +1224,23 @@ namespace Trickshot
                 lit.Add(watching < 0);
                 float total = labels.Count * bw + (labels.Count - 1) * gap;
                 float x = w * 0.5f - total * 0.5f;
+                // Under the pause menu the bar hides by PARKING its buttons off-screen and
+                // disabling them - never by skipping them, which would shift every control id
+                // drawn after this hook (see the note above the guard).
+                bool live = !PauseMenu.Paused;
+                bool prevEnabled = GUI.enabled;
+                GUI.enabled = live;
                 for (int i = 0; i < labels.Count; i++)
                 {
-                    var br = new Rect(x + i * (bw + gap), y, bw, bh);
+                    var br = live ? new Rect(x + i * (bw + gap), y, bw, bh) : new Rect(-1000f, -1000f, bw, bh);
                     var keep = GUI.backgroundColor;
-                    if (lit[i]) GUI.backgroundColor = UITheme.SelTint;
-                    if (UITheme.Button(br, labels[i], _h2hWatchBtn) && !lit[i]) fire = acts[i];
+                    if (live && lit[i]) GUI.backgroundColor = UITheme.SelTint;
+                    if (UITheme.Button(br, labels[i], _h2hWatchBtn) && live && !lit[i]) fire = acts[i];
                     GUI.backgroundColor = keep;
                 }
-                UITheme.Hint(new Rect(0f, y - 22f, w, 18f), "Watching the head to head");
+                GUI.enabled = prevEnabled;
+                // Text only (GUI.Label allocates no control), so it is safe to skip outright.
+                if (live) UITheme.Hint(new Rect(0f, y - 22f, w, 18f), "Watching the head to head");
             }
             finally
             {

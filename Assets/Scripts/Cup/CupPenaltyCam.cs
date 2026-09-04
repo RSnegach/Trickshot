@@ -22,27 +22,24 @@ namespace Trickshot
     /// than parallel to the aim ray) is what lets the camera stand a little to the side of the axis
     /// without the aim drifting off centre by the parallax.
     ///
-    /// WHERE IT ACTUALLY STANDS: 7 m behind the ball on the axis, 2.4 m up, centred.
+    /// WHERE IT ACTUALLY STANDS: 9 m behind the ball on the axis, 2.2 m up, centred.
     /// <see cref="CupTuning.PenaltyCamBack"/> (3 m) is only a FLOOR and never wins - the latch takes
     /// Max(PenaltyCamBack, takerBehind + <see cref="MinBehindTaker"/>), and a run-up of
-    /// <see cref="CupTuning.RunUpDistance"/> (3 m) plus MinBehindTaker (4 m) is 7 m every time. Any
-    /// smaller stand-off would put the camera inside the taker's charging stance.
-    /// <see cref="SideOffset"/> is 0: an offset off one shoulder read as an asymmetric frame, and
-    /// <see cref="CamHeight"/> 2.4 m already lifts the line to the goal clear of his head, so his
-    /// back never fills the middle of the frame. All three are (tune) values, as the design flags
-    /// the whole placement.
+    /// <see cref="CupTuning.RunUpDistance"/> (3 m) plus MinBehindTaker (6 m) is 9 m every time.
+    /// <see cref="SideOffset"/> is 0: an offset off one shoulder read as an asymmetric frame.
     ///
-    /// The FOV solve honours the post framing first, then WIDENS if that framing would drop the
-    /// ball out of the bottom of the frame in the reference pose (looking at the goal centre): a
-    /// penalty camera that cannot see the ball is broken however big the goal looks. At the shipped
-    /// 7 m / 2.4 m the ball rule still wins - it solves 32.0 deg against the post rule's narrower
-    /// answer - so the outer post lands about 30% / 70% of the frame width at 16:9 (24% / 76% at
-    /// 4:3, 35% / 65% at 21:9) rather than the 11% / 89% target, with the ball sitting exactly on
-    /// its <see cref="BallMarginFrac"/> margin above the bottom edge. Nothing clamps: 32.0 sits well
-    /// inside <see cref="MinFov"/>..<see cref="MaxFov"/>. Closing that gap means a LOWER camera (the
-    /// ball's depression angle is what widens the solve), which costs the clearance over the taker's
-    /// head - that trade is the reason for the numbers above. Read the live figure off
-    /// <see cref="OuterPostFrac"/>; the levers are the CupTuning constants and the ones here.
+    /// THE FOV SOLVE HAS THREE RULES and takes the widest: the posts (a framing target), the ball
+    /// (it must stay above the bottom edge), and THE TAKER (he must be whole in frame - feet above
+    /// the bottom edge, <see cref="TakerHeadroom"/> above his mark below the top). The taker rule
+    /// wins at the shipped placement and is what sets the ~37 deg answer.
+    ///
+    /// Why the camera moved BACK to fix a shot that was too close to the shooter: he stands only
+    /// RunUpDistance from the ball, so from 7 m the lens was 4 m off his back and framing his feet
+    /// took 58 deg, which shrank the goal to 41% of the frame width. From 9 m the same framing
+    /// solves near 37 deg and the goal spans about 61% - further away, yet the goal is BIGGER and
+    /// the whole shooter fits. Before the taker rule existed nothing framed him at all: the post
+    /// and ball rules alone put his feet about 0.4 of a frame below the bottom edge.
+    /// Read the live figures off <see cref="OuterPostFrac"/> and <see cref="Fov"/>.
     /// </summary>
     public sealed class CupPenaltyCam
     {
@@ -51,15 +48,31 @@ namespace Trickshot
         public const float SideOffset = 0f;   // CENTRED on the ball-to-goal axis (owner: an offset made left/right looks asymmetric)
         /// <summary>
         /// The stand-off behind the ball is at least this far behind the taker's start mark (m).
-        /// 3.5: the first pass's 1.0 put the camera a metre behind the taker's head, which filled
-        /// the right third of the frame as a flesh-coloured blob for the whole charge (seen in
-        /// play mode); from 3.5 m his whole body fits under the solved FOV, off to one side.
+        /// 6: with the taker rule below driving the FOV, standing CLOSER is what costs goal size -
+        /// the shooter is only 3 m from a 7 m camera, so framing his feet from there needed 58 deg
+        /// and shrank the goal to 41% of the frame width. From 6 m behind him (9 m behind the ball)
+        /// the same framing solves at ~37 deg and the goal spans ~61%: further back, but a bigger
+        /// goal AND the whole shooter. Do not reduce this without re-running the solve.
         /// </summary>
-        public const float MinBehindTaker = 4f;   // 4 m behind the taker at his run-up mark = 7 m behind the ball
+        public const float MinBehindTaker = 6f;   // 6 m behind the taker at his run-up mark = 9 m behind the ball
         /// <summary>Camera height (m): high enough that the line to the goal clears the taker's head, so he never blocks the goal.</summary>
-        public const float CamHeight = 2.4f;
+        public const float CamHeight = 2.2f;
         /// <summary>The ball must sit at least this fraction of the frame height above the bottom edge (reference pose).</summary>
         public const float BallMarginFrac = 0.08f;
+        /// <summary>
+        /// The TAKER must be whole in frame: his feet sit at least this fraction of the frame height
+        /// above the bottom edge, and <see cref="TakerHeadroom"/> covers the top of his head.
+        /// He stands much nearer the lens than the ball does, so he projects far LOWER than it: at
+        /// the old 7 m / 2.4 m placement the post and ball rules alone solved 32 deg and put his
+        /// feet at -0.40, four tenths of a frame BELOW the bottom edge - the "too close to his back"
+        /// report. Nothing framed him before this rule existed.
+        /// </summary>
+        public const float TakerMarginFrac = 0.04f;
+        /// <summary>
+        /// Head clearance used by the taker rule (m above his mark). Sized for the tallest build
+        /// (2.05 m) plus a little air, since the camera is latched before the body is known.
+        /// </summary>
+        public const float TakerHeadroom = 2.25f;
         /// <summary>Sanity range for the solved vertical FOV (deg).</summary>
         public const float MinFov = 18f;
         public const float MaxFov = 80f;
@@ -77,6 +90,8 @@ namespace Trickshot
         public float PitchToGoal { get; private set; }
         /// <summary>The ball spot the aim ray starts from.</summary>
         public Vector3 BallSpot { get; private set; }
+        /// <summary>Where the taker stands to charge (his run-up mark) - the taker framing rule solves against it.</summary>
+        public Vector3 TakerPos { get; private set; }
         /// <summary>The goal centre (ground level) the framing is solved against.</summary>
         public Vector3 GoalCenter { get; private set; }
         /// <summary>The plane the aim ray is intersected with (the goal line).</summary>
@@ -97,6 +112,7 @@ namespace Trickshot
         public void Latch(Vector3 ballSpot, Vector3 goalCenter, Vector3 takerPos, bool leftFooted)
         {
             BallSpot = ballSpot;
+            TakerPos = takerPos;
             GoalCenter = goalCenter;
             GoalPlaneZ = goalCenter.z;
 
@@ -171,6 +187,31 @@ namespace Trickshot
                 if (below > 0f)
                 {
                     float need = below / Mathf.Max(0.05f, 1f - 2f * BallMarginFrac);
+                    if (need > tanHalfV) tanHalfV = need;
+                }
+            }
+
+            // THE TAKER, whole. He stands metres nearer the lens than the ball, so he projects much
+            // lower: framing the goal and the ball alone left his feet well below the bottom edge.
+            // Widen until his feet clear it by TakerMarginFrac, and until TakerHeadroom above his
+            // mark is inside the top edge, so the camera never sits on the back of his head.
+            Vector3 feet = inv * (CupSpots.Ground(TakerPos) - Position);
+            if (feet.z > 0.05f)
+            {
+                float below = -feet.y / feet.z;
+                if (below > 0f)
+                {
+                    float need = below / Mathf.Max(0.05f, 1f - 2f * TakerMarginFrac);
+                    if (need > tanHalfV) tanHalfV = need;
+                }
+            }
+            Vector3 head = inv * (CupSpots.Ground(TakerPos) + Vector3.up * TakerHeadroom - Position);
+            if (head.z > 0.05f)
+            {
+                float above = head.y / head.z;
+                if (above > 0f)
+                {
+                    float need = above / Mathf.Max(0.05f, 1f - 2f * TakerMarginFrac);
                     if (need > tanHalfV) tanHalfV = need;
                 }
             }

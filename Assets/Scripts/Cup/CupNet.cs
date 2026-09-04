@@ -52,7 +52,15 @@ namespace Trickshot
             m.seed = d.Seed;
             m.captainSlot = (byte)Mathf.Clamp(d.CaptainSlot, 0, 255);
             m.teamNation = d.TeamNation;
-            m.leverPulls = (byte)Mathf.Clamp(d.LeverPulls, 0, 255);
+            // WRAP, never clamp: both consumers (CupOrderUI's reel and CupDirector.Coop's
+            // CoopWatchLever) detect a pull purely by this value CHANGING, so a clamp at 255 would
+            // freeze it from the 256th pull of a stage on and stop the slot-machine reels for every
+            // client while the host - reading its own un-clamped int - kept animating. Wrapping
+            // keeps the change visible for as long as the counter runs. The one cost is the pull
+            // that lands exactly on a wrap to 0: both consumers gate the reel on `pulls > 0`, so
+            // that single reel is skipped rather than every reel after it. The ORDER itself rides
+            // CupState.order and never depended on this number, so nothing desyncs either way.
+            m.leverPulls = (byte)(d.LeverPulls & 0xFF);
             m.hasBracket = d.Bracket != null;
             m.currentRound = PackRoundId(d.CurrentRound);
 

@@ -1,175 +1,148 @@
-# Trickshot Cup - handoff (2026-09-04)
+# Claude handoff - Trickshot Cup final verification pass
 
-## Status in one line
+## Current task
 
-The whole mode is BUILT and COMPILE-CLEAN, the pure core passes its self-test, and **nothing has
-ever been run in the Unity editor or on loopback**. Everything below marked "verified" means
-verified by reading the code and by `bash docs/compile-check.sh` / `dotnet run` - never by playing it.
+Final verifier over the Trickshot Cup mode (5 build phases + 2 review/fix passes). This pass
+re-verified every blocker and major from the review by READING THE CODE at each named site,
+checked the parallel fixers had not contradicted each other, and fixed the one real finding
+they had all skipped on file-ownership grounds. Reviewing is done; the mode is code-complete
+and compile-clean, and has STILL never run in the Unity editor or on loopback.
 
-## What was built
+## Verification state - what has actually been run
 
-`Assets/Scripts/Cup/` (~50 files) implements `GameMode.TrickshotCup` in three styles - **Solo** (SP),
-**Head to Head** (MP) and **Co-op** (MP) - to the spec in `docs/trickshot-cup-design.md`. Five
-stages (Round of 32 .. Final), 32 nations from the `JerseyDesigns` Nations tab, a seeded draw, a
-referee, a coin toss, penalties or free kicks, a per-stage difficulty ramp, replay + emote wheel,
-a podium (Solo / H2H) and a trophy lift (Co-op). Wire: `NetCodec.ProtocolVersion` 8,
-`MatchConfig.cupStyle/cupFormat`, `MsgType` CupState 23 / CupRequest 24 / CupStream 25 /
-CupRoundState 26, `CupNet.StateVersion` 1, `NetRole.Entrant`.
+| Check | State | Notes |
+| --- | --- | --- |
+| `bash docs/compile-check.sh` | PASS (`exit=0`) | Run at the start of this pass and again after my two edits. |
+| `dotnet run -c Release` in `docs/cup-build/cuptest` | PASS | `ALL PASSED: 562277 checks in 1021 ms`. Pure core only: bracket draw, round rules, kick lines, sudden death, wire sizes. |
+| CRLF on every edited `.cs` | PASS | `grep -c` for CR equals `wc -l` on all nine touched files. |
+| Unity editor / play mode | **NEVER RUN** | No editor, no MCP this session. Nothing visual, no layout, no timing, no cameras. |
+| Loopback / two-peer multiplayer | **NEVER RUN** | Every net claim below is desk-traced only. |
+| Physics, choreography, camera framing | **NEVER RUN** | All camera and pose numbers are solved on paper. |
 
-Build history and per-agent detail: `docs/cup-build/reports/phase{1,2,2b,3,4}-*.json`; the codebase
-facts the builders worked from: `docs/cup-build/cup-build-notes.md`. Durable invariants live in the
-"Trickshot Cup" section of `CLAUDE.md` - read that before touching this code.
+Read that table literally. Everything below is "correct by reading", which is a strictly weaker
+claim than "seen working".
 
-## Verification state
+## What this pass changed
 
-| What | State |
-|---|---|
-| `bash docs/compile-check.sh` | exit=0 (whole runtime assembly) |
-| `dotnet run` in `docs/cup-build/cuptest` | ALL PASSED, 562277 checks (pure core: rules, bracket, sim, RNG, nation table, wire cap) |
-| Editor / play mode | **never run** |
-| Loopback multiplayer | **never run** |
-| Any visual, layout, camera or choreography claim | **unverified** - a clean compile says nothing about what it looks like |
+Only one code change of my own, plus the seven files the parallel fixers had already edited
+(which I re-verified rather than re-wrote).
 
-## In-editor verification still owed (do this first)
+- `Assets/Scripts/Cup/CupPodium.cs` and `Assets/Scripts/Cup/CupTrophyLift.cs` - fixed SMOOTH-01,
+  the champion's trophy arm dropping to his hip and re-rising once every 2.5 s for the whole
+  podium and the whole Co-op trophy lift. Both hold guards now also apply while
+  `celeb.Progress01 < 0.35f`, which is exactly the emote's own ease-in window.
 
-The editor was not available to any agent in this build. Use Unity MCP per the "Verifying UI in the
-editor" rules in `CLAUDE.md`: `manage_editor play`, navigate by reflection on each screen's private
-`_onPicked` / `_onDone` / `_onStart` callback (set `enabled = false` first, as the real button
-does), `ScreenCapture.CaptureScreenshot` in a SEPARATE `execute_code` call, then Read the PNG.
+Both previous fixers skipped this correctly-but-incompletely: the first could not edit these two
+files, and both rightly refused to fix it in `Celebration.cs`. I own all the files, so I applied
+the finding's own prescribed fix in the two cup files and left `Celebration.cs` untouched.
 
-1. **Self-test in the editor.** Menu `Trickshot > Cup > Run self-test`. It also validates the nation
-   table against the live `JerseyDesigns` library, which the console project cannot do (one warning
-   per drifted row). Expect no errors.
-2. **Solo, end to end.** SP chain: Choose(TrickshotCup) -> StadiumSelect -> SpeciesSelect ->
-   Customize -> the cup setup fork (`CupSetupUI`: Penalties / Free Kicks) -> `NationPickerUI` ->
-   bracket -> a played Round of 32 round. Check in order: the loading card (>= 1.5 s), the intro
-   card (3 s), the coin ceremony (the face shown must match the seeded first kicker plus your call),
-   the referee raising a hand 0.4 s before every whistle, the penalty camera framing (posts near the
-   frame edges WITH the ball in view - it lands around 31%/69%, not the design's 11%/89%; that trade
-   is documented on `CupPenaltyCam`), the kick clock, a GOAL / SAVED / MISS callout under the
-   scoreboard, the replay and its skip vote, the walk-back ARRIVING rather than snapping inside
-   3.5 s, the stage-complete lobby with its staggered simulated rows, and the podium.
-3. **Free Kicks specifically.** No lineup, no walk-in / walk-back. Confirm the seeded scatter keeps
-   every body OFF the run-up path and off the spot - a body touching the dead ball under
-   `SetPieceShot` re-launches it at full power, the one physics hazard in this format - and that a
-   missed kick plays the 3 s dejection on the spot.
-4. **Escape ownership.** With the emote wheel open, Escape must CLOSE THE WHEEL and not open the
-   pause menu (new this pass: `CupEmoteWheel.AnyOpen` feeding `CupEscape.Owned`). Then press Escape
-   during the loading card and during the intro card: the pause menu must be VISIBLE and clickable,
-   because the cards now drop behind it. Check this in a networked style too, where
-   `PauseMenu.Overlay` is true and `Frozen` is therefore always false.
-5. **Loopback multiplayer** (`Multiplayer.UseDirectIp = false`, two editors or a build plus editor).
-   Carried verbatim from `phase4-multiplayer.json` r1, which is the intended first pass:
+Why the fix is safe (checked, not assumed): `Celebration.Update` writes its pose through
+`SetPoseOverride` (ASSIGNMENT) into the same `_poseOverride` slots the cup holds write, and both
+cup holds run in `LateUpdate`, which Unity runs after every `Update`. So the hold OVERWRITES the
+ramping emote value rather than summing with it. This matters because `ActiveRagdoll` blends
+`Lerp(_poseFrom, _poseTo) + _poseOverride` (ActiveRagdoll.cs:881) - had either side used
+`AddPoseOverride`, the overlap window would have produced a ~327 deg arm instead of a held one.
 
-   > Head to Head lobby of two. Watch in order: `director.LastStateBytes` on the host after the pick
-   > (~60-200 B), the parallel wave (both loading cards, both tosses under the Round phase, live rows
-   > in the other peer's lobby, Spectate on the playing row -> CupStream puppets on the watcher), the
-   > Round of 16 human-vs-human round (interstitial on both; the client gets ONE intro card, its
-   > cursor captured, its power meter sweeping while it charges - the display taker - and its release
-   > landing on the host's body a round trip later), a client Quit mid-host-round (`HandSlotToAi`
-   > arms the bot), Play Again from the podium (the seed changes, both peers back to CHOOSE YOUR
-   > NATION, the podium's emote cursor reset), and End Match from the host (clients reach the main
-   > menu through the Ended echo, never "connection lost"). Then one Co-op stage: the client's career
-   > round write must land on the Bracket entry, a client keeper diving on the host's ball a round
-   > trip late, the trophy lift's free window moving a remote human.
+## Findings re-verified this pass (I read the code; I did not trust the reports)
 
-   Also new this pass and worth watching there: client puppets now animate (`DisplayAnim` off
-   `BodyState.anim`), so a running AI taker and a diving keeper should no longer slide as statues.
-6. **Co-op order screen** (never seen): the drag (MouseDown latch, MouseUp drop, the `Mouse.current`
-   fallback when the pointer leaves the window), the reel faces and the knob arc, eight slots plus
-   the lever at 1280 wide, and the keeper-left prompt.
+All CONFIRMED as correctly fixed:
 
-## Fixed in this verification pass
+- **h2h-late-wave-never-prepared** (blocker). `CupDirector.HeadToHead.cs:228` now reads
+  `if (!wave || phase == CupPhase.Loading) _h2hWavePrepared = false;`. I checked the load-bearing
+  claim myself: grepping `SetPhase(CupPhase.Loading)` finds exactly two sites in this flow, :369
+  (H2HStartWave) and :1092 (H2HTickInterstitial), and both OPEN a wave. The late-wave path is real -
+  H2HTickRound:548 -> H2HHostAdvance:788 `H2HStartWave(false)` -> :369, fired while Phase is still
+  `Round`. Clients mirror it through `CupDirector.Net.cs:522 SetPhase(phase, m.phaseTime)`, which
+  bumps PhaseSerial and re-dispatches `HeadToHeadEnter`. The fixer was RIGHT to reject the review's
+  proposed serial-latch mechanism: CoinToss and Round are separate SetPhases inside a wave, so a
+  serial test would re-prepare mid-wave and wipe `_h2hHostRound`, `_h2hLoadedSent`, `_h2hTossDone`
+  and `_h2hLocal`.
+- **cup-cointoss-paused-early-return** and **cup-h2h-watchbar-paused-early-return** (major, same
+  class). Both now allocate an identical control count on every event pass and hide by parking +
+  `GUI.enabled`. I verified the underlying premise at `PauseMenu.cs:410 -> Activate -> Resume ->
+  Paused = false`, all inside an IMGUI pass, and confirmed `UITheme.ClickBlocker`
+  (UITheme.cs:975-983) forces its own `GUI.enabled = true` and honours a hole by parking - so the
+  coin overlay's full-screen-hole trick is the right mechanism. I additionally checked the watch
+  bar's button COUNT is stable within a pass: it varies with `e.IsHuman`, which only moves via
+  `Bracket.MarkReplacedByAi`, called from `CupDirector.cs:1322` and `CupDirector.Net.cs:627`, both
+  on the net tick.
+- **cup-net-1 / h2h-host-live-row-never-broadcast** (major, one defect reported twice).
+  `CupDirector.cs:1743-1748` now Notifies on change. `!me.Playing` is correctly part of the change
+  test because `SetLive` sets `Playing = true` (CupDirector.cs:158-165). I grepped both
+  `StateChanged` subscribers (`CupDirector.Net.cs:136`, `CupResultsUI.cs:67`); neither re-enters
+  `UpdateLiveRow`, so the added Notify cannot recurse.
+- **cup-hud-recaptures-cursor-at-round-over** (minor). `CupHud.cs:142` is now
+  `SetWheel(false, false)`. I confirmed the ordering that makes this necessary at
+  `CupRoundDriver.cs:362-363`: `OnPhaseChanged` (-> EndRoundVisuals -> `CaptureCursor(false)` at
+  Kick.cs:1075) runs BEFORE `PhaseChanged?.Invoke`, so the HUD would otherwise undo the driver's
+  release.
+- **cup-net-2, wire half** (polish). `CupNet.cs:63` wraps (`& 0xFF`) instead of clamping. I
+  grepped every reader of `LeverPulls`; all compare by `!=` or `> 0`, none by magnitude, so wrap
+  is safe.
 
-- **NET-1 (blocker), the kick-line wire cap.** A kick line was bounded only by the codec's u8, so a
-  modified client could report 255 kicks, and 31 such rounds is about 4 KB in one reliable datagram
-  that `DirectIpTransport` never fragments. Now `CupRoundRules.Validate` takes a `maxKicks`
-  parameter, passed as `CupTuning.MaxKicksInLine` (30) by the host's `CupDirector.ApplyRoundResult`
-  and by a client's `CupRoundDriver.ApplyState`, and `CupRoundDriver.CapOutcome` overrides the last
-  allowed kick so a live line always ends DECIDED (`CupBracket.SetResult` accepts nothing else).
-  Four self-test checks added for it.
-- **cup-ui-6, Escape and the emote wheel.** `CupEmoteWheel.AnyOpen` now feeds `CupEscape.Owned`. It
-  is an EXPIRING stamp rather than a reference count, because no owner closes its wheel in
-  OnDestroy and a leaked count would swallow Escape for the rest of the session. `CloseOnEscape` /
-  `EscapePressed` are wired into CupHud, CupPodium and CupTrophyLift.
+## Still open - deliberately not fixed
 
-## Verified already fixed (by reading the code, not just the reports)
+- **CUP-MP-01** (minor, real): each cup `DefensiveWall` leaks one `PhysicsMaterial`.
+  `DefensiveWall.cs:100-101` lazily creates `_bounce = Make.PhysMat("WallBlocker", ...)`, and
+  `Clear()` (:247-257) destroys the blockers and the tracked `Material`s but never `_bounce`;
+  nothing in the repo destroys a PhysicsMaterial. In FreeKicks the cup builds one wall per ROUND
+  (`CupRoundDriver.Scene.cs:393`, from `OnConfigured`), so it leaks one small object per round.
+  NOT fixed because `_bounce` is private and the only correct fix lives in
+  `Assets/Scripts/Play/DefensiveWall.cs`, a SHARED file: the destroy belongs inside `Clear()`,
+  which is behaviour-neutral for the three non-cup callers (`GameBootstrap.BuildFreeKickMode`,
+  `NetSetPieceMatch.Configure`, `FreeKickScene`) only because the lazy `if (_bounce == null)` guard
+  re-creates it and every `Build*` overload leads with `Clear()`. It is a small leak, not a
+  correctness bug, so I left the shared-file edit to a deliberate decision rather than folding it
+  into a cup review.
+- **cup-net-2, salt-overlap half** (polish, real but not worth the churn):
+  `CupDirector.cs:1290` forks `CupSalts.Order(Stage) + 16u * (uint)LeverPulls`, and
+  `OrderFamily 0x6000 + 16*256 == 0x7000 == CupSalts.Podium` (CupTypes.cs:138/147). Reaching it
+  needs 256 manual lever pulls within one stage's order screen; the only consequence is that a
+  shuffle permutation shares a stream with podium loser poses, and both stay deterministic across
+  peers. Changing the arithmetic changes which permutation a given (seed, stage, pull) yields, so
+  it is NOT wire-compatible mid-cup and would have to land on all peers at once. Not worth it.
 
-CUP-01 (client ball spot plus wall, `ClientSyncBallSpot`), CUP-02 / cup-ui-2 (the walk-back solves
-its speed against `WalkBackMax`), CUP-04 / NET-5 driver half (`ApplyBodyPose` -> `DisplayAnim`),
-CUP-05 / NET-2 / NET-3 / cup-ui-1 (both cards behind the pause menu), CUP-06
-(`Celebration.OnWheel` bound), CUP-07 (the podium freezes HairSim and AnatomySim), CUP-08 / NET-4
-(the unspectate latch), CUP-09 / NET-6 / cup-ui-3 (the DriverBridge reflection seam is deleted),
-CUP-10 / cup-ui-8 (penalty-cam constants and docs), CUP-11 (the nation-table wire rule is
-documented), CUP-12 (row stagger), CUP-13 / cup-ui-7 (the dead `teamW`), CUP-14 (a refused Head to
-Head result settles at once), cup-ui-9 (`LineupMark` docs), cup-ui-10 (cached style). Phase-4 items:
-(e) the display taker resets on any phase or role change, (f) a client puppet can never reach
-`Celebration.Play` - doubly gated, since `SimTick` runs only under Local/Host authority and
-`NetInput` is assigned only on the host, (g) `HandSlotToAi` (Head to Head, host rounds) and
-`HumanLeft` (Co-op) are gated by style so they never both run on one round, (h) `_netLostAsClient`.
-The three coin seams - the ceremony-open gate, local-only judging for a Local-authority Head to Head
-round, idempotence through `CoinCallRight`, and a changed call clearing its old verdict - are all in
-place and consistent.
+## Cross-fixer contradiction check
 
-## Still open
+The three fixers ran in parallel on disjoint files. I checked the shared symbols they could have
+broken between them: `PauseMenu.Paused` (two fixers independently applied the SAME
+park-don't-skip pattern, in `CupCoinToss.DrawInner` and `H2HDrawWatchBar` - consistent, and they
+are hooked into one shared control-id sequence, bar first, which is exactly why both had to be
+fixed together); `_h2hWavePrepared` (single writer set, one file); `LeverPulls` (wire producer in
+`CupNet.cs`, consumers unchanged); `Notify` / `StateChanged` (one new caller, two subscribers, no
+recursion); `SetWheel` / `CupEmoteWheel.SetOpen` (HUD-local, podium and trophy lift unaffected).
+No conflicts found.
 
-**Needs an editor - hand to whoever has one next:**
+The penalty camera rewrite (`CupPenaltyCam.cs`, `CupTypes.cs`: 7 m/2.4 m -> 9 m/2.2 m plus a new
+third FOV rule that frames the taker) came in with no finding against it. I read it: it is
+self-consistent, `TakerPos` is always set at the single `Latch` call site (`CupCameraRig.cs:218`,
+with a run-up-mark fallback when the pelvis is null), the new rule guards `feet.z > 0.05f` before
+dividing, and the result stays clamped to `MinFov..MaxFov`. Its framing claims (~37 deg, goal ~61%
+of frame width) are desk-solved and CANNOT be confirmed without the editor.
 
-- **`Celebration.ClampArms` is INERT and its sign is wrong** (CUP-03). The arm-clip safety net
-  abducts INWARD, so it has never fired on any emote in the project. The diagnosis was confirmed
-  numerically, running forward kinematics through Quaternion.Euler's true ZXY order: `+Z` on a LEFT
-  arm swings the elbow ACROSS the chest, and outward is `-Z` on a left limb and `+Z` on a right.
-  `CupPoses`' header states this correctly; `EmotePose`'s stated the opposite and has been
-  corrected. The CODE was deliberately not changed: flipping the two call-site signs makes the clamp
-  fire on 25 of 38 emotes and destroys them, because its premise - that abduction cannot change the
-  read of a pose - is false wherever a hand near the body IS the pose. Clap's hands stop meeting,
-  HeartHands comes apart, Facepalm's hand leaves the face, the referee's WhistleRaise hand leaves
-  his mouth, DejectHips' hands slide off the hips. Making the net live needs the box test to exclude
-  intentional hand-to-body poses plus an editor eyeball over those 25. A measured before/after table
-  is recorded in the code.
-- **Every visual, layout and choreography claim in the cup.** Nothing has been looked at.
+## In-editor work still owed
 
-**Contained code gaps:**
+Nothing below has been done. This is the whole remaining verification burden.
 
-- **Spectator puppets still slide** (the spectator half of NET-5). `CupSpectatorView` poses with
-  `DisplayEmote` / `DisplaySnap` only. The fix needs an `anim` byte added to `CupStreamBody` in
-  `CupNet.cs` (bump `CupNet.StateVersion`, keep `CupNet.SizeOf` honest) plus the same `DisplayAnim`
-  path in the view. Deliberately not done during verification, because it widens the wire.
-- **The cup lobby Customize button is dead in both Solo and Head to Head** (`TODO(h2h-customize)`;
-  `OnCustomizeRequested` is null in both). It now shows an honest "not yet available" hint rather
-  than an unexplained grey button. Real routing needs `GameBootstrap.ShowLobbyCustomize` - which
-  returns to the multiplayer `LobbyUI`, and whose preview camera was never checked against a
-  standing arena - plus both directors.
-- **A claimed ball may read as `approaching`.** `KeeperHands.Holding` is public, but neither
-  `Goalkeeper` nor `KeeperController` exposes its private `_hands`, so the driver's `approaching`
-  test cannot see a held ball; a human keeper walking toward his own goal with the ball could hold
-  the verdict out to the 20 s `LiveHardCap`. Bounded, since that cap is unconditional, and never
-  observed. The fix is one passthrough property on each keeper plus a term in the test - left alone
-  rather than touching shared gameplay files during a verification pass.
-- **A wall deflection flying back into the scattered free-kick group** can touch a body and
-  re-launch under `SetPieceShot`. Rare; `IgnoreBody` per body is the fix if cheap.
+1. Solo cup, one full run: draw -> coin toss -> penalties and free kicks -> stage complete ->
+   podium. Watch for the trophy arm holding steady across emote loops (the SMOOTH-01 fix) and for
+   the penalty camera actually framing the taker and the goal at 9 m / 2.2 m.
+2. Pause the game during a coin toss and during a H2H watch bar, then click Resume. Confirm no
+   IMGUI click breakage anywhere on screen - that is the exact failure the park-don't-skip fixes
+   prevent, and it is the one class of bug a compile cannot catch.
+3. Loopback Head to Head, at least 3 peers: a parallel wave, then a LEAVER mid-wave to force the
+   late-wave path (the blocker fix). Confirm the wave opens and does not sit until
+   `HeadToHeadWaveCap`.
+4. Loopback lobby: confirm a host's live row (score / kick number) actually ticks on the CLIENTS'
+   lobby rows and that Spectate lights up - the change-gated Notify fix.
+5. Co-op order screen: pull the lever repeatedly and confirm client reels keep animating.
+6. Free-kick cup round: confirm no body sits on the ball spot or run-up path, and watch memory
+   across many rounds for the known `_bounce` leak.
 
-**Accepted phase-4 design gaps - do NOT report these as bugs:** no client-side keeper prediction (a
-client's local keeper is a puppet answering the host a round trip late); the host's `EndMatch` sends
-`CupState(Ended)` once and shuts the socket, so a lost packet leaves a client on the 5 s timeout;
-the Co-op lever-reel gate is host-local time; a leaving keeper's gloved body is re-slotted to the
-lowest-ordered shooter for the rest of that round, keeping the leaver's look; `ApplyLeave`'s shed
-rule for a bench leaver in a partial order is a guess the Captain corrects; during a parallel Head
-to Head wave a bodiless peer can spectate but cannot call that round's coin, so design 6.11's
-spectator call holds for host rounds only; the host goes from the last parallel round straight to
-the Interstitial / Podium with no lobby beat (design 4.7); a client participant's coin ceremony runs
-on its own clock and may still be in the air when the host's Intro state arrives (cosmetic).
+## Rules that still apply here
 
-## Rules for whoever picks this up
-
-- Compile with `bash docs/compile-check.sh` (exit=0). The open editor holds `Temp/UnityLockfile`, so
-  batchmode is out.
-- Scripts are CRLF. Normalise after any programmatic edit: `sed -i 's/\r$//; s/$/\r/' <file>`.
-- Never use the word "tie" in cup code or UI. A ROUND is one match; the five levels are STAGES.
-- A nation-table edit - a new row, a removed row, a flipped Novelty flag, an edited Strength - is a
-  WIRE change and needs a `NetCodec.ProtocolVersion` bump. The only symptom otherwise is a one-off
-  bracket-hash warning that is logged and never repaired.
-- Adding a replicated field means `CupStateMsg` plus `NetCodec.CupState/ReadCupState` plus
-  `CupNet.BuildState` plus `CupDirector.Net.NetApplyState`, a `CupNet.StateVersion` bump, and
-  keeping `CupNet.SizeOf` honest (721 B worst case today against a roughly 1.2 KB budget).
-- Nothing in this build was committed.
+- Compile without the editor: `bash docs/compile-check.sh` (exit=0).
+- Pure self-test: `dotnet run -c Release` in `docs/cup-build/cuptest` - must print ALL PASSED.
+- Scripts are CRLF; normalise any `.cs` you edit.
+- Never say "tie" in cup code or UI. A ROUND is one match; the five bracket levels are STAGES.
+- Nothing in this mode has been committed by the review passes.

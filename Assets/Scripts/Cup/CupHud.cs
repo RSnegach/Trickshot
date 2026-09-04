@@ -134,7 +134,12 @@ namespace Trickshot
             // A new kick arms: the previous decision banner (if any) is stale. The banner is raised
             // by RoundDecided, never by the phase, so a client mirroring a host state agrees.
             if (phase == RoundPhase.Placing || phase == RoundPhase.Armed) _bannerOn = false;
-            if ((phase == RoundPhase.Over || phase == RoundPhase.Idle) && _wheelOpen) SetWheel(false, true);
+            // The wheel closes but does NOT touch the cursor: the driver owns it on this edge and
+            // has already freed it for the screen that follows. CupRoundDriver.SetPhase runs
+            // OnPhaseChanged (-> EndRoundVisuals -> GameInput.CaptureCursor(false)) BEFORE it fires
+            // PhaseChanged, so re-capturing here would undo the driver's release; the Abort path
+            // (OnAbort -> EndRoundVisuals, then SetPhase(Over)) inverts the same way.
+            if ((phase == RoundPhase.Over || phase == RoundPhase.Idle) && _wheelOpen) SetWheel(false, false);
         }
 
         // (No KickResolved handler: the driver's AnnounceKick raises Callout with the verdict on

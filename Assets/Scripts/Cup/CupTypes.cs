@@ -372,8 +372,8 @@ namespace Trickshot
         ///
         /// CupPenaltyCam OWNS the effective placement, and this floor never wins: the rig takes
         /// Max(PenaltyCamBack, takerBehind + CupPenaltyCam.MinBehindTaker), and with the taker at
-        /// RunUpDistance (3 m) behind the ball and MinBehindTaker 4 m that is 7 m every time. The
-        /// height is owned outright by CupPenaltyCam.CamHeight (2.4 m); there is deliberately no
+        /// RunUpDistance (3 m) behind the ball and MinBehindTaker 6 m that is 9 m every time. The
+        /// height is owned outright by CupPenaltyCam.CamHeight (2.2 m); there is deliberately no
         /// PenaltyCamHeight here any more, because a constant with no reader looks like a tuning
         /// knob and moves nothing. Tune the rig's two constants, not this one.
         /// </summary>
@@ -381,8 +381,8 @@ namespace Trickshot
         /// <summary>
         /// The framing TARGET: the posts sit at this fraction and (1 - this) of the frame width when
         /// looking at the goal centre. It is a target, not a guarantee - keeping the ball in frame is
-        /// the hard rule and wins at the real 7 m / 2.4 m placement, which lands the outer post
-        /// nearer 31% / 69% (see CupPenaltyCam's Solve).
+        /// the hard rule; at the real 9 m / 2.2 m placement the TAKER rule is the widest of the
+        /// three and lands the outer post nearer 20% / 80% (see CupPenaltyCam's Solve).
         /// </summary>
         public const float PenaltyCamPostFrac = 0.11f;
         /// <summary>Penalty camera look clamp so the goal never leaves the frame (degrees).</summary>

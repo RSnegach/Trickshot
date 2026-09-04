@@ -601,10 +601,15 @@ namespace Trickshot
 
         void Draw()
         {
-            // Under the pause menu the overlay hides: both draw at IMGUI depth 0 in no fixed
-            // order, and a click blocker beneath the menu's buttons would eat their clicks. The
-            // condition changes only in Update, so Layout and Repaint always agree.
-            if (_stage == Stage.Done || PauseMenu.Paused) return;
+            // `_stage` is the ONLY thing this may early-out on: it moves in Update / Finish alone
+            // (never inside an event pass), so Layout and Repaint always agree about it.
+            // PauseMenu.Paused must NOT gate the return - it is written from inside an IMGUI pass
+            // (PauseMenu's own Resume / confirm-card buttons run their action mid-pass, straight
+            // out of UITheme.Button), so a pass can begin paused and end unpaused. Returning on it
+            // would allocate this overlay's three controls for the first time in an event whose
+            // MouseDown they never saw and shift every id drawn after them. The hiding happens
+            // inside DrawInner instead, by the parking the buttons already use.
+            if (_stage == Stage.Done) return;
             MenuScale.Begin();
             try { DrawInner(); }
             finally { MenuScale.End(); }
@@ -614,17 +619,26 @@ namespace Trickshot
         {
             Styles();
             float w = MenuScale.Width, h = MenuScale.Height;
+            // Under the pause menu the overlay hides: both draw at IMGUI depth 0 in no fixed order,
+            // and a live click blocker beneath the menu's buttons would eat their clicks. Hidden
+            // here means parked + disabled + not drawn, never skipped (control ids).
+            bool paused = PauseMenu.Paused;
             bool calling = CallingOpen;
-            bool showButtons = calling && LocalCanCall;
+            bool showButtons = calling && LocalCanCall && !paused;
 
             // The two buttons live at the same place every pass; when they are not for showing
             // they are parked off-screen and disabled (never skipped - control ids).
             float cx = w * 0.5f, by = h * 0.70f - ButtonH * 0.5f;
             var heads = showButtons ? new Rect(cx - ButtonW - ButtonGap * 0.5f, by, ButtonW, ButtonH) : new Rect(-1000f, -1000f, ButtonW, ButtonH);
             var tails = showButtons ? new Rect(cx + ButtonGap * 0.5f, by, ButtonW, ButtonH) : new Rect(-1000f, -1000f, ButtonW, ButtonH);
-            UITheme.ClickBlocker(w, h, heads, tails);
+            // The blocker's own GUI.enabled is forced true inside ClickBlocker, so disabling it is
+            // not enough while paused: hand it a full-screen HOLE, which parks the control
+            // off-screen (see UITheme.ClickBlocker) so it neither responds nor consumes, and the
+            // pause menu drawn in the same pass gets the click.
+            if (paused) UITheme.ClickBlocker(w, h, new Rect(0f, 0f, w, h), new Rect(0f, 0f, w, h));
+            else UITheme.ClickBlocker(w, h, heads, tails);
 
-            if (calling)
+            if (calling && !paused)
             {
                 UITheme.Shadowed(new Rect(0f, 104f, w, 46f), CupText.CoinTossHeader, _header, UITheme.Gold, 0.7f, 2f);
                 UITheme.Label(new Rect(0f, 150f, w, 22f), CallerLine(), _hint);
@@ -641,7 +655,7 @@ namespace Trickshot
 
             if (showButtons) UITheme.Label(new Rect(0f, by + ButtonH + 12f, w, 20f), PickLine(), _hint);
 
-            if (_stage == Stage.Band) DrawBand(w, h);
+            if (_stage == Stage.Band && !paused) DrawBand(w, h);
         }
 
         void DrawCallButton(Rect r, CoinFace face, bool shown)

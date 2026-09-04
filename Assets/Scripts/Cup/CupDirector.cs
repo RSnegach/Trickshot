@@ -1723,7 +1723,16 @@ namespace Trickshot
             return drv;
         }
 
-        /// <summary>Refresh the local player's live row from the driver (call from a flow tick while Phase == Round).</summary>
+        /// <summary>
+        /// Refresh the local player's live row from the driver (call from a flow tick while
+        /// Phase == Round). It Notifies ON CHANGE - and only on change, since this is a per-tick
+        /// call: a HOST has no other path that publishes its own row (a client's rides
+        /// CupRequest.LiveRow, whose handler <see cref="ApplyLiveRow"/> Notifies), so without
+        /// this the host's row is frozen at StartRound's 0-0 kick 1 on every client for the whole
+        /// of a parallel Head to Head round - the lobby status and the Spectate gate both read it.
+        /// An UNCONDITIONAL Notify here would mark the state dirty every frame and wake
+        /// NetOnStateChanged's two per-player loops with it.
+        /// </summary>
         public void UpdateLiveRow()
         {
             var me = LocalPlayer;
@@ -1731,7 +1740,12 @@ namespace Trickshot
             var side = CurrentRound.SideOf(me.Entrant) ?? CupSide.A;
             int own = side == CupSide.A ? Driver.ScoreA : Driver.ScoreB;
             int theirs = side == CupSide.A ? Driver.ScoreB : Driver.ScoreA;
-            me.SetLive(Bracket.Entrants[CurrentRound.OpponentOf(me.Entrant)].NationIndex, own, theirs, Driver.KickIndex + 1);
+            int opp = Bracket.Entrants[CurrentRound.OpponentOf(me.Entrant)].NationIndex;
+            int kick = Driver.KickIndex + 1;
+            bool changed = !me.Playing || me.LiveOpponentNation != opp || me.LiveScoreFor != own
+                        || me.LiveScoreAgainst != theirs || me.LiveKick != kick;
+            me.SetLive(opp, own, theirs, kick);
+            if (changed) Notify();
         }
 
         /// <summary>Tear the current round down (aborting it if still running). Its result must have been recorded first.</summary>
