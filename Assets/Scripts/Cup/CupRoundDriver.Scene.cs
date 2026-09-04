@@ -1053,6 +1053,8 @@ namespace Trickshot
 
         Vector2 LocalLook() => LocalInputSuspended || Setup == null || Setup.Input == null ? Vector2.zero : Setup.Input.Look;
         float LocalScroll() => LocalInputSuspended || Setup == null || Setup.Input == null ? 0f : Setup.Input.Scroll;
+        /// <summary>The view cycle (T), gated like every other local input.</summary>
+        bool LocalViewToggle() => !LocalInputSuspended && Setup != null && Setup.Input != null && Setup.Input.CamViewPressed;
 
         // Every camera call below stands down while a spectator view mirrors a remote camera on
         // this machine (CamMirrored, CupRoundDriver.Net.cs): a phase cut must not fight the pose
@@ -1064,7 +1066,7 @@ namespace Trickshot
             if (Rig != null) { Rig.TakerView(b.Ragdoll, BallSpotPos, SimConfig.AttackGoalCenter, Setup.Format); return; }
             var cam = Setup.GameCam;
             if (cam == null) return;
-            cam.SetFollow(b.Pelvis, LocalLook, LocalScroll);
+            cam.SetFollow(b.Pelvis, LocalLook, LocalScroll, LocalViewToggle);
             cam.SetMode(GameCamera.Mode.Follow);
         }
 
@@ -1085,7 +1087,7 @@ namespace Trickshot
             if (Rig != null) { Rig.LineupView(b.Ragdoll); return; }
             var cam = Setup.GameCam;
             if (cam == null) return;
-            cam.SetFollow(b.Pelvis, LocalLook, LocalScroll);
+            cam.SetFollow(b.Pelvis, LocalLook, LocalScroll, LocalViewToggle);
             cam.SetMode(GameCamera.Mode.Follow);
         }
 
@@ -1096,7 +1098,7 @@ namespace Trickshot
             if (Rig != null) { Rig.HoldOn(b.Ragdoll); return; }
             var cam = Setup.GameCam;
             if (cam == null) return;
-            cam.SetFollow(b.Pelvis, LocalLook, LocalScroll);
+            cam.SetFollow(b.Pelvis, LocalLook, LocalScroll, LocalViewToggle);
             cam.SetMode(GameCamera.Mode.Follow);
         }
 

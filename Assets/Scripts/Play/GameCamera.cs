@@ -9,6 +9,11 @@ namespace Trickshot
     ///  MOVEMENT only, fully decoupled from WASD. Moving the mouse pans yaw/pitch
     ///  around the striker. Toggle ball-lock (V) and the yaw instead swings to keep
     ///  the ball framed behind the striker, for reading the incoming cross.
+    ///  Follow has three VANTAGES on that one orbit, cycled with T (see <see cref="View"/>):
+    ///  Third (behind), First (the body's own eyes) and Front (in front, looking back at
+    ///  him). They change only where the lens sits: the orbit yaw stays the body's facing
+    ///  and the aim source, so steering, shooting and the yaw that goes on the wire are
+    ///  identical in all three and switching can never desync a networked player.
     ///
     ///  Broadcast (replays): a diagonal vantage across the penalty area that frames
     ///  everyone and tracks the ball, used for the slow-motion replay after contact.
@@ -94,11 +99,13 @@ namespace Trickshot
         /// <summary>Set the orbit target and the mouse-delta source for camera control. The
         /// optional wheel source is what zooms a replay (Broadcast) - modes without one keep a
         /// fixed-distance replay.</summary>
-        public void SetFollow(Transform target, System.Func<Vector2> lookSource, System.Func<float> scrollSource = null)
+        public void SetFollow(Transform target, System.Func<Vector2> lookSource, System.Func<float> scrollSource = null,
+                              System.Func<bool> viewToggleSource = null)
         {
             _followTarget = target;
             _lookSource = lookSource;
             if (scrollSource != null) _scrollSource = scrollSource;
+            if (viewToggleSource != null) _viewToggleSource = viewToggleSource;
             _mode = Mode.Follow;
         }
 
@@ -160,6 +167,108 @@ namespace Trickshot
         }
         public bool BallCam => _ballCam;
 
+        /// <summary>
+        /// Which vantage the FOLLOW camera uses. All three share one orbit (the same yaw / pitch
+        /// and therefore the same steering and aim), so switching never changes how the player
+        /// controls anything - only where the lens sits.
+        ///
+        ///  Third  - the default: behind the body at SimConfig.CamDistance, looking at it.
+        ///  First  - the body's own eyes: at head height on the orbit yaw, looking out along it.
+        ///  Front  - Third swung 180 degrees round the body, looking BACK at its face.
+        /// </summary>
+        public enum View { Third = 0, First = 1, Front = 2 }
+
+        View _view = View.Third;
+
+        /// <summary>The current follow vantage (Third by default).</summary>
+        public View FollowView => _view;
+
+        /// <summary>Third -> First -> Front -> Third. Bound to CamView (T) by every mode that has a camera.</summary>
+        public void CycleView() => SetView(_view == View.Third ? View.First : _view == View.First ? View.Front : View.Third);
+
+        /// <summary>
+        /// Set the follow vantage outright. Kills the position smoothing for one frame so the
+        /// change reads as a CUT rather than the camera flying through the body to its new side -
+        /// a 180 degree swing at SmoothDamp's 0.08 s would sweep the lens across his face.
+        /// </summary>
+        public void SetView(View v)
+        {
+            if (_view == v) return;
+            _view = v;
+            _viewCut = true;
+        }
+
+        bool _viewCut;   // the next FollowUpdate snaps instead of smoothing (a view change is a cut)
+
+        /// <summary>
+        /// Where the follow camera's eye sits for the current view, and what it looks at.
+        /// `pivot` is the body's origin (its feet) and `rot` the shared orbit rotation.
+        /// </summary>
+        void ViewPose(Vector3 pivot, Quaternion rot, Vector3 lookTarget, out Vector3 eye, out Vector3 aim)
+        {
+            switch (_view)
+            {
+                case View.First:
+                    // On the orbit yaw at eye height, looking the way the orbit faces. The small
+                    // forward offset clears the head geometry so the body's own hair/hat does not
+                    // fill the lens; FirstEyeHeight is measured from the pivot (the feet).
+                    eye = pivot + Vector3.up * EyeHeight() + rot * new Vector3(0f, 0f, FirstEyeForward);
+                    aim = eye + rot * Vector3.forward * 10f;
+                    break;
+                case View.Front:
+                    // Third, swung half a turn: the lens stands in FRONT of the body looking back
+                    // at it. Same distance and height, so the framing matches the default view.
+                    eye = pivot + Vector3.up * SimConfig.CamLookHeight
+                          + rot * new Vector3(0f, 0f, SimConfig.CamDistance);
+                    aim = lookTarget;
+                    break;
+                default:
+                    eye = pivot + Vector3.up * SimConfig.CamLookHeight
+                          + rot * new Vector3(0f, 0f, -SimConfig.CamDistance);
+                    aim = lookTarget;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// First-person eye height above the follow target's origin (m). The default suits a
+        /// standing human (BodyLayout puts Bone.Head at 1.72 m; the eye sits a little under it),
+        /// and <see cref="SetEyeHeightSource"/> overrides it for a scaled or non-human body.
+        /// </summary>
+        public const float FirstEyeHeight = 1.6f;
+        /// <summary>
+        /// First-person eye offset along the view (m). It must clear the head's own collider -
+        /// the human head sphere is 0.19 m - and the camera's 0.3 m near plane, or the player
+        /// sees the inside of his own skull.
+        /// </summary>
+        public const float FirstEyeForward = 0.42f;
+
+        System.Func<float> _eyeHeightSource;
+        System.Func<bool> _viewToggleSource;
+
+        /// <summary>
+        /// Supply the "cycle the view" edge (GameInput.CamViewPressed). Set once when a mode wires
+        /// its camera and the camera polls it in Follow mode, so a mode does not have to repeat the
+        /// key handling in its own update - and a mode that never sets it keeps the old behaviour.
+        /// Pass a source that is already gated on whatever should suppress input (a pause menu, a
+        /// modal), exactly as the look source is.
+        /// </summary>
+        public void SetViewToggleSource(System.Func<bool> src) => _viewToggleSource = src;
+
+        /// <summary>
+        /// Supply the first-person eye height for the current follow target (metres above its
+        /// origin). A mode with a live ragdoll should pass its head bone's height so a tall, short
+        /// or non-human body looks out of its own eyes; without it the human default is used.
+        /// </summary>
+        public void SetEyeHeightSource(System.Func<float> src) => _eyeHeightSource = src;
+
+        float EyeHeight()
+        {
+            if (_eyeHeightSource == null) return FirstEyeHeight;
+            float h = _eyeHeightSource();
+            return h > 0.2f ? h : FirstEyeHeight;   // a collapsed / mid-rebuild body reports junk
+        }
+
         /// <summary>Fire the auto ball-cam pulse: cut to ball-cam for `seconds`, then
         /// revert to whatever the manual toggle was. Called on a genuine shot. Only acts
         /// in Follow mode (keeper/broadcast views ignore it).</summary>
@@ -208,6 +317,10 @@ namespace Trickshot
             float dt = Time.unscaledDeltaTime;
             Vector3 pivot = _followTarget.position;
 
+            // The view cycle, polled here so every mode that wires a source gets it without
+            // repeating the key handling. FreezeLook means an overlay owns the cursor.
+            if (_viewToggleSource != null && !FreezeLook && _viewToggleSource()) CycleView();
+
             Vector2 look = (_lookSource != null && !FreezeLook) ? _lookSource() : Vector2.zero;
             float pitchMin = _clampLook ? _clampPitchMin : SimConfig.CamPitchMin;
             float pitchMax = _clampLook ? _clampPitchMax : SimConfig.CamPitchMax;
@@ -239,17 +352,37 @@ namespace Trickshot
             }
 
             Quaternion rot = Quaternion.Euler(_pitch, viewYaw, 0f);
-            Vector3 offset = rot * new Vector3(0f, 0f, -SimConfig.CamDistance);
-            Vector3 desired = pivot + Vector3.up * SimConfig.CamLookHeight + offset;
-            if (desired.y < 0.6f) desired.y = 0.6f;
-
-            _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.08f, Mathf.Infinity, dt);
 
             Vector3 lookAt = pivot + Vector3.up * SimConfig.CamLookHeight;
             if (_ballCam && _ball != null)
                 lookAt = Vector3.Lerp(lookAt, _ball.position, 0.35f);
-            Quaternion want = Quaternion.LookRotation((lookAt - _cam.transform.position).normalized, Vector3.up);
-            _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-14f * dt));
+
+            Vector3 desired, aim;
+            ViewPose(pivot, rot, lookAt, out desired, out aim);
+            // First person is already at head height; only the outside views need the floor guard
+            // (a low pitch swings them under the turf).
+            if (_view != View.First && desired.y < 0.6f) desired.y = 0.6f;
+
+            if (_viewCut)
+            {
+                // A view change is a CUT: snap and clear the smoothing velocity, or the lens sweeps
+                // through the body on its way round.
+                _viewCut = false;
+                _velPos = Vector3.zero;
+                _cam.transform.position = desired;
+                _cam.transform.rotation = Quaternion.LookRotation((aim - desired).normalized, Vector3.up);
+            }
+            else
+            {
+                _cam.transform.position = Vector3.SmoothDamp(_cam.transform.position, desired, ref _velPos, 0.08f, Mathf.Infinity, dt);
+            }
+
+            Vector3 toAim = aim - _cam.transform.position;
+            if (toAim.sqrMagnitude > 1e-6f)
+            {
+                Quaternion want = Quaternion.LookRotation(toAim.normalized, Vector3.up);
+                _cam.transform.rotation = Quaternion.Slerp(_cam.transform.rotation, want, 1f - Mathf.Exp(-14f * dt));
+            }
             _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, Fov(58f), 1f - Mathf.Exp(-5f * dt));
         }
 

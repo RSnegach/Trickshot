@@ -1062,7 +1062,7 @@ namespace Trickshot
             }
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
-            gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
+            gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look, null, () => GetInput().CamViewPressed);
             ball.SetCamera(gameCam);
             striker.SetCameraYaw(() => gameCam.Yaw, () => gameCam.Pitch);
 
@@ -1092,7 +1092,7 @@ namespace Trickshot
             var keeper = BuildAiKeeper(root, ball, out var keeperRagdoll);
 
             gameCam.Init(cam, ball.transform, ragdoll.Pelvis.transform, null, arena.goalCenter);
-            gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look);
+            gameCam.SetFollow(ragdoll.Pelvis.transform, () => GetInput().Look, null, () => GetInput().CamViewPressed);
             ball.SetCamera(gameCam);   // auto ball-cam on a shot
             striker.SetCameraYaw(() => gameCam.Yaw, () => gameCam.Pitch);
 

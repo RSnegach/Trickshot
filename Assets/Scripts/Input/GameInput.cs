@@ -27,7 +27,7 @@ namespace Trickshot
     {
         InputActionAsset _asset;
         InputActionMap _map;
-        InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _sprint, _scroll;
+        InputAction _move, _look, _jump, _reset, _legL, _legR, _ballCam, _camView, _sprint, _scroll;
         InputAction _closeControl;   // dribble close-control modifier
         InputAction _passGround, _passLofted, _passChip, _switchPlayer, _emote, _tackle;   // match
         InputAction _cross;      // crosser: set up a cross (Enter)
@@ -66,6 +66,7 @@ namespace Trickshot
             _legL        = Btn("LegL");
             _legR        = Btn("LegR");
             _ballCam     = Btn("BallCam");
+            _camView     = Btn("CamView");
             _sprint      = Btn("Sprint");
             _closeControl = Btn("CloseControl");
             _passGround  = Btn("PassGround");
@@ -227,6 +228,8 @@ namespace Trickshot
         public bool ForwardHeld => Move.y > 0.4f;
         public bool ResetPressed => _reset != null && _reset.WasPressedThisFrame();
         public bool BallCamPressed => _ballCam != null && _ballCam.WasPressedThisFrame();
+        /// <summary>The camera view cycle (T by default): third person -> first person -> front. See <see cref="GameCamera.CycleView"/>.</summary>
+        public bool CamViewPressed => _camView != null && _camView.WasPressedThisFrame();
 
         // Held leg controls: LMB = left leg up, RMB = right leg up.
         public bool LeftLegHeld  => _legL != null && _legL.IsPressed();

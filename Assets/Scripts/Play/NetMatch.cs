@@ -131,7 +131,7 @@ namespace Trickshot
                                          () => _input.Look);
                 else
                 {
-                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look);
+                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, null, () => _input.CamViewPressed);
                     if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
                 }
             }

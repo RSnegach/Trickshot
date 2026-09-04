@@ -207,7 +207,7 @@ namespace Trickshot
         {
             if (_gameCam == null) return;
             Transform pivot = body != null && body.Pelvis != null ? body.Pelvis.transform : null;
-            _gameCam.SetFollow(pivot, LookSource, ScrollSource);
+            _gameCam.SetFollow(pivot, LookSource, ScrollSource, ViewToggleSource);
             _gameCam.SetMode(GameCamera.Mode.Follow);
             _gameCam.FreezeLook = false;
 
@@ -665,6 +665,9 @@ namespace Trickshot
 
         Vector2 LookSource() => _input != null ? _input.Look : Vector2.zero;
         float ScrollSource() => _input != null ? _input.Scroll : 0f;
+        /// <summary>The view cycle (T). Only reaches the FREE-KICK / lineup / hold views: a
+        /// penalty is re-placed every frame by CupPenaltyCam, which owns the lens outright.</summary>
+        bool ViewToggleSource() => _input != null && _input.CamViewPressed;
         static Quaternion KeeperFacing() => Quaternion.LookRotation(SimConfig.KeeperFaceDir, Vector3.up);
     }
 }

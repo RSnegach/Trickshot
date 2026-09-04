@@ -78,7 +78,7 @@ namespace Trickshot
             _goalLineZ = SimConfig.GoalCenter.z;
 
             // Camera follows the pelvis and is driven by mouse movement; the wheel zooms replays.
-            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll);
+            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll, () => _input.CamViewPressed);
             // Minecraft third person: the camera yaw is the striker's look/turn axis.
             _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
 
@@ -360,7 +360,7 @@ namespace Trickshot
             Hud.Stat(ref p, "Conversion", conversion + "%");
             Hud.Stat(ref p, "Keeper saves", _saves.ToString());
 
-            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   Q cross type   V ball cam   M cross map   R reset"
+            Hud.Legend("WASD move   Mouse aim   LMB/RMB legs   Space jump   Wheel air-pitch   Q cross type   V ball cam   T view   M cross map   R reset"
                        + Keybinds.ThirdLegHint(PlayerProfile.Appearance.Adult));
             Hud.Flash(_flash, _flashTime / 1.6f);
 

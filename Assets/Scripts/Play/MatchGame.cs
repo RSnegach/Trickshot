@@ -575,7 +575,7 @@ namespace Trickshot
             if (_humanDribble != null) _humanDribble.Enabled = true;
 
             // Camera follows the controlled body; the striker turns to the camera yaw.
-            _cam.SetFollow(f.Ragdoll.Pelvis.transform, () => _input.Look);
+            _cam.SetFollow(f.Ragdoll.Pelvis.transform, () => _input.Look, null, () => _input.CamViewPressed);
             if (_humanStriker != null) _humanStriker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
         }
 

@@ -232,7 +232,7 @@ namespace Trickshot
                 }
                 else
                 {
-                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll);
+                    _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll, () => _input.CamViewPressed);
                     _camTarget = me.ragdoll.Pelvis.transform;   // FollowActiveShooter tracks this
                     if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
                 }
@@ -889,7 +889,7 @@ namespace Trickshot
             var target = body.ragdoll.Pelvis.transform;
             if (target == _camTarget) return;   // already watching them
             _camTarget = target;
-            _cam.SetFollow(target, () => _input.Look, () => _input.Scroll);
+            _cam.SetFollow(target, () => _input.Look, () => _input.Scroll, () => _input.CamViewPressed);
         }
 
         Transform _camTarget;   // whose pelvis the camera is currently orbiting

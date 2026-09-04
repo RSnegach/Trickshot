@@ -200,7 +200,7 @@ namespace Trickshot
             }
             else
             {
-                _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll);
+                _cam.SetFollow(me.ragdoll.Pelvis.transform, () => _input.Look, () => _input.Scroll, () => _input.CamViewPressed);
                 if (me.striker != null) me.striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
                 // A local human crosser aims with the SAME camera yaw his Striker turns to, so
                 // CrosserControl's solve never disagrees with which way his body is facing.

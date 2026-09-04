@@ -139,7 +139,7 @@ namespace Trickshot
             _ball.SetPieceShot = true;
 
             // Camera + striker turn axis: same wiring as striker/free-kick mode.
-            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
+            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look, null, () => _input.CamViewPressed);
             _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
             _cam.SetMode(GameCamera.Mode.Follow);
 
@@ -447,7 +447,7 @@ namespace Trickshot
                 var pp = Hud.PanelStart("ACCURACY - PRACTICE", 2);
                 Hud.Stat(ref pp, "Target size", Mathf.RoundToInt(SimConfig.AccuracyPracticeSize01 * 100f).ToString());
                 Hud.Stat(ref pp, "Target speed", Mathf.RoundToInt(SimConfig.AccuracyPracticeSpeed01 * 100f).ToString());
-                Hud.Legend("HOLD Space power   Mouse aim   WASD spin   M move the ball   V ball cam   R restart");
+                Hud.Legend("HOLD Space power   Mouse aim   WASD spin   M move the ball   V ball cam   T view   R restart");
                 Hud.Flash(_flash, _flashTime / 1.6f);
                 DrawPowerMeter();
                 Hud.End();
@@ -474,7 +474,7 @@ namespace Trickshot
 
             Hud.Stat(ref p, "Round", Round.ToString());
             DrawStrikesRow(ref p);
-            Hud.Legend("HOLD Space power   Mouse aim   WASD spin   V ball cam   R restart");
+            Hud.Legend("HOLD Space power   Mouse aim   WASD spin   V ball cam   T view   R restart");
             Hud.Flash(_flash, _flashTime / 1.6f);
             DrawPowerMeter();
             Hud.End();

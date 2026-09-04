@@ -117,7 +117,7 @@ namespace Trickshot
 
             // Camera + striker turn axis: same wiring as striker mode (mouse orbits and
             // sets the striker's facing yaw).
-            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look);
+            _cam.SetFollow(_strikerRagdoll.Pelvis.transform, () => _input.Look, null, () => _input.CamViewPressed);
             _striker.SetCameraYaw(() => _cam.Yaw, () => _cam.Pitch);
             _cam.SetMode(GameCamera.Mode.Follow);
 
@@ -355,8 +355,8 @@ namespace Trickshot
             Hud.Stat(ref p, "Distance", $"{dist:0.0} m");
 
             Hud.Legend(SimConfig.PenaltyMode
-                ? "HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset"
-                : $"Wall {SimConfig.WallCount} @ {wallDist:0.0}m    HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   R reset");
+                ? "HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   T view   R reset"
+                : $"Wall {SimConfig.WallCount} @ {wallDist:0.0}m    HOLD Space power   Mouse aim   WASD spin   M placement   V ball cam   T view   R reset");
             Hud.Flash(_flash, _flashTime / 1.6f);
 
             DrawPowerMeter();
