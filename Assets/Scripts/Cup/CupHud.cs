@@ -217,6 +217,13 @@ namespace Trickshot
                     if (_driver.Authority == RoundAuthority.Client) _director?.SkipCelebration();
                     else _driver.SkipCelebration();
                 }
+                else if (_driver.CanSkipChoreography)
+                {
+                    // Single player only: click through the walking cinematics (the AI taker's walk
+                    // to the spot, the beaten shooter's walk back). NOTHING on the HUD says so - see
+                    // DrawSkipTexts - because a caption over a ceremony is what spoils the ceremony.
+                    _driver.SkipChoreography();
+                }
             }
         }
 
@@ -359,6 +366,12 @@ namespace Trickshot
             Hud.Meter(mr, taker.Meter, "POWER  (release to shoot)");
         }
 
+        /// <summary>
+        /// The yellow "click to skip" prompts. Only the REPLAY and the celebration windows get one.
+        /// The Solo walk-through (CupRoundDriver.CanSkipChoreography) is deliberately silent: it is
+        /// a convenience for a player who has seen the walk before, and captioning a ceremony is
+        /// what ruins the ceremony. Do not add a prompt for it.
+        /// </summary>
         void DrawSkipTexts()
         {
             string text = null;

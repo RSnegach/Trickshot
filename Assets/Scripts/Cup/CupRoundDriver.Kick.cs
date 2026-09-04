@@ -68,6 +68,7 @@ namespace Trickshot
         bool _replayPending;               // a replay is owed after the open window / beat
         bool _replayThenOver;              // what follows the replay: Over (decisive kick) or Placing
         bool _skipRequested;               // the scorer / winning keeper clicked to skip the open window
+        bool _choreoSkip;                  // Solo only: a click asked to cut a walking cinematic short
         bool _decidedRaised, _tripleBlown; // the full-time raise and triple whistle, once each
         float _decidedSeconds;             // how long the Decided beat lasts on this machine
         bool _clientPhaseDirty;            // Client: a host phase change arrived this apply
@@ -137,6 +138,20 @@ namespace Trickshot
             _replayEndRequested = false;
             _ringFrozen = false;
             EndRoundVisuals();
+        }
+
+        /// <summary>
+        /// Solo: cut a walking cinematic short (CupRoundDriver.SkipChoreography has already checked
+        /// the style, authority and phase). Every walk in progress is LANDED on its mark first - the
+        /// arrival callbacks run exactly as they would have - and only then is the beat ended, so
+        /// nothing is left standing between two positions.
+        /// </summary>
+        partial void OnSkipChoreography()
+        {
+            if (Choreo != null) Choreo.LandAllWalks();
+            // The phase ticks read this on their next pass and close out from wherever they are.
+            _choreoSkip = true;
+            if (Phase == RoundPhase.WalkBack) _walkArrived = true;
         }
 
         partial void OnSkipCelebration()
@@ -418,6 +433,7 @@ namespace Trickshot
             _taker.Reset();
             _save.Disarm();
             _skipRequested = false;
+            _choreoSkip = false;
             _aiWalkPending = _aiArrived = false;
             _walkArrived = false;
             SetWindows(false, false, false);
@@ -502,7 +518,10 @@ namespace Trickshot
             TickKeeperOnLine(dt, false);
             if (_aiWalkPending)
             {
-                if (!_aiArrived && PhaseTime < AiWalkTimeout) return;
+                // A single-player click cuts the walk short: fall through to the snap below, which
+                // plants him on the run-up start exactly as an arrival would.
+                if (_choreoSkip) { _choreoSkip = false; }
+                else if (!_aiArrived && PhaseTime < AiWalkTimeout) return;
                 // Arrived (or the walk never finished): plant him on the run-up start exactly, so
                 // the run-in always starts from the authored distance.
                 _aiWalkPending = false;
@@ -510,7 +529,11 @@ namespace Trickshot
                 Setup.Ball.IgnoreBody(_takerBody.Ragdoll, true);
                 return;   // one settle frame after the snap
             }
-            if (PhaseTime >= PlacingSettle) SetPhase(RoundPhase.WhistleRaise);
+            if (PhaseTime >= PlacingSettle || _choreoSkip)
+            {
+                _choreoSkip = false;
+                SetPhase(RoundPhase.WhistleRaise);
+            }
         }
 
         // ==========================================================================================
@@ -877,9 +900,12 @@ namespace Trickshot
             TickTaker(dt);
             bool done;
             if (Choreo == null) done = PhaseTime >= WalkBackFallback;   // no choreography: the classic callout beat
+            // Free Kicks has no walk-back: this phase is the 3 s dejection on the spot, which is a
+            // performance rather than a transit, so a Solo click does not cut it (CanSkipChoreography
+            // excludes it too - this test only has to leave the beat alone).
             else if (Setup.Format == CupFormat.FreeKicks) done = PhaseTime >= CupTuning.FreeKickMissBeat;
             else done = _walkArrived || PhaseTime >= CupTuning.WalkBackMax;
-            if (done) CloseWindowAndContinue();
+            if (done) { _choreoSkip = false; CloseWindowAndContinue(); }
         }
 
         /// <summary>Close whatever window was open, then the owed replay or the next placement cut.</summary>
@@ -903,12 +929,29 @@ namespace Trickshot
             _skipVoted.Clear();
             ReplaySkipVotes = 0;
             ReplaySkipNeeded = CountHumansWithBodies();
-            // The ring was held on the verdict; recording stays off through the playback and
-            // resumes when it ends (ReplaySystem.Stop).
+
+            // THE COMPONENT MUST STAY DISABLED UNTIL Play() HAS RUN. The ring was frozen at the
+            // verdict (recorder off) precisely so it still holds the kick after the 5 s scored
+            // window. Re-enabling it here - as this used to - restarts FixedUpdate recording into
+            // that same ring for the frames before Play(), appending stills of the aftermath and,
+            // over a long enough window, evicting the goal from the head of a 150-frame buffer.
+            // That is why the replay ran but never showed the goal, in every style.
+            //
+            // Play() sets _recording = false itself and Stop() sets it back, so the recorder only
+            // needs to be live again AFTER playback; EndReplay re-enables the component.
+            _replay.Play(CupTuning.ReplaySlow);
+            if (!_replay.IsPlaying)
+            {
+                // Too few frames buffered: nothing to show. Hand the recorder back before leaving.
+                _replay.enabled = true;
+                _ringFrozen = false;
+                AfterReplay();
+                return;
+            }
+            // Playing: the component ticks its own Update-driven playback, so it must be enabled
+            // now, but Play() has already latched recording off - nothing more reaches the ring.
             _replay.enabled = true;
             _ringFrozen = false;
-            _replay.Play(CupTuning.ReplaySlow);
-            if (!_replay.IsPlaying) { AfterReplay(); return; }   // too few frames buffered: nothing to show
             ReplayPlaying = true;
             CamReplay();
             Callout?.Invoke(CupText.ReplayFlash);

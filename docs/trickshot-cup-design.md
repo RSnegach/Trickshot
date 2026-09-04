@@ -61,6 +61,12 @@ A round is one bracket match between two nations. Penalties and Free Kicks use t
   existing `AutoLaunch(0.6)` watchdog) ONLY if nobody engaged: a shot already under way at
   expiry - including a charge released on the last tick - is always allowed to finish and be
   judged normally (`SetPieceTaker.AttemptInFlight`). The keeper has no clock.
+- **Skipping the walking, single player only.** A click cuts the AI taker's walk to the spot and
+  the beaten shooter's walk back short; the walkers land on their marks, so the next beat starts
+  from the arrangement it would have had. Nothing on screen advertises it - a "click to skip"
+  caption over a ceremony is what ruins the ceremony. Networked styles keep the full beats
+  (shared screen time on the host's clock), and Free Kicks' dejection is a performance, not
+  transit, so it is never cut.
 - **Verdicts.** GOAL, SAVED, MISS. A free kick stopped by the wall reads SAVED too, never
   "blocked". Free kicks and penalties use the same goal test (`BallFullyInGoal`, identical bodies
   in `FreeKickGame` and `NetSetPieceMatch`). No EPIC SAVE tier in the cup (same reasoning as

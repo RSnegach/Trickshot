@@ -318,6 +318,36 @@ namespace Trickshot
         }
 
         /// <summary>
+        /// True while a walking cinematic is on screen and this machine may click through it: the
+        /// AI taker's walk to the spot (Placing) and the beaten shooter's walk back to the line
+        /// (WalkBack, penalties only - Free Kicks has no walk, that phase is its dejection beat).
+        ///
+        /// SINGLE PLAYER ONLY (<see cref="CupStyle.Solo"/> under Local authority). In a networked
+        /// style these beats are shared screen time on the host's clock: one player cutting them
+        /// short would jump the pitch for everyone else, and a client cannot move a phase at all.
+        /// </summary>
+        public bool CanSkipChoreography =>
+            Configured && Setup != null && Setup.Style == CupStyle.Solo
+            && Authority == RoundAuthority.Local
+            && (Phase == RoundPhase.Placing
+                || (Phase == RoundPhase.WalkBack && Setup.Format != CupFormat.FreeKicks));
+
+        /// <summary>
+        /// The local player's click through a walking cinematic (see <see cref="CanSkipChoreography"/>).
+        /// Bodies are landed on their marks rather than abandoned mid-stride, so the beat that
+        /// follows starts from the same arrangement it would have had. Deliberately UNPROMPTED -
+        /// nothing on the HUD advertises it, because a "click to skip" caption over a ceremony is
+        /// exactly the thing that breaks the ceremony.
+        /// </summary>
+        public void SkipChoreography()
+        {
+            if (!CanSkipChoreography) return;
+            OnSkipChoreography();   // the Kick partial: land the walks, then end the beat
+        }
+
+        partial void OnSkipChoreography();
+
+        /// <summary>
         /// Move to a phase: resets PhaseTime, fires PhaseChanged (and WhistleRaised / Whistled for
         /// those two phases). Driver-internal in spirit; a choreography helper on the same round
         /// may call it, screens must not.

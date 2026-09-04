@@ -631,6 +631,35 @@ namespace Trickshot
             cb?.Invoke();
         }
 
+        /// <summary>
+        /// Land every walk in progress AT ONCE, exactly as if each walker had reached its mark:
+        /// the body is placed on its target and <see cref="Arrive"/> runs, so the arrival callback
+        /// (the lineup pose, the driver's arrived flag) fires the way it would have anyway.
+        ///
+        /// This is the single-player "click through the walking" path (<see
+        /// cref="CupRoundDriver.SkipChoreography"/>). Snapping BEFORE Arrive is the point: cutting
+        /// the phase timer alone would leave a body stranded mid-stride between the spot and the
+        /// line, and the next beat would start around a figure standing in the wrong place.
+        /// Returns true if anything was actually walking.
+        /// </summary>
+        public bool LandAllWalks()
+        {
+            bool any = false;
+            for (int i = 0; i < _tracks.Count; i++)
+            {
+                var t = _tracks[i];
+                if (t == null || t.Mode != Mode.Walk) continue;
+                var b = t.Body;
+                if (b == null || !b.Alive || b.Parked) { t.Mode = Mode.None; continue; }
+                // Place him on the mark first; Arrive then stops and faces him there.
+                CupBodies.Stand(b, t.Target, t.ArriveFacing,
+                                _driver != null && _driver.Setup != null ? _driver.Setup.Ball : null);
+                Arrive(t);
+                any = true;
+            }
+            return any;
+        }
+
         void TickDeject(Track t, float dt)
         {
             t.T += dt;
