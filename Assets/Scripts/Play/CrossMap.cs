@@ -331,10 +331,13 @@ namespace Trickshot
                     s.delivery = Crosser.DeliveryType.Ground;
 
                 s.ballSpeed     = OverlaySlider(mapRect.x, y + 30f, w, "Cross speed",    s.ballSpeed,     0.5f, 2f);
-                s.crossInterval = OverlaySlider(mapRect.x, y + 58f, w, "Cross interval", s.crossInterval, 0.4f, 2f);
+                // The interval is a multiplier on the WAIT between serves, so the low end is the
+                // busy one - captioned, because a slider dragged right normally means "more".
+                s.crossInterval = OverlaySlider(mapRect.x, y + 58f, w, "Cross interval", s.crossInterval, 0.4f, 2f,
+                                                "More frequent", "Less frequent");
 
                 GUI.enabled = wasEnabled;
-                y += 88f;
+                y += 100f;   // + the caption line under the interval track
             }
 
             // Who is crossing (multiplayer only - single-player has nobody to pick from). Drawn for
@@ -463,17 +466,42 @@ namespace Trickshot
 
         // Compact button for the picker rows / rename box. Local rather than added to Hud: it is
         // this panel's own dressing, and Hud's public surface is the shared HUD vocabulary.
+        // The two end captions under a slider track: small and dim, so they read as a scale rather
+        // than as another control. Cached like every other style over a running match.
+        static GUIStyle _endCapL, _endCapR;
+        static GUIStyle EndCapLeft => _endCapL ??= new GUIStyle
+        { fontSize = 11, alignment = TextAnchor.UpperLeft, normal = { textColor = Hud.Dim } };
+        static GUIStyle EndCapRight => _endCapR ??= new GUIStyle
+        { fontSize = 11, alignment = TextAnchor.UpperRight, normal = { textColor = Hud.Dim } };
+
         static GUIStyle _smallBtn;
         static GUIStyle SmallBtn => _smallBtn ??= new GUIStyle(GUI.skin.button)
         { fontSize = 12, alignment = TextAnchor.MiddleCenter };
 
         // One labelled slider row sized for the overlay (the pre-match screen's own Slider() is
         // bound to that screen's row layout, so it cannot be reused here).
-        static float OverlaySlider(float x, float y, float w, string label, float val, float min, float max)
+        /// <summary>
+        /// A labelled slider row. <paramref name="lowEnd"/> / <paramref name="highEnd"/> caption the
+        /// two ends of the TRACK when the number alone does not say which way is which: "Cross
+        /// interval" is a multiplier on the wait between serves, so the LOW end is more frequent -
+        /// exactly backwards from the way a slider usually reads, which is why it is captioned.
+        /// They are draw-only labels, so they allocate no controls and cannot shift any id.
+        /// </summary>
+        static float OverlaySlider(float x, float y, float w, string label, float val, float min, float max,
+                                   string lowEnd = null, string highEnd = null)
         {
             UITheme.Label(new Rect(x, y, 140f, 22f), label, Hud.RowName);
             UITheme.Label(new Rect(x + w - 60f, y, 60f, 22f), val.ToString("0.00") + "x", Hud.RowValue);
-            return GUI.HorizontalSlider(new Rect(x + 146f, y + 5f, w - 212f, 18f), val, min, max);
+            var track = new Rect(x + 146f, y + 5f, w - 212f, 18f);
+            if (lowEnd != null || highEnd != null)
+            {
+                // Under the track's own ends, so each caption sits beneath the end it describes.
+                var capY = new Rect(track.x, track.yMax - 1f, track.width * 0.5f, 14f);
+                if (lowEnd != null) UITheme.Label(capY, lowEnd, EndCapLeft);
+                if (highEnd != null)
+                    UITheme.Label(new Rect(track.center.x, capY.y, track.width * 0.5f, 14f), highEnd, EndCapRight);
+            }
+            return GUI.HorizontalSlider(track, val, min, max);
         }
 
         // Draw the map filling `rect`. Reads/writes `target` (world). Returns true if the

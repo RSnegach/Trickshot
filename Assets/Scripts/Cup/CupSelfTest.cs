@@ -86,7 +86,13 @@ namespace Trickshot
             Check(CupText.Label(CupStyle.HeadToHead, CupFormat.Penalties) == "Trickshot Cup - Head to Head - Penalties", "Label");
             Check(CupText.TitleTag(CupStyle.Coop, CupFormat.FreeKicks) == "TRICKSHOT CUP - CO-OP - FREE KICKS", "TitleTag");
             Check(CupText.ClickToSkipVotes(2, 3) == "CLICK TO SKIP  2/3", "ClickToSkipVotes");
-            Check(CupTuning.KeeperAbility(CupStage.RoundOf32) == 0.2f && CupTuning.KeeperAbility(CupStage.Final) == 1f, "keeper ramp");
+            // The ladder was cut 20% (owner's call); assert the SHAPE as well as the ends, so a
+            // future retune that flattens or inverts a step is caught rather than just a value change.
+            Check(Math.Abs(CupTuning.KeeperAbility(CupStage.RoundOf32) - 0.16f) < 1e-5f
+                  && Math.Abs(CupTuning.KeeperAbility(CupStage.Final) - 0.80f) < 1e-5f, "keeper ramp");
+            for (int st = 1; st < CupStages.Count; st++)
+                Check(CupTuning.KeeperAbility(CupStages.At(st)) > CupTuning.KeeperAbility(CupStages.At(st - 1)),
+                      "keeper ramp rises at " + CupStages.Short(CupStages.At(st)));
             Check(Math.Abs(CupTuning.TakerCombined(CupStage.RoundOf32) - 0.47f) < 1e-5f && Math.Abs(CupTuning.TakerCombined(CupStage.Final) - 0.95f) < 1e-5f, "taker combined ramp");
             Check(Math.Abs(CupTuning.TakerPower(CupStage.QuarterFinal) - 0.73f) < 1e-5f, "taker power ramp");
             Line("stages: names, counts, ramp, text builders OK");

@@ -1258,6 +1258,13 @@ namespace Trickshot
             // .Recover sets it explicitly, which is why that path never showed the hole.
             _ragdoll.UprightLock = true;
             _ragdoll.LocomotionEnabled = true;
+            // And STOP him. MoveInput is only ever written by Tick (line ~297), so a body recovered
+            // at a moment Tick stops running keeps whatever steering it held on its last live frame
+            // and walks off under locomotion with a frozen gait - the striker who "freezes and
+            // slides" when a goal cuts to the replay hold, where GameManager suspends his Tick for
+            // ReplayHold seconds and then the replay's own kinematic freeze takes over. Clearing it
+            // here covers every ForceRecover caller, all of which are handing the body away.
+            _ragdoll.MoveInput = Vector3.zero;
             _ragdoll.ClearPoseOverrides();
             _ragdoll.SetPose(RagdollPose.Stand, 5f);
         }

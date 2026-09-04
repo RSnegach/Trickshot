@@ -140,7 +140,6 @@ namespace Trickshot
         // EPIC SAVE ball-speed gate (m/s at the moment of contact). A save on a shot struck at least
         // this hard is EPIC; so is any save made in a high dive (see KeeperController.IsHighDive).
         // Those are the only two epic criteria. Set above a firm shot but below a rocket.
-        public const float KeeperEpicSaveSpeed = 22f;
 
         // ---- Human keeper: getting up, catching, distributing ----
         // Coming down from a dive costs a moment. The AI keeper's version of that beat is emergent
@@ -525,7 +524,7 @@ namespace Trickshot
         public const float AccuracyTierShrink    = 0.9f;   // target size per tier (10% smaller)
         public const float AccuracyTierSpeedUp   = 1.1f;   // target speed per tier (10% faster)
         public const float AccuracyKeeperMin     = 0.01f;  // rounds 1-10: "literally 1 out of 100"
-        public const float AccuracyKeeperMax     = 0.70f;  // round 91+: 70% of insane ability
+        public const float AccuracyKeeperMax     = 0.56f;  // round 91+ (20% weaker than the old 0.70)
         public const float AccuracyTargetRadius0 = 0.85f;  // tier-0 target radius (large)
         public const float AccuracyTargetSpeed0  = 1.6f;   // tier-0 patrol speed, m/s (slow)
         // Shot spot band, measured from the goal line: the front edge of the 18-yard box out to the
@@ -655,7 +654,8 @@ namespace Trickshot
 
         // ---- Pre-match match settings (set from PrematchUI) ----
         // Striker mode: how good the AI keeper is (0 = does nothing, 1 = very active).
-        public static float KeeperAbility = 0.5f;
+        // 0.40, 20% under the old 0.50 default, with the rest of the keeper nerf.
+        public static float KeeperAbility = 0.4f;
         // Keeper mode: how hard the served shots are (0 = easy/slow, 1 = fast/tight).
         public static float ShotDifficulty = 0.5f;
         // Global multiplier on launched ball speed (crosses + shots). Pre-match slider.
@@ -1627,12 +1627,15 @@ namespace Trickshot
         // same five steps. PrematchUI's local KeeperNames/KeeperVals copies were deleted in favour of
         // these; HostSetupUI still carries its own copy of the names.
         //
-        // Easy is deliberately left at 0.25 and NOT nudged up. It trips three keeper gates as they
-        // stand ("ability > 0.25", "ability <= 0.3", and KeeperClaimMinAbility 0.30), which is why
-        // Easy currently never dives, never rushes and never claims - two of five tiers are statues.
-        // Moving this to 0.31 would tiptoe past that instead of fixing it. The gates are the bug.
+        // The three ability gates this note used to warn about ("ability > 0.25", "ability <= 0.3"
+        // and KeeperClaimMinAbility) are GONE - Goalkeeper now gates only on "a keeper exists at
+        // all" - so these steps are free to move without a tier falling through a threshold and
+        // silently becoming a statue.
         public static readonly string[] AiLevelNames   = { "None", "Easy", "Normal", "Hard", "Insane" };
-        public static readonly float[]  AiLevelAbility = { 0f, 0.15f, 0.30f, 0.55f, 0.80f };
+        // 20% WEAKER than the values these steps used to hold (0.15 / 0.30 / 0.55 / 0.80), on the
+        // owner's call: keepers across the game were too hard to beat. None stays a true zero -
+        // it means "no keeper", not "a very bad one", and several modes test it as a flag.
+        public static readonly float[]  AiLevelAbility = { 0f, 0.12f, 0.24f, 0.44f, 0.64f };
 
         /// <summary>Nearest ladder index to a raw 0..1 ability, so a value left over from the old
         /// slider (or from a future retune of these steps) still lands on a named button.</summary>
@@ -1991,6 +1994,16 @@ namespace Trickshot
         // AFTER the ball crosses the line. At 1.3s the window is roughly [goal-2.7s .. goal+1.3s]
         // - it opens on the pass/build-up and closes on the ball settling in the net.
         public const float ReplayHold     = 1.3f;
+        /// <summary>
+        /// The same hold for SINGLE-PLAYER STRIKER mode, cut by a second on the owner's call: there
+        /// the goal is the whole point and the wait before the slow-mo rolls was dead air spent
+        /// watching the aftermath from the live camera. 0.3 s still lets the ball cross and the
+        /// crowd cue land before the freeze, and the recorder keeps buffering throughout, so the
+        /// captured window simply ends a second earlier - it still opens on the build-up.
+        /// The shared 1.3 s stands for the cup and the two networked modes, where the hold also
+        /// covers a wire round trip.
+        /// </summary>
+        public const float ReplayHoldStriker = 0.3f;
 
         // ---- Networking (host-authoritative snapshot sync) ----
         public const float NetSnapshotInterval = 0.05f;  // host broadcasts ~20 snapshots/sec

@@ -21,7 +21,6 @@ namespace Trickshot
         float _rest;
 
         public bool Touched { get; private set; }   // the keeper got something to it this attempt
-        public bool Epic { get; private set; }      // latched at the contact
         public float TouchSpeed { get; private set; }
         public float TouchTime { get; private set; }
 
@@ -29,23 +28,21 @@ namespace Trickshot
         public void Arm()
         {
             _armTime = Time.time; _rest = 0f;
-            Touched = false; Epic = false; TouchSpeed = 0f; TouchTime = 0f;
+            Touched = false; TouchSpeed = 0f; TouchTime = 0f;
         }
 
-        public void Disarm() { _armTime = -1f; Touched = false; Epic = false; }
+        public void Disarm() { _armTime = -1f; Touched = false; }
 
         public bool Armed => _armTime >= 0f;
 
         // Call every frame the ball is live. `highDive` is the keeper's own big-reach flag, read
-        // when the touch is found. Cheap: one pass over an 8-entry array until it latches.
+        // it is accepted and IGNORED now that there is no EPIC tier, so the call sites that pass
+        // a real dive flag need not all change. Cheap: one pass over an 8-entry array.
         public void Poll(BallController ball, ActiveRagdoll keeperBody, bool highDive)
         {
             if (Touched || _armTime < 0f || ball == null || keeperBody == null) return;
             if (!ball.BodyTouchedSince(keeperBody, _armTime, out float speed, out float when)) return;
             Touched = true; TouchSpeed = speed; TouchTime = when;
-            // Epic gates on the IMPACT speed, not the ball's speed on the frame we noticed (which
-            // the touch has already slowed), so a hard shot no longer under-reports as a plain save.
-            Epic = speed >= SimConfig.KeeperEpicSaveSpeed || highDive;
         }
 
         // True once a touched ball has clearly finished: settled, or a beat past the contact.
@@ -59,11 +56,11 @@ namespace Trickshot
         }
 
         /// <summary>
-        /// The save verdict. <paramref name="allowEpic"/> false collapses it to a plain SAVE - for
-        /// ACCURACY, where the keeper is scenery the shot has to beat rather than the point of the
-        /// mode: a save there is a strike against the player, so dressing it up as a highlight
-        /// celebrates the wrong side of the outcome.
+        /// The save verdict. There is ONE save callout: the EPIC SAVE tier was removed outright
+        /// (owner's call), so every stop reads the same however it was made. `allowEpic` is kept and
+        /// IGNORED rather than deleted - accuracy passes false on purpose and several modes name it,
+        /// so leaving it means no call site had to change to say what it already said.
         /// </summary>
-        public string Callout(bool allowEpic = true) => (Epic && allowEpic) ? "EPIC SAVE!" : "SAVE!";
+        public string Callout(bool allowEpic = true) => "SAVE!";
     }
 }

@@ -210,14 +210,12 @@ namespace Trickshot
         // What KIND of thing a callout is, keyed off its text so the modes only have to agree on
         // the word. Three outcomes and a neutral:
         //   Good    - a goal or an ordinary save. Green.
-        //   Epic    - an epic save. Yellow, with a star either side.
         //   Bad     - everything else that is an OUTCOME: misses, strikes, wide, over, post.
         //   Neutral - the callouts that are not outcomes at all (the picked cross delivery, the
         //             replay prompt). Red would tell the player they had failed at something.
-        enum FlashKind { Neutral, Good, Epic, Bad }
+        enum FlashKind { Neutral, Good, Bad }
 
         static readonly Color FlashGood    = new Color(0.29f, 0.82f, 0.48f);   // green
-        static readonly Color FlashEpic    = new Color(1.00f, 0.84f, 0.28f);   // yellow
         static readonly Color FlashBad     = new Color(1.00f, 0.36f, 0.30f);   // red
         static readonly Color FlashNeutral = new Color(0.78f, 0.82f, 0.90f);   // plain light grey
 
@@ -231,8 +229,7 @@ namespace Trickshot
         //   2. Informational callouts, before any keyword can claim them. The cup's coin toss
         //      result ("HEADS" / "TAILS", design 6.11) is a fact about a coin, not a verdict on the
         //      player - neutral grey - so it sits above the good/bad keyword tests.
-        //   3. The epic save, before the plain-save rule swallows it.
-        //   4. Plain good, then plain bad. " WIN" (with its leading space) is the cup's round-end
+        //   3. Plain good, then plain bad. " WIN" (with its leading space) is the cup's round-end
         //      "BRAZIL WIN 4-2"; the space keeps a bare "WIN" from claiming words that merely
         //      contain it, and it is tested AFTER rule 1 so "KNOCKED OUT" can never turn green
         //      because some future line puts both words together.
@@ -255,8 +252,8 @@ namespace Trickshot
                 || t.StartsWith("HEADS") || t.StartsWith("TAILS"))
                 return FlashKind.Neutral;
 
-            // 3. Epic, before the plain SAVE rule below can take it.
-            if (t.Contains("EPIC")) return FlashKind.Epic;
+            // (The EPIC tier was removed with the epic save itself; a save is just a save now,
+            //  so the rule that used to sit here - EPIC before plain SAVE - is gone with it.)
 
             // 4. Good, then bad. "OVER"/"WIDE"/"POST" are ball-missed-the-goal words; GAME OVER is
             //    already handled above, which is why "OVER" is safe to test for here. " WIN" is
@@ -277,7 +274,6 @@ namespace Trickshot
             switch (KindOf(text))
             {
                 case FlashKind.Good: return FlashGood;
-                case FlashKind.Epic: return FlashEpic;
                 case FlashKind.Bad:  return FlashBad;
                 default:             return FlashNeutral;
             }
@@ -311,7 +307,6 @@ namespace Trickshot
 
             var kind = KindOf(text);
             Color tint = FlashTint(text);
-            bool epic = kind == FlashKind.Epic;
 
             float life = 1f - alpha;                                   // 0 at spawn -> 1 at death
             float inT  = Mathf.Clamp01(life / 0.18f);                  // punch-in window
@@ -326,10 +321,10 @@ namespace Trickshot
             var content = new GUIContent(label);
             Vector2 ts = _flash.CalcSize(content);
 
-            // The pill hugs its text, so a one-word callout stays genuinely small. Stars only take
-            // room on an epic save.
-            const float padX = 22f, barH = 34f, starW = 20f;
-            float w = ts.x + padX * 2f + (epic ? starW * 2f + 12f : 0f);
+            // The pill hugs its text, so a one-word callout stays genuinely small. (It used to
+            // widen for the flanking stars of an EPIC SAVE; that tier no longer exists.)
+            const float padX = 22f, barH = 34f;
+            float w = ts.x + padX * 2f;
             w = Mathf.Min(w, W * 0.7f);
             float x = W * 0.5f - w * 0.5f, y = top + rise;
             var band = new Rect(x, y, w, barH);
@@ -350,18 +345,8 @@ namespace Trickshot
             UITheme.Fill(new Rect(band.x, band.y, band.width, 2f), rule);
             UITheme.Fill(new Rect(band.x, band.yMax - 2f, band.width, 2f), rule);
 
-            // Stars flanking an epic save, drawn in the band colour.
-            if (epic)
-            {
-                var sc = tint; sc.a = a;
-                Star(band.x + padX * 0.5f + starW * 0.5f, band.center.y, 8.5f, sc);
-                Star(band.xMax - padX * 0.5f - starW * 0.5f, band.center.y, 8.5f, sc);
-            }
-
             // The word: a dark outline, then the coloured face over it.
-            float tx = epic ? band.x + starW + 6f : band.x;
-            float tw = epic ? band.width - (starW + 6f) * 2f : band.width;
-            var textRect = new Rect(tx, band.y, tw, barH);
+            var textRect = new Rect(band.x, band.y, band.width, barH);
             _flash.normal.textColor = new Color(0f, 0f, 0f, 0.8f * a);
             for (int dx = -1; dx <= 1; dx += 2)
                 for (int dy = -1; dy <= 1; dy += 2)
@@ -677,7 +662,6 @@ namespace Trickshot
 
             var kind = KindOf(big);
             Color accent = FlashTint(big);
-            bool epic = kind == FlashKind.Epic;
 
             // Extra darkening behind the card so it reads as the end of play.
             UITheme.Glow(new Rect(r.x - 140f, r.y - 110f, r.width + 280f, r.height + 220f),
@@ -685,13 +669,6 @@ namespace Trickshot
             UITheme.Panel(r, accent);
 
             UITheme.Shadowed(new Rect(x, y + 30f, w, 54f), big, _bannerBig, accent, 0.75f, 2.5f);
-            if (epic)
-            {
-                // Same flanking stars the epic callout gets, sized to this card's heading.
-                float half = _bannerBig.CalcSize(new GUIContent(big)).x * 0.5f;
-                Star(W * 0.5f - half - 26f, y + 57f, 13f, accent);
-                Star(W * 0.5f + half + 26f, y + 57f, 13f, accent);
-            }
             if (!string.IsNullOrEmpty(sub))
                 UITheme.Shadowed(new Rect(x, y + 94f, w, 30f), sub, _bannerSub, Ink, 0.7f, 2f);
 

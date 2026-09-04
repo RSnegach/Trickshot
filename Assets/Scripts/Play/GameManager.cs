@@ -262,7 +262,7 @@ namespace Trickshot
             // suspended through the replay hold + replay, so without this he'd stay slumped on
             // the deck for the whole celebration. ForceRecover pops him upright immediately.
             _striker.ForceRecover();
-            _replayHold = SimConfig.ReplayHold;   // arm the post-goal replay
+            _replayHold = SimConfig.ReplayHoldStriker;   // arm the post-goal replay (this mode's shorter hold)
         }
 
         // Freeze play, cut to the broadcast camera, and roll the buffered slow-mo replay.

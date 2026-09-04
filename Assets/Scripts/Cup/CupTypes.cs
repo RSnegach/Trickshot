@@ -178,7 +178,10 @@ namespace Trickshot
 
         // ---- stage ramp (AI strength, a pure function of the stage - never a knob) ------------
         /// <summary>AI keeper ability (SimConfig.KeeperAbility) per stage, R32..Final.</summary>
-        public static readonly float[] KeeperAbilityByStage = { 0.20f, 0.40f, 0.60f, 0.80f, 1.00f };
+        // 20% weaker than the ladder this used to hold (0.20..1.00), matching the same nerf
+        // applied to SimConfig.AiLevelAbility on the owner's call. The SHAPE is unchanged, so a
+        // later stage is still harder than an earlier one by the same steps.
+        public static readonly float[] KeeperAbilityByStage = { 0.16f, 0.32f, 0.48f, 0.64f, 0.80f };
         /// <summary>AI taker strength t per stage, R32..Final; maps through TakerMin/Max and PowerMin/Max.</summary>
         public static readonly float[] TakerTByStage = { 0.20f, 0.40f, 0.60f, 0.80f, 1.00f };
         /// <summary>combined = Lerp(TakerMin, TakerMax, t) for the aim model (SetPieceTaker combinedOverride). (tune)</summary>
